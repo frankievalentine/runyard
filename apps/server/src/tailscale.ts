@@ -47,6 +47,18 @@ export class TailscaleCli {
     return parseWhois(res.stdout);
   }
 
+  /**
+   * Whether Funnel serves `port` on localhost publicly, and at which URL. Read
+   * only: Runyard shows the command to set it up and never runs it.
+   */
+  async funnelFor(port: number): Promise<{ url: string | null } | Error> {
+    const res = await this.run([this.binary, "funnel", "status", "--json"], { timeoutMs: 10_000 });
+    if (res.code === 127) return notInstalled();
+    if (res.code !== 0)
+      return new Error(res.stderr.trim() || `tailscale funnel status failed (exit ${res.code}).`);
+    return { url: parseFunnel(res.stdout, port) };
+  }
+
   /** Writes the machine's certificate and key, renewing through the daemon when near expiry. */
   async cert(dnsName: string, certFile: string, keyFile: string): Promise<Error | undefined> {
     const res = await this.run(
@@ -59,6 +71,26 @@ export class TailscaleCli {
       return new Error(`tailscale cert failed: ${res.stderr.trim() || `exit ${res.code}`}`);
     return undefined;
   }
+}
+
+type ServeConfig = {
+  Web?: Record<string, { Handlers?: Record<string, { Proxy?: string }> }>;
+  AllowFunnel?: Record<string, boolean>;
+};
+
+/** The public URL whose Funnel handler proxies to localhost:`port`, if one does. */
+export function parseFunnel(json: string, port: number): string | null {
+  const config = parseJson<ServeConfig>(json);
+  const target = new RegExp(`^https?://(127\\.0\\.0\\.1|localhost):${port}(/|$)`);
+  for (const [hostPort, web] of Object.entries(config?.Web ?? {})) {
+    if (!config?.AllowFunnel?.[hostPort]) continue;
+    for (const [path, handler] of Object.entries(web.Handlers ?? {})) {
+      if (!handler.Proxy || !target.test(handler.Proxy)) continue;
+      const [host, p] = hostPort.split(":");
+      return `https://${host}${p && p !== "443" ? `:${p}` : ""}${path === "/" ? "" : path.replace(/\/$/, "")}`;
+    }
+  }
+  return null;
 }
 
 /** The CLI couldn't be started at all: Tailscale is optional, so say so plainly. */

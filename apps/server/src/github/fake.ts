@@ -40,6 +40,9 @@ export class FakeGithub {
   installations: Installation[] = [];
   /** Runners by organization name or `owner/repo`. */
   runners = new Map<string, Runner[]>();
+  /** The app's webhook, as Runyard last set it, and the events it subscribes to. */
+  hook: { url: string; secret: string | null } = { url: "", secret: null };
+  appEvents: string[] = [];
   /** Single-use runner configs handed out, and runners deleted through the API. */
   jitConfigs: { owner: string; name: string; labels: string[]; config: string; id: number }[] = [];
   deletedRunners: { owner: string; id: number }[] = [];
@@ -107,6 +110,20 @@ export class FakeGithub {
       const token = `ghs_${crypto.randomUUID()}`;
       this.tokens.set(token, id);
       return c.json({ token, expires_at: new Date(Date.now() + 3_600_000).toISOString() }, 201);
+    });
+    app.get("/app", (c) => {
+      if (!this.validJwt(c)) return c.json({ message: "Bad credentials" }, 401);
+      return c.json({ id: Number(this.appId), slug: "runyard-fake", events: this.appEvents });
+    });
+    app.get("/app/hook/config", (c) => {
+      if (!this.validJwt(c)) return c.json({ message: "Bad credentials" }, 401);
+      return c.json({ url: this.hook.url, content_type: "json", insecure_ssl: "0" });
+    });
+    app.patch("/app/hook/config", async (c) => {
+      if (!this.validJwt(c)) return c.json({ message: "Bad credentials" }, 401);
+      const body = (await c.req.json()) as { url: string; secret: string; content_type: string };
+      this.hook = { url: body.url, secret: body.secret };
+      return c.json({ url: body.url, content_type: body.content_type, insecure_ssl: "0" });
     });
     app.get("/app/installations", (c) => {
       if (!this.validJwt(c)) return c.json({ message: "Bad credentials" }, 401);

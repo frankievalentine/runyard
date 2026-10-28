@@ -18,6 +18,9 @@ export type ManifestConversion = {
   owner: { login: string; type: string };
 };
 
+/** Where an app's webhook secret is kept, for the webhook receiver and its setup. */
+export const webhookSecretId = (id: string) => `github.${id}.webhook_secret`;
+
 const secretIds = (id: string) => ({
   pem: `github.${id}.pem`,
   clientSecret: `github.${id}.client_secret`,

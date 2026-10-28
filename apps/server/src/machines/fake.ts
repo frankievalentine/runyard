@@ -13,9 +13,13 @@ export class FakeMachines {
   machines = new Map<string, Answer>();
   calls: string[][] = [];
 
+  /** What `tailscale funnel status --json` prints: nothing served, unless a test or the demo sets it. */
+  funnel = "{}";
   readonly run: CommandRunner = async (argv, options) => {
     this.calls.push([...argv]);
     if (argv[1] === "-V") return { code: 0, stdout: "", stderr: "OpenSSH_9.9p2, LibreSSL 3.3.6\n" };
+    if (argv[0] === "tailscale" && argv[1] === "funnel")
+      return { code: 0, stdout: this.funnel, stderr: "" };
     if (argv[0] === "tailscale" && argv[1] === "status") {
       return {
         code: 0,

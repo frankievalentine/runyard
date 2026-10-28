@@ -178,6 +178,26 @@ results appear on the pool page and in each machine's history. On-demand pools r
 macOS machines for now. The registration reaches the runner through its environment or its own
 config file, never on a command line.
 
+### GitHub webhooks
+
+Optional: without them Runyard notices queued jobs within about 45 seconds of polling; with
+them, within seconds. Runyard listens for webhooks only on `127.0.0.1:7444`
+(`RUNYARD_WEBHOOK_PORT`; `RUNYARD_WEBHOOKS=off` turns it off), and that listener serves nothing
+but signed `POST /webhooks/github` deliveries. Under **Settings ▸ Connections ▸ GitHub ▸
+Webhooks**:
+
+1. Expose the listener, for example with `tailscale funnel --bg http://127.0.0.1:7444` (Funnel
+   must be allowed for the machine in your tailnet policy). Runyard shows the command; it never
+   changes what's public on your tailnet itself.
+2. Set each app's webhook: Runyard points it at the public address with a fresh secret through
+   GitHub's API.
+3. In the app's settings on GitHub, tick **Active** and the **Workflow job** event. GitHub's API
+   can't change those.
+
+Each delivery's signature is checked against its app's secret and repeated deliveries are
+ignored. A delivery only makes Runyard re-read jobs and runners through the API and run a
+dispatch round; nothing in a payload is acted on.
+
 ### On-demand runners (boat.dev)
 
 Runyard shows jobs that ask for [boat.dev](https://docs.boat.dev/ci.md)'s labels (`boat`,
@@ -228,6 +248,8 @@ A passkey works only on the address it was added from.
 | `RUNYARD_TAILNET`         | `off` disables the tailnet HTTPS listener.                                                                                                                                                                                                 |
 | `RUNYARD_TAILNET_PORT`    | Tailnet HTTPS port (default `7443`). macOS lets any user bind `443`; Linux needs extra privileges for it.                                                                                                                                  |
 | `RUNYARD_TAILSCALE`       | Path to the `tailscale` CLI, if it isn't on `PATH`.                                                                                                                                                                                        |
+| `RUNYARD_WEBHOOK_PORT`    | Loopback port for GitHub webhooks (`7444`).                                                                                                                                                                                                |
+| `RUNYARD_WEBHOOKS`        | `off` to skip the webhook listener.                                                                                                                                                                                                        |
 | `RUNYARD_SSH`             | Path to `ssh` (default `/usr/bin/ssh` where it exists, else `ssh` on `PATH`).                                                                                                                                                              |
 | `RUNYARD_ORIGIN`          | The dashboard's public URL, such as `https://runyard.example.com`. Only needed behind a TLS-terminating reverse proxy on TCP, so passkeys verify against the address the browser uses.                                                     |
 

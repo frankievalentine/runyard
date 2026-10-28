@@ -5,6 +5,7 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
+import { Webhooks } from "../../components/Webhooks.tsx";
 import { Icon } from "../../components/icons.tsx";
 import {
   Callout,
@@ -79,6 +80,9 @@ function GithubSettings() {
             ))}
           </div>
         )}
+      </Section>
+      <Section title="Webhooks">
+        <Webhooks />
       </Section>
       <Section title="Create a GitHub App">
         <CreateApp />

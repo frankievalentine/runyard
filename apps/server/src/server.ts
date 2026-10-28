@@ -26,6 +26,7 @@ import { installedPrograms, type SshPrograms } from "./machines/ssh.ts";
 import { loadSecretKey, SecretStore } from "./secrets.ts";
 import { setupChecks, type TailnetState } from "./setup/checks.ts";
 import { TailnetListener } from "./tailnet.ts";
+import { WebhookReceiver } from "./webhooks/receiver.ts";
 import { TailscaleCli, WhoisCache } from "./tailscale.ts";
 
 /**
@@ -115,6 +116,33 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     process.env.RUNYARD_TAILNET === "off"
       ? { kind: "off" }
       : (tailnet?.state ?? { kind: "starting" });
+  // GitHub webhooks: their own loopback listener, for Funnel or a reverse proxy to expose.
+  const receiver = new WebhookReceiver({
+    db,
+    secrets,
+    github,
+    afterRefresh: async () => {
+      monitor?.tick();
+      await dispatcher.tick();
+    },
+  });
+  let webhookPort: number | null = null;
+  if (process.env.RUNYARD_WEBHOOKS !== "off") {
+    const port = Number(process.env.RUNYARD_WEBHOOK_PORT ?? 7444);
+    try {
+      Bun.serve({
+        hostname: "127.0.0.1",
+        port,
+        maxRequestBodySize: 1_000_000,
+        fetch: (r) => receiver.handle(r),
+      });
+      webhookPort = port;
+    } catch (error) {
+      console.log(
+        `Webhook listener: couldn't listen on 127.0.0.1:${port}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
   const shared = {
     db,
     setup,
@@ -133,6 +161,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     apiBase: overrides.githubApiBase,
     webBase: overrides.githubWebBase,
     tailnetState,
+    webhooks: { port: webhookPort, receiver, funnel: (port: number) => tailscale.funnelFor(port) },
     setupChecks: () => setupChecks({ run, programs, tailnet: tailnetState, dataDir: dir }),
   };
   const deps = (listener: AppDeps["listener"]): AppDeps => ({ ...shared, listener });

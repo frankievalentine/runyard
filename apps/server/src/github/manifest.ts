@@ -26,9 +26,10 @@ export function buildManifest(name: string, origin: string) {
     setup_on_update: true,
     public: false,
     default_permissions: APP_PERMISSIONS,
-    default_events: [],
-    // Polling for now; webhooks are an opt-in for later.
-    hook_attributes: { url: `${origin}/api/github/webhook`, active: false },
+    // Subscribed from the start, but inactive: polling works without webhooks, and
+    // GitHub's API can't switch a hook on, so that's one checkbox once a public URL exists.
+    default_events: ["workflow_job"],
+    hook_attributes: { url: `${origin}/webhooks/github`, active: false },
   };
 }
 

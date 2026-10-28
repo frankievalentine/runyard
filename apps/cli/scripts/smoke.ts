@@ -21,6 +21,7 @@ const child = Bun.spawn([binary], {
     RUNYARD_DATA_DIR: dataDir,
     RUNYARD_PORT: String(free),
     RUNYARD_TAILNET: "off",
+    RUNYARD_WEBHOOKS: "off",
     RUNYARD_TAILSCALE: join(dataDir, "no-tailscale"),
   },
   stdout: "inherit",

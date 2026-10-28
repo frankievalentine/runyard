@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { parseSelf, parseWhois, TailscaleCli, WhoisCache } from "./tailscale.ts";
+import { parseFunnel, parseSelf, parseWhois, TailscaleCli, WhoisCache } from "./tailscale.ts";
 
 const status = (over: object = {}) =>
   JSON.stringify({
@@ -71,4 +71,22 @@ test("a missing Tailscale CLI reads as not installed, not as a spawn error", asy
   const status = await cli.status();
   expect(self instanceof Error && self.message).toContain("Tailscale isn't installed here");
   expect(status instanceof Error && status.message).not.toContain("ENOENT");
+});
+
+test("parseFunnel finds the public URL proxying to a local port", () => {
+  const status = JSON.stringify({
+    TCP: { "443": { HTTPS: true } },
+    Web: { "mini.tail1.ts.net:443": { Handlers: { "/": { Proxy: "http://127.0.0.1:7444" } } } },
+    AllowFunnel: { "mini.tail1.ts.net:443": true },
+  });
+  expect(parseFunnel(status, 7444)).toBe("https://mini.tail1.ts.net");
+  expect(parseFunnel(status, 7445)).toBeNull();
+  // Served only on the tailnet, not through Funnel.
+  expect(
+    parseFunnel(
+      status.replace('"AllowFunnel":{"mini.tail1.ts.net:443":true}', '"AllowFunnel":{}'),
+      7444,
+    ),
+  ).toBeNull();
+  expect(parseFunnel("{}", 7444)).toBeNull();
 });

@@ -162,6 +162,10 @@ Further packages are extracted when a boundary is proven, not up front.
      until there's a Windows design.
    - Webhooks: GitHub `workflow_job` on a separate listener that accepts only signed webhook POSTs
      (HMAC), exposed through Tailscale Funnel or a public URL. A speed-up only: polling stays.
+   - (Done, against fakes. Decided: Runyard shows the Funnel command and reads Funnel's status
+     but never runs it; a delivery is only a nudge to re-read through the API. New apps
+     subscribe to `workflow_job` with the hook inactive; existing ones need Active and the event
+     ticked in GitHub, which the API can't change.)
 
 ## Pending live verification
 
@@ -190,6 +194,8 @@ Built and tested only against fakes. Deferred until a real service or machine is
   the Default group, forgejo-runner `one-job` with an ephemeral registration, and runners
   surviving the SSH session (on systemd hosts with `KillUserProcesses=yes`, a one-job runner may
   be stopped at logout; lingering or a service would avoid it).
+- GitHub webhooks: a real delivery through Funnel, `tailscale funnel status --json`'s shape
+  as parsed, and `PATCH /app/hook/config` on a real app.
 - The read-only boat connection: built from boat's API docs. The per-VM `cost` object's fields
   (assumed `dollars`) and the `ci-<repo>-<job id>` VM names are documented but unseen. `install.sh` has run on macOS and in a Debian container, and the
   Linux binaries run there.

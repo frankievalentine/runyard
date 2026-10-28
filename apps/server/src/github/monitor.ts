@@ -132,6 +132,11 @@ export class GithubMonitor {
    * The installation client that can act on a scope: the app's installation on
    * the organization, or on the account owning the repository.
    */
+  /** The app-level client (authenticated as the app itself), for its own settings. */
+  appClient(forgeId: string): GithubHttp | null {
+    return this.apps.get(forgeId)?.http ?? null;
+  }
+
   clientFor(scope: Scope): GithubHttp | null {
     const app = this.apps.get(scope.forgeId);
     const owner = (

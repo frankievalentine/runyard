@@ -15,6 +15,7 @@ import { BoatMonitor } from "./boat/monitor.ts";
 import { FakeMachines } from "./machines/fake.ts";
 import { importKey } from "./crypto.ts";
 import { SecretStore } from "./secrets.ts";
+import { WebhookReceiver } from "./webhooks/receiver.ts";
 import { setupChecks, type TailnetState } from "./setup/checks.ts";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -102,6 +103,19 @@ export async function testApp(
     onChange: () => monitor?.tick(),
   });
 
+  const receiver = new WebhookReceiver({
+    db,
+    secrets,
+    github,
+    afterRefresh: async () => {
+      monitor?.tick();
+      await dispatcher.tick();
+    },
+    now: () => clock.now,
+    nudgeDelayMs: 0,
+  });
+  /** What Tailscale reports Funnel serving; tests set it. */
+  const funnel: { url: string | null } = { url: null };
   const deps: AppDeps = {
     db,
     monitor,
@@ -121,6 +135,7 @@ export async function testApp(
     // Tests name the connecting device's login with a header; production asks `tailscale whois`.
     tailnetLogin: async (c) => c.req.header("X-Test-Tailnet-Login")?.toLowerCase() ?? null,
     tailnetState: () => tailnet.state,
+    webhooks: { port: 7444, receiver, funnel: async () => funnel },
     setupChecks: () =>
       setupChecks({
         run: fake.run,
@@ -149,6 +164,8 @@ export async function testApp(
     boat,
     fakeBoat,
     dispatcher,
+    receiver,
+    funnel,
   };
 }
 

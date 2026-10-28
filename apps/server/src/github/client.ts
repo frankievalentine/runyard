@@ -71,7 +71,11 @@ export class GithubHttp {
   }
 
   /** A write (POST, PUT, DELETE). Never cached. */
-  async send(method: "POST" | "PUT" | "DELETE", path: string, body?: unknown): Promise<unknown> {
+  async send(
+    method: "POST" | "PUT" | "PATCH" | "DELETE",
+    path: string,
+    body?: unknown,
+  ): Promise<unknown> {
     const url = `${this.apiBase.replace(/\/$/, "")}${path}`;
     let res: Response;
     try {

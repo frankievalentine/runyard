@@ -19,6 +19,7 @@ import { githubRoutes, type GithubDeps } from "./routes/github.ts";
 import { forgejoRoutes } from "./routes/forgejo.ts";
 import { setupRoutes, type SetupDeps } from "./routes/setup.ts";
 import { boatRoutes } from "./routes/boat.ts";
+import { webhookRoutes, type WebhookDeps } from "./routes/webhooks.ts";
 import type { BoatMonitor } from "./boat/monitor.ts";
 import { poolRoutes } from "./routes/pools.ts";
 import type { ForgejoMonitor } from "./forgejo/monitor.ts";
@@ -40,6 +41,7 @@ export type AppDeps = {
   engine: PoolEngine;
   forgejo: ForgejoMonitor;
   boat: BoatMonitor;
+  webhooks: WebhookDeps["webhooks"];
 } & Omit<GithubDeps, "db" | "listener"> &
   Omit<SetupDeps, "db">;
 
@@ -79,7 +81,8 @@ export function createApi(deps: AppDeps, build: string | null = null) {
     .route("/", poolRoutes(deps))
     .route("/forgejo", forgejoRoutes(deps))
     .route("/", setupRoutes(deps))
-    .route("/boat", boatRoutes(deps));
+    .route("/boat", boatRoutes(deps))
+    .route("/webhooks", webhookRoutes(deps));
 }
 
 /** Imported by the dashboard for the typed `hc` client. */
