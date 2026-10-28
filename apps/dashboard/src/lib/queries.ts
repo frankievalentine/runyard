@@ -20,3 +20,8 @@ export const usersQuery = queryOptions({
 });
 
 export type UserView = Awaited<ReturnType<NonNullable<(typeof usersQuery)["queryFn"]>>>[number];
+
+export const passkeysQuery = queryOptions({
+  queryKey: ["passkeys"],
+  queryFn: () => call(api.passkeys.$get()),
+});

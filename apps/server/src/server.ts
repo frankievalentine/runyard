@@ -1,6 +1,7 @@
 import { chmod, lstat, mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { createApp, type AppDeps } from "./app.ts";
+import { Challenges } from "./auth/passkeys.ts";
 import { FailureLimiter } from "./auth/rate-limit.ts";
 import { pruneSessions } from "./auth/sessions.ts";
 import { SetupCode } from "./auth/setup.ts";
@@ -30,7 +31,14 @@ export async function start(dashboard?: DashboardAssets) {
     );
   });
   const limiter = new FailureLimiter(10, 15 * 60 * 1000);
-  const deps = (listener: AppDeps["listener"]): AppDeps => ({ db, listener, setup, limiter });
+  const challenges = new Challenges();
+  const deps = (listener: AppDeps["listener"]): AppDeps => ({
+    db,
+    listener,
+    setup,
+    limiter,
+    challenges,
+  });
 
   pruneSessions(db);
   setInterval(() => pruneSessions(db), 60 * 60 * 1000).unref();

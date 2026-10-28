@@ -1,5 +1,6 @@
 import init from "./0000_init.sql" with { type: "text" };
 import auth from "./0001_auth.sql" with { type: "text" };
+import passkeys from "./0002_passkeys.sql" with { type: "text" };
 
 /**
  * Every migration drizzle-kit generated, oldest first. Add new files here;
@@ -8,6 +9,7 @@ import auth from "./0001_auth.sql" with { type: "text" };
 export const migrations: readonly Migration[] = [
   { name: "0000_init", sql: init },
   { name: "0001_auth", sql: auth },
+  { name: "0002_passkeys", sql: passkeys },
 ];
 
 export type Migration = { name: string; sql: string };

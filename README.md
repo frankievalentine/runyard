@@ -50,6 +50,12 @@ Requests through the socket carry Tailscale's identity, so users whose Tailscale
 **Users** are signed in automatically. Tailscale identity is trusted only on the socket; on TCP,
 users sign in with a username and password.
 
+## Passkeys
+
+Signed-in users can add passkeys under **Account** and then sign in without a password. Passkeys
+need HTTPS or `localhost`, so they're available through `tailscale serve` but not over plain HTTP.
+A passkey works only on the address it was added from.
+
 ## Configuration
 
 | Variable                  | Effect                                                                                                                                                                                                                                     |
@@ -60,6 +66,7 @@ users sign in with a username and password.
 | `RUNYARD_SECRET_KEY`      | Base64 32-byte key (`openssl rand -base64 32`) that encrypts stored credentials.                                                                                                                                                           |
 | `RUNYARD_SECRET_KEY_FILE` | File holding that key. Used when `RUNYARD_SECRET_KEY` is unset; defaults to `secret.key` in the data directory, generated with mode `600` on first start.                                                                                  |
 | `RUNYARD_SOCKET`          | Unix socket for `tailscale serve` (default `runyard.sock` in the data directory, mode `600`); `off` disables it.                                                                                                                           |
+| `RUNYARD_ORIGIN`          | The dashboard's public URL, such as `https://runyard.example.com`. Only needed behind a TLS-terminating reverse proxy on TCP, so passkeys verify against the address the browser uses.                                                     |
 
 A key file in the data directory only protects a copy of the database taken on its own, such as a
 backup. To keep the two apart, pass the key through the environment or a file stored elsewhere.

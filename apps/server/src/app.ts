@@ -1,15 +1,23 @@
 import { Hono } from "hono";
 import pkg from "../package.json" with { type: "json" };
 import { identify, sameOriginWrites, type AppEnv, type Listener } from "./auth/identity.ts";
+import type { Challenges } from "./auth/passkeys.ts";
 import type { FailureLimiter } from "./auth/rate-limit.ts";
 import type { SetupCode } from "./auth/setup.ts";
 import { UserError } from "./auth/users.ts";
 import { serveDashboard, type DashboardAssets } from "./dashboard.ts";
 import type { Db } from "./db/index.ts";
 import { authRoutes } from "./routes/auth.ts";
+import { passkeyRoutes } from "./routes/passkeys.ts";
 import { userRoutes } from "./routes/users.ts";
 
-export type AppDeps = { db: Db; listener: Listener; setup: SetupCode; limiter: FailureLimiter };
+export type AppDeps = {
+  db: Db;
+  listener: Listener;
+  setup: SetupCode;
+  limiter: FailureLimiter;
+  challenges: Challenges;
+};
 
 export function createApi(deps: AppDeps) {
   return new Hono<AppEnv>()
@@ -18,6 +26,7 @@ export function createApi(deps: AppDeps) {
     .use(identify(deps.db, deps.listener))
     .get("/health", (c) => c.json({ ok: true, version: pkg.version }))
     .route("/", authRoutes(deps))
+    .route("/passkeys", passkeyRoutes(deps))
     .route("/users", userRoutes(deps.db));
 }
 

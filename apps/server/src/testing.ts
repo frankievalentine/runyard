@@ -1,5 +1,6 @@
 import { createApp, type AppDeps } from "./app.ts";
 import type { Listener } from "./auth/identity.ts";
+import { Challenges } from "./auth/passkeys.ts";
 import { FailureLimiter } from "./auth/rate-limit.ts";
 import { SetupCode } from "./auth/setup.ts";
 import type { DashboardAssets } from "./dashboard.ts";
@@ -17,6 +18,7 @@ export function testApp(
     listener: options.listener ?? "tcp",
     setup,
     limiter: new FailureLimiter(10, 15 * 60 * 1000),
+    challenges: new Challenges(),
   };
   const app = createApp(deps, options.dashboard);
   return { app, deps, codes, setup };
@@ -46,4 +48,9 @@ export function sessionCookie(res: Response): string {
   const set = res.headers.getSetCookie().find((c) => c.startsWith("runyard_session="));
   if (!set) throw new Error("No session cookie was set.");
   return set.split(";")[0]!;
+}
+
+/** A response's JSON body, typed by the caller. */
+export async function body<T>(res: Response | Promise<Response>): Promise<T> {
+  return (await (await res).json()) as T;
 }

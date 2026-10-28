@@ -16,6 +16,7 @@
   "dependencies": {
     "@hono/zod-validator": "^0.9.1",
     "@runyard/core": "workspace:*",
+    "@simplewebauthn/server": "^13",
     "drizzle-orm": "^0.45",
     "hono": "^4",
     "zod": "^4"

@@ -93,6 +93,29 @@ export function clearSessionCookie(c: Context) {
 }
 
 /**
+ * The dashboard's origin and WebAuthn relying-party ID as the browser sees
+ * them. `RUNYARD_ORIGIN` pins them (needed behind a TLS-terminating proxy on
+ * TCP, whose forwarded headers can't be trusted); otherwise the socket trusts
+ * its proxy's forwarded headers and TCP uses the request itself.
+ */
+export function requestOrigin(
+  c: Context,
+  listener: Listener,
+  configured = process.env.RUNYARD_ORIGIN,
+) {
+  let origin: string;
+  if (configured) origin = new URL(configured).origin;
+  else if (listener === "socket") {
+    const proto = c.req.header("X-Forwarded-Proto") ?? "http";
+    origin = `${proto}://${c.req.header("X-Forwarded-Host") ?? c.req.header("Host")}`;
+  } else {
+    const url = new URL(c.req.url);
+    origin = `${url.protocol}//${c.req.header("Host") ?? url.host}`;
+  }
+  return { origin, rpId: new URL(origin).hostname };
+}
+
+/**
  * `Secure` only over HTTPS, so sign-in still works over plain HTTP on an
  * already-encrypted network such as WireGuard. The socket's proxy is trusted
  * to report the scheme.

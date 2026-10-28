@@ -50,3 +50,24 @@ export const sessions = sqliteTable(
   },
   (t) => [index("sessions_user_id").on(t.userId)],
 );
+
+/** WebAuthn credentials. A passkey only works on the host name (`rpId`) it was registered on. */
+export const passkeys = sqliteTable(
+  "passkeys",
+  {
+    /** The credential ID, base64url. */
+    id: text().primaryKey(),
+    userId: text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    publicKey: blob({ mode: "buffer" }).notNull(),
+    counter: integer().notNull(),
+    /** JSON array of the authenticator's transports, used as hints when signing in. */
+    transports: text(),
+    rpId: text().notNull(),
+    name: text().notNull(),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull(),
+    lastUsedAt: integer({ mode: "timestamp_ms" }),
+  },
+  (t) => [index("passkeys_user_id").on(t.userId)],
+);

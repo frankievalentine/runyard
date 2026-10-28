@@ -1,54 +1,21 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { z } from "zod";
-import {
-  clearSessionCookie,
-  requireUser,
-  setSessionCookie,
-  type AppEnv,
-  type Listener,
-} from "../auth/identity.ts";
+import { clearSessionCookie, requireUser, type AppEnv, type Listener } from "../auth/identity.ts";
 import type { FailureLimiter } from "../auth/rate-limit.ts";
-import { createSession, revokeOtherSessions, revokeSession } from "../auth/sessions.ts";
+import { revokeOtherSessions, revokeSession } from "../auth/sessions.ts";
 import type { SetupCode } from "../auth/setup.ts";
-import {
-  adminCount,
-  createUser,
-  setPassword,
-  toView,
-  verifyLogin,
-  type User,
-} from "../auth/users.ts";
+import { sessionView, signIn } from "../auth/signin.ts";
+import { adminCount, createUser, setPassword, verifyLogin, type User } from "../auth/users.ts";
 import type { Db } from "../db/index.ts";
 import { json, password, username } from "./validate.ts";
 
 export type AuthDeps = { db: Db; listener: Listener; setup: SetupCode; limiter: FailureLimiter };
 
 export function authRoutes({ db, listener, setup, limiter }: AuthDeps) {
-  /** Tailscale-linked users on the socket need no cookie; everyone else gets a fresh session. */
-  const signIn = (c: Context<AppEnv>, user: User): "tailscale" | "session" => {
-    const identity = c.get("identity");
-    if (identity.tailscaleLogin && identity.tailscaleLogin === user.tailscaleLogin)
-      return "tailscale";
-    if (identity.sessionToken) revokeSession(db, identity.sessionToken);
-    setSessionCookie(c, listener, createSession(db, user.id));
-    return "session";
-  };
-
-  const sessionView = (
-    c: Context<AppEnv>,
-    user: User | undefined,
-    via: "tailscale" | "session" | null,
-  ) => ({
-    user: user ? toView(user) : null,
-    via: user ? via : null,
-    tailscaleLogin: c.get("identity").tailscaleLogin,
-    setupRequired: adminCount(db) === 0,
-  });
-
   return new Hono<AppEnv>()
     .get("/session", (c) => {
       const { user, via } = c.get("identity");
-      return c.json(sessionView(c, user, via));
+      return c.json(sessionView(db, c, user, via));
     })
     .post(
       "/setup",
@@ -86,7 +53,7 @@ export function authRoutes({ db, listener, setup, limiter }: AuthDeps) {
           setup.issue();
           throw error;
         }
-        return c.json(sessionView(c, user, signIn(c, user)));
+        return c.json(sessionView(db, c, user, signIn(db, listener, c, user)));
       },
     )
     .post("/login", json(z.object({ username: z.string(), password: z.string() })), async (c) => {
@@ -100,7 +67,7 @@ export function authRoutes({ db, listener, setup, limiter }: AuthDeps) {
         return c.json({ error: "Wrong username or password." }, 401);
       }
       limiter.reset(key);
-      return c.json(sessionView(c, user, signIn(c, user)));
+      return c.json(sessionView(db, c, user, signIn(db, listener, c, user)));
     })
     .post("/logout", (c) => {
       const { sessionToken } = c.get("identity");

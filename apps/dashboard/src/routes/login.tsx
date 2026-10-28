@@ -5,6 +5,7 @@ import { api, call } from "../api.ts";
 import { AuthCard } from "../components/AuthCard.tsx";
 import { Button, TextField } from "../components/form.tsx";
 import { ErrorText } from "../components/ui.tsx";
+import { passkeysAvailable, signInWithPasskey } from "../lib/passkeys.ts";
 import { sessionQuery } from "../lib/queries.ts";
 
 export const Route = createFileRoute("/login")({
@@ -25,6 +26,14 @@ function Login() {
 
   const login = useMutation({
     mutationFn: () => call(api.login.$post({ json: { username, password } })),
+    onSuccess: (next) => {
+      queryClient.setQueryData(sessionQuery.queryKey, next);
+      void navigate({ to: "/" });
+    },
+  });
+
+  const passkey = useMutation({
+    mutationFn: signInWithPasskey,
     onSuccess: (next) => {
       queryClient.setQueryData(sessionQuery.queryKey, next);
       void navigate({ to: "/" });
@@ -66,6 +75,14 @@ function Login() {
           Sign in
         </Button>
       </form>
+      {passkeysAvailable() && (
+        <div className="mt-4 flex flex-col gap-2 border-t border-line pt-4">
+          <Button onClick={() => passkey.mutate()} disabled={passkey.isPending}>
+            Sign in with a passkey
+          </Button>
+          {passkey.error && <ErrorText error={passkey.error} />}
+        </div>
+      )}
     </AuthCard>
   );
 }
