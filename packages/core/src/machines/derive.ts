@@ -1,3 +1,5 @@
+import { deriveGithub, type GithubView } from "../github/derive.ts";
+import type { GithubAppObservation } from "../github/model.ts";
 import { evaluateDiagnostics } from "./diagnostics.ts";
 import {
   canHostRunners,
@@ -89,6 +91,7 @@ export type FleetView = {
   discovered: PeerView[];
   ignored: PeerView[];
   alerts: Alert[];
+  github: GithubView;
 };
 
 /** The whole dashboard view, from configuration and observations. No I/O. */
@@ -98,6 +101,7 @@ export function deriveFleet(input: {
   tailnet: TailnetObservation;
   ignoredNodeIds: ReadonlySet<string>;
   states: ReadonlyMap<string, MachineState>;
+  github?: GithubAppObservation[];
   now: number;
 }): FleetView {
   const { now, tailnet } = input;
@@ -155,6 +159,7 @@ export function deriveFleet(input: {
       .map(peerView),
     ignored: candidates.filter((p) => input.ignoredNodeIds.has(p.nodeId)).map(peerView),
     alerts: machines.flatMap((m) => m.alerts),
+    github: deriveGithub(input.github ?? [], now),
   };
 }
 

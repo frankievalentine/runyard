@@ -1,5 +1,10 @@
 import { expect, test } from "vite-plus/test";
-import { deriveIssues, type FleetView, type MachineView } from "../../src/index.ts";
+import {
+  deriveIssues,
+  emptyGithubView,
+  type FleetView,
+  type MachineView,
+} from "../../src/index.ts";
 
 const machine = (over: Partial<MachineView>): MachineView => ({
   id: "m1",
@@ -53,6 +58,7 @@ const view = (machines: MachineView[], error: string | null = null): FleetView =
   discovered: [],
   ignored: [],
   alerts: machines.flatMap((m) => m.alerts),
+  github: emptyGithubView,
 });
 
 test("lists warnings, SSH failures and a tailnet problem", () => {
