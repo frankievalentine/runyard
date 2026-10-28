@@ -228,7 +228,7 @@ function AddUser() {
           <label className="flex flex-col gap-1.5">
             <span className="text-[12px] font-medium text-ink-2">Role</span>
             <select
-              className="input"
+              className="input !w-40"
               value={role}
               onChange={(e) => setRole(e.target.value as Role)}
             >

@@ -91,6 +91,30 @@ export function SetupChecklist() {
             {!s.done && actions[s.id]}
           </li>
         ))}
+        <li className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
+          <span
+            className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] ${view.boat ? "bg-ok text-white" : "border border-dashed border-line text-ink-3"}`}
+          >
+            {view.boat ? <Icon name="check" size={11} /> : "+"}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className={view.boat ? "text-ink-2" : "font-medium"}>
+              Connect boat.dev{" "}
+              <span className="text-[12px] font-normal text-ink-3">· optional</span>
+            </div>
+            {!view.boat && (
+              <div className="text-[12px] text-ink-2">
+                For jobs with runs-on: boat: live cost, VM limits and VMs left running. Not needed
+                for your own machines.
+              </div>
+            )}
+          </div>
+          {!view.boat && (
+            <Link to="/boat" className={button}>
+              Set up boat.dev
+            </Link>
+          )}
+        </li>
       </ol>
       {problems.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line bg-warn/5 px-4 py-2.5 text-[12.5px]">

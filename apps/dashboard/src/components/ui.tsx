@@ -384,7 +384,7 @@ export function SubHeader({
   return (
     <header className="mt-6 flex flex-wrap items-start gap-3">
       <div className="min-w-0 flex-1">
-        {back && <div className="mb-1 text-[12.5px]">{back}</div>}
+        {back && <div className="mb-3 text-[12.5px]">{back}</div>}
         <h2 className="text-[15px] font-semibold">{title}</h2>
         {subtitle && <div className="mt-1 max-w-2xl text-[13px] text-ink-2">{subtitle}</div>}
       </div>

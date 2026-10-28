@@ -59,7 +59,17 @@ export function createApi(deps: AppDeps, build: string | null = null) {
     .use(sameOriginWrites())
     .use(identify(deps.db, deps.listener, deps.tailnetLogin))
     .get("/health", (c) =>
-      c.json({ ok: true, version: pkg.version, build, demo: deps.demo ?? false }),
+      c.json({
+        ok: true,
+        version: pkg.version,
+        build,
+        demo: deps.demo ?? false,
+        // This machine's tailnet name while Runyard serves there, for the sidebar.
+        tailnetHost: (() => {
+          const state = deps.tailnetState();
+          return state.kind === "serving" ? new URL(state.url).hostname : null;
+        })(),
+      }),
     )
     .route("/", authRoutes(deps))
     .route("/passkeys", passkeyRoutes(deps))

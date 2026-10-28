@@ -1,7 +1,7 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
 import type { BoatVm } from "@runyard/core";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
@@ -37,6 +37,14 @@ function BoatPage() {
   const queued = view.queue.jobs.filter((j) => j.onDemand === "boat.dev");
   return (
     <div>
+      {admin && (
+        <Link
+          to="/settings/connections"
+          className="mb-4 inline-block text-[12.5px] text-accent hover:underline"
+        >
+          ← Connections
+        </Link>
+      )}
       <PageHeader
         icon={<Icon name="runner" size={16} />}
         title="boat.dev"

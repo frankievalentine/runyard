@@ -1,5 +1,7 @@
 import type { FleetView, RunnerView } from "@runyard/core";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { healthQuery } from "../lib/queries.ts";
 import type { ReactNode } from "react";
 import { navKey, type NavItem } from "../lib/nav.ts";
 import {
@@ -58,6 +60,9 @@ export function Sidebar({
     if (r.machineId) byMachine.set(r.machineId, [...(byMachine.get(r.machineId) ?? []), r]);
   }
   const is = (item: NavItem) => navKey(item) === selected;
+  // Which Runyard this is: its tailnet name while it serves there, else the address in use.
+  const tailnetHost = useQuery(healthQuery).data?.tailnetHost;
+  const where = tailnetHost ? tailnetHost.replace(/\.ts\.net$/, "") : window.location.host;
 
   return (
     <aside
@@ -70,9 +75,7 @@ export function Sidebar({
         </span>
         <div className="min-w-0 leading-tight">
           <div className="text-[13px] font-semibold">Runyard</div>
-          <div className="mt-0.5 truncate text-[11px] text-ink-2">
-            {view.tailnet.name ? `${view.tailnet.name} · self-hosted` : "Self-hosted runners"}
-          </div>
+          <div className="mt-0.5 truncate text-[11px] text-ink-2">{where}</div>
         </div>
       </div>
       <nav className="space-y-0.5 p-2" aria-label="Overview">
