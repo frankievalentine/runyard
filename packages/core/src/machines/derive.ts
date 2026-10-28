@@ -1,5 +1,13 @@
-import { deriveGithub, type GithubView } from "../github/derive.ts";
+import { deriveForgejo, type ForgejoView } from "../forgejo/derive.ts";
+import type { ForgejoConnectionObservation } from "../forgejo/model.ts";
+import {
+  deriveGithub,
+  type GithubView,
+  type QueuedJobView,
+  type RunnerView,
+} from "../github/derive.ts";
 import type { GithubAppObservation } from "../github/model.ts";
+import type { ForgeKind } from "../model.ts";
 import { scopeKey } from "../scope.ts";
 import { desiredRunners, nameCollisions } from "../pools/desired.ts";
 import type { DesiredRunner, Pool } from "../pools/model.ts";
@@ -96,6 +104,12 @@ export type FleetView = {
   ignored: PeerView[];
   alerts: Alert[];
   github: GithubView;
+  forgejo: ForgejoView;
+  /** Every forge's runners, sorted by name. */
+  runners: RunnerView[];
+  /** Every forge's self-hosted jobs waiting for a runner. */
+  queue: { jobs: QueuedJobView[]; complete: boolean; at: number | null };
+  summary: { runners: number; busy: number; idle: number; offline: number; unknown: number };
   pools: PoolsView;
 };
 
@@ -117,6 +131,7 @@ export function deriveFleet(input: {
   ignoredNodeIds: ReadonlySet<string>;
   states: ReadonlyMap<string, MachineState>;
   github?: GithubAppObservation[];
+  forgejo?: ForgejoConnectionObservation[];
   pools?: Pool[];
   registrations?: Registration[];
   now: number;
@@ -176,17 +191,48 @@ export function deriveFleet(input: {
       .map(peerView),
     ignored: candidates.filter((p) => input.ignoredNodeIds.has(p.nodeId)).map(peerView),
     alerts: machines.flatMap((m) => m.alerts),
-    github: deriveGithub(
-      input.github ?? [],
-      now,
-      new Map(
-        (input.registrations ?? []).map((r) => [
-          `${scopeKey(r.scope)}:${r.runnerName.toLowerCase()}`,
-          r.machineId,
-        ]),
-      ),
+    ...forges(input.github ?? [], input.forgejo ?? [], input.registrations ?? [], now),
+    pools: poolsView(
+      input.pools ?? [],
+      input.registrations ?? [],
+      machines,
+      new Map<string, ForgeKind>([
+        ...(input.github ?? []).map((g): [string, ForgeKind] => [g.forgeId, "github"]),
+        ...(input.forgejo ?? []).map((f): [string, ForgeKind] => [f.forgeId, "forgejo"]),
+      ]),
     ),
-    pools: poolsView(input.pools ?? [], input.registrations ?? [], machines),
+  };
+}
+
+/** Both forges' views, and their runners, queue and counts merged. */
+function forges(
+  github: GithubAppObservation[],
+  forgejo: ForgejoConnectionObservation[],
+  registrations: Registration[],
+  now: number,
+) {
+  const links = new Map(
+    registrations.map((r) => [`${scopeKey(r.scope)}:${r.runnerName.toLowerCase()}`, r.machineId]),
+  );
+  const gh = deriveGithub(github, now, links);
+  const fj = deriveForgejo(forgejo, now, links);
+  const runners = [...gh.runners, ...fj.runners].sort(
+    (a, b) => a.name.localeCompare(b.name) || a.scopeLabel.localeCompare(b.scopeLabel),
+  );
+  const summary = { runners: runners.length, busy: 0, idle: 0, offline: 0, unknown: 0 };
+  for (const r of runners) summary[r.activity]++;
+  const at = [gh.queue.at, fj.queue.at].filter((t): t is number => t !== null);
+  return {
+    github: gh,
+    forgejo: fj,
+    runners,
+    summary,
+    queue: {
+      jobs: [...gh.queue.jobs, ...fj.queue.jobs].sort((a, b) => a.createdAt - b.createdAt),
+      complete:
+        (github.length === 0 || gh.queue.complete) && (forgejo.length === 0 || fj.queue.complete),
+      at: at.length ? Math.min(...at) : null,
+    },
   };
 }
 
@@ -194,9 +240,10 @@ function poolsView(
   pools: Pool[],
   registrations: Registration[],
   machines: MachineView[],
+  forgeKinds: ReadonlyMap<string, ForgeKind>,
 ): PoolsView {
   const info = new Map(machines.map((m) => [m.id, { name: m.name, os: m.os }]));
-  const desired = desiredRunners(pools, info);
+  const desired = desiredRunners(pools, info, forgeKinds);
   return { pools, desired, collisions: nameCollisions(desired), registrations };
 }
 

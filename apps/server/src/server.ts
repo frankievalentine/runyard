@@ -15,6 +15,7 @@ import { openDatabase } from "./db/index.ts";
 import type { Fetch } from "./github/client.ts";
 import { ManifestStates } from "./github/manifest.ts";
 import { GithubMonitor } from "./github/monitor.ts";
+import { ForgejoMonitor } from "./forgejo/monitor.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
 import { PoolEngine } from "./pools/engine.ts";
 import { listPools, listRegistrations } from "./pools/store.ts";
@@ -59,12 +60,14 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   // The machine monitor publishes the whole view; GitHub polls ask it to.
   let monitor: MachineMonitor | undefined;
   const github = new GithubMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
+  const forgejo = new ForgejoMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
   monitor = new MachineMonitor({
     db,
     run,
     programs: overrides.programs ?? installedPrograms(),
     tailscale,
     github: () => github.observations(),
+    forgejo: () => forgejo.observations(),
     pools: () => ({ pools: listPools(db), registrations: listRegistrations(db) }),
   });
   monitor.start();
@@ -74,10 +77,13 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     run,
     programs,
     github,
+    forgejo,
+    fetch,
     machineView: (id) => monitor?.view.machines.find((m) => m.id === id),
     onChange: () => monitor?.tick(),
   });
   void github.start();
+  void forgejo.start();
   const shared = {
     db,
     setup,
@@ -89,6 +95,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     engine,
     secrets,
     github,
+    forgejo,
     states: new ManifestStates(),
     fetch,
     apiBase: overrides.githubApiBase,
@@ -117,5 +124,5 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   }
   if (adminCount(db) === 0) setup.issue();
 
-  return { server, tailnet, db, secrets, monitor, github };
+  return { server, tailnet, db, secrets, monitor, github, forgejo };
 }

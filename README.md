@@ -91,6 +91,22 @@ enter the password in the review, used for that run only. NixOS needs
 Runyard refuses to register runners for a public personal repository until an admin types its
 name, and for an organization whose Default runner group allows public repositories.
 
+### Forgejo
+
+Connect a Forgejo instance (15 or later) under **Account menu ▸ Forgejo** with an access token
+whose user, organization and repository scopes are set to read and write. Runyard stores it
+encrypted and watches that user's own runners and those of every organization they belong to.
+A pool can serve the account or an organization; its runners serve every repository the account
+owns. Forgejo jobs run on the machine (host mode) or, per pool, in Docker containers from a
+default image; Docker must already be installed and usable by the SSH user.
+
+forgejo-runner is published for Linux only, so Forgejo runners install on Linux machines as
+`runyard-forgejo-<name>` systemd services under `~/runyard-runners/<pool>/forgejo-<account>/`.
+Runyard registers each runner through Forgejo's API at the moment of install, downloads the
+latest forgejo-runner from code.forgejo.org, checks its published SHA-256, and deletes the
+registration again if the install fails. An account that owns public repositories needs its name
+typed on the pool's page before Runyard registers runners for it.
+
 ## Passkeys
 
 Signed-in users can add passkeys under **Account** and then sign in without a password. Passkeys

@@ -59,6 +59,10 @@ const view = (machines: MachineView[], error: string | null = null): FleetView =
   ignored: [],
   alerts: machines.flatMap((m) => m.alerts),
   github: emptyGithubView,
+  forgejo: { connections: [], runners: [], queue: { jobs: [], complete: true, at: null } },
+  runners: [],
+  queue: { jobs: [], complete: true, at: null },
+  summary: { runners: 0, busy: 0, idle: 0, offline: 0, unknown: 0 },
   pools: { pools: [], desired: [], collisions: [], registrations: [] },
 });
 

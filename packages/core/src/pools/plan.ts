@@ -1,8 +1,9 @@
 import { scopeKey } from "../scope.ts";
-import type { Scope } from "../model.ts";
+import type { RunnerKind, Scope } from "../model.ts";
 import {
   isActive,
   type DesiredRunner,
+  type ForgejoMode,
   type LocalRunner,
   type RemoteRunner,
   type ServiceMode,
@@ -19,7 +20,8 @@ export type PlanAction =
   | "preserveService"
   | "inspectOffline"
   | "publicRepo"
-  | "groupPolicy";
+  | "groupPolicy"
+  | "unsupportedPlatform";
 
 export type PlanItem = {
   action: PlanAction;
@@ -34,6 +36,9 @@ export type PlanItem = {
   /** For reconcileLabels: the labels to set. For install: the labels to register with. */
   labels?: string[];
   serviceMode: ServiceMode;
+  runnerKind: RunnerKind;
+  /** Forgejo only: how its labels run jobs. */
+  forgejoMode?: ForgejoMode;
 };
 
 /** A runner Runyard registered earlier, kept so it can be found and removed when no longer wanted. */
@@ -44,6 +49,7 @@ export type Registration = {
   scope: Scope;
   path: string;
   serviceMode: ServiceMode;
+  runnerKind: RunnerKind;
 };
 
 /** Whether a scope may get persistent runners. */
@@ -96,6 +102,8 @@ export function planMachine(input: PlanInput): PlanItem[] {
       scope: d.scope,
       path: d.path,
       serviceMode: d.serviceMode,
+      runnerKind: d.runnerKind,
+      ...(d.forgejoMode ? { forgejoMode: d.forgejoMode } : {}),
     };
     const item = (
       action: PlanAction,
@@ -110,10 +118,14 @@ export function planMachine(input: PlanInput): PlanItem[] {
       ...(labels ? { labels } : {}),
     });
 
+    if (d.runnerKind === "forgejo" && d.serviceMode !== "systemd") {
+      items.push(item("unsupportedPlatform", "forgejo-runner is only published for Linux.", true));
+      continue;
+    }
     const ghError = input.githubErrors.get(sk);
     if (ghError || input.machineError) {
       const reasons = [
-        ghError && `GitHub unavailable: ${ghError}`,
+        ghError && `${d.runnerKind === "forgejo" ? "Forgejo" : "GitHub"} unavailable: ${ghError}`,
         input.machineError && `machine unavailable: ${input.machineError}`,
       ];
       items.push(item("inspect", reasons.filter(Boolean).join("; "), true));
@@ -127,7 +139,9 @@ export function planMachine(input: PlanInput): PlanItem[] {
     if (!remote && !configured) {
       const policy = input.policies.get(sk);
       if (!policy || !policy.ok) {
-        const action = d.scope.kind === "repo" ? "publicRepo" : "groupPolicy";
+        // Forgejo has no runner groups: an account's public repositories need the typed override.
+        const action =
+          d.scope.kind === "repo" || d.runnerKind === "forgejo" ? "publicRepo" : "groupPolicy";
         items.push(
           item(
             action,
@@ -218,6 +232,7 @@ export function planMachine(input: PlanInput): PlanItem[] {
       scope: r.scope,
       path: r.path,
       serviceMode: r.serviceMode,
+      runnerKind: r.runnerKind,
     };
     const ghError = input.githubErrors.get(sk);
     if (ghError || input.machineError) {

@@ -156,6 +156,11 @@ export const pools = sqliteTable("pools", {
   name: text().notNull().unique(),
   /** JSON array of the labels the pool's runners register with. */
   labels: text().notNull(),
+  /** Where Forgejo runners run jobs: `host`, or `docker` with `forgejoImage`. */
+  forgejoMode: text({ enum: ["host", "docker"] })
+    .notNull()
+    .default("host"),
+  forgejoImage: text(),
   createdAt: integer({ mode: "timestamp_ms" }).notNull(),
 });
 
@@ -183,7 +188,7 @@ export const poolScopes = sqliteTable(
       .notNull()
       .references(() => pools.id, { onDelete: "cascade" }),
     forgeId: text().notNull(),
-    kind: text({ enum: ["org", "repo"] }).notNull(),
+    kind: text({ enum: ["user", "org", "repo"] }).notNull(),
     target: text().notNull(),
   },
   (t) => [index("pool_scopes_pool").on(t.poolId)],
@@ -199,10 +204,13 @@ export const registrations = sqliteTable("registrations", {
   machineId: text().notNull(),
   runnerName: text().notNull(),
   forgeId: text().notNull(),
-  scopeKind: text({ enum: ["org", "repo"] }).notNull(),
+  scopeKind: text({ enum: ["user", "org", "repo"] }).notNull(),
   scopeTarget: text().notNull(),
   path: text().notNull(),
   serviceMode: text({ enum: ["launchagent", "systemd", "windows-service"] }).notNull(),
+  runnerKind: text({ enum: ["actions", "forgejo"] })
+    .notNull()
+    .default("actions"),
   createdAt: integer({ mode: "timestamp_ms" }).notNull(),
 });
 
@@ -217,3 +225,11 @@ export const publicRepoOverrides = sqliteTable(
   },
   (t) => [index("public_repo_overrides_repo").on(t.forgeId, t.repo)],
 );
+
+/** Forgejo instances Runyard connects to as a user. The access token lives in the secret store. */
+export const forgejoConnections = sqliteTable("forgejo_connections", {
+  id: text().primaryKey(),
+  baseUrl: text().notNull(),
+  login: text().notNull(),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull(),
+});

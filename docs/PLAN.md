@@ -35,6 +35,7 @@ inventory.
 | Network          | Any SSH-reachable machine; Tailscale optional                                                      | Tailscale (or Headscale) adds discovery, Tailscale SSH and the tailnet HTTPS listener. Any Tailscale variant works, including the sandboxed macOS apps: Runyard only calls the `tailscale` CLI.                                                |
 | Distribution     | `bun build --compile` binary (primary) and a Docker image + compose with a Tailscale sidecar       | The binary uses the host's SSH keys and Tailscale directly.                                                                                                                                                                                    |
 | Runner execution | GitHub runners as native services; Forgejo runners in host mode by default, Docker mode per runner |                                                                                                                                                                                                                                                |
+| Forgejo auth     | One user's access token per connection, encrypted at rest; Forgejo 15 or later                     | Registration through the API (`POST …/actions/runners`) needs 15+. forgejo-runner is published for Linux only, so Forgejo runners install on Linux machines with systemd; Docker mode is set per pool and needs Docker already installed.      |
 
 ## Domain model
 
@@ -111,6 +112,13 @@ Further packages are extracted when a boundary is proven, not up front.
    - Monitoring, then the `forgejo-runner` lifecycle (host and Docker modes).
    - Verify the runner and job listing endpoints against target Forgejo versions before designing
      around them.
+   - (Done, tested against a fake built from Codeberg's API spec, Forgejo 16. One user's access
+     token per connection, Forgejo 15 or later. Pools serve the user's own account and the
+     organizations they belong to; instance and single-repository scopes are left for later.
+     Runners register through `POST …/actions/runners` and install as `runyard-forgejo-<name>`
+     systemd services on Linux only, in host mode or Docker mode per pool. An account that owns
+     public repositories needs its name typed before Runyard registers runners for it. Not yet run
+     against a real instance or machine.)
 6. **Setup**
    - A first-run wizard (dependency checks, App creation, first machine and pool).
    - The Docker image and compose file with a Tailscale sidecar.

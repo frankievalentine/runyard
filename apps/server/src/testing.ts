@@ -8,6 +8,8 @@ import { openDatabase } from "./db/index.ts";
 import { FakeGithub } from "./github/fake.ts";
 import { ManifestStates } from "./github/manifest.ts";
 import { GithubMonitor } from "./github/monitor.ts";
+import { ForgejoMonitor } from "./forgejo/monitor.ts";
+import { FakeForgejo } from "./forgejo/fake.ts";
 import { FakeMachines } from "./machines/fake.ts";
 import { importKey } from "./crypto.ts";
 import { SecretStore } from "./secrets.ts";
@@ -37,6 +39,13 @@ export async function testApp(
     fetch: fakeGithub.fetch,
     onChange: () => monitor?.tick(),
   });
+  const fakeForgejo = new FakeForgejo();
+  const forgejo = new ForgejoMonitor({
+    db,
+    secrets,
+    fetch: fakeForgejo.fetch,
+    onChange: () => monitor?.tick(),
+  });
   monitor = new MachineMonitor({
     db,
     run: fake.run,
@@ -44,6 +53,7 @@ export async function testApp(
     tailscale: fake.tailscale,
     now: () => clock.now,
     github: () => github.observations(),
+    forgejo: () => forgejo.observations(),
     pools: () => ({ pools: listPools(db), registrations: listRegistrations(db) }),
   });
   const engine = new PoolEngine({
@@ -51,6 +61,8 @@ export async function testApp(
     run: fake.run,
     programs: fake.programs,
     github,
+    forgejo,
+    fetch: fakeForgejo.fetch,
     machineView: (id) => monitor?.view.machines.find((m) => m.id === id),
     now: () => clock.now,
     onChange: () => monitor?.tick(),
@@ -60,6 +72,7 @@ export async function testApp(
     monitor,
     secrets,
     github,
+    forgejo,
     engine,
     states: new ManifestStates(),
     fetch: fakeGithub.fetch,
@@ -73,7 +86,20 @@ export async function testApp(
     tailnetLogin: async (c) => c.req.header("X-Test-Tailnet-Login")?.toLowerCase() ?? null,
   };
   const app = createApp(deps, options.dashboard);
-  return { app, deps, codes, setup, fake, clock, monitor, github, fakeGithub, engine };
+  return {
+    app,
+    deps,
+    codes,
+    setup,
+    fake,
+    clock,
+    monitor,
+    github,
+    fakeGithub,
+    engine,
+    forgejo,
+    fakeForgejo,
+  };
 }
 
 /** A same-origin JSON request as the dashboard would send it, with an optional cookie and extra headers. */

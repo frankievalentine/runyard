@@ -7,7 +7,7 @@ import {
   EventTimeline,
   MachineTable,
 } from "../../components/machines.tsx";
-import { QueueList, RunnerLine } from "../../components/runners.tsx";
+import { forgesConnected, QueueList, RunnerLine } from "../../components/runners.tsx";
 import {
   Card,
   EmptyLine,
@@ -31,19 +31,19 @@ function Overview() {
   const view = useFleet();
   const { data: session } = useSuspenseQuery(sessionQuery);
   const machines = view.machines;
-  if (machines.length === 0 && view.github.apps.length === 0) {
+  const connected = forgesConnected(view);
+  if (machines.length === 0 && !connected) {
     return <Welcome admin={session.user?.role === "admin"} discovered={view.discovered.length} />;
   }
-  const github = view.github;
-  const working = github.runners.filter((r) => r.activity === "busy");
+  const working = view.runners.filter((r) => r.activity === "busy");
   return (
     <div>
       <PageHeader
         title="Yard overview"
-        subtitle={`${plural(machines.length, "machine")} · ${plural(github.summary.runners, "runner")}${view.tailnet.name ? ` · ${view.tailnet.name}` : ""}`}
+        subtitle={`${plural(machines.length, "machine")} · ${plural(view.summary.runners, "runner")}${view.tailnet.name ? ` · ${view.tailnet.name}` : ""}`}
       />
       <div className="mt-8">
-        {github.apps.length ? <RunnerStrip view={view} /> : <MachineStrip view={view} />}
+        {connected ? <RunnerStrip view={view} /> : <MachineStrip view={view} />}
       </div>
 
       {view.alerts.length > 0 && (
@@ -53,7 +53,7 @@ function Overview() {
       )}
       <Attention view={view} />
 
-      {github.apps.length > 0 && (
+      {connected && (
         <div className="grid grid-cols-1 gap-x-6 min-[1100px]:grid-cols-2">
           <Section title="Working now" count={working.length}>
             <Card className="overflow-hidden">
@@ -64,8 +64,8 @@ function Overview() {
               )}
             </Card>
           </Section>
-          <Section title="Queued" count={github.queue.jobs.length}>
-            <QueueList github={github} limit={5} compact />
+          <Section title="Queued" count={view.queue.jobs.length}>
+            <QueueList view={view} limit={5} compact />
           </Section>
         </div>
       )}
@@ -89,10 +89,10 @@ function Overview() {
   );
 }
 
-/** fleet's stat strip, once GitHub is connected. */
+/** fleet's stat strip, once a forge is connected. */
 function RunnerStrip({ view }: { view: FleetView }) {
-  const s = view.github.summary;
-  const q = view.github.queue;
+  const s = view.summary;
+  const q = view.queue;
   return (
     <StatStrip>
       <Stat label="Working" value={s.busy} tone="busy" sub={`of ${plural(s.runners, "runner")}`}>
@@ -112,7 +112,7 @@ function RunnerStrip({ view }: { view: FleetView }) {
         label="Offline"
         value={s.offline}
         tone="muted"
-        sub={s.unknown ? `${s.unknown} unknown` : "per GitHub"}
+        sub={s.unknown ? `${s.unknown} unknown` : "per the forges"}
       />
       <Stat
         label="Queued jobs"

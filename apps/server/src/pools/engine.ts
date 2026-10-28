@@ -5,6 +5,8 @@ import {
   planMachine,
   scopeKey,
   type DesiredRunner,
+  type ForgeKind,
+  type ForgejoMode,
   type MachineConfig,
   type MachineView,
   type OsFamily,
@@ -15,6 +17,9 @@ import {
   type ScopePolicy,
 } from "@runyard/core";
 import type { CommandRunner } from "../command.ts";
+import { latestForgejoRunner, type ForgejoApi } from "../forgejo/client.ts";
+import type { ForgejoMonitor } from "../forgejo/monitor.ts";
+import type { Fetch } from "../github/client.ts";
 import type { Db } from "../db/index.ts";
 import type { GithubHttp } from "../github/client.ts";
 import { orgRunners, repoRunners } from "../github/api.ts";
@@ -80,6 +85,9 @@ type Deps = {
   run: CommandRunner;
   programs: SshPrograms;
   github: GithubMonitor;
+  forgejo?: ForgejoMonitor;
+  /** For forgejo-runner release lookups. */
+  fetch?: Fetch;
   /** The machine as the dashboard sees it: OS, architecture. */
   machineView: (id: string) => MachineView | undefined;
   now?: () => number;
@@ -219,6 +227,7 @@ export class PoolEngine {
   }
 
   private async apply(item: PlanItem, ctx: Context, sudoPassword?: string): Promise<string> {
+    if (item.runnerKind === "forgejo") return this.applyForgejo(item, ctx, sudoPassword);
     const http = this.client(item.scope);
     switch (item.action) {
       case "install": {
@@ -250,6 +259,7 @@ export class PoolEngine {
             scope: desired.scope,
             path: desired.path,
             serviceMode: desired.serviceMode,
+            runnerKind: desired.runnerKind,
           });
         }
         return output;
@@ -321,6 +331,7 @@ export class PoolEngine {
     const desired = desiredRunners(
       listPools(this.deps.db),
       new Map([[machineId, { name: machine.name, os: view.os }]]),
+      this.forgeKinds(),
     ).filter((d) => d.machineId === machineId);
     const registrations = listRegistrations(this.deps.db).filter((r) => r.machineId === machineId);
 
@@ -358,8 +369,15 @@ export class PoolEngine {
     const githubErrors = new Map<string, string>();
     const policies = new Map<string, ScopePolicy>();
     const overrides = publicOverrides(this.deps.db);
+    const kinds = this.forgeKinds();
     for (const [key, scope] of scopes) {
       try {
+        if (kinds.get(scope.forgeId) === "forgejo") {
+          const api = this.forgejoApi(scope);
+          remote.set(key, await this.forgejoRunners(api, scope));
+          policies.set(key, await this.forgejoPolicy(api, scope, overrides));
+          continue;
+        }
         const http = this.client(scope);
         remote.set(key, await this.remoteRunners(http, scope));
         policies.set(key, await this.policy(http, scope, overrides));
@@ -385,6 +403,154 @@ export class PoolEngine {
         githubErrors,
       },
     };
+  }
+
+  /** Each configured forge's kind, so pool scopes reach the right API and runner. */
+  private forgeKinds(): Map<string, ForgeKind> {
+    return new Map<string, ForgeKind>([
+      ...this.deps.github.observations().map((a): [string, ForgeKind] => [a.forgeId, "github"]),
+      ...(this.deps.forgejo?.observations() ?? []).map((c): [string, ForgeKind] => [
+        c.forgeId,
+        "forgejo",
+      ]),
+    ]);
+  }
+
+  private forgejoApi(scope: Scope): ForgejoApi {
+    const api = this.deps.forgejo?.apiFor(scope);
+    if (!api)
+      throw new EngineError("The Forgejo connection isn't usable; check Settings ▸ Forgejo.");
+    return api;
+  }
+
+  private async forgejoRunners(api: ForgejoApi, scope: Scope): Promise<Map<string, RemoteRunner>> {
+    const list = await api.runners(scope);
+    return new Map(
+      list.map((r) => [
+        r.name.toLowerCase(),
+        // Forgejo reports `active` while a runner works on a task.
+        {
+          id: r.id,
+          name: r.name,
+          status: r.status === "offline" ? "offline" : "online",
+          busy: r.status === "active",
+          labels: r.labels,
+        },
+      ]),
+    );
+  }
+
+  /**
+   * A user or organization runner serves every repository the account owns,
+   * so any public one needs the admin's typed override of the account.
+   */
+  private async forgejoPolicy(
+    api: ForgejoApi,
+    scope: Scope,
+    overrides: Set<string>,
+  ): Promise<ScopePolicy> {
+    const login =
+      this.deps.forgejo?.observations().find((c) => c.forgeId === scope.forgeId)?.login ??
+      scope.target;
+    const repos = await api.repos(scope, login);
+    const target =
+      scope.kind === "repo"
+        ? repos.filter((r) => r.fullName.toLowerCase() === scope.target.toLowerCase())
+        : repos;
+    const open = target.filter((r) => !r.private).map((r) => r.fullName);
+    if (open.length === 0) return { ok: true };
+    if (overrides.has(`${scope.forgeId}:${scope.target.toLowerCase()}`)) return { ok: true };
+    return {
+      ok: false,
+      reason: `${scope.target} has public repositories (${open.slice(0, 3).join(", ")}${open.length > 3 ? ", …" : ""}); a runner here would run their pull requests' workflows. Allow it in the pool's settings once you've locked them down.`,
+    };
+  }
+
+  private async applyForgejo(item: PlanItem, ctx: Context, sudoPassword?: string): Promise<string> {
+    const api = this.forgejoApi(item.scope);
+    const labels = forgejoLabels(item.labels ?? [], item.forgejoMode ?? { kind: "host" });
+    switch (item.action) {
+      case "install": {
+        const arch = /aarch64|arm64/i.test(ctx.architecture ?? "")
+          ? "arm64"
+          : /x86_64|amd64/i.test(ctx.architecture ?? "")
+            ? "amd64"
+            : null;
+        if (!arch)
+          throw new EngineError(
+            "forgejo-runner is published for amd64 and arm64 Linux; this machine's architecture isn't one of them.",
+          );
+        const binary = await latestForgejoRunner(
+          this.deps.fetch ?? ((r) => globalThis.fetch(r)),
+          arch,
+        );
+        const registered = await api.register(item.scope, item.runnerName);
+        try {
+          const output = await this.runScript(ctx, "forgejo-install", {
+            RF_ROOT: item.path,
+            RF_NAME: item.runnerName,
+            RF_URL: api.baseUrl,
+            RF_RUNNER_ID: String(registered.id),
+            RF_UUID: registered.uuid,
+            RF_TOKEN: registered.token,
+            RF_LABELS: labels,
+            RF_BINARY_URL: binary.url,
+            RF_BINARY_NAME: binary.name,
+            RF_CHECKSUM: binary.sha256,
+            RF_MODE: item.forgejoMode?.kind ?? "host",
+            RF_SUDO_PASSWORD: sudoPassword,
+          });
+          const desired = ctx.desired.find(
+            (d) => d.path === item.path && d.name === item.runnerName,
+          );
+          if (desired) {
+            recordRegistration(this.deps.db, {
+              key: desired.key,
+              machineId: desired.machineId,
+              runnerName: desired.name,
+              scope: desired.scope,
+              path: desired.path,
+              serviceMode: desired.serviceMode,
+              runnerKind: desired.runnerKind,
+            });
+          }
+          return output;
+        } catch (error) {
+          // Don't leave a registered runner on Forgejo that no machine runs.
+          await api.deleteRunner(item.scope, registered.id).catch(() => undefined);
+          throw error;
+        }
+      }
+      case "start":
+        return this.runScript(ctx, "forgejo-start", {
+          RF_ROOT: item.path,
+          RF_NAME: item.runnerName,
+          RF_SUDO_PASSWORD: sudoPassword,
+        });
+      case "reconcileLabels":
+        return this.runScript(ctx, "forgejo-configure", {
+          RF_ROOT: item.path,
+          RF_NAME: item.runnerName,
+          RF_LABELS: labels,
+          RF_SUDO_PASSWORD: sudoPassword,
+        });
+      case "remove": {
+        const fresh = await this.forgejoRunners(api, item.scope);
+        const remote = fresh.get(item.runnerName.toLowerCase());
+        if (remote?.busy) throw new EngineError("It started a job; not removed.");
+        // Stop it on the machine first, so it can't take a job while being deleted.
+        const output = await this.runScript(ctx, "forgejo-remove", {
+          RF_ROOT: item.path,
+          RF_NAME: item.runnerName,
+          RF_SUDO_PASSWORD: sudoPassword,
+        });
+        if (remote) await api.deleteRunner(item.scope, remote.id);
+        forgetRegistration(this.deps.db, item.machineId, item.scope, item.runnerName);
+        return output;
+      }
+      default:
+        throw new EngineError(`${item.action} needs a person.`);
+    }
   }
 
   private client(scope: Scope): GithubHttp {
@@ -438,4 +604,11 @@ export function redact(text: string, secrets: (string | undefined)[]): string {
   for (const secret of secrets)
     if (secret && secret.length >= 4) out = out.split(secret).join("•••");
   return out;
+}
+
+/** forgejo-runner labels carry how they run: `name:host`, or `name:docker://image`. */
+export function forgejoLabels(labels: string[], mode: ForgejoMode): string {
+  return labels
+    .map((l) => (mode.kind === "docker" ? `${l}:docker://${mode.image}` : `${l}:host`))
+    .join(",");
 }

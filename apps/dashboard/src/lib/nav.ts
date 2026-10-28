@@ -20,12 +20,7 @@ export function filterFleet(view: FleetView, query: string): FleetView {
     ),
     discovered: view.discovered.filter((p) => match(p.name, p.address, p.os)),
     ignored: view.ignored.filter((p) => match(p.name, p.address, p.os)),
-    github: {
-      ...view.github,
-      runners: view.github.runners.filter((r) =>
-        match(r.name, r.scopeLabel, r.job?.repo, ...r.labels),
-      ),
-    },
+    runners: view.runners.filter((r) => match(r.name, r.scopeLabel, r.job?.repo, ...r.labels)),
   };
 }
 
@@ -36,7 +31,7 @@ export function flattenNav(view: FleetView, otherOpen: boolean, runnersOpen = fa
     { path: "/queue" },
     ...view.machines.map((m) => ({ path: "/machines/$id", params: { id: m.id } })),
     ...(runnersOpen
-      ? view.github.runners.map((r) => ({ path: "/runners/$key", params: { key: r.key } }))
+      ? view.runners.map((r) => ({ path: "/runners/$key", params: { key: r.key } }))
       : []),
     ...(otherOpen
       ? view.discovered.map((p) => ({ path: "/peers/$nodeId", params: { nodeId: p.nodeId } }))

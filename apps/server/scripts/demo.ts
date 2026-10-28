@@ -9,6 +9,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Glob } from "bun";
 import { createMachine, listMachines } from "../src/machines/store.ts";
+import { FakeForgejo } from "../src/forgejo/fake.ts";
+import { listConnections, saveConnection } from "../src/forgejo/store.ts";
 import { FakeGithub } from "../src/github/fake.ts";
 import { listGithubApps, saveGithubApp } from "../src/github/store.ts";
 import { FakeMachines, macReport } from "../src/machines/fake.ts";
@@ -240,17 +242,64 @@ github.runs.set("acme-demo/web", [
   },
 ]);
 
+// A fictional Forgejo: the user's own runner and an organization's, one job waiting.
+const forgejo = new FakeForgejo();
+forgejo.login = "frankie-demo";
+forgejo.orgs = ["yard-club"];
+forgejo.repos = [
+  { id: 31, full_name: "frankie-demo/dotfiles", private: true, owner: { login: "frankie-demo" } },
+  { id: 32, full_name: "yard-club/garden", private: true, owner: { login: "yard-club" } },
+];
+forgejo.runners.set("user", [
+  {
+    id: 41,
+    uuid: "demo-41",
+    name: "pi-01",
+    status: "idle",
+    labels: ["docker", "arm64"],
+    version: "13.2.0",
+    ephemeral: false,
+  },
+]);
+forgejo.runners.set("org:yard-club", [
+  {
+    id: 42,
+    uuid: "demo-42",
+    name: "rack-01",
+    status: "active",
+    labels: ["docker"],
+    version: "13.2.0",
+    ephemeral: false,
+  },
+  {
+    id: 43,
+    uuid: "demo-43",
+    name: "rack-02",
+    status: "offline",
+    labels: ["docker"],
+    version: "13.2.0",
+    ephemeral: false,
+  },
+]);
+forgejo.jobs.set("org:yard-club", [
+  { id: 51, run_id: 5, repo_id: 32, name: "lint", status: "waiting", runs_on: ["docker"] },
+]);
+
 const {
   db,
   monitor,
   secrets,
   github: githubMonitor,
+  forgejo: forgejoMonitor,
 } = await start(dashboard, {
   run: fake.run,
   programs: fake.programs,
   // Each app's API host goes to its own fake.
-  fetch: (request) =>
-    (new URL(request.url).host === "api.personal.github.demo" ? personal : github).fetch(request),
+  fetch: (request) => {
+    const host = new URL(request.url).host;
+    if (host === "forgejo.demo" || host === "code.forgejo.org") return forgejo.fetch(request);
+    return (host === "api.personal.github.demo" ? personal : github).fetch(request);
+  },
   githubApiBase: "https://api.github.demo",
   githubWebBase: "https://github.demo",
 });
@@ -296,6 +345,10 @@ for (const app of demoApps) {
   );
 }
 await githubMonitor.refreshAll();
+if (listConnections(db).length === 0) {
+  await saveConnection(db, secrets, "https://forgejo.demo", forgejo.login, forgejo.token);
+}
+await forgejoMonitor.refreshAll();
 if (listMachines(db).length === 0) {
   createMachine(db, {
     name: "Studio mini",

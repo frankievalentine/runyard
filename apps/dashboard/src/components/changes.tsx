@@ -32,13 +32,14 @@ const ACTION: Record<PlanItem["action"], string> = {
   inspectOffline: "Offline",
   publicRepo: "Public repository",
   groupPolicy: "Group allows public repositories",
+  unsupportedPlatform: "Unsupported platform",
 };
 
 /** The machine's runners: the ones GitHub lists for it, and the ones its pools still call for. ported from fleet's RunnerTable. */
 export function MachineRunners({ m }: { m: MachineView }) {
   const view = useFleet();
   const navigate = useNavigate();
-  const linked = view.github.runners.filter((r) => r.machineId === m.id);
+  const linked = view.runners.filter((r) => r.machineId === m.id);
   const missing = view.pools.desired.filter((d) => d.machineId === m.id && !runnerFor(view, d));
   if (linked.length === 0 && missing.length === 0) {
     return (

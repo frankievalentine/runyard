@@ -1,4 +1,5 @@
 import type { OsFamily } from "../machines/model.ts";
+import { runnerKindFor, type ForgeKind } from "../model.ts";
 import { scopeKey } from "../scope.ts";
 import { serviceModeFor, type DesiredRunner, type Pool } from "./model.ts";
 
@@ -35,6 +36,8 @@ export function runnerRoot(os: OsFamily): string {
 export function desiredRunners(
   pools: Pool[],
   machines: ReadonlyMap<string, MachineInfo>,
+  /** Each forge's kind; scopes of unknown forges count as GitHub. */
+  forges: ReadonlyMap<string, ForgeKind> = new Map(),
 ): DesiredRunner[] {
   const out: DesiredRunner[] = [];
   for (const pool of pools) {
@@ -45,12 +48,17 @@ export function desiredRunners(
       const windows = machine.os === "windows";
       const sep = windows ? "\\" : "/";
       for (const scope of pool.scopes) {
+        const kind = runnerKindFor[forges.get(scope.forgeId) ?? "github"];
         const perRepo = scope.kind === "repo";
         for (let slot = 1; slot <= slots; slot++) {
           const n = String(slot).padStart(2, "0");
-          const dir = perRepo
-            ? [pool.name, slug(scope.target.replace("/", "-")), n]
-            : [pool.name, n];
+          // Forgejo runners get their own directories, so a mixed pool's runners never share one.
+          const dir =
+            kind === "forgejo"
+              ? [pool.name, `forgejo-${slug(scope.target.replace("/", "-"))}`, n]
+              : perRepo
+                ? [pool.name, slug(scope.target.replace("/", "-")), n]
+                : [pool.name, n];
           out.push({
             key: `${pool.id}:${machineId}:${scopeKey(scope)}:${slot}`,
             poolId: pool.id,
@@ -62,6 +70,8 @@ export function desiredRunners(
             path: [runnerRoot(machine.os), ...dir].join(sep),
             labels: [...new Set([...pool.labels, "runyard", `runyard-pool-${pool.name}`])],
             serviceMode: mode,
+            runnerKind: kind,
+            ...(kind === "forgejo" ? { forgejoMode: pool.forgejoMode } : {}),
           });
         }
       }

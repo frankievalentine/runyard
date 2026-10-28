@@ -55,6 +55,12 @@ export function AccountMenu() {
                 >
                   GitHub
                 </Menu.Item>
+                <Menu.Item
+                  className={item}
+                  onClick={() => void navigate({ to: "/settings/forgejo" })}
+                >
+                  Forgejo
+                </Menu.Item>
                 <Menu.Item className={item} onClick={() => void navigate({ to: "/users" })}>
                   Users
                 </Menu.Item>

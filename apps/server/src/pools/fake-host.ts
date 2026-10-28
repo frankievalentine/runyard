@@ -14,7 +14,10 @@ type Dir = {
  */
 export class FakeRunnerHost {
   dirs = new Map<string, Dir>();
-  received: { op: "probe" | "install" | "start" | "remove"; env: Record<string, string> }[] = [];
+  received: {
+    op: "probe" | "install" | "start" | "remove" | "configure";
+    env: Record<string, string>;
+  }[] = [];
   /** Makes the next operation script fail with this output. */
   failNext: string | null = null;
 
@@ -32,11 +35,15 @@ export class FakeRunnerHost {
     const env = Object.fromEntries(
       [...stdin.matchAll(/^export (RF_[A-Z_]+)=(.+)$/gm)].map((m) => [m[1]!, unquote(m[2]!)]),
     );
-    const op = stdin.includes("RF_ASSET_URL")
-      ? "install"
-      : stdin.includes("RF_TOKEN")
-        ? "remove"
-        : "start";
+    // forgejo-remove carries no token, so its rename of .runner identifies it.
+    const op =
+      "RF_ASSET_URL" in env || "RF_BINARY_URL" in env
+        ? "install"
+        : "RF_TOKEN" in env || stdin.includes(".runner.removed")
+          ? "remove"
+          : stdin.includes(".runner.new")
+            ? "configure"
+            : "start";
     this.received.push({ op, env });
     if (this.failNext) {
       const output = this.failNext;

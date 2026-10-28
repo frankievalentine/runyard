@@ -9,6 +9,7 @@ import {
   parseReport,
   type EventKind,
   type FleetView,
+  type ForgejoConnectionObservation,
   type GithubAppObservation,
   type Pool,
   type Registration,
@@ -47,6 +48,7 @@ type Deps = {
   log?: (message: string) => void;
   /** GitHub runners and jobs, joined into the fleet view. */
   github?: () => GithubAppObservation[];
+  forgejo?: () => ForgejoConnectionObservation[];
   /** Pools and the runners Runyard registered, joined into the fleet view. */
   pools?: () => { pools: Pool[]; registrations: Registration[] };
 };
@@ -193,6 +195,7 @@ export class MachineMonitor {
       ignoredNodeIds: ignoredNodeIds(this.deps.db),
       states: new Map([...this.states].map(([id, s]) => [id, s.state])),
       github: this.deps.github?.(),
+      forgejo: this.deps.forgejo?.(),
       ...this.deps.pools?.(),
       now,
     });

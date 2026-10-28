@@ -1,5 +1,5 @@
 import { scopeKey } from "../scope.ts";
-import type { Scope } from "../model.ts";
+import type { ForgeKind, Scope } from "../model.ts";
 import {
   GITHUB_STALE_AFTER_MS,
   JOBS_STALE_AFTER_MS,
@@ -13,6 +13,7 @@ export type Activity = "busy" | "idle" | "offline" | "unknown";
 
 export type JobView = {
   id: number;
+  forge: ForgeKind;
   repo: string;
   name: string;
   workflowName: string | null;
@@ -28,6 +29,7 @@ export type RunnerView = {
   key: string;
   id: number;
   name: string;
+  forge: ForgeKind;
   forgeId: string;
   scope: Scope;
   /** The organization, or `owner/name` for a repository runner. */
@@ -137,6 +139,7 @@ export function deriveGithub(
           key: `${scopeKey(scope)}:${runner.id}`,
           id: runner.id,
           name: runner.name,
+          forge: "github",
           forgeId: app.forgeId,
           scope,
           scopeLabel: scope.target,
@@ -219,18 +222,21 @@ function findJob(running: Map<string, GhJob>, scope: Scope, runnerId: number, re
  */
 export function eligibleRunners(job: GhJob, runners: RunnerView[]): string[] {
   const wanted = job.labels.map((l) => l.toLowerCase());
-  return runners
-    .filter((r) => r.activity !== "offline" && r.activity !== "unknown")
-    .filter((r) =>
-      r.scope.kind === "repo"
-        ? r.scope.target.toLowerCase() === job.repo.toLowerCase()
-        : r.scope.target.toLowerCase() === owner(job.repo),
-    )
-    .filter((r) => {
-      const have = new Set(r.labels.map((l) => l.toLowerCase()));
-      return wanted.every((l) => have.has(l));
-    })
-    .map((r) => r.key);
+  return (
+    runners
+      .filter((r) => r.activity !== "offline" && r.activity !== "unknown")
+      // A repository runner serves its repository; an organization or user runner, the account's repositories.
+      .filter((r) =>
+        r.scope.kind === "repo"
+          ? r.scope.target.toLowerCase() === job.repo.toLowerCase()
+          : r.scope.target.toLowerCase() === owner(job.repo),
+      )
+      .filter((r) => {
+        const have = new Set(r.labels.map((l) => l.toLowerCase()));
+        return wanted.every((l) => have.has(l));
+      })
+      .map((r) => r.key)
+  );
 }
 
 function owner(repo: string) {
@@ -240,6 +246,7 @@ function owner(repo: string) {
 function jobView(job: GhJob): JobView {
   return {
     id: job.id,
+    forge: "github",
     repo: job.repo,
     name: job.name,
     workflowName: job.workflowName,

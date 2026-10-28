@@ -241,11 +241,12 @@ function breadcrumbs(pathname: string, view: FleetView): { label: string; to?: s
   const runner = /^\/runners\/([^/]+)$/.exec(pathname)?.[1];
   if (runner) {
     const key = decodeURIComponent(runner);
-    return [fleet, { label: view.github.runners.find((r) => r.key === key)?.name ?? "Runner" }];
+    return [fleet, { label: view.runners.find((r) => r.key === key)?.name ?? "Runner" }];
   }
   const pages: Record<string, string> = {
     "/queue": "Queued jobs",
     "/settings/github": "GitHub",
+    "/settings/forgejo": "Forgejo",
     "/": "Yard overview",
     "/ignored": "Ignored machines",
     "/users": "Users",

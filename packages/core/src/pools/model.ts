@@ -1,5 +1,5 @@
 import type { OsFamily } from "../machines/model.ts";
-import type { Scope } from "../model.ts";
+import type { RunnerKind, Scope } from "../model.ts";
 
 /** Runner capacity: labels, the machines it runs on (with runners per machine) and the scopes it serves. */
 export type Pool = {
@@ -9,7 +9,11 @@ export type Pool = {
   labels: string[];
   machines: { machineId: string; slots: number }[];
   scopes: Scope[];
+  /** Where Forgejo runners run jobs: on the machine, or in Docker containers from an image. */
+  forgejoMode: ForgejoMode;
 };
+
+export type ForgejoMode = { kind: "host" } | { kind: "docker"; image: string };
 
 /** How a runner runs on its machine, from fleet's service modes. */
 export type ServiceMode = "launchagent" | "systemd" | "windows-service";
@@ -37,6 +41,10 @@ export type DesiredRunner = {
   /** Labels Runyard sets, besides the ones GitHub adds itself. */
   labels: string[];
   serviceMode: ServiceMode;
+  /** Which runner program: GitHub's actions/runner or forgejo-runner. */
+  runnerKind: RunnerKind;
+  /** Forgejo only: how each label runs jobs. */
+  forgejoMode?: ForgejoMode;
 };
 
 /** What the machine reports for a runner directory, from the read-only probe. */

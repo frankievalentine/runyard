@@ -24,14 +24,14 @@ export const Route = createFileRoute("/_app/runners/$key")({
 /** fleet's RunnerDetail; machine and runner-management state join it with runner management. */
 function Runner() {
   const { key } = Route.useParams();
-  const { github } = useFleet();
+  const view = useFleet();
   const now = useNow();
-  const r = github.runners.find((x) => x.key === key);
+  const r = view.runners.find((x) => x.key === key);
   if (!r) {
     return (
       <Card>
         <EmptyLine>
-          GitHub no longer lists this runner.{" "}
+          {view.forgejo.connections.length ? "The forge" : "GitHub"} no longer lists this runner.{" "}
           <Link to="/" className="text-accent hover:underline">
             Back to the overview
           </Link>
@@ -40,7 +40,8 @@ function Runner() {
     );
   }
   const status = runnerStatus(r);
-  const scopeKind = r.scope.kind === "org" ? "Organization" : "Repository";
+  const scopeKind =
+    r.scope.kind === "org" ? "Organization" : r.scope.kind === "user" ? "Account" : "Repository";
   return (
     <div>
       <PageHeader

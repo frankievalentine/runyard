@@ -25,6 +25,7 @@ const pool = (over: Partial<Pool> = {}): Pool => ({
   labels: ["xcode"],
   machines: [{ machineId: "m1", slots: 2 }],
   scopes: [org],
+  forgejoMode: { kind: "host" },
   ...over,
 });
 const machines = new Map<string, { name: string; os: OsFamily | null }>([
@@ -204,6 +205,7 @@ describe("planMachine", () => {
       scope: org,
       path: "~/runyard-runners/old/01",
       serviceMode: "launchagent" as const,
+      runnerKind: "actions" as const,
     };
     const base = input({ desired: [], registrations: [registration] });
     expect(actions(base)).toEqual([["remove", false]]);
@@ -215,5 +217,50 @@ describe("planMachine", () => {
     const a = planMachine(input());
     expect(planFingerprint(a)).toBe(planFingerprint([...a].reverse()));
     expect(planFingerprint(a)).not.toBe(planFingerprint(planMachine(input({ machineError: "x" }))));
+  });
+});
+
+describe("Forgejo runners", () => {
+  const user: Scope = { forgeId: "fj", kind: "user", target: "frankie" };
+  const forges = new Map([["fj", "forgejo" as const]]);
+  const linux = new Map<string, { name: string; os: OsFamily | null }>([
+    ["l1", { name: "Box", os: "linux" }],
+  ]);
+
+  test("one runner per slot for a whole account, in its own directory, with the pool's mode", () => {
+    const runners = desiredRunners(
+      [
+        pool({
+          scopes: [user, org],
+          machines: [{ machineId: "l1", slots: 1 }],
+          forgejoMode: { kind: "docker", image: "node:22" },
+        }),
+      ],
+      linux,
+      forges,
+    );
+    expect(runners.map((r) => [r.runnerKind, r.path, r.forgejoMode?.kind ?? null])).toEqual([
+      ["forgejo", "~/runyard-runners/mac/forgejo-frankie/01", "docker"],
+      ["actions", "~/runyard-runners/mac/01", null],
+    ]);
+  });
+
+  test("blocks Forgejo runners on machines other than Linux", () => {
+    const [d] = desiredRunners(
+      [pool({ scopes: [user], machines: [{ machineId: "m1", slots: 1 }] })],
+      machines,
+      forges,
+    ) as [DesiredRunner];
+    const items = planMachine({
+      machineId: "m1",
+      desired: [d],
+      registrations: [],
+      local: new Map(),
+      github: new Map(),
+      policies: new Map([[scopeKey(user), { ok: true }]]),
+      machineError: null,
+      githubErrors: new Map(),
+    });
+    expect(items.map((i) => [i.action, i.blocked])).toEqual([["unsupportedPlatform", true]]);
   });
 });

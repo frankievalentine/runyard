@@ -1,4 +1,4 @@
-import type { GithubView, JobView, QueuedJobView, RunnerView } from "@runyard/core";
+import type { FleetView, JobView, QueuedJobView, RunnerView } from "@runyard/core";
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { formatElapsed, plural } from "../lib/format.ts";
@@ -14,6 +14,15 @@ import { Card, EmptyLine, Pill, StatusDot } from "./ui.tsx";
 export function Elapsed({ since }: { since: number }) {
   const now = useNow();
   return <>{formatElapsed(now - since)}</>;
+}
+
+/** Marks Forgejo runners and jobs; GitHub is the unmarked default. */
+export function ForgeBadge() {
+  return (
+    <span className="shrink-0 rounded-[4px] border border-line px-1 text-[10.5px] font-medium text-ink-2">
+      Forgejo
+    </span>
+  );
 }
 
 /** A runner label as a small monospace chip, click to copy. */
@@ -70,7 +79,12 @@ export function RunnerLine({ r }: { r: RunnerView }) {
     >
       <StatusDot tone={status.tone} hollow={status.hollow} />
       <div className="min-w-0 flex-1">
-        <div className="truncate font-medium">{r.job?.workflowName ?? r.job?.name ?? r.name}</div>
+        <div className="flex items-center gap-1.5">
+          <span className="truncate font-medium">
+            {r.job?.workflowName ?? r.job?.name ?? r.name}
+          </span>
+          {r.forge === "forgejo" && <ForgeBadge />}
+        </div>
         <div className="truncate font-mono text-[12px] text-ink-2">{detail}</div>
       </div>
       <span className="shrink-0 text-[12px] text-ink-2 tabular">
@@ -84,39 +98,42 @@ export function RunnerLine({ r }: { r: RunnerView }) {
 }
 
 /** What an empty queue means: nothing waiting, or no job data yet. */
-export function emptyQueueText(github: GithubView): string {
-  if (github.apps.length === 0) return "Connect GitHub to see queued jobs.";
-  return github.queue.at
-    ? "Nothing queued for self-hosted runners."
-    : "Waiting for job data from GitHub.";
+export function emptyQueueText(view: FleetView): string {
+  if (!forgesConnected(view)) return "Connect GitHub or Forgejo to see queued jobs.";
+  return view.queue.at ? "Nothing queued for self-hosted runners." : "Waiting for job data.";
+}
+
+/** Whether any forge is connected, so runner and queue sections have something to show. */
+export function forgesConnected(view: FleetView): boolean {
+  return view.github.apps.length > 0 || view.forgejo.connections.length > 0;
 }
 
 export function QueueList({
-  github,
+  view,
   limit,
   compact,
 }: {
-  github: GithubView;
+  view: FleetView;
   limit?: number;
   compact?: boolean;
 }) {
-  const jobs = limit ? github.queue.jobs.slice(0, limit) : github.queue.jobs;
+  const jobs = limit ? view.queue.jobs.slice(0, limit) : view.queue.jobs;
   return (
     <Card className="overflow-hidden">
       {jobs.length === 0 ? (
         <EmptyLine>
           <span className="flex items-center gap-2.5">
             <Icon name="inbox" size={16} />
-            {emptyQueueText(github)}
+            {emptyQueueText(view)}
           </span>
         </EmptyLine>
       ) : (
         jobs.map((job) => (
-          <QueuedJob key={job.id} job={job} runners={github.runners} compact={compact} />
+          <QueuedJob key={job.id} job={job} runners={view.runners} compact={compact} />
         ))
       )}
-      {limit && github.queue.jobs.length > limit && (
-        <EmptyLine>and {github.queue.jobs.length - limit} more in Queued jobs</EmptyLine>
+      {limit && view.queue.jobs.length > limit && (
+        <EmptyLine>and {view.queue.jobs.length - limit} more in Queued jobs</EmptyLine>
       )}
     </Card>
   );
@@ -170,6 +187,7 @@ export function JobTitle({ job }: { job: JobView }) {
         <span className="min-w-0 flex-1 truncate font-medium" title={job.name}>
           {job.name}
         </span>
+        {job.forge === "forgejo" && <ForgeBadge />}
         {job.htmlUrl && (
           <GitHubLink url={job.htmlUrl} label={`Open ${job.name} on GitHub`}>
             <Icon name="external" size={12} />

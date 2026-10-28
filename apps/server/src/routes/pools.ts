@@ -3,6 +3,7 @@ import {
   isValidScopeTarget,
   nameCollisions,
   POOL_NAME,
+  type ForgeKind,
   type OsFamily,
 } from "@runyard/core";
 import { Hono } from "hono";
@@ -11,6 +12,7 @@ import { requireAdmin, requireUser, type AppEnv } from "../auth/identity.ts";
 import type { Db } from "../db/index.ts";
 import { getMachine, listMachines } from "../machines/store.ts";
 import type { MachineMonitor } from "../machines/monitor.ts";
+import type { ForgejoMonitor } from "../forgejo/monitor.ts";
 import type { GithubMonitor } from "../github/monitor.ts";
 import { EngineError, type PoolEngine } from "../pools/engine.ts";
 import { forkApprovalPolicy, repoIsPrivate } from "../pools/github.ts";
@@ -39,10 +41,30 @@ const poolSchema = z.object({
     .max(100),
   scopes: z
     .array(
-      z.object({ forgeId: z.string(), kind: z.enum(["org", "repo"]), target: z.string().trim() }),
+      z.object({
+        forgeId: z.string(),
+        kind: z.enum(["user", "org", "repo"]),
+        target: z.string().trim(),
+      }),
     )
     .min(1, "Choose at least one organization or repository.")
     .max(50),
+  forgejoMode: z
+    .discriminatedUnion("kind", [
+      z.object({ kind: z.literal("host") }),
+      z.object({
+        kind: z.literal("docker"),
+        image: z
+          .string()
+          .trim()
+          .regex(
+            /^[a-z0-9][a-z0-9._/-]*(:[A-Za-z0-9._-]+)?(@sha256:[a-f0-9]{64})?$/,
+            "That isn't a Docker image name.",
+          )
+          .max(200),
+      }),
+    ])
+    .default({ kind: "host" }),
 });
 
 export type PoolDeps = {
@@ -50,10 +72,11 @@ export type PoolDeps = {
   engine: PoolEngine;
   monitor: MachineMonitor;
   github: GithubMonitor;
+  forgejo: ForgejoMonitor;
 };
 
 /** Pools, reviews and their execution, and public-repository overrides. */
-export function poolRoutes({ db, engine, monitor, github }: PoolDeps) {
+export function poolRoutes({ db, engine, monitor, github, forgejo }: PoolDeps) {
   /** Refuses a definition with unknown machines, bad targets, or runners that would share a name. */
   const check = (input: PoolInput, id?: string): string | null => {
     for (const m of input.machines)
@@ -71,8 +94,18 @@ export function poolRoutes({ db, engine, monitor, github }: PoolDeps) {
         { name: m.name, os: (seen.get(m.id) ?? m.expectedOs) as OsFamily | null },
       ]),
     );
+    const kinds = new Map<string, ForgeKind>([
+      ...github.observations().map((a): [string, ForgeKind] => [a.forgeId, "github"]),
+      ...forgejo.observations().map((f): [string, ForgeKind] => [f.forgeId, "forgejo"]),
+    ]);
+    for (const s of input.scopes) {
+      if (!kinds.has(s.forgeId)) return "One of the forges is no longer connected.";
+      if (s.kind === "user" && kinds.get(s.forgeId) !== "forgejo") {
+        return "GitHub has no account-wide runners for personal accounts.";
+      }
+    }
     const collisions = nameCollisions(
-      desiredRunners([...others, { id: id ?? "new", ...input }], info),
+      desiredRunners([...others, { id: id ?? "new", ...input }], info, kinds),
     );
     return collisions[0] ?? null;
   };
@@ -148,8 +181,8 @@ export function poolRoutes({ db, engine, monitor, github }: PoolDeps) {
       json(z.object({ forgeId: z.string(), repo: z.string().trim(), confirm: z.string().trim() })),
       (c) => {
         const { forgeId, repo, confirm } = c.req.valid("json");
-        if (!isValidScopeTarget("repo", repo))
-          return c.json({ error: `${repo} isn't a repository.` }, 400);
+        if (!isValidScopeTarget("repo", repo) && !isValidScopeTarget("user", repo))
+          return c.json({ error: `${repo} isn't a repository or account.` }, 400);
         if (confirm !== repo) return c.json({ error: `Type ${repo} exactly to confirm.` }, 400);
         const user = c.get("identity").user!;
         allowPublicRepo(db, forgeId, repo, user.username ?? user.tailscaleLogin ?? user.id);

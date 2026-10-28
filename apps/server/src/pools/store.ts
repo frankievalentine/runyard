@@ -1,4 +1,4 @@
-import type { Pool, Registration, Scope } from "@runyard/core";
+import type { ForgejoMode, Pool, Registration, Scope } from "@runyard/core";
 import { and, eq } from "drizzle-orm";
 import type { Db } from "../db/index.ts";
 import {
@@ -13,7 +13,8 @@ export type PoolInput = {
   name: string;
   labels: string[];
   machines: { machineId: string; slots: number }[];
-  scopes: { forgeId: string; kind: "org" | "repo"; target: string }[];
+  scopes: { forgeId: string; kind: "user" | "org" | "repo"; target: string }[];
+  forgejoMode: ForgejoMode;
 };
 
 export function listPools(db: Db): Pool[] {
@@ -28,6 +29,10 @@ export function listPools(db: Db): Pool[] {
       id: p.id,
       name: p.name,
       labels: JSON.parse(p.labels) as string[],
+      forgejoMode:
+        p.forgejoMode === "docker" && p.forgejoImage
+          ? { kind: "docker", image: p.forgejoImage }
+          : { kind: "host" },
       machines: machines
         .filter((m) => m.poolId === p.id)
         .map(({ machineId, slots }) => ({ machineId, slots })),
@@ -45,19 +50,16 @@ export function savePool(
 ): string {
   db.transaction((tx) => {
     const exists = tx.select({ id: pools.id }).from(pools).where(eq(pools.id, id)).get();
-    if (exists)
-      tx.update(pools)
-        .set({ name: input.name, labels: JSON.stringify(input.labels) })
-        .where(eq(pools.id, id))
-        .run();
+    const row = {
+      name: input.name,
+      labels: JSON.stringify(input.labels),
+      forgejoMode: input.forgejoMode.kind,
+      forgejoImage: input.forgejoMode.kind === "docker" ? input.forgejoMode.image : null,
+    };
+    if (exists) tx.update(pools).set(row).where(eq(pools.id, id)).run();
     else
       tx.insert(pools)
-        .values({
-          id,
-          name: input.name,
-          labels: JSON.stringify(input.labels),
-          createdAt: new Date(),
-        })
+        .values({ id, ...row, createdAt: new Date() })
         .run();
     tx.delete(poolMachines).where(eq(poolMachines.poolId, id)).run();
     tx.delete(poolScopes).where(eq(poolScopes.poolId, id)).run();
@@ -90,12 +92,12 @@ export function listRegistrations(db: Db): Registration[] {
       scope: { forgeId: r.forgeId, kind: r.scopeKind, target: r.scopeTarget },
       path: r.path,
       serviceMode: r.serviceMode,
+      runnerKind: r.runnerKind,
     }));
 }
 
 export function recordRegistration(db: Db, r: Registration) {
-  if (r.scope.kind !== "org" && r.scope.kind !== "repo")
-    throw new Error(`Unsupported scope ${r.scope.kind}.`);
+  if (r.scope.kind === "instance") throw new Error(`Unsupported scope ${r.scope.kind}.`);
   const row = {
     machineId: r.machineId,
     runnerName: r.runnerName,
@@ -104,6 +106,7 @@ export function recordRegistration(db: Db, r: Registration) {
     scopeTarget: r.scope.target,
     path: r.path,
     serviceMode: r.serviceMode,
+    runnerKind: r.runnerKind,
   };
   db.insert(registrations)
     .values({ key: r.key, ...row, createdAt: new Date() })

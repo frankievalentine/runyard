@@ -7,13 +7,41 @@ import removeSh from "../../scripts/runner-remove.sh" with { type: "text" };
 import startPs1 from "../../scripts/runner-start.ps1" with { type: "text" };
 import startSh from "../../scripts/runner-start.sh" with { type: "text" };
 import runAsRoot from "../../scripts/run-as-root.sh" with { type: "text" };
+import forgejoConfigure from "../../scripts/forgejo-configure.sh" with { type: "text" };
+import forgejoInstall from "../../scripts/forgejo-install.sh" with { type: "text" };
+import forgejoRemove from "../../scripts/forgejo-remove.sh" with { type: "text" };
+import forgejoStart from "../../scripts/forgejo-start.sh" with { type: "text" };
 
-export type Operation = "install" | "start" | "remove";
+export type Operation =
+  | "install"
+  | "start"
+  | "remove"
+  | "forgejo-install"
+  | "forgejo-start"
+  | "forgejo-configure"
+  | "forgejo-remove";
 
 const SCRIPTS: Record<Operation, { posix: string; windows: string }> = {
   install: { posix: installSh, windows: installPs1 },
   start: { posix: startSh, windows: startPs1 },
   remove: { posix: removeSh, windows: removePs1 },
+  // forgejo-runner is Linux-only; the plan never sends these to Windows.
+  "forgejo-install": {
+    posix: forgejoInstall,
+    windows: "throw 'forgejo-runner is only published for Linux'",
+  },
+  "forgejo-start": {
+    posix: forgejoStart,
+    windows: "throw 'forgejo-runner is only published for Linux'",
+  },
+  "forgejo-configure": {
+    posix: forgejoConfigure,
+    windows: "throw 'forgejo-runner is only published for Linux'",
+  },
+  "forgejo-remove": {
+    posix: forgejoRemove,
+    windows: "throw 'forgejo-runner is only published for Linux'",
+  },
 };
 
 /** A POSIX single-quoted string. */
@@ -99,9 +127,13 @@ configured=false; service=missing; version=''; agent=''
 if [ -f "$path/.runner" ]; then
   configured=true
   ${service}
+  # actions/runner records agentName; forgejo-runner records name.
   agent="$(tr -d '[:space:]' < "$path/.runner" | sed -n 's/.*"agentName":"\\([^"]*\\)".*/\\1/p')"
+  [ -n "$agent" ] || agent="$(tr -d '[:space:]' < "$path/.runner" | sed -n 's/.*"name":"\\([^"]*\\)".*/\\1/p')"
   if [ -x "$path/bin/Runner.Listener" ]; then
     version="$("$path/bin/Runner.Listener" --version 2>/dev/null | tail -n 1 | tr '\\t\\r\\n' '   ')"
+  elif [ -x "$path/forgejo-runner" ]; then
+    version="$("$path/forgejo-runner" --version 2>/dev/null | awk '{print $NF; exit}')"
   fi
 fi
 printf 'RF1\\t%s\\t%s\\t%s\\t%s\\t%s\\n' ${i} "$configured" "$service" "$version" "$agent"`;

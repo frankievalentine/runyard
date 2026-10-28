@@ -43,9 +43,9 @@ export function Sidebar({
   const searching = query.trim() !== "";
   const showOther = searching || otherOpen;
   const showRunners = searching || runnersOpen;
-  const runners = filtered.github.runners.filter((r) => !r.machineId);
+  const runners = filtered.runners.filter((r) => !r.machineId);
   const byMachine = new Map<string, RunnerView[]>();
-  for (const r of filtered.github.runners) {
+  for (const r of filtered.runners) {
     if (r.machineId) byMachine.set(r.machineId, [...(byMachine.get(r.machineId) ?? []), r]);
   }
   const is = (item: NavItem) => navKey(item) === selected;
@@ -79,7 +79,7 @@ export function Sidebar({
           selected={is({ path: "/queue" })}
           icon={<Icon name="queue" size={16} />}
           label="Queued jobs"
-          trailing={view.github.queue.jobs.length}
+          trailing={view.queue.jobs.length}
         />
       </nav>
       <div className="relative px-2 pb-2">
@@ -242,7 +242,7 @@ export function Sidebar({
         {view.pools.pools.map((p) => {
           const desired = view.pools.desired.filter((d) => d.poolId === p.id);
           const existing = desired.filter((d) =>
-            view.github.runners.some(
+            view.runners.some(
               (r) => r.machineId === d.machineId && r.name.toLowerCase() === d.name.toLowerCase(),
             ),
           ).length;

@@ -32,6 +32,7 @@ const view = {
     queue: { jobs: [], complete: true, at: null },
     summary: { runners: 0, busy: 0, idle: 0, offline: 0, unknown: 0 },
   },
+  runners: [],
 } as unknown as FleetView;
 
 test("filters by name, description, address and OS", () => {
@@ -51,7 +52,7 @@ test("flattens the sidebar in display order, other machines only when open", () 
   expect(flattenNav(view, true).map(navKey).at(-1)).toBe("/peers/$nodeId:n1");
   const withRunner = {
     ...view,
-    github: { ...view.github, runners: [{ key: "gh:org:acme:1" }] },
+    runners: [{ key: "gh:org:acme:1" }],
   } as unknown as FleetView;
   expect(flattenNav(withRunner, false, true).map(navKey)).toContain("/runners/$key:gh:org:acme:1");
   expect(flattenNav(withRunner, false, false).map(navKey)).not.toContain(

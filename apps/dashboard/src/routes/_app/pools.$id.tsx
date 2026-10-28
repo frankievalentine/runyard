@@ -21,7 +21,7 @@ import {
   StatusDot,
 } from "../../components/ui.tsx";
 import { fleetQuery, useFleet } from "../../lib/fleet.ts";
-import { runnerFor, scopeLabel } from "../../lib/pools.ts";
+import { isForgejo, runnerFor, scopeLabel } from "../../lib/pools.ts";
 import { sessionQuery } from "../../lib/queries.ts";
 import { runnerStatus } from "../../lib/status.ts";
 
@@ -51,7 +51,20 @@ function PoolPage() {
   const admin = session.user?.role === "admin";
   const desired = view.pools.desired.filter((d) => d.poolId === pool.id);
   const existing = desired.filter((d) => runnerFor(view, d)).length;
-  const repos = pool.scopes.filter((s) => s.kind === "repo");
+  const repos = pool.scopes.filter((s) => s.kind === "repo" && !isForgejo(view, s));
+  const accounts = pool.scopes.flatMap((s) => {
+    if (s.kind === "repo" || !isForgejo(view, s)) return [];
+    const conn = view.forgejo.connections.find((c) => c.forgeId === s.forgeId);
+    const observed = conn?.scopes.find(
+      (x) => x.kind === s.kind && x.target.toLowerCase() === s.target.toLowerCase(),
+    );
+    return observed?.publicRepos?.length ? [{ scope: s, publicRepos: observed.publicRepos }] : [];
+  });
+  const forgejoMode = pool.scopes.some((s) => isForgejo(view, s))
+    ? pool.forgejoMode.kind === "docker"
+      ? ` · Forgejo jobs in Docker (${pool.forgejoMode.image})`
+      : " · Forgejo jobs on the machine"
+    : "";
   const machinesNeedingReview = [
     ...new Set(desired.filter((d) => !runnerFor(view, d)).map((d) => d.machineId)),
   ];
@@ -76,7 +89,7 @@ function PoolPage() {
             )}
           </>
         }
-        subtitle={`${pool.scopes.map(scopeLabel).join(", ")} · ${pool.machines.length} machine${pool.machines.length === 1 ? "" : "s"}`}
+        subtitle={`${pool.scopes.map(scopeLabel).join(", ")} · ${pool.machines.length} machine${pool.machines.length === 1 ? "" : "s"}${forgejoMode}`}
         actions={admin && <DeletePool pool={pool} onDeleted={() => void navigate({ to: "/" })} />}
       />
       {editing && (
@@ -176,6 +189,20 @@ function PoolPage() {
           </div>
         </Section>
       )}
+      {admin && accounts.length > 0 && (
+        <Section title="Public repositories">
+          <p className="mb-3 max-w-2xl text-[12.5px] text-ink-2">
+            A Forgejo account or organization runner serves every repository it owns, public ones
+            included. Runyard won't register runners for it until you allow it: a persistent runner
+            runs whatever workflow a pull request brings.
+          </p>
+          <div className="space-y-3">
+            {accounts.map((a) => (
+              <PublicAccount key={`${a.scope.forgeId}:${a.scope.target}`} {...a} />
+            ))}
+          </div>
+        </Section>
+      )}
     </div>
   );
 }
@@ -254,6 +281,66 @@ function PublicRepo({ scope }: { scope: Scope }) {
           </li>
         ))}
       </ul>
+      <form onSubmit={submit} className="mt-3 flex flex-wrap items-end gap-2">
+        <div className="min-w-60 flex-1">
+          <TextField
+            label={`Type ${scope.target} to allow runners for it`}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+        </div>
+        <Button
+          type="submit"
+          variant="danger"
+          disabled={allow.isPending || confirm !== scope.target}
+        >
+          Allow runners
+        </Button>
+      </form>
+      {allow.error && <ErrorText className="mt-2" error={allow.error} />}
+      {allow.isSuccess && (
+        <p className="mt-2 text-ink-2">
+          Allowed. Review the machines' changes to install its runners.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+/** The typed override for a Forgejo account whose runners would serve public repositories. */
+function PublicAccount({ scope, publicRepos }: { scope: Scope; publicRepos: string[] }) {
+  const [confirm, setConfirm] = useState("");
+  const allow = useMutation({
+    mutationFn: () =>
+      call(
+        api["public-repos"].$post({
+          json: { forgeId: scope.forgeId, repo: scope.target, confirm },
+        }),
+      ),
+    onSuccess: () => setConfirm(""),
+  });
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    allow.mutate();
+  };
+  return (
+    <Card className="px-4 py-3 text-[12.5px]">
+      <div className="flex items-center gap-2 font-medium">
+        <StatusDot tone="warn" />
+        <span className="font-mono">{scope.target}</span> owns{" "}
+        {publicRepos.length === 1
+          ? "a public repository"
+          : `${publicRepos.length} public repositories`}
+      </div>
+      <p className="mt-1.5 font-mono text-ink-2">
+        {publicRepos.slice(0, 8).join(", ")}
+        {publicRepos.length > 8 && ", …"}
+      </p>
+      <p className="mt-2 text-ink-2">
+        Before allowing it, turn off pull requests on these repositories or make them private, and
+        make sure no workflow on these runners is triggered by issues, comments or
+        pull_request_target. Runyard can't check these settings on Forgejo.
+      </p>
       <form onSubmit={submit} className="mt-3 flex flex-wrap items-end gap-2">
         <div className="min-w-60 flex-1">
           <TextField
