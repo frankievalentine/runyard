@@ -2,6 +2,7 @@
   "name": "runyard",
   "version": "0.0.0",
   "private": true,
+  "description": "Self-hosted dashboard and control service for GitHub Actions and Forgejo runner fleets",
   "workspaces": [
     "packages/*",
     "apps/*",
@@ -10,8 +11,7 @@
   "type": "module",
   "scripts": {
     "ready": "vp check && vp run -r test && vp run -r build",
-    "dev": "vp run website#dev",
-    "prepare": "vp config"
+    "dev": "vp run -r --parallel dev"
   },
   "devDependencies": {
     "vite": "catalog:",

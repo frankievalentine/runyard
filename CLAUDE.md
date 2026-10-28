@@ -1,3 +1,18 @@
+# Runyard: notes for agents
+
+Design and roadmap: [docs/PLAN.md](docs/PLAN.md). Follow its decisions and safety rules; raise a
+change to them before implementing it.
+
+- **Verify loop:** `vp run ready` (`vp check`, then `vp run -r test` and `vp run -r build`).
+- **Tests:** `packages/core` and `apps/dashboard` use `vp test` (Vitest, imported from
+  `vite-plus/test`). `apps/server` uses `bun test`, because it depends on Bun APIs such as
+  `bun:sqlite` that don't load under Vitest's Node workers. Keep logic that needs no I/O in
+  `packages/core`.
+- **Safety:** tests never contact a real forge or machine; they fake forge clients and SSH. Don't
+  run changes against machines or mint runner tokens unless the user asks.
+- **Terms:** "machine" for a computer, "pool" for runner capacity, "scope" for where a
+  registration lives, "registration" for one runner registered with a forge.
+
 <!--VITE PLUS START-->
 
 # Using Vite+, the Unified Toolchain for the Web
