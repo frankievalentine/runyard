@@ -181,6 +181,10 @@ describe("dispatch", () => {
       }),
     ).toEqual([]);
     expect(none({ dispatches: [dispatch({ state: "failed" })] })).toEqual([]);
+    // The same ID on Forgejo is a different job.
+    expect(
+      planDispatches({ ...base, dispatches: [dispatch({ runnerKind: "forgejo", state: "done" })] }),
+    ).toHaveLength(1);
     expect(
       none({
         runners: [{ key: "r", activity: "idle" } as RunnerView],

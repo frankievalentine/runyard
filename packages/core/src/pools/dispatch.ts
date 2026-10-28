@@ -89,7 +89,9 @@ export function planDispatches(input: {
   now: number;
 }): DispatchPlan[] {
   const installed = new Set(input.installed.map((t) => t.key));
-  const dispatched = new Set(input.dispatches.map((d) => d.jobId));
+  // Job IDs are unique within a forge, not across GitHub and Forgejo.
+  const jobKey = (kind: RunnerKind, id: number) => `${kind}:${id}`;
+  const dispatched = new Set(input.dispatches.map((d) => jobKey(d.runnerKind, d.jobId)));
   const active = input.dispatches.filter((d) => d.state === "starting" || d.state === "running");
   const plans: DispatchPlan[] = [];
   const startedRecently = (poolId: string) =>
@@ -100,7 +102,11 @@ export function planDispatches(input: {
     plans.filter((p) => p.pool.id === poolId && p.machineId === machineId).length;
 
   for (const job of input.queue) {
-    if (job.onDemand || dispatched.has(job.id)) continue;
+    if (
+      job.onDemand ||
+      dispatched.has(jobKey(job.forge === "forgejo" ? "forgejo" : "actions", job.id))
+    )
+      continue;
     const idle = input.runners.some((r) => job.eligible.includes(r.key) && r.activity === "idle");
     if (idle) continue;
     const wanted = job.labels.map((l) => l.toLowerCase());

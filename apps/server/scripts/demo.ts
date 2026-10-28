@@ -520,7 +520,8 @@ if (linuxBuilder && acme && !listPools(db).some((p) => p.name === "gpu")) {
 hosts
   .get("linux-builder.demo.ts.net")
   ?.templates.set("~/runyard-runners/gpu/template-actions", "2.329.0");
-let gpuJob = 9100;
+// Seconds since the epoch: job IDs never repeat, across restarts too, as on GitHub.
+let gpuJob = Math.floor(Date.now() / 1000);
 const queueGpuJob = () => {
   const runs = github.runs.get("acme-demo/infra") ?? [];
   if (runs.some((r) => r.status === "queued")) return;
