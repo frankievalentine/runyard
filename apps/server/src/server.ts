@@ -21,6 +21,7 @@ import { PoolEngine } from "./pools/engine.ts";
 import { listPools, listRegistrations } from "./pools/store.ts";
 import { installedPrograms, type SshPrograms } from "./machines/ssh.ts";
 import { loadSecretKey, SecretStore } from "./secrets.ts";
+import { setupChecks, type TailnetState } from "./setup/checks.ts";
 import { TailnetListener } from "./tailnet.ts";
 import { TailscaleCli, WhoisCache } from "./tailscale.ts";
 
@@ -84,6 +85,12 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   });
   void github.start();
   void forgejo.start();
+  // Assigned once the tailnet listener exists, after the loopback server starts.
+  let tailnet: TailnetListener | undefined;
+  const tailnetState = (): TailnetState =>
+    process.env.RUNYARD_TAILNET === "off"
+      ? { kind: "off" }
+      : (tailnet?.state ?? { kind: "starting" });
   const shared = {
     db,
     setup,
@@ -100,6 +107,8 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     fetch,
     apiBase: overrides.githubApiBase,
     webBase: overrides.githubWebBase,
+    tailnetState,
+    setupChecks: () => setupChecks({ run, programs, tailnet: tailnetState, dataDir: dir }),
   };
   const deps = (listener: AppDeps["listener"]): AppDeps => ({ ...shared, listener });
 
@@ -111,7 +120,6 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   const server = Bun.serve({ hostname, port, fetch: createApp(deps("tcp"), dashboard).fetch });
   console.log(`runyard listening on ${server.url.href} (data in ${dir})`);
 
-  let tailnet: TailnetListener | undefined;
   if (process.env.RUNYARD_TAILNET !== "off") {
     tailnet = new TailnetListener({
       tailscale,

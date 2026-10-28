@@ -21,6 +21,7 @@ import { Icon } from "../../components/icons.tsx";
 import { useFleet } from "../../lib/fleet.ts";
 import { plural } from "../../lib/format.ts";
 import { sessionQuery } from "../../lib/queries.ts";
+import { setupSteps } from "../../lib/setup.ts";
 
 export const Route = createFileRoute("/_app/")({
   component: Overview,
@@ -45,6 +46,8 @@ function Overview() {
       <div className="mt-8">
         {connected ? <RunnerStrip view={view} /> : <MachineStrip view={view} />}
       </div>
+
+      {session.user?.role === "admin" && <SetupProgress view={view} />}
 
       {view.alerts.length > 0 && (
         <Section title="Active alerts" count={view.alerts.length}>
@@ -163,6 +166,26 @@ function MachineStrip({ view }: { view: FleetView }) {
   );
 }
 
+/** A reminder while setup steps remain; gone once runners are installed. */
+function SetupProgress({ view }: { view: FleetView }) {
+  const steps = setupSteps(view);
+  const next = steps.find((s) => !s.done);
+  if (!next) return null;
+  return (
+    <Card className="mt-6 flex flex-wrap items-center gap-3 px-4 py-3 text-[13px]">
+      <div className="min-w-0 flex-1">
+        <span className="font-medium">
+          Getting started: {steps.filter((s) => s.done).length} of {steps.length} done.
+        </span>{" "}
+        <span className="text-ink-2">Next: {next.title.toLowerCase()}.</span>
+      </div>
+      <Link to="/getting-started" className="font-medium text-accent hover:underline">
+        Continue
+      </Link>
+    </Card>
+  );
+}
+
 /** First run: what to do before there's anything to show. */
 function Welcome({ admin, discovered }: { admin: boolean; discovered: number }) {
   return (
@@ -172,8 +195,8 @@ function Welcome({ admin, discovered }: { admin: boolean; discovered: number }) 
       </div>
       <h1 className="mt-4 text-[20px] font-semibold tracking-tight">Welcome to Runyard</h1>
       <p className="mt-2 text-[13px] text-ink-2">
-        Runyard watches the machines that run your CI over SSH and your tailnet. Nothing is
-        installed on them, and checks are read-only.
+        Runyard watches the machines that run your CI over SSH and your tailnet, and installs
+        runners on them only after you review the changes.
       </p>
       <Card className="mt-6 px-4 py-4 text-[13px]">
         {admin ? (
@@ -190,17 +213,30 @@ function Welcome({ admin, discovered }: { admin: boolean; discovered: number }) 
             >
               Add machines
             </Link>
-            <div className="mt-5 border-t border-line pt-4 font-medium">Connect GitHub</div>
+            <div className="mt-5 border-t border-line pt-4 font-medium">Connect a forge</div>
             <p className="mt-1 text-ink-2">
-              Runyard's GitHub App reads your runners and queued jobs, for a personal account or an
-              organization.
+              Runyard's GitHub App, or a Forgejo access token, reads your runners and queued jobs.
             </p>
-            <Link
-              to="/settings/github"
-              className="mt-3 inline-flex h-[28px] items-center rounded-[6px] border border-line bg-card px-2.5 text-[12.5px] font-medium hover:bg-hover"
-            >
-              Set up GitHub
-            </Link>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                to="/settings/github"
+                className="inline-flex h-[28px] items-center rounded-[6px] border border-line bg-card px-2.5 text-[12.5px] font-medium hover:bg-hover"
+              >
+                Set up GitHub
+              </Link>
+              <Link
+                to="/settings/forgejo"
+                className="inline-flex h-[28px] items-center rounded-[6px] border border-line bg-card px-2.5 text-[12.5px] font-medium hover:bg-hover"
+              >
+                Connect Forgejo
+              </Link>
+            </div>
+            <p className="mt-5 border-t border-line pt-4 text-ink-2">
+              <Link to="/getting-started" className="font-medium text-accent hover:underline">
+                Getting started
+              </Link>{" "}
+              checks this machine's SSH, Tailscale and secret key, and walks through the rest.
+            </p>
           </>
         ) : (
           <p className="text-ink-2">An admin hasn't added any machines yet.</p>

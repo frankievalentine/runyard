@@ -51,6 +51,12 @@ export function AccountMenu() {
               <>
                 <Menu.Item
                   className={item}
+                  onClick={() => void navigate({ to: "/getting-started" })}
+                >
+                  Getting started
+                </Menu.Item>
+                <Menu.Item
+                  className={item}
                   onClick={() => void navigate({ to: "/settings/github" })}
                 >
                   GitHub

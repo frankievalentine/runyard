@@ -247,6 +247,7 @@ function breadcrumbs(pathname: string, view: FleetView): { label: string; to?: s
     "/queue": "Queued jobs",
     "/settings/github": "GitHub",
     "/settings/forgejo": "Forgejo",
+    "/getting-started": "Getting started",
     "/": "Yard overview",
     "/ignored": "Ignored machines",
     "/users": "Users",

@@ -17,6 +17,7 @@ import type { MachineMonitor } from "./machines/monitor.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { githubRoutes, type GithubDeps } from "./routes/github.ts";
 import { forgejoRoutes } from "./routes/forgejo.ts";
+import { setupRoutes, type SetupDeps } from "./routes/setup.ts";
 import { poolRoutes } from "./routes/pools.ts";
 import type { ForgejoMonitor } from "./forgejo/monitor.ts";
 import type { PoolEngine } from "./pools/engine.ts";
@@ -36,7 +37,8 @@ export type AppDeps = {
   demo?: boolean;
   engine: PoolEngine;
   forgejo: ForgejoMonitor;
-} & Omit<GithubDeps, "db" | "listener">;
+} & Omit<GithubDeps, "db" | "listener"> &
+  Omit<SetupDeps, "db">;
 
 export function createApi(deps: AppDeps) {
   return new Hono<AppEnv>()
@@ -50,7 +52,8 @@ export function createApi(deps: AppDeps) {
     .route("/", machineRoutes(deps))
     .route("/github", githubRoutes(deps))
     .route("/", poolRoutes(deps))
-    .route("/forgejo", forgejoRoutes(deps));
+    .route("/forgejo", forgejoRoutes(deps))
+    .route("/", setupRoutes(deps));
 }
 
 /** Imported by the dashboard for the typed `hc` client. */

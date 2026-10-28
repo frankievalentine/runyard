@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../api.ts";
@@ -37,12 +37,26 @@ function Setup() {
     e.preventDefault();
     setup.mutate();
   };
+  const address = useQuery({
+    queryKey: ["setup-address"],
+    queryFn: () => call(api.setup.address.$get()),
+  }).data?.tailnetUrl;
+  const here = typeof window !== "undefined" && address?.startsWith(window.location.origin);
 
   return (
     <AuthCard title="Create the first admin">
       <p className="mt-2 text-[13px] text-ink-2">
         Runyard printed a setup code in its log when it started. Enter it to claim this install.
       </p>
+      {address && !here && (
+        <p className="mt-3 rounded-md border border-line bg-sunken/60 px-3 py-2 text-[12.5px] text-ink-2">
+          From your other devices, Runyard is at{" "}
+          <a href={address} className="font-mono text-accent hover:underline">
+            {address}
+          </a>
+          . Bookmark it: there, Tailscale signs you in.
+        </p>
+      )}
       <form onSubmit={submit} className="mt-5 flex flex-col gap-4">
         <TextField
           label="Setup code"

@@ -15,6 +15,7 @@ export class FakeMachines {
 
   readonly run: CommandRunner = async (argv, options) => {
     this.calls.push([...argv]);
+    if (argv[1] === "-V") return { code: 0, stdout: "", stderr: "OpenSSH_9.9p2, LibreSSL 3.3.6\n" };
     if (argv[0] === "tailscale" && argv[1] === "status") {
       return {
         code: 0,

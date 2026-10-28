@@ -13,6 +13,9 @@ import { FakeForgejo } from "./forgejo/fake.ts";
 import { FakeMachines } from "./machines/fake.ts";
 import { importKey } from "./crypto.ts";
 import { SecretStore } from "./secrets.ts";
+import { setupChecks, type TailnetState } from "./setup/checks.ts";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { MachineMonitor } from "./machines/monitor.ts";
 import { PoolEngine } from "./pools/engine.ts";
 import { listPools, listRegistrations } from "./pools/store.ts";
@@ -32,6 +35,8 @@ export async function testApp(
     await importKey(crypto.getRandomValues(new Uint8Array(32))),
   );
   const fakeGithub = new FakeGithub();
+  /** What the tailnet listener reports; tests set it. */
+  const tailnet: { state: TailnetState } = { state: { kind: "off" } };
   let monitor: MachineMonitor | undefined;
   const github = new GithubMonitor({
     db,
@@ -84,11 +89,22 @@ export async function testApp(
     challenges: new Challenges(),
     // Tests name the connecting device's login with a header; production asks `tailscale whois`.
     tailnetLogin: async (c) => c.req.header("X-Test-Tailnet-Login")?.toLowerCase() ?? null,
+    tailnetState: () => tailnet.state,
+    setupChecks: () =>
+      setupChecks({
+        run: fake.run,
+        programs: fake.programs,
+        tailnet: () => tailnet.state,
+        dataDir: tmpdir(),
+        env: {},
+        home: join(tmpdir(), "runyard-no-home"),
+      }),
   };
   const app = createApp(deps, options.dashboard);
   return {
     app,
     deps,
+    tailnet,
     codes,
     setup,
     fake,

@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppGettingStartedRouteImport } from './routes/_app/getting-started'
 import { Route as AppIgnoredRouteImport } from './routes/_app/ignored'
 import { Route as AppQueueRouteImport } from './routes/_app/queue'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
@@ -48,6 +49,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAccountRoute = AppAccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGettingStartedRoute = AppGettingStartedRouteImport.update({
+  id: '/getting-started',
+  path: '/getting-started',
   getParentRoute: () => AppRoute,
 } as any)
 const AppIgnoredRoute = AppIgnoredRouteImport.update({
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/account': typeof AppAccountRoute
+  '/getting-started': typeof AppGettingStartedRoute
   '/ignored': typeof AppIgnoredRoute
   '/queue': typeof AppQueueRoute
   '/users': typeof AppUsersRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/account': typeof AppAccountRoute
+  '/getting-started': typeof AppGettingStartedRoute
   '/ignored': typeof AppIgnoredRoute
   '/queue': typeof AppQueueRoute
   '/users': typeof AppUsersRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/_app/account': typeof AppAccountRoute
+  '/_app/getting-started': typeof AppGettingStartedRoute
   '/_app/ignored': typeof AppIgnoredRoute
   '/_app/queue': typeof AppQueueRoute
   '/_app/users': typeof AppUsersRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/account'
+    | '/getting-started'
     | '/ignored'
     | '/queue'
     | '/users'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/account'
+    | '/getting-started'
     | '/ignored'
     | '/queue'
     | '/users'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/_app/account'
+    | '/_app/getting-started'
     | '/_app/ignored'
     | '/_app/queue'
     | '/_app/users'
@@ -255,6 +267,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account'
       preLoaderRoute: typeof AppAccountRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/getting-started': {
+      id: '/_app/getting-started'
+      path: '/getting-started'
+      fullPath: '/getting-started'
+      preLoaderRoute: typeof AppGettingStartedRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/ignored': {
@@ -339,6 +358,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
+  AppGettingStartedRoute: typeof AppGettingStartedRoute
   AppIgnoredRoute: typeof AppIgnoredRoute
   AppQueueRoute: typeof AppQueueRoute
   AppUsersRoute: typeof AppUsersRoute
@@ -355,6 +375,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
+  AppGettingStartedRoute: AppGettingStartedRoute,
   AppIgnoredRoute: AppIgnoredRoute,
   AppQueueRoute: AppQueueRoute,
   AppUsersRoute: AppUsersRoute,

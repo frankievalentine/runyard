@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import type { TailnetState } from "./setup/checks.ts";
 import type { TailscaleCli } from "./tailscale.ts";
 
 type Fetch = (req: Request, server: Bun.Server<undefined>) => Response | Promise<Response>;
@@ -44,6 +45,12 @@ export class TailnetListener {
     return this.current
       ? `https://${this.current.split("\n")[0]}:${this.options.port}/`
       : undefined;
+  }
+
+  /** For the setup checks: serving, a problem, or not read yet. */
+  get state(): TailnetState {
+    if (this.url) return { kind: "serving", url: this.url };
+    return this.lastProblem ? { kind: "problem", message: this.lastProblem } : { kind: "starting" };
   }
 
   /** Never throws: any failure is logged and leaves loopback serving. */

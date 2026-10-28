@@ -120,13 +120,40 @@ Further packages are extracted when a boundary is proven, not up front.
      public repositories needs its name typed before Runyard registers runners for it. Not yet run
      against a real instance or machine.)
 6. **Setup**
-   - A first-run wizard (dependency checks, App creation, first machine and pool).
-   - The Docker image and compose file with a Tailscale sidecar.
-   - Showing the tailnet address and Tailscale setup status in the wizard.
+   - Setup checks on the control machine (`/api/setup/status`): ssh and a key, the Tailscale CLI,
+     login, HTTPS certificates and the tailnet URL, the secret key's source (warn to back up a
+     generated key file), and a writable data directory.
+   - A Getting started checklist derived from current state (no saved wizard progress): checks,
+     then connect a forge, add a machine, create a pool, review changes. Each step links to the
+     page that does it. The tailnet URL is printed at startup and shown on the setup screen.
+   - `runyard service install|uninstall|status`, running Runyard as the user (it needs their
+     SSH keys): a systemd system unit with `User=` on Linux (starts at boot), a LaunchAgent on
+     macOS (starts at login), a scheduled task at logon on Windows (no stored password).
+   - Release builds: `vp run release` cross-compiles macOS arm64, Linux x64 and arm64, and
+     Windows x64 binaries with SHA-256 sums into `dist/`. `install.sh` and `install.ps1` take a
+     base URL and verify the checksum. Nothing is published while the repository is private.
+   - A Docker image (the binary on Debian slim, with the ssh client and Tailscale CLI) and a
+     compose file with the official Tailscale container as a sidecar: Runyard shares its network
+     and socket; SSH keys and `known_hosts` are mounted read-only.
 7. **Webhooks and JIT**
    - Opt-in webhooks (Funnel or a public URL, HMAC verified).
    - A dispatcher that mints just-in-time runner configs for queued jobs and runs single-job
      runners on idle machines.
+
+## Pending live verification
+
+Built and tested only against fakes. Deferred until a real service or machine is available:
+
+- The GitHub App: manifest flow, installation, runner and job reads, and a real runner install.
+- Forgejo, on a real instance and Linux machine:
+  - The access-token scopes the settings page asks for (user, organization and repository,
+    read and write) are inferred, not tested.
+  - Runyard writes forgejo-runner's `.runner` file itself after API registration; if its format
+    is wrong, the runner won't start.
+  - Runner status values are assumed to be `offline`, `idle` and `active`.
+  - Docker mode.
+- Real runner installs on macOS, Linux and Windows. The PowerShell scripts haven't been
+  syntax-checked.
 
 ## Reference
 
