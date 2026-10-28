@@ -78,6 +78,8 @@ export type Review = {
   expiresAt: number;
   /** Linux needs root for dependencies and systemd; the form asks for the sudo password. */
   mayNeedSudo: boolean;
+  /** The access token's name, when an agent prepared it through the MCP server. */
+  preparedBy?: string;
 };
 
 export type StepStatus = "pending" | "running" | "succeeded" | "failed" | "skipped";
@@ -166,7 +168,8 @@ export class PoolEngine {
     return [...this.operations.values()].sort((a, b) => b.startedAt - a.startedAt).slice(0, 50);
   }
 
-  async review(machineId: string): Promise<Review> {
+  /** Plans the machine's changes; `preparedBy` names the access token when an agent asked. */
+  async review(machineId: string, preparedBy?: string): Promise<Review> {
     const ctx = await this.read(machineId);
     const items = planMachine(ctx.input);
     const now = this.now();
@@ -178,6 +181,7 @@ export class PoolEngine {
       fingerprint: planFingerprint(items),
       createdAt: now,
       expiresAt: now + REVIEW_MS,
+      ...(preparedBy ? { preparedBy } : {}),
       mayNeedSudo:
         ctx.os === "linux" &&
         actionable(items).some((i) => i.action !== "reconcileLabels" && i.action !== "retire"),

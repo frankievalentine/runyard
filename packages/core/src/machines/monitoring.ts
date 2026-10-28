@@ -24,7 +24,9 @@ export type EventKind =
   /** On-demand pools: one-job runners Runyard started and how they ended. */
   | "runnerStarted"
   | "runnerFinished"
-  | "runnerFailed";
+  | "runnerFailed"
+  /** Something an agent prepared through the MCP server, with who and which token. */
+  | "agentPrepared";
 
 /** `notify` marks changes a future notification channel should announce. */
 export type Change = { kind: EventKind; detail: string; notify: boolean };

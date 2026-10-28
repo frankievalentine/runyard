@@ -13,7 +13,21 @@ import { getMachine, updateMachine } from "../machines/store.ts";
 import { json } from "./validate.ts";
 
 /** Only an HTTPS origin with a plain host goes into the scripts. */
-const HTTPS_ORIGIN = /^https:\/\/[A-Za-z0-9.-]+(:\d{1,5})?$/;
+export const HTTPS_ORIGIN = /^https:\/\/[A-Za-z0-9.-]+(:\d{1,5})?$/;
+
+/** A machine's setup commands for one code. */
+export function setupCommands(
+  origin: string,
+  { code, expiresAt }: { code: string; expiresAt: number },
+) {
+  return {
+    posix: `curl -fsSL ${origin}/api/machine-setup/script.sh | sh -s -- ${code}`,
+    // A fresh Linux machine, as root: also creates the account and installs the SSH server.
+    prepare: `curl -fsSL ${origin}/api/machine-setup/script.sh | sh -s -- ${code} --prepare`,
+    windows: `& ([scriptblock]::Create((irm ${origin}/api/machine-setup/script.ps1))) ${code}`,
+    expiresAt,
+  };
+}
 const LIMIT_KEY = "machine-setup";
 
 export type MachineSetupDeps = {
@@ -74,14 +88,7 @@ export function machineSetupRoutes(deps: MachineSetupDeps) {
         );
       if (!(await runyardPublicKey(ssh)))
         return c.json({ error: "Runyard has no SSH key of its own; see Getting started." }, 400);
-      const { code, expiresAt } = machineSetup.issue(machine.id);
-      return c.json({
-        posix: `curl -fsSL ${origin}/api/machine-setup/script.sh | sh -s -- ${code}`,
-        // A fresh Linux machine, as root: also creates the account and installs the SSH server.
-        prepare: `curl -fsSL ${origin}/api/machine-setup/script.sh | sh -s -- ${code} --prepare`,
-        windows: `& ([scriptblock]::Create((irm ${origin}/api/machine-setup/script.ps1))) ${code}`,
-        expiresAt,
-      });
+      return c.json(setupCommands(origin, machineSetup.issue(machine.id)));
     })
     .get("/machine-setup/script.sh", (c) => script(c, posixScript, "sh"))
     .get("/machine-setup/script.ps1", (c) => script(c, windowsScript, "ps1"))

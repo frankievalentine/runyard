@@ -82,10 +82,9 @@ export type PoolDeps = {
   forgejo: ForgejoMonitor;
 };
 
-/** Pools, reviews and their execution, and public-repository overrides. */
-export function poolRoutes({ db, engine, monitor, github, forgejo }: PoolDeps) {
-  /** Refuses a definition with unknown machines, bad targets, or runners that would share a name. */
-  const check = (input: PoolInput, id?: string): string | null => {
+/** Refuses a definition with unknown machines, bad targets, or runners that would share a name. */
+export function poolChecker({ db, monitor, github, forgejo }: Omit<PoolDeps, "engine">) {
+  return (input: PoolInput, id?: string): string | null => {
     for (const m of input.machines)
       if (!getMachine(db, m.machineId)) return "One of the machines no longer exists.";
     for (const s of input.scopes)
@@ -116,6 +115,11 @@ export function poolRoutes({ db, engine, monitor, github, forgejo }: PoolDeps) {
     );
     return collisions[0] ?? null;
   };
+}
+
+/** Pools, reviews and their execution, and public-repository overrides. */
+export function poolRoutes({ db, engine, monitor, github, forgejo }: PoolDeps) {
+  const check = poolChecker({ db, monitor, github, forgejo });
   const errors = (fn: () => Promise<Response>) =>
     fn().catch((error: unknown) => {
       if (error instanceof EngineError)

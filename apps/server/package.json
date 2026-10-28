@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@hono/zod-validator": "^0.9.1",
+    "@modelcontextprotocol/sdk": "1.29.0",
     "@runyard/core": "workspace:*",
     "@simplewebauthn/server": "^13",
     "drizzle-orm": "^0.45",

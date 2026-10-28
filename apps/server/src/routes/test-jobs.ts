@@ -1,4 +1,4 @@
-import { scopeKey } from "@runyard/core";
+import { scopeKey, type Scope } from "@runyard/core";
 import { Hono } from "hono";
 import { z } from "zod";
 import { requireAdmin, requireUser, type AppEnv } from "../auth/identity.ts";
@@ -10,6 +10,24 @@ import { TEST_WORKFLOW_YAML, TestJobError, type TestJobs } from "../pools/test-j
 import { json } from "./validate.ts";
 
 const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+
+/** Why a runner can't run a test job from a repository, or null if it can. */
+export function testJobProblem(db: Db, scope: Scope, runnerName: string, repo: string) {
+  if (!REPO.test(repo)) return "Choose a repository as owner/name.";
+  const registered = listRegistrations(db).find(
+    (r) =>
+      scopeKey(r.scope) === scopeKey(scope) &&
+      r.runnerName.toLowerCase() === runnerName.toLowerCase(),
+  );
+  if (!registered || registered.runnerKind !== "actions")
+    return "Only GitHub runners Runyard installed can run a test job.";
+  // The runner takes jobs only from repositories its scope covers.
+  const serves =
+    scope.kind === "org"
+      ? repo.split("/")[0]!.toLowerCase() === scope.target.toLowerCase()
+      : repo.toLowerCase() === scope.target.toLowerCase();
+  return serves ? null : `This runner doesn't take jobs from ${repo}.`;
+}
 
 /** Test jobs: the workflow file to add, the latest result per runner, and starting one. */
 export function testJobRoutes({ db, testJobs }: { db: Db; testJobs: TestJobs }) {
@@ -37,22 +55,8 @@ export function testJobRoutes({ db, testJobs }: { db: Db; testJobs: TestJobs }) 
       ),
       async (c) => {
         const { scope, runnerName, repo, docker } = c.req.valid("json");
-        const registered = listRegistrations(db).find(
-          (r) =>
-            scopeKey(r.scope) === scopeKey(scope) &&
-            r.runnerName.toLowerCase() === runnerName.toLowerCase(),
-        );
-        if (!registered || registered.runnerKind !== "actions")
-          return c.json(
-            { error: "Only GitHub runners Runyard installed can run a test job." },
-            400,
-          );
-        // The runner takes jobs only from repositories its scope covers.
-        const serves =
-          scope.kind === "org"
-            ? repo.split("/")[0]!.toLowerCase() === scope.target.toLowerCase()
-            : repo.toLowerCase() === scope.target.toLowerCase();
-        if (!serves) return c.json({ error: `This runner doesn't take jobs from ${repo}.` }, 400);
+        const problem = testJobProblem(db, scope, runnerName, repo);
+        if (problem) return c.json({ error: problem }, 400);
         try {
           return c.json(await testJobs.start({ scope, runnerName, repo, docker }), 201);
         } catch (error) {
