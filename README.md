@@ -20,6 +20,36 @@ vp run ci         # ready, then a smoke test of the compiled binary (CI runs loc
 `vp run -r build` also produces `apps/cli/dist/runyard`, a single binary with the dashboard
 embedded.
 
+## First run
+
+Start Runyard and look at its output. With no admin yet, it prints a one-time setup code:
+
+```
+No admin yet. Open the dashboard and enter this setup code to create one:
+
+    CVZR-SYJD-4HZP
+```
+
+Open the dashboard and enter the code to create the first admin. The code changes at every start
+until an admin exists, so only someone who can read Runyard's output can claim the install.
+
+## Access over Tailscale
+
+Runyard listens on loopback TCP and on a private Unix socket. Expose the socket on your tailnet
+with HTTPS:
+
+```sh
+tailscale serve --bg unix:"$HOME/Library/Application Support/Runyard/runyard.sock"   # macOS
+tailscale serve --bg unix:"$HOME/.local/share/runyard/runyard.sock"                  # Linux
+```
+
+The sandboxed Mac App Store build of Tailscale may not be able to reach a socket in your Library
+folder; the standalone or Homebrew `tailscaled` can. This hasn't been verified yet.
+
+Requests through the socket carry Tailscale's identity, so users whose Tailscale login is added in
+**Users** are signed in automatically. Tailscale identity is trusted only on the socket; on TCP,
+users sign in with a username and password.
+
 ## Configuration
 
 | Variable                  | Effect                                                                                                                                                                                                                                     |
@@ -29,6 +59,7 @@ embedded.
 | `RUNYARD_DATA_DIR`        | Database and generated key location. Defaults to `~/Library/Application Support/Runyard` on macOS and `$XDG_DATA_HOME/runyard` (`~/.local/share/runyard`) elsewhere. Created with mode `700`; an existing directory keeps its permissions. |
 | `RUNYARD_SECRET_KEY`      | Base64 32-byte key (`openssl rand -base64 32`) that encrypts stored credentials.                                                                                                                                                           |
 | `RUNYARD_SECRET_KEY_FILE` | File holding that key. Used when `RUNYARD_SECRET_KEY` is unset; defaults to `secret.key` in the data directory, generated with mode `600` on first start.                                                                                  |
+| `RUNYARD_SOCKET`          | Unix socket for `tailscale serve` (default `runyard.sock` in the data directory, mode `600`); `off` disables it.                                                                                                                           |
 
 A key file in the data directory only protects a copy of the database taken on its own, such as a
 backup. To keep the two apart, pass the key through the environment or a file stored elsewhere.

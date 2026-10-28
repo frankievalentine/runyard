@@ -85,5 +85,9 @@ export function Section({
 
 export function ErrorText({ error, className = "" }: { error: unknown; className?: string }) {
   const message = error instanceof Error ? error.message : String(error);
-  return <p className={`text-[12px] text-bad select-text ${className}`}>{message}</p>;
+  return (
+    <p role="alert" className={`text-[12px] break-words text-bad select-text ${className}`}>
+      {message}
+    </p>
+  );
 }

@@ -14,9 +14,11 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@hono/zod-validator": "^0.9.1",
     "@runyard/core": "workspace:*",
     "drizzle-orm": "^0.45",
-    "hono": "^4"
+    "hono": "^4",
+    "zod": "^4"
   },
   "devDependencies": {
     "@types/bun": "^1.4.4",

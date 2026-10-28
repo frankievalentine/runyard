@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Card, ErrorText, Pill, Section } from "../components/ui.tsx";
-import { healthQuery } from "../lib/queries.ts";
+import { Card, ErrorText, Pill, Section } from "../../components/ui.tsx";
+import { healthQuery } from "../../lib/queries.ts";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_app/")({
   component: Overview,
 });
 

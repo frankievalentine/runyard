@@ -1,12 +1,22 @@
 import { queryOptions } from "@tanstack/react-query";
-import { api } from "../api.ts";
+import { api, call } from "../api.ts";
 
 export const healthQuery = queryOptions({
   queryKey: ["health"],
-  queryFn: async () => {
-    const res = await api.health.$get();
-    if (!res.ok) throw new Error(`The server answered ${res.status}.`);
-    return res.json();
-  },
+  queryFn: () => call(api.health.$get()),
   refetchInterval: 15_000,
 });
+
+export const sessionQuery = queryOptions({
+  queryKey: ["session"],
+  queryFn: () => call(api.session.$get()),
+});
+
+export type Session = Awaited<ReturnType<NonNullable<(typeof sessionQuery)["queryFn"]>>>;
+
+export const usersQuery = queryOptions({
+  queryKey: ["users"],
+  queryFn: () => call(api.users.$get()),
+});
+
+export type UserView = Awaited<ReturnType<NonNullable<(typeof usersQuery)["queryFn"]>>>[number];

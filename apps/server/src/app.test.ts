@@ -2,29 +2,29 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createApp } from "./app.ts";
+import { testApp } from "./testing.ts";
 
 test("GET /api/health reports ok", async () => {
-  const res = await createApp().request("/api/health");
+  const res = await testApp().app.request("/api/health");
   expect(res.status).toBe(200);
   expect(await res.json()).toMatchObject({ ok: true });
 });
 
 describe("dashboard", () => {
   let dir: string;
-  let app: ReturnType<typeof createApp>;
+  let app: ReturnType<typeof testApp>["app"];
 
   beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), "runyard-dashboard-"));
     await mkdir(join(dir, "assets"));
     await writeFile(join(dir, "index.html"), "<!doctype html><title>Runyard</title>");
     await writeFile(join(dir, "assets", "index-abc.js"), "console.log(1)");
-    app = createApp(
-      new Map([
+    app = testApp({
+      dashboard: new Map([
         ["/index.html", join(dir, "index.html")],
         ["/assets/index-abc.js", join(dir, "assets", "index-abc.js")],
       ]),
-    );
+    }).app;
   });
 
   afterAll(() => rm(dir, { recursive: true, force: true }));

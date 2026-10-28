@@ -1,17 +1,37 @@
 import { Hono } from "hono";
 import pkg from "../package.json" with { type: "json" };
+import { identify, sameOriginWrites, type AppEnv, type Listener } from "./auth/identity.ts";
+import type { FailureLimiter } from "./auth/rate-limit.ts";
+import type { SetupCode } from "./auth/setup.ts";
+import { UserError } from "./auth/users.ts";
 import { serveDashboard, type DashboardAssets } from "./dashboard.ts";
+import type { Db } from "./db/index.ts";
+import { authRoutes } from "./routes/auth.ts";
+import { userRoutes } from "./routes/users.ts";
 
-export const api = new Hono()
-  .basePath("/api")
-  .get("/health", (c) => c.json({ ok: true, version: pkg.version }));
+export type AppDeps = { db: Db; listener: Listener; setup: SetupCode; limiter: FailureLimiter };
+
+export function createApi(deps: AppDeps) {
+  return new Hono<AppEnv>()
+    .basePath("/api")
+    .use(sameOriginWrites(deps.listener))
+    .use(identify(deps.db, deps.listener))
+    .get("/health", (c) => c.json({ ok: true, version: pkg.version }))
+    .route("/", authRoutes(deps))
+    .route("/users", userRoutes(deps.db));
+}
 
 /** Imported by the dashboard for the typed `hc` client. */
-export type AppType = typeof api;
+export type AppType = ReturnType<typeof createApi>;
 
 /** In development the dashboard comes from Vite's dev server, so `dashboard` is omitted. */
-export function createApp(dashboard?: DashboardAssets) {
-  const app = new Hono().route("/", api);
+export function createApp(deps: AppDeps, dashboard?: DashboardAssets) {
+  const app = new Hono().route("/", createApi(deps));
+  app.onError((error, c) => {
+    if (error instanceof UserError) return c.json({ error: error.message }, 400);
+    console.error(error);
+    return c.json({ error: "Something went wrong. Check Runyard's log." }, 500);
+  });
   if (dashboard) app.get("*", serveDashboard(dashboard));
   return app;
 }
