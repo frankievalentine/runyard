@@ -71,6 +71,13 @@
       "when": 1793218772766,
       "tag": "0009_runner_migrations",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793225627112,
+      "tag": "0010_tool_profiles",
+      "breakpoints": true
     }
   ]
 }

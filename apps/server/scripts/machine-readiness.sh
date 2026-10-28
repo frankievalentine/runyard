@@ -1,6 +1,13 @@
 # Read-only: whether this machine has what CI jobs commonly need. Runs after
 # the diagnostics, in the same subshell, with RUNYARD_FORGE_HOSTS set to the
 # forges' hosts. Reports presence (and a few versions) only; changes nothing.
+# SSH sessions on a Mac leave Homebrew out of PATH; Runyard's runners get it.
+if [ "$(uname -s)" = Darwin ]; then
+  for dir in /usr/local/bin /opt/homebrew/bin; do
+    if [ -d "$dir" ]; then PATH="$dir:$PATH"; fi
+  done
+  fact tool_brew "$(command -v brew 2>/dev/null)"
+fi
 for tool in git curl tar unzip zip xz zstd jq gpg cc make python3 node; do
   fact "tool_$tool" "$(command -v "$tool" 2>/dev/null)"
 done

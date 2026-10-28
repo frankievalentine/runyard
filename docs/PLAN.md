@@ -212,7 +212,7 @@ container:
    and an HTTPS request to each forge host; `evaluateReadiness` in `packages/core` sorts them
    into required, label and recommended items. Pool machines missing a required or promised
    item show under Needs attention and on the pool page; the pool form suggests labels.
-2. **Baseline install:** tool profiles per pool (Essentials, Build tools, Docker) installed as a
+2. **Baseline install (done, against fakes and a Debian container):** tool profiles per pool (Essentials, Build tools, Docker) installed as a
    reviewed plan item with the package manager; Docker from distribution packages; blocked with
    the command on Macs without Homebrew, and on Windows.
 3. **Cleanup:** an optional per-pool job-completed hook for persistent GitHub runners (workspace,

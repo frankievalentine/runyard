@@ -175,6 +175,8 @@ export const pools = sqliteTable("pools", {
     .default("persistent"),
   /** On demand only: no new runners start while paused. */
   paused: integer({ mode: "boolean" }).notNull().default(false),
+  /** JSON array of tool profiles its machines' reviews install where missing. */
+  toolProfiles: text().notNull().default("[]"),
   createdAt: integer({ mode: "timestamp_ms" }).notNull(),
 });
 

@@ -1,5 +1,6 @@
 import type { OsFamily } from "../machines/model.ts";
 import type { RunnerKind, Scope } from "../model.ts";
+import type { ToolProfile } from "./tools.ts";
 
 /** Runner capacity: labels, the machines it runs on (with runners per machine) and the scopes it serves. */
 export type Pool = {
@@ -18,6 +19,8 @@ export type Pool = {
   mode: PoolMode;
   /** On demand only: no new runners start while paused. */
   paused: boolean;
+  /** Tools its machines' reviews install where they're missing. */
+  toolProfiles: ToolProfile[];
 };
 
 export type PoolMode = "persistent" | "onDemand";

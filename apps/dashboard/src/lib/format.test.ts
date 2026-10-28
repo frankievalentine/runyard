@@ -3,6 +3,7 @@ import {
   formatBytes,
   formatDollars,
   formatElapsed,
+  timeUntil,
   formatUptime,
   plural,
   timeAgo,
@@ -41,4 +42,11 @@ test("formats list-price dollars", () => {
   expect(formatDollars(12.345)).toBe("$12.35");
   expect(formatDollars(0.0006)).toBe("$0.00060");
   expect(formatDollars(0)).toBe("$0.00");
+});
+
+test("timeUntil counts down to a time ahead", () => {
+  expect(timeUntil(15 * 60_000, 0)).toBe("in 15 minutes");
+  expect(timeUntil(61_000, 0)).toBe("in 2 minutes");
+  expect(timeUntil(30_000, 0)).toBe("in 30 seconds");
+  expect(timeUntil(0, 5_000)).toBe("now");
 });

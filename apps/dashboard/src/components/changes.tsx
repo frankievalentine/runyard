@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../api.ts";
 import { useYard } from "../lib/yard.ts";
-import { timeAgo } from "../lib/format.ts";
+import { timeUntil } from "../lib/format.ts";
 import { useNow } from "../lib/now.ts";
 import { runnerFor } from "../lib/pools.ts";
 import { runnerStatus } from "../lib/status.ts";
@@ -36,6 +36,7 @@ const ACTION: Record<PlanItem["action"], string> = {
   installTemplate: "Install runner software",
   removeTemplate: "Remove runner software",
   retire: "Retire",
+  installTools: "Install tools",
 };
 
 /** The machine's runners: the ones GitHub lists for it, and the ones its pools still call for. ported from aarondfrancis/fleet's RunnerTable. */
@@ -215,7 +216,7 @@ export function MachineChanges({ m, admin }: { m: MachineView; admin: boolean })
                 {expired
                   ? "This review expired. Review again."
                   : actionable.length
-                    ? `Runyard re-reads the machine and GitHub first and does nothing if anything changed. Expires ${timeAgo(review.expiresAt, now).replace(" ago", "")}.`
+                    ? `Runyard re-reads the machine and GitHub first and does nothing if anything changed. Expires ${timeUntil(review.expiresAt, now)}.`
                     : "Nothing here can be done automatically."}
               </p>
               <Button

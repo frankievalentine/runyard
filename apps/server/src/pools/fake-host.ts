@@ -25,7 +25,8 @@ export class FakeRunnerHost {
       | "template-install"
       | "template-remove"
       | "jit-start"
-      | "sweep";
+      | "sweep"
+      | "tools-install";
     env: Record<string, string>;
   }[] = [];
   /** Installed templates by path, with their version. */
@@ -64,6 +65,10 @@ export class FakeRunnerHost {
     const env = Object.fromEntries(
       [...stdin.matchAll(/^export (RF_[A-Z_]+)=(.+)$/gm)].map((m) => [m[1]!, unquote(m[2]!)]),
     );
+    if ("RF_TOOLS" in env) {
+      this.received.push({ op: "tools-install", env });
+      return `Installed: ${env.RF_TOOLS}`;
+    }
     if ("RF_JOB_DIR" in env) {
       this.received.push({ op: "jit-start", env });
       if (this.failNext) {

@@ -6,7 +6,9 @@ import type {
   Registration,
   Scope,
   TemplateRecord,
+  ToolProfile,
 } from "@runyard/core";
+import { TOOL_PROFILES } from "@runyard/core";
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import type { Db } from "../db/index.ts";
 import {
@@ -26,6 +28,7 @@ export type PoolInput = {
   scopes: { forgeId: string; kind: "user" | "org" | "repo"; target: string }[];
   forgejoMode: ForgejoMode;
   mode: PoolMode;
+  toolProfiles: ToolProfile[];
 };
 
 export function listPools(db: Db): Pool[] {
@@ -46,6 +49,9 @@ export function listPools(db: Db): Pool[] {
           : { kind: "host" },
       mode: p.mode,
       paused: p.paused,
+      toolProfiles: (JSON.parse(p.toolProfiles) as string[]).filter(
+        (t): t is ToolProfile => t in TOOL_PROFILES,
+      ),
       machines: machines
         .filter((m) => m.poolId === p.id)
         .map(({ machineId, slots }) => ({ machineId, slots })),
@@ -69,6 +75,7 @@ export function savePool(
       forgejoMode: input.forgejoMode.kind,
       forgejoImage: input.forgejoMode.kind === "docker" ? input.forgejoMode.image : null,
       mode: input.mode,
+      toolProfiles: JSON.stringify(input.toolProfiles),
     };
     if (exists) tx.update(pools).set(row).where(eq(pools.id, id)).run();
     else

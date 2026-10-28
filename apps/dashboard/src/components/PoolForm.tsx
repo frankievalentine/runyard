@@ -2,11 +2,13 @@ import {
   desiredRunners,
   desiredTemplates,
   POOL_NAME,
+  TOOL_PROFILES,
   type ForgeKind,
   type ForgejoMode,
   type Pool,
   type PoolMode,
   type Scope,
+  type ToolProfile,
 } from "@runyard/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -67,6 +69,7 @@ export function PoolForm({
     start?.forgejoMode.kind === "docker" ? start.forgejoMode.image : "node:22-bookworm",
   );
   const [poolMode, setPoolMode] = useState<PoolMode>(start?.mode ?? "persistent");
+  const [toolProfiles, setToolProfiles] = useState<ToolProfile[]>(start?.toolProfiles ?? []);
   const onDemand = poolMode === "onDemand";
   const options = availableScopes(view);
   const servesForgejo = scopes.some((s) => isForgejo(view, s));
@@ -85,7 +88,7 @@ export function PoolForm({
         )
       : [];
   const effectiveName = nameTouched ? name.trim() : slug(labelList[0] ?? "") || name.trim();
-  const draft: PoolDraft & { mode: PoolMode } = {
+  const draft: PoolDraft & { mode: PoolMode; toolProfiles: ToolProfile[] } = {
     name: effectiveName,
     labels: labelList,
     machines: Object.entries(slots)
@@ -94,6 +97,7 @@ export function PoolForm({
     scopes,
     forgejoMode: mode === "docker" ? { kind: "docker", image: image.trim() } : { kind: "host" },
     mode: poolMode,
+    toolProfiles,
   };
 
   const preview = useMemo(() => {
@@ -301,6 +305,43 @@ export function PoolForm({
               )}
             </fieldset>
           )}
+          <fieldset className="mt-5 flex flex-col gap-2">
+            <legend className="text-[12px] font-medium text-ink-2">
+              Tools to install where they're missing
+            </legend>
+            <p className="text-[12px] text-ink-2">
+              Each machine's review installs what its last check found missing, before the runners.
+              Nothing is installed until you run the review.
+            </p>
+            <div className="grid grid-cols-1 gap-2 min-[700px]:grid-cols-3">
+              {(Object.keys(TOOL_PROFILES) as ToolProfile[]).map((p) => {
+                const on = toolProfiles.includes(p);
+                return (
+                  <label
+                    key={p}
+                    className={`flex cursor-pointer gap-2 rounded-md border px-3 py-2 text-[12.5px] ${on ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={on}
+                      onChange={() =>
+                        setToolProfiles(
+                          on ? toolProfiles.filter((x) => x !== p) : [...toolProfiles, p],
+                        )
+                      }
+                    />
+                    <span>
+                      <span className="font-medium">{TOOL_PROFILES[p].title}</span>
+                      <span className="block text-[12px] text-ink-2">
+                        {TOOL_PROFILES[p].detail}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
         </Step>
 
         <Step n={3} title="Labels and name" hint="Workflows pick these runners with runs-on.">

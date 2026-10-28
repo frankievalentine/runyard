@@ -556,6 +556,7 @@ if (linuxBuilder && acme && !listPools(db).some((p) => p.name === "gpu")) {
     scopes: [scope],
     forgejoMode: { kind: "host" },
     mode: "onDemand",
+    toolProfiles: [],
   });
   recordTemplate(db, {
     key: `${poolId}:${linuxBuilder.id}:actions`,

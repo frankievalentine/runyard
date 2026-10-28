@@ -6,12 +6,15 @@ import {
   nameCollisions,
   planFingerprint,
   planMachine,
+  profileTools,
   scopeKey,
   type DesiredRunner,
   type OsFamily,
   type LocalRunner,
   type Migration,
   type PlanInput,
+  type Readiness,
+  type ToolProfile,
   type Pool,
   type RemoteRunner,
   type RunnerView,
@@ -31,6 +34,7 @@ const pool = (over: Partial<Pool> = {}): Pool => ({
   forgejoMode: { kind: "host" },
   mode: "persistent",
   paused: false,
+  toolProfiles: [],
   ...over,
 });
 const machines = new Map<string, { name: string; os: OsFamily | null }>([
@@ -384,5 +388,89 @@ describe("Forgejo runners", () => {
       githubErrors: new Map(),
     });
     expect(items.map((i) => [i.action, i.blocked])).toEqual([["unsupportedPlatform", true]]);
+  });
+});
+
+describe("installing a pool's tools", () => {
+  const readiness = (have: string[], homebrew = false): Readiness => ({
+    items: have.map((id) => ({
+      id,
+      tier: "required",
+      title: id,
+      status: "ok",
+      value: "",
+      detail: "",
+    })),
+    capabilities: [],
+    homebrew,
+  });
+  const plan = (
+    os: OsFamily,
+    r: Readiness | null,
+    profiles: ToolProfile[] = ["essentials", "docker"],
+  ) =>
+    planMachine({
+      machineId: "m1",
+      desired: [],
+      registrations: [],
+      local: new Map(),
+      github: new Map(),
+      policies: new Map(),
+      machineError: null,
+      githubErrors: new Map(),
+      tools: { wanted: profileTools(profiles), os, readiness: r, scope: org },
+    }).map((i) => [i.action, i.blocked, i.tools]);
+
+  test("Linux installs only what's missing; nothing when all is there", () => {
+    expect(plan("linux", readiness(["tool-git", "tool-curl", "tool-tar", "docker"]))).toEqual([
+      ["installTools", false, ["unzip", "zip", "xz", "zstd", "jq", "gpg"]],
+    ]);
+    const all = profileTools(["essentials"]).map((t) => `tool-${t}`);
+    expect(plan("linux", readiness([...all, "docker"]))).toEqual([]);
+  });
+
+  test("waits for a check, and never guesses on Windows", () => {
+    expect(plan("linux", null)).toEqual([
+      ["installTools", true, profileTools(["essentials", "docker"])],
+    ]);
+    expect(plan("windows", readiness([]))[0]?.[1]).toBe(true);
+  });
+
+  test("a Mac installs with Homebrew, and leaves the Command Line Tools and Docker to a person", () => {
+    expect(
+      plan("macos", readiness(["tool-curl", "tool-tar"], true), ["essentials", "build", "docker"]),
+    ).toEqual([
+      ["installTools", false, ["unzip", "zip", "xz", "zstd", "jq", "gpg", "python3"]],
+      ["installTools", true, ["git", "cc", "make"]],
+      ["installTools", true, ["docker"]],
+    ]);
+    const noBrew = plan("macos", readiness(["tool-git", "tool-curl", "tool-tar"]), ["essentials"]);
+    expect(noBrew).toEqual([["installTools", true, ["unzip", "zip", "xz", "zstd", "jq", "gpg"]]]);
+  });
+
+  test("tools come before the runners, and the fingerprint covers them", () => {
+    const [d] = desiredRunners([pool({ machines: [{ machineId: "m1", slots: 1 }] })], machines) as [
+      DesiredRunner,
+    ];
+    const input = (wanted: ToolProfile[]): PlanInput => ({
+      machineId: "m1",
+      desired: [d],
+      registrations: [],
+      local: new Map(),
+      github: new Map(),
+      policies: new Map([[scopeKey(org), { ok: true }]]),
+      machineError: null,
+      githubErrors: new Map(),
+      tools: {
+        wanted: profileTools(wanted),
+        os: "macos",
+        readiness: readiness([], true),
+        scope: org,
+      },
+    });
+    expect(planMachine(input(["essentials"])).map((i) => i.action)[0]).toBe("installTools");
+    expect(planFingerprint(planMachine(input(["essentials"])))).not.toBe(
+      planFingerprint(planMachine(input(["essentials", "build"]))),
+    );
   });
 });

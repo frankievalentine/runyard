@@ -1,0 +1,1 @@
+ALTER TABLE `pools` ADD `tool_profiles` text DEFAULT '[]' NOT NULL;

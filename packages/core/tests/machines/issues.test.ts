@@ -164,6 +164,7 @@ test("a Mac in a pool needs automatic login for the runners' user", () => {
         forgejoMode: { kind: "host" },
         mode: "persistent",
         paused: false,
+        toolProfiles: [],
       },
     ];
     return v;

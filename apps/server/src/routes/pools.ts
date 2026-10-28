@@ -67,6 +67,10 @@ const poolSchema = z.object({
     ])
     .default({ kind: "host" }),
   mode: z.enum(["persistent", "onDemand"]).default("persistent"),
+  toolProfiles: z
+    .array(z.enum(["essentials", "build", "docker"]))
+    .max(3)
+    .default([]),
 });
 
 export type PoolDeps = {

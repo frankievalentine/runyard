@@ -4,6 +4,7 @@ import {
   desiredTemplates,
   planFingerprint,
   planMachine,
+  profileTools,
   retireCleanup,
   scopeKey,
   type DesiredRunner,
@@ -268,6 +269,11 @@ export class PoolEngine {
       return this.applyTemplate(item, ctx, sudoPassword);
     }
     if (item.action === "retire") return this.retire(item, ctx);
+    if (item.action === "installTools")
+      return this.runScript(ctx, "tools-install", {
+        RF_TOOLS: (item.tools ?? []).join(" "),
+        RF_SUDO_PASSWORD: sudoPassword,
+      });
     if (item.runnerKind === "forgejo") return this.applyForgejo(item, ctx, sudoPassword);
     const http = this.client(item.scope);
     switch (item.action) {
@@ -474,6 +480,19 @@ export class PoolEngine {
     ).filter((t) => t.machineId === machineId);
     const templateRecords = listTemplates(this.deps.db).filter((t) => t.machineId === machineId);
     const migrations = listMigrations(this.deps.db).filter((m) => m.machineId === machineId);
+    // The tool profiles of this machine's pools, checked against its last readiness read.
+    const withTools = listPools(this.deps.db).filter(
+      (p) => p.toolProfiles.length && p.machines.some((m) => m.machineId === machineId),
+    );
+    const toolScope = withTools.flatMap((p) => p.scopes)[0];
+    const tools = toolScope
+      ? {
+          wanted: profileTools(withTools.flatMap((p) => p.toolProfiles)),
+          os: view.os,
+          readiness: view.readiness,
+          scope: toolScope,
+        }
+      : undefined;
 
     const targets = [
       ...desired.map((d) => ({ path: d.path, serviceMode: d.serviceMode })),
@@ -575,6 +594,7 @@ export class PoolEngine {
         templateRecords,
         localTemplates,
         migrations,
+        ...(tools ? { tools } : {}),
       },
     };
   }

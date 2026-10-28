@@ -5,6 +5,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
+import { TOOL_PROFILES } from "@runyard/core";
 import { MigrationsIn } from "../../components/Migration.tsx";
 import { PoolReadiness } from "../../components/Readiness.tsx";
 import { Icon } from "../../components/icons.tsx";
@@ -131,6 +132,12 @@ function PoolPage() {
             <Label key={l}>{l}</Label>
           ))}
         </div>
+      )}
+      {pool.toolProfiles.length > 0 && (
+        <p className="mt-3 text-[12.5px] text-ink-2">
+          Installs {pool.toolProfiles.map((p) => TOOL_PROFILES[p].title).join(", ")} where missing,
+          through each machine's review.
+        </p>
       )}
       {view.pools.collisions.length > 0 && (
         <Callout tone="bad" title="Runner names collide">

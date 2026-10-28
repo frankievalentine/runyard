@@ -1,5 +1,8 @@
+import type { Readiness } from "../machines/readiness.ts";
+import type { OsFamily } from "../machines/model.ts";
 import { scopeKey } from "../scope.ts";
 import type { RunnerKind, Scope } from "../model.ts";
+import { toolInstallPlan, type ToolId } from "./tools.ts";
 import {
   isActive,
   serviceModeFor,
@@ -29,7 +32,8 @@ export type PlanAction =
   | "unsupportedPlatform"
   | "installTemplate"
   | "removeTemplate"
-  | "retire";
+  | "retire"
+  | "installTools";
 
 export type PlanItem = {
   action: PlanAction;
@@ -47,6 +51,8 @@ export type PlanItem = {
   runnerKind: RunnerKind;
   /** Forgejo only: how its labels run jobs. */
   forgejoMode?: ForgejoMode;
+  /** For installTools: the tools it installs (or, blocked, the ones a person must). */
+  tools?: ToolId[];
 };
 
 /** A runner Runyard registered earlier, kept so it can be found and removed when no longer wanted. */
@@ -86,6 +92,14 @@ export type PlanInput = {
   localTemplates?: ReadonlyMap<string, LocalTemplate>;
   /** Runners Runyard didn't install that are moving into a pool. */
   migrations?: Migration[];
+  /** The tools this machine's pools ask for, and what its last check found. */
+  tools?: {
+    wanted: ToolId[];
+    os: OsFamily;
+    readiness: Readiness | null;
+    /** A scope of a pool that wants them, to file the item under. */
+    scope: Scope;
+  };
 };
 
 /** Labels GitHub adds by itself; reconciling never adds or removes them. */
@@ -288,7 +302,48 @@ export function planMachine(input: PlanInput): PlanItem[] {
   }
   items.push(...planTemplates(input));
   items.push(...planRetirements(input));
-  return items;
+  // Tools first: the runners installed after them can use them from their first job.
+  return [...planTools(input), ...items];
+}
+
+/** Installing the tools a machine's pools ask for, where its last check found them missing. */
+function planTools(input: PlanInput): PlanItem[] {
+  const t = input.tools;
+  if (!t || t.wanted.length === 0) return [];
+  const item = (tools: ToolId[], reason: string, blocked: boolean): PlanItem => ({
+    action: "installTools",
+    machineId: input.machineId,
+    runnerName: "Tools",
+    scope: t.scope,
+    path: "",
+    reason,
+    blocked,
+    serviceMode: t.os === "macos" ? "launchagent" : "systemd",
+    runnerKind: "actions",
+    tools,
+  });
+  if (input.machineError) return [item(t.wanted, input.machineError, true)];
+  if (!t.readiness)
+    return [
+      item(
+        t.wanted,
+        "Runyard installs a pool's tools once a successful check shows what's missing.",
+        true,
+      ),
+    ];
+  const { install, blocked } = toolInstallPlan(t.os, t.readiness, t.wanted);
+  return [
+    ...(install.length
+      ? [
+          item(
+            install,
+            `Install ${install.join(", ")} with ${t.os === "macos" ? "Homebrew" : "the package manager"}.`,
+            false,
+          ),
+        ]
+      : []),
+    ...blocked.map((b) => item(b.tools, `${b.tools.join(", ")}: ${b.reason}`, true)),
+  ];
 }
 
 /**
@@ -481,7 +536,15 @@ export function actionable(items: PlanItem[]): PlanItem[] {
 export function planFingerprint(items: PlanItem[]): string {
   return JSON.stringify(
     items
-      .map((i) => [i.action, i.runnerName, scopeKey(i.scope), i.path, i.blocked, i.labels ?? null])
+      .map((i) => [
+        i.action,
+        i.runnerName,
+        scopeKey(i.scope),
+        i.path,
+        i.blocked,
+        i.labels ?? null,
+        i.tools ?? null,
+      ])
       .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
   );
 }

@@ -15,6 +15,7 @@ import jitStart from "../../scripts/jit-start.sh" with { type: "text" };
 import jitSweep from "../../scripts/jit-sweep.sh" with { type: "text" };
 import templateInstall from "../../scripts/template-install.sh" with { type: "text" };
 import templateRemove from "../../scripts/template-remove.sh" with { type: "text" };
+import toolsInstall from "../../scripts/tools-install.sh" with { type: "text" };
 
 export type Operation =
   | "install"
@@ -27,7 +28,8 @@ export type Operation =
   | "template-install"
   | "template-remove"
   | "jit-start"
-  | "jit-sweep";
+  | "jit-sweep"
+  | "tools-install";
 
 /** Values that are paths on the machine: a leading `~/` becomes the remote home directory. */
 const PATHS = new Set(["RF_ROOT", "RF_TEMPLATE", "RF_JOB_DIR"]);
@@ -64,7 +66,20 @@ const SCRIPTS: Record<Operation, { posix: string; windows: string }> = {
   },
   "jit-start": { posix: jitStart, windows: "throw 'on-demand runners need Linux or macOS'" },
   "jit-sweep": { posix: jitSweep, windows: "throw 'on-demand runners need Linux or macOS'" },
+  "tools-install": { posix: toolsInstall, windows: "throw 'tool profiles need Linux or macOS'" },
 };
+
+/**
+ * SSH sessions on a Mac leave Homebrew out of PATH, and runners keep the PATH
+ * they're configured or started with (GitHub's runner saves it to `.path`),
+ * so every operation puts Homebrew's directories first where they exist.
+ */
+const MAC_PATH = `if [ "$(uname -s)" = Darwin ]; then
+  for dir in /usr/local/bin /opt/homebrew/bin; do
+    case ":$PATH:" in *":$dir:"*) ;; *) if [ -d "$dir" ]; then PATH="$dir:$PATH"; fi ;; esac
+  done
+  export PATH
+fi`;
 
 /** A POSIX single-quoted string. */
 export function shQuote(value: string): string {
@@ -98,7 +113,7 @@ export function operationScript(
     .map(([k, v]) => `export ${k}=${PATHS.has(k) ? shPath(v) : shQuote(v)}`)
     .join("\n");
   const nixos = `export RF_NIXOS_SERVICE_HELPER=${shQuote(nixosHelper)}`;
-  return `${env}\n${nixos}\n${runAsRoot}\n${SCRIPTS[op].posix}`;
+  return `${env}\n${nixos}\n${MAC_PATH}\n${runAsRoot}\n${SCRIPTS[op].posix}`;
 }
 
 /**

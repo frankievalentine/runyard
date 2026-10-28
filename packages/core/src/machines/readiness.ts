@@ -18,6 +18,8 @@ export type Readiness = {
   items: ReadinessItem[];
   /** Labels this machine can honestly carry, from what it has: docker, xcode-16, gpu. */
   capabilities: string[];
+  /** macOS: Homebrew is installed, so Runyard can install tools with it. */
+  homebrew: boolean;
 };
 
 /** What the machine's pools ask of it. */
@@ -205,7 +207,7 @@ export function evaluateReadiness(
           : `A pool gives this machine ${label}, but it doesn't have ${rule.what}. Jobs asking for ${label} would fail here.`,
       });
   }
-  return { items, capabilities };
+  return { items, capabilities, homebrew: has("tool_brew") };
 }
 
 /** What a known label promises, checked against the facts; null for labels Runyard can't check. */

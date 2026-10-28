@@ -29,6 +29,7 @@ const pool = (over: Partial<Pool> = {}): Pool => ({
   forgejoMode: { kind: "host" },
   mode: "onDemand",
   paused: false,
+  toolProfiles: [],
   ...over,
 });
 const info = new Map<string, { name: string; os: OsFamily | null }>([

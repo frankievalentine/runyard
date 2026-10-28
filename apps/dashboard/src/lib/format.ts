@@ -28,6 +28,15 @@ export function timeAgo(at: number | null | undefined, now: number): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+/** How long until a time ahead: "in 14 minutes", or "now" once it's past. */
+export function timeUntil(at: number, now: number): string {
+  const secs = Math.round((at - now) / 1000);
+  if (secs <= 0) return "now";
+  if (secs < 60) return `in ${secs} seconds`;
+  const mins = Math.ceil(secs / 60);
+  return `in ${mins} minute${mins === 1 ? "" : "s"}`;
+}
+
 /** Decimal units, like Finder. */
 export function formatBytes(bytes: number | null | undefined): string {
   if (bytes == null) return "—";

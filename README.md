@@ -225,9 +225,17 @@ readiness** on its page:
   labels aren't checked.
 - **Recommended:** unzip, zip, xz, zstd, jq, gpg, a C compiler and make, Python 3, and Docker.
 
-Each missing item says how to install it. A machine in a pool that's missing something required
+Each missing item says how to install it, and a pool can install them for you: under **Tools
+to install where they're missing**, pick **Essentials** (git, curl, tar, unzip, zip, xz, zstd,
+jq, gpg), **Build tools** (a C compiler, make, Python 3) or **Docker**. Each machine's review then
+shows an **Install tools** step for just what its last check found missing, ahead of the
+runners, and carries it out with the package manager (apt, dnf, zypper or pacman, with the
+review's sudo) or Homebrew on a Mac. Docker comes from the distribution's own packages and the
+runner's account joins the `docker` group; on a Mac, Docker and the Command Line Tools stay
+manual, and Homebrew must already be installed. Runyard also puts Homebrew's directories on the
+PATH its Mac runners start with, so jobs find what it installs. A machine in a pool that's missing something required
 or promised shows under **Needs attention** and on the pool's page, and the pool form suggests
-labels every chosen machine can carry. The check only reads; nothing is installed.
+labels every chosen machine can carry. The check itself only reads.
 
 ### Alerts and history
 
