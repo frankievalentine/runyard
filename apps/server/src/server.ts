@@ -12,6 +12,9 @@ import { runCommand, type CommandRunner } from "./command.ts";
 import { dataDir } from "./config.ts";
 import type { DashboardAssets } from "./dashboard.ts";
 import { openDatabase } from "./db/index.ts";
+import type { Fetch } from "./github/client.ts";
+import { ManifestStates } from "./github/manifest.ts";
+import { GithubMonitor } from "./github/monitor.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
 import { installedPrograms, type SshPrograms } from "./machines/ssh.ts";
 import { loadSecretKey, SecretStore } from "./secrets.ts";
@@ -23,7 +26,14 @@ import { TailscaleCli, WhoisCache } from "./tailscale.ts";
  * on HTTPS at this machine's tailnet addresses with its `*.ts.net` certificate.
  */
 /** Replaces the programs Runyard runs; the demo harness uses it to fake a whole fleet. */
-export type StartOverrides = { run?: CommandRunner; programs?: SshPrograms };
+export type StartOverrides = {
+  run?: CommandRunner;
+  programs?: SshPrograms;
+  /** GitHub's API and web, for the demo's fictional GitHub. */
+  fetch?: Fetch;
+  githubApiBase?: string;
+  githubWebBase?: string;
+};
 
 export async function start(dashboard?: DashboardAssets, overrides: StartOverrides = {}) {
   const run = overrides.run ?? runCommand;
@@ -43,13 +53,19 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     const address = getConnInfo(c).remote.address?.replace(/^::ffff:/, "");
     return address ? whois.login(address) : null;
   };
-  const monitor = new MachineMonitor({
+  const fetch: Fetch = overrides.fetch ?? ((request) => globalThis.fetch(request));
+  // The machine monitor publishes the whole view; GitHub polls ask it to.
+  let monitor: MachineMonitor | undefined;
+  const github = new GithubMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
+  monitor = new MachineMonitor({
     db,
     run,
     programs: overrides.programs ?? installedPrograms(),
     tailscale,
+    github: () => github.observations(),
   });
   monitor.start();
+  void github.start();
   const shared = {
     db,
     setup,
@@ -58,6 +74,12 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     tailnetLogin,
     monitor,
     demo: process.env.RUNYARD_DEMO === "1",
+    secrets,
+    github,
+    states: new ManifestStates(),
+    fetch,
+    apiBase: overrides.githubApiBase,
+    webBase: overrides.githubWebBase,
   };
   const deps = (listener: AppDeps["listener"]): AppDeps => ({ ...shared, listener });
 
@@ -82,5 +104,5 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   }
   if (adminCount(db) === 0) setup.issue();
 
-  return { server, tailnet, db, secrets, monitor };
+  return { server, tailnet, db, secrets, monitor, github };
 }

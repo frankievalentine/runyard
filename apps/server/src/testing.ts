@@ -5,11 +5,16 @@ import { FailureLimiter } from "./auth/rate-limit.ts";
 import { SetupCode } from "./auth/setup.ts";
 import type { DashboardAssets } from "./dashboard.ts";
 import { openDatabase } from "./db/index.ts";
+import { FakeGithub } from "./github/fake.ts";
+import { ManifestStates } from "./github/manifest.ts";
+import { GithubMonitor } from "./github/monitor.ts";
 import { FakeMachines } from "./machines/fake.ts";
+import { importKey } from "./crypto.ts";
+import { SecretStore } from "./secrets.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
 
 /** An app on an in-memory database. `codes` collects every setup code announced. */
-export function testApp(
+export async function testApp(
   options: { listener?: Listener; dashboard?: DashboardAssets; issueSetupCode?: boolean } = {},
 ) {
   const codes: string[] = [];
@@ -18,16 +23,35 @@ export function testApp(
   const db = openDatabase(":memory:");
   const fake = new FakeMachines();
   const clock = { now: 1_000_000 };
-  const monitor = new MachineMonitor({
+  const secrets = await SecretStore.open(
+    db,
+    await importKey(crypto.getRandomValues(new Uint8Array(32))),
+  );
+  const fakeGithub = new FakeGithub();
+  let monitor: MachineMonitor | undefined;
+  const github = new GithubMonitor({
+    db,
+    secrets,
+    fetch: fakeGithub.fetch,
+    onChange: () => monitor?.tick(),
+  });
+  monitor = new MachineMonitor({
     db,
     run: fake.run,
     programs: fake.programs,
     tailscale: fake.tailscale,
     now: () => clock.now,
+    github: () => github.observations(),
   });
   const deps: AppDeps = {
     db,
     monitor,
+    secrets,
+    github,
+    states: new ManifestStates(),
+    fetch: fakeGithub.fetch,
+    apiBase: "https://api.github.test",
+    webBase: "https://github.test",
     listener: options.listener ?? "tcp",
     setup,
     limiter: new FailureLimiter(10, 15 * 60 * 1000),
@@ -36,7 +60,7 @@ export function testApp(
     tailnetLogin: async (c) => c.req.header("X-Test-Tailnet-Login")?.toLowerCase() ?? null,
   };
   const app = createApp(deps, options.dashboard);
-  return { app, deps, codes, setup, fake, clock, monitor };
+  return { app, deps, codes, setup, fake, clock, monitor, github, fakeGithub };
 }
 
 /** A same-origin JSON request as the dashboard would send it, with an optional cookie and extra headers. */

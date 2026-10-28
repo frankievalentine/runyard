@@ -131,3 +131,21 @@ export const machineEvents = sqliteTable(
     index("machine_events_at").on(t.at),
   ],
 );
+
+/**
+ * GitHub Apps Runyard created through the manifest flow. The private key,
+ * client secret and webhook secret live in the encrypted secret store.
+ */
+export const githubApps = sqliteTable("github_apps", {
+  id: text().primaryKey(),
+  appId: text().notNull(),
+  slug: text().notNull(),
+  name: text().notNull(),
+  clientId: text().notNull(),
+  /** The account that owns the app; a private app can only be installed there. */
+  owner: text().notNull(),
+  ownerType: text({ enum: ["User", "Organization"] }).notNull(),
+  htmlUrl: text().notNull(),
+  apiBase: text().notNull(),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull(),
+});

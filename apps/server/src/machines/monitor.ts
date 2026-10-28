@@ -9,6 +9,7 @@ import {
   parseReport,
   type EventKind,
   type FleetView,
+  type GithubAppObservation,
   type MachineConfig,
   type MachineObservation,
   type MachineState,
@@ -42,6 +43,8 @@ type Deps = {
   tailscale: TailscaleCli;
   now?: () => number;
   log?: (message: string) => void;
+  /** GitHub runners and jobs, joined into the fleet view. */
+  github?: () => GithubAppObservation[];
 };
 
 /**
@@ -185,6 +188,7 @@ export class MachineMonitor {
       tailnet: this.tailnet,
       ignoredNodeIds: ignoredNodeIds(this.deps.db),
       states: new Map([...this.states].map(([id, s]) => [id, s.state])),
+      github: this.deps.github?.(),
       now,
     });
   }

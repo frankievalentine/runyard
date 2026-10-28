@@ -15,6 +15,7 @@ import { serveDashboard, type DashboardAssets } from "./dashboard.ts";
 import type { Db } from "./db/index.ts";
 import type { MachineMonitor } from "./machines/monitor.ts";
 import { authRoutes } from "./routes/auth.ts";
+import { githubRoutes, type GithubDeps } from "./routes/github.ts";
 import { machineRoutes } from "./routes/machines.ts";
 import { passkeyRoutes } from "./routes/passkeys.ts";
 import { userRoutes } from "./routes/users.ts";
@@ -29,7 +30,7 @@ export type AppDeps = {
   monitor: MachineMonitor;
   /** Fictional data: the dashboard shows fleet's DEMO DATA banner. */
   demo?: boolean;
-};
+} & Omit<GithubDeps, "db" | "listener">;
 
 export function createApi(deps: AppDeps) {
   return new Hono<AppEnv>()
@@ -40,7 +41,8 @@ export function createApi(deps: AppDeps) {
     .route("/", authRoutes(deps))
     .route("/passkeys", passkeyRoutes(deps))
     .route("/users", userRoutes(deps.db))
-    .route("/", machineRoutes(deps));
+    .route("/", machineRoutes(deps))
+    .route("/github", githubRoutes(deps));
 }
 
 /** Imported by the dashboard for the typed `hc` client. */

@@ -7,7 +7,7 @@ import type { FleetView, MachineConfig } from "@runyard/core";
 const PASSWORD = "correct horse battery";
 
 async function signedIn() {
-  const t = testApp();
+  const t = await testApp();
   const res = await send(t.app, "POST", "/api/setup", {
     code: t.codes[0],
     username: "admin",

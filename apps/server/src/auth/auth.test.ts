@@ -7,7 +7,7 @@ import { createUser, type UserView } from "./users.ts";
 const PASSWORD = "correct horse battery";
 
 async function setUpAdmin() {
-  const t = testApp();
+  const t = await testApp();
   const res = await send(t.app, "POST", "/api/setup", {
     code: t.codes[0],
     username: "Admin",
@@ -19,7 +19,7 @@ async function setUpAdmin() {
 
 describe("setup", () => {
   test("a fresh install requires setup", async () => {
-    const { app } = testApp();
+    const { app } = await testApp();
     expect(await (await send(app, "GET", "/api/session")).json()).toEqual({
       user: null,
       via: null,
@@ -29,7 +29,7 @@ describe("setup", () => {
   });
 
   test("refuses a wrong code and keeps the real one valid", async () => {
-    const { app, codes } = testApp();
+    const { app, codes } = await testApp();
     const wrong = await send(app, "POST", "/api/setup", {
       code: "0000-0000-0000",
       username: "a",
@@ -45,7 +45,7 @@ describe("setup", () => {
   });
 
   test("validates input before spending the code", async () => {
-    const { app, codes } = testApp();
+    const { app, codes } = await testApp();
     const short = await send(app, "POST", "/api/setup", {
       code: codes[0],
       username: "a",
@@ -78,7 +78,7 @@ describe("setup", () => {
   });
 
   test("on the tailnet, links the admin to the Tailscale login without a password", async () => {
-    const { app, codes } = testApp({ listener: "tailnet" });
+    const { app, codes } = await testApp({ listener: "tailnet" });
     const ts = { "X-Test-Tailnet-Login": "Frankie@example.com" };
     const res = await send(app, "POST", "/api/setup", { code: codes[0] }, ts);
     expect(res.status).toBe(200);
@@ -91,7 +91,7 @@ describe("setup", () => {
   });
 
   test("never trusts a Tailscale-User-Login header, even on the tailnet", async () => {
-    const { app, codes } = testApp({ listener: "tailnet" });
+    const { app, codes } = await testApp({ listener: "tailnet" });
     const res = await send(
       app,
       "POST",
@@ -104,7 +104,7 @@ describe("setup", () => {
   });
 
   test("ignores Tailscale headers on TCP", async () => {
-    const { app, codes } = testApp({ listener: "tcp" });
+    const { app, codes } = await testApp({ listener: "tcp" });
     const res = await send(
       app,
       "POST",
@@ -156,7 +156,7 @@ describe("sign-in", () => {
   });
 
   test("an unknown Tailscale login on the tailnet is reported but not signed in", async () => {
-    const { app } = testApp({ listener: "tailnet" });
+    const { app } = await testApp({ listener: "tailnet" });
     const res = await send(app, "GET", "/api/session", undefined, {
       "X-Test-Tailnet-Login": "stranger@example.com",
     });
@@ -261,7 +261,7 @@ describe("cross-site protection", () => {
   });
 
   test("on the tailnet, accepts the machine's own origin and refuses forwarded hosts", async () => {
-    const { app, codes } = testApp({ listener: "tailnet" });
+    const { app, codes } = await testApp({ listener: "tailnet" });
     const body = { code: codes[0], username: "admin", password: PASSWORD };
     const forwarded = await send(app, "POST", "/api/setup", body, {
       Host: "localhost",
@@ -280,7 +280,7 @@ describe("cross-site protection", () => {
 
 describe("sessions", () => {
   test("expire after a week idle or a month in total", async () => {
-    const { deps } = testApp();
+    const { deps } = await testApp();
     const user = await createUser(deps.db, { username: "a", password: PASSWORD, role: "admin" });
     const t0 = 1_000_000;
     const idle = createSession(deps.db, user.id, t0);

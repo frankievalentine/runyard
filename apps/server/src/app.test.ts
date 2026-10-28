@@ -5,26 +5,28 @@ import { join } from "node:path";
 import { testApp } from "./testing.ts";
 
 test("GET /api/health reports ok", async () => {
-  const res = await testApp().app.request("/api/health");
+  const res = await (await testApp()).app.request("/api/health");
   expect(res.status).toBe(200);
   expect(await res.json()).toMatchObject({ ok: true });
 });
 
 describe("dashboard", () => {
   let dir: string;
-  let app: ReturnType<typeof testApp>["app"];
+  let app: Awaited<ReturnType<typeof testApp>>["app"];
 
   beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), "runyard-dashboard-"));
     await mkdir(join(dir, "assets"));
     await writeFile(join(dir, "index.html"), "<!doctype html><title>Runyard</title>");
     await writeFile(join(dir, "assets", "index-abc.js"), "console.log(1)");
-    app = testApp({
-      dashboard: new Map([
-        ["/index.html", join(dir, "index.html")],
-        ["/assets/index-abc.js", join(dir, "assets", "index-abc.js")],
-      ]),
-    }).app;
+    app = (
+      await testApp({
+        dashboard: new Map([
+          ["/index.html", join(dir, "index.html")],
+          ["/assets/index-abc.js", join(dir, "assets", "index-abc.js")],
+        ]),
+      })
+    ).app;
   });
 
   afterAll(() => rm(dir, { recursive: true, force: true }));

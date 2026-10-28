@@ -14,7 +14,7 @@ const ORIGIN = "http://localhost";
 type Options<T> = { challengeId: string; options: T };
 
 async function signedInAdmin() {
-  const t = testApp();
+  const t = await testApp();
   const res = await send(t.app, "POST", "/api/setup", {
     code: t.codes[0],
     username: "admin",
@@ -24,7 +24,7 @@ async function signedInAdmin() {
 }
 
 async function registerPasskey(
-  app: ReturnType<typeof testApp>["app"],
+  app: Awaited<ReturnType<typeof testApp>>["app"],
   cookie: string,
   authenticator: SoftAuthenticator,
 ) {
@@ -42,7 +42,7 @@ async function registerPasskey(
 }
 
 async function passkeyLogin(
-  app: ReturnType<typeof testApp>["app"],
+  app: Awaited<ReturnType<typeof testApp>>["app"],
   authenticator: SoftAuthenticator,
   origin = ORIGIN,
 ) {
