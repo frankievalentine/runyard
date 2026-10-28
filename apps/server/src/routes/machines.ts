@@ -41,9 +41,10 @@ export function machineRoutes({ db, monitor }: { db: Db; monitor: MachineMonitor
         const unsubscribe = monitor.subscribe((view) => void send(view));
         stream.onAbort(unsubscribe);
         await send(monitor.view);
-        // A comment line every 25 seconds keeps proxies from closing an idle stream.
+        // A comment line every 8 seconds keeps an idle stream open: Bun.serve closes
+        // connections silent for 10 seconds, and proxies close them too.
         while (!stream.aborted) {
-          await stream.sleep(25_000);
+          await stream.sleep(8_000);
           await stream.write(": keepalive\n\n");
         }
       }),
