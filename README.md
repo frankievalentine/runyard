@@ -88,7 +88,9 @@ Each one links to the page that does it and ticks itself off from what Runyard s
    confirmation on GitHub; install it on your account or organization and pick repositories.
    For Forgejo, paste an access token. See [GitHub](#github) and [Forgejo](#forgejo).
 2. **Add a machine and connect it.** Pick a tailnet device or enter an SSH target, then run the
-   one-line setup command the machine's page shows. See [Machines](#machines).
+   one-line setup command the machine's page shows (on a fresh Linux LXC or VPS, the
+   fresh-machine version, as root). See [Machines](#machines) and
+   [Runner machines](#runner-machines).
 3. **Create a pool:** labels, machines and the repositories to serve. Runyard suggests pools from
    queued jobs and idle machines. See [Runners and pools](#runners-and-pools).
 4. **Install the runners.** On the machine's page, **Review changes** shows exactly what will
@@ -151,6 +153,15 @@ trusts exactly those host keys, and checks the machine. The code works once, for
 command is offered only when you use the dashboard over HTTPS, its tailnet address, so the
 script and its report can't be altered on the way. It installs nothing.
 
+On a **fresh Linux machine** (a new LXC or VPS with only `root`), run the fresh-machine version
+the page shows instead, as root: the same command with `--prepare`. It also installs the SSH
+server and `sudo` if they're missing, creates a `runyard` account that signs in with Runyard's
+key only, keeps that account's processes running after it logs out (so one-job runners survive
+the SSH session), and adds it to the `docker` group if Docker is installed. Runner installs need
+root, so it gives the account sudo: passwordless with `--sudo` (or if you answer yes when it
+asks), otherwise with a password you set, which Runyard asks for in each review. The plain
+command refuses to run as root on Linux, because runners can't be installed as root.
+
 By hand instead, the steps give the commands to copy, and **Read its host key** shows the
 machine's host key fingerprint with the command that prints it on the machine. Trusting it reads
 the key again and keeps only that fingerprint; when Tailscale publishes the machine's host keys,
@@ -167,6 +178,39 @@ reached with `tailscale ssh`, which checks host keys and sign-in itself (your ta
 rules must allow the user). Windows machines need their OS set to Windows, so Runyard talks
 PowerShell. Removing a machine from Runyard leaves Runyard's key on it; delete the `runyard@`
 line from its `authorized_keys`.
+
+### Runner machines
+
+What a machine needs to host runners, by kind:
+
+- **Proxmox LXC.** On the Proxmox host, download the Debian 12 template (**local ▸ CT
+  Templates**, or `pveam download local debian-12-standard_<version>_amd64.tar.zst`) and create
+  an unprivileged container from it with the CPU, memory and disk your jobs need. Turn on
+  **Options ▸ Features ▸ nesting** and **keyctl** if jobs will use Docker (Forgejo's Docker
+  mode, or GitHub `container:` and `services:` jobs). To put the container on your tailnet, add
+  Tailscale's device lines to `/etc/pve/lxc/<id>.conf`, then restart it and install Tailscale
+  inside:
+
+  ```
+  lxc.cgroup2.devices.allow: c 10:200 rwm
+  lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
+  ```
+
+  Without Tailscale, add it to Runyard by its LAN address instead. Then `pct enter <id>`,
+  install `curl` if it's missing, and run the machine's fresh-machine setup command as root.
+
+- **Linux VPS.** Install Tailscale (`curl -fsSL https://tailscale.com/install.sh | sh`, then
+  `sudo tailscale up`) so Runyard reaches it privately and the setup command can report back,
+  then run the fresh-machine setup command as root. A VPS reached over public SSH works with the
+  by-hand steps too, but keep its SSH port firewalled to the machines that need it.
+- **Mac.** Turn on **System Settings ▸ General ▸ Sharing ▸ Remote Login**, then run the setup
+  command as the account the runners should use. Runners on macOS are LaunchAgents, which run
+  only while that account is logged in: turn on automatic login for it (**Users & Groups**;
+  unavailable while FileVault is on) and stop the Mac sleeping (`sudo pmset -a sleep 0`, and
+  keep a laptop on power).
+- **Windows.** Turn on OpenSSH Server (the setup command prints how), then run the Windows setup
+  command as the runners' account; for an administrator account, from an administrator
+  PowerShell. Runners run as Windows services.
 
 ### Alerts and history
 

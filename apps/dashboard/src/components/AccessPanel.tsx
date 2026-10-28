@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { accessSteps, type AccessStep, type MachineView } from "@runyard/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, call } from "../api.ts";
@@ -214,16 +215,27 @@ function SetupCommand({ m }: { m: MachineView }) {
     mutationFn: () =>
       call(api.machines[":id"]["setup-command"].$post({ param: { id: m.id } })) as Promise<{
         posix: string;
+        prepare: string;
         windows: string;
         expiresAt: number;
       }>,
   });
   const cmd = show.data;
+  const [nopasswd, setNopasswd] = useState(false);
   const expired = cmd ? cmd.expiresAt <= now : false;
   const commands = cmd
     ? [
         ...(m.os !== "windows"
           ? [{ label: "macOS or Linux, as the account Runyard signs in as", text: cmd.posix }]
+          : []),
+        ...(m.os === "linux" || m.os === null
+          ? [
+              {
+                label:
+                  "A fresh Linux machine (an LXC, a new VPS), as root: also installs the SSH server and creates a runyard account",
+                text: `${cmd.prepare}${nopasswd ? " --sudo" : ""}`,
+              },
+            ]
           : []),
         ...(m.os === "windows" || m.os === null
           ? [
@@ -240,7 +252,8 @@ function SetupCommand({ m }: { m: MachineView }) {
       <div className="font-medium text-[13px]">Fastest: one command on the machine</div>
       <p className="mt-0.5 text-ink-2">
         It checks the SSH server is on, authorizes Runyard's key, and reports the account and host
-        keys back, so the steps below finish on their own. It installs nothing.
+        keys back, so the steps below finish on their own. It installs nothing, unless you use the
+        fresh-machine version.
       </p>
       {window.location.protocol !== "https:" ? (
         <p className="mt-2 text-ink-2">
@@ -267,6 +280,20 @@ function SetupCommand({ m }: { m: MachineView }) {
               </div>
             </div>
           ))}
+          {(m.os === "linux" || m.os === null) && (
+            <label className="flex items-start gap-2 text-[12px] text-ink-2">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={nopasswd}
+                onChange={(e) => setNopasswd(e.target.checked)}
+              />
+              <span>
+                Give the runyard account passwordless sudo, so reviews don't ask for a password.
+                Without it, the script asks, and otherwise has you set a password.
+              </span>
+            </label>
+          )}
           <span className="text-[12px] text-ink-2">
             Works once, until{" "}
             {new Date(cmd.expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}

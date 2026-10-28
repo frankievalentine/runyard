@@ -54,6 +54,8 @@ describe("the one-line setup command", () => {
       new RegExp(`^curl -fsSL ${ORIGIN}/api/machine-setup/script\\.sh \\| sh -s -- [A-Z2-9]{20}$`),
     );
     expect(windows).toContain(`irm ${ORIGIN}/api/machine-setup/script.ps1`);
+    const { prepare } = await body<{ prepare: string }>(command());
+    expect(prepare).toEndWith(" --prepare");
     for (const path of ["script.sh", "script.ps1"]) {
       const text = await (await t.app.request(`${ORIGIN}/api/machine-setup/${path}`)).text();
       expect(text).toContain(`'${ORIGIN}/api/machine-setup/report'`);
@@ -90,5 +92,21 @@ describe("the one-line setup command", () => {
     expect((await report(sent(first))).status).toBe(403);
     t.clock.now += 16 * 60_000;
     expect((await report(sent(second))).status).toBe(403);
+  });
+
+  test("a prepared account is reported in plain text when the target names someone else", async () => {
+    process.env.RUNYARD_ORIGIN = ORIGIN;
+    const { command, machine, t } = await setup();
+    const { updateMachine } = await import("./store.ts");
+    updateMachine(t.deps.db, machine.id, { sshTarget: "root@box" });
+    const code = (await body<{ posix: string }>(command())).posix.split(" ").at(-1)!;
+    const res = await t.app.request("/api/machine-setup/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/plain" },
+      body: JSON.stringify({ code, user: "runyard", os: "linux", prepared: true, hostKeys: [] }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("Change the SSH target to runyard@box");
+    expect(getMachine(t.deps.db, machine.id)?.sshTarget).toBe("root@box");
   });
 });

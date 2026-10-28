@@ -195,7 +195,12 @@ Getting Runyard into a machine is guided, built against fakes:
   offered over HTTPS only. The script checks the SSH server, authorizes Runyard's key with
   forwarding off, and reports the user, OS and host keys; Runyard sets the user when the target
   had none and trusts exactly the reported keys. It installs nothing.
-- Left as is: Linux installs still ask for the sudo password per review.
+- **Prepare mode** (`--prepare`, as root, Linux only): installs the SSH server and sudo if
+  missing, creates a `runyard` account with no password (`*`, not a locked `!`, which sshd
+  refuses even for keys when PAM is off), authorizes the key, enables lingering, joins the
+  `docker` group if present, and gives sudo: passwordless with `--sudo` or a yes at the
+  terminal, otherwise a password the person sets. Checked end to end in a Debian container.
+  Without it, Linux reviews still ask for the sudo password.
 
 ## Link previews
 

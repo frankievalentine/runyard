@@ -77,6 +77,8 @@ export function machineSetupRoutes(deps: MachineSetupDeps) {
       const { code, expiresAt } = machineSetup.issue(machine.id);
       return c.json({
         posix: `curl -fsSL ${origin}/api/machine-setup/script.sh | sh -s -- ${code}`,
+        // A fresh Linux machine, as root: also creates the account and installs the SSH server.
+        prepare: `curl -fsSL ${origin}/api/machine-setup/script.sh | sh -s -- ${code} --prepare`,
         windows: `& ([scriptblock]::Create((irm ${origin}/api/machine-setup/script.ps1))) ${code}`,
         expiresAt,
       });
@@ -91,6 +93,8 @@ export function machineSetupRoutes(deps: MachineSetupDeps) {
           user: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/),
           os: z.enum(["macos", "linux", "windows"]),
           hostKeys: z.array(z.string().max(4096)).max(16),
+          /** The script ran with --prepare and created the account it reports. */
+          prepared: z.boolean().optional(),
         }),
       ),
       async (c) => {
@@ -110,7 +114,9 @@ export function machineSetupRoutes(deps: MachineSetupDeps) {
         if (at === -1) target = `${report.user}@${target}`;
         else if (target.slice(0, at) !== report.user)
           notes.push(
-            `The script ran as ${report.user}, but Runyard signs in as ${target.slice(0, at)}; that account needs the key too.`,
+            report.prepared
+              ? `The script prepared ${report.user}, but Runyard signs in as ${target.slice(0, at)}. Change the SSH target to ${report.user}@${target.slice(at + 1)} on the machine's page.`
+              : `The script ran as ${report.user}, but Runyard signs in as ${target.slice(0, at)}; that account needs the key too.`,
           );
         updateMachine(db, machine.id, {
           sshTarget: target,
@@ -128,6 +134,8 @@ export function machineSetupRoutes(deps: MachineSetupDeps) {
         }
         monitor.configChanged();
         void monitor.checkNow(machine.id);
+        // The script asks for plain text, to print the notes as they are.
+        if (c.req.header("Accept")?.includes("text/plain")) return c.text(notes.join("\n"));
         return c.json({ ok: true, notes });
       },
     );
