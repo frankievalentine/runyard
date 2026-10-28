@@ -185,6 +185,11 @@ Built and tested only against fakes. Deferred until a real service or machine is
 - `install.ps1` on Windows.
 - boat's `runs-on: boat` jobs: labels come from boat's docs; whether boat's runners appear in
   GitHub's runner list, and how their names look, is unknown. Runyard shows them either way.
+- On-demand pools on any machine: the GitHub runner reading its single-use config from
+  `ACTIONS_RUNNER_INPUT_JITCONFIG` (taken from the runner's source), `generate-jitconfig` with
+  the Default group, forgejo-runner `one-job` with an ephemeral registration, and runners
+  surviving the SSH session (on systemd hosts with `KillUserProcesses=yes`, a one-job runner may
+  be stopped at logout; lingering or a service would avoid it).
 - The read-only boat connection: built from boat's API docs. The per-VM `cost` object's fields
   (assumed `dollars`) and the `ci-<repo>-<job id>` VM names are documented but unseen. `install.sh` has run on macOS and in a Debian container, and the
   Linux binaries run there.

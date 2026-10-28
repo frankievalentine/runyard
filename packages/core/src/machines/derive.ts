@@ -221,6 +221,7 @@ export function deriveYard(input: {
       input.assignments ?? [],
       now,
       input.boat ?? null,
+      input.dispatches ?? [],
     ),
     pools: poolsView(
       input.pools ?? [],
@@ -244,6 +245,7 @@ function forges(
   assignments: RunnerAssignment[],
   now: number,
   boatObs: BoatObservation | null,
+  dispatches: Dispatch[],
 ) {
   const link = (scope: Scope, name: string) => `${scopeKey(scope)}:${name.toLowerCase()}`;
   const registered = new Map(registrations.map((r) => [link(r.scope, r.runnerName), r.machineId]));
@@ -253,7 +255,11 @@ function forges(
       .map((a): [string, string] => [link(a.scope, a.runnerName), a.machineId])
       .filter(([k]) => !registered.has(k)),
   );
-  const links = new Map([...assigned, ...registered]);
+  // One-job runners Runyard started are on the machine it started them on.
+  const dispatched = dispatches
+    .filter((d) => d.state === "starting" || d.state === "running")
+    .map((d): [string, string] => [link(d.scope, d.runnerName), d.machineId]);
+  const links = new Map([...assigned, ...dispatched, ...registered]);
   const gh = deriveGithub(github, now, links);
   const fj = deriveForgejo(forgejo, now, links);
   const runners = [...gh.runners, ...fj.runners].sort(

@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Glob } from "bun";
 import { createMachine, listMachines } from "../src/machines/store.ts";
+import { listPools, recordTemplate, savePool } from "../src/pools/store.ts";
 import { FakeBoat } from "../src/boat/fake.ts";
 import { FakeForgejo } from "../src/forgejo/fake.ts";
 import { listConnections, saveConnection } from "../src/forgejo/store.ts";
@@ -82,16 +83,21 @@ const linux = (freeGiB: number) =>
  * removed disappears, so pools can be reviewed and applied end to end.
  */
 let nextRunnerId = 100;
+/** Each machine's fake host, so the demo can seed templates and end one-job runners. */
+const hosts = new Map<string, FakeRunnerHost>();
 function runnerHost(
   health: () => string,
   githubFor: (owner: string) => FakeGithubType,
   os: string,
+  target: string,
 ) {
   const host = new FakeRunnerHost();
+  hosts.set(target, host);
   return (stdin: string) => {
     if (stdin.includes("metric os")) return health();
     const result = host.answer(stdin);
     const last = host.received.at(-1);
+    if (last?.op === "jit-start" && typeof result === "string") playOneJob(host, last.env.RF_NAME!);
     const url = last?.env.RF_URL;
     if (last && typeof result === "string" && url) {
       const owner = new URL(url).pathname.slice(1);
@@ -113,6 +119,43 @@ function runnerHost(
     return result;
   };
 }
+/**
+ * A one-job runner's life on the fake: it comes online and takes the queued
+ * gpu job, then finishes after about a minute and a half and deregisters.
+ */
+function playOneJob(host: FakeRunnerHost, name: string) {
+  const owner = "acme-demo";
+  setTimeout(() => {
+    const runner = github.runners.get(owner)?.find((r) => r.name === name);
+    if (!runner) return;
+    runner.status = "online";
+    runner.busy = true;
+    const queued = (github.runs.get("acme-demo/infra") ?? []).find((r) => r.status === "queued");
+    if (!queued) return;
+    queued.status = "in_progress";
+    for (const job of queued.jobs) {
+      Object.assign(job, {
+        status: "in_progress",
+        runner_id: runner.id,
+        runner_name: name,
+        started_at: new Date().toISOString(),
+      });
+    }
+  }, 8_000).unref();
+  setTimeout(() => {
+    host.jobs.set(name, "exited");
+    github.runners.set(
+      owner,
+      (github.runners.get(owner) ?? []).filter((r) => r.name !== name),
+    );
+    github.runs.set(
+      "acme-demo/infra",
+      (github.runs.get("acme-demo/infra") ?? []).filter(
+        (r) => !r.jobs.some((j) => j.runner_name === name),
+      ),
+    );
+  }, 95_000).unref();
+}
 const githubFor = (owner: string) => (owner.startsWith("frankie-demo") ? personal : github);
 fake.machines.set(
   "ci@studio-mini.demo.ts.net",
@@ -123,11 +166,12 @@ fake.machines.set(
         .replace("RFM\tdiag:complete", "RFM\tdiag:architecture\tarm64\nRFM\tdiag:complete"),
     githubFor,
     "macOS",
+    "ci@studio-mini.demo.ts.net",
   ),
 );
 fake.machines.set(
   "linux-builder.demo.ts.net",
-  runnerHost(() => linux(22), githubFor, "Linux"),
+  runnerHost(() => linux(22), githubFor, "Linux", "linux-builder.demo.ts.net"),
 );
 fake.machines.set("admin@lab-server.internal", {
   code: 255,
@@ -448,6 +492,59 @@ if (listMachines(db).length === 0) {
     transport: "openssh",
   });
 }
+// An on-demand pool on Linux builder, its runner software already installed,
+// and a gpu job queued every two minutes for it to pick up.
+const linuxBuilder = listMachines(db).find((m) => m.sshTarget === "linux-builder.demo.ts.net");
+const acme = listGithubApps(db).find((a) => a.slug === "runyard-acme");
+if (linuxBuilder && acme && !listPools(db).some((p) => p.name === "gpu")) {
+  const scope = { forgeId: acme.id, kind: "org" as const, target: "acme-demo" };
+  const poolId = savePool(db, {
+    name: "gpu",
+    labels: ["gpu"],
+    machines: [{ machineId: linuxBuilder.id, slots: 2 }],
+    scopes: [scope],
+    forgejoMode: { kind: "host" },
+    mode: "onDemand",
+  });
+  recordTemplate(db, {
+    key: `${poolId}:${linuxBuilder.id}:actions`,
+    machineId: linuxBuilder.id,
+    poolId,
+    poolName: "gpu",
+    scope,
+    runnerKind: "actions",
+    path: "~/runyard-runners/gpu/template-actions",
+    serviceMode: "systemd",
+  });
+}
+hosts
+  .get("linux-builder.demo.ts.net")
+  ?.templates.set("~/runyard-runners/gpu/template-actions", "2.329.0");
+let gpuJob = 9100;
+const queueGpuJob = () => {
+  const runs = github.runs.get("acme-demo/infra") ?? [];
+  if (runs.some((r) => r.status === "queued")) return;
+  gpuJob += 1;
+  github.runs.set("acme-demo/infra", [
+    ...runs,
+    {
+      id: gpuJob * 10,
+      status: "queued",
+      jobs: [
+        {
+          id: gpuJob,
+          name: "train-model",
+          status: "queued",
+          labels: ["self-hosted", "Linux", "gpu"],
+          created_at: new Date().toISOString(),
+        },
+      ],
+    },
+  ]);
+};
+queueGpuJob();
+setInterval(queueGpuJob, 120_000).unref();
+
 // Check right away instead of waiting for the next minute-long round.
 await monitor.checkNow();
 console.log("Demo yard: every answer is fake; nothing real is contacted.");

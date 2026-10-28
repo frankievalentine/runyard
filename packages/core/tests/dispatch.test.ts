@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
 import {
   advanceDispatches,
+  deriveYard,
   desiredRunners,
   desiredTemplates,
   DISPATCH_START_TIMEOUT_MS,
@@ -213,4 +214,64 @@ describe("dispatch", () => {
       "done",
     );
   });
+});
+
+test("a running one-job runner shows on the machine it was started on", () => {
+  const view = deriveYard({
+    machines: [],
+    observations: new Map(),
+    tailnet: { at: null, snapshot: null, error: null },
+    ignoredNodeIds: new Set(),
+    states: new Map(),
+    forgejo: [
+      {
+        forgeId: "fj",
+        baseUrl: "https://forgejo.test",
+        login: "frankie",
+        version: "16.0.0",
+        error: null,
+        scopes: [
+          {
+            scope: { forgeId: "fj", kind: "user", target: "frankie" },
+            runners: {
+              at: 1000,
+              value: [
+                {
+                  id: 5,
+                  uuid: "u",
+                  name: "box-jit-a1",
+                  status: "active",
+                  labels: [],
+                  version: null,
+                  ephemeral: true,
+                },
+              ],
+            },
+            runnersError: null,
+            jobs: null,
+            jobsError: null,
+            publicRepos: [],
+          },
+        ],
+      },
+    ],
+    dispatches: [
+      {
+        id: "d1",
+        poolId: "p1",
+        machineId: "m9",
+        runnerName: "box-jit-a1",
+        runnerKind: "forgejo",
+        scope: { forgeId: "fj", kind: "user", target: "frankie" },
+        jobId: 1,
+        runnerId: 5,
+        state: "running",
+        startedAt: 0,
+        endedAt: null,
+        detail: null,
+      },
+    ],
+    now: 1000,
+  });
+  expect(view.runners[0]?.machineId).toBe("m9");
 });

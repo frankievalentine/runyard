@@ -158,6 +158,26 @@ Runners Runyard didn't register show under **Unassigned runners**, grouped by ac
 runner's page an admin can choose the machine it **Runs on**, so it shows with that machine.
 That's display only: Runyard doesn't manage it.
 
+### On-demand pools
+
+A pool is **persistent** (each slot is a registered runner that waits for jobs) or **on demand**.
+An on-demand pool keeps no registered runners. Reviewing a machine's changes installs the runner
+software once, under `~/runyard-runners/<pool>/template-*`, with the same public repository
+guard as persistent runners. After that, when a job is queued that no idle runner can take and
+the pool serves its repository and has its labels, Runyard:
+
+1. mints a single-use registration at that moment (GitHub's `generate-jitconfig`, or a Forgejo
+   runner registered as ephemeral);
+2. copies the runner software into its own directory and starts a one-job runner there,
+   detached from the SSH session;
+3. lets the runner take one job and deregister itself, then removes the directory.
+
+Each job gets at most one runner; slots cap how many run at once per machine, and a pool can
+be paused. A runner that never shows up on the forge is deleted after 10 minutes. Starts and
+results appear on the pool page and in each machine's history. On-demand pools run on Linux and
+macOS machines for now. The registration reaches the runner through its environment or its own
+config file, never on a command line.
+
 ### On-demand runners (boat.dev)
 
 Runyard shows jobs that ask for [boat.dev](https://docs.boat.dev/ci.md)'s labels (`boat`,

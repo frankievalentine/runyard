@@ -223,7 +223,19 @@ export function Sidebar({
               selected={is(item)}
               icon={<Icon name="plan" />}
               label={p.name}
-              trailing={`${existing}/${desired.length}`}
+              trailing={
+                p.mode === "onDemand"
+                  ? p.paused
+                    ? "Paused"
+                    : (() => {
+                        const n = view.pools.dispatches.filter(
+                          (d) =>
+                            d.poolId === p.id && (d.state === "starting" || d.state === "running"),
+                        ).length;
+                        return n ? `${n} running` : "On demand";
+                      })()
+                  : `${existing}/${desired.length}`
+              }
             />
           );
         })}

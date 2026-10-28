@@ -1,5 +1,5 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
-import type { Pool, Scope } from "@runyard/core";
+import type { Dispatch, Pool, Scope } from "@runyard/core";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
@@ -24,6 +24,8 @@ import { yardQuery, useYard } from "../../lib/yard.ts";
 import { isForgejo, runnerFor, scopeLabel } from "../../lib/pools.ts";
 import { sessionQuery } from "../../lib/queries.ts";
 import { runnerStatus } from "../../lib/status.ts";
+import { formatElapsed, timeAgo } from "../../lib/format.ts";
+import { useNow } from "../../lib/now.ts";
 
 export const Route = createFileRoute("/_app/pools/$id")({
   component: PoolPage,
@@ -65,9 +67,14 @@ function PoolPage() {
       ? ` · Forgejo jobs in Docker (${pool.forgejoMode.image})`
       : " · Forgejo jobs on the machine"
     : "";
-  const machinesNeedingReview = [
-    ...new Set(desired.filter((d) => !runnerFor(view, d)).map((d) => d.machineId)),
-  ];
+  const onDemand = pool.mode === "onDemand";
+  const templates = view.pools.templates.filter((t) => t.poolId === pool.id);
+  const installed = new Set(view.pools.templateRecords.map((t) => t.key));
+  const dispatches = view.pools.dispatches.filter((d) => d.poolId === pool.id);
+  const running = dispatches.filter((d) => d.state === "starting" || d.state === "running");
+  const machinesNeedingReview = onDemand
+    ? [...new Set(templates.filter((t) => !installed.has(t.key)).map((t) => t.machineId))]
+    : [...new Set(desired.filter((d) => !runnerFor(view, d)).map((d) => d.machineId))];
 
   return (
     <div>
@@ -76,21 +83,40 @@ function PoolPage() {
         title={pool.name}
         status={
           <>
-            <Pill
-              tone={existing === desired.length && desired.length ? "ok" : "muted"}
-              hollow={existing < desired.length}
-            >
-              {existing} of {desired.length} runners
-            </Pill>
+            {onDemand ? (
+              pool.paused ? (
+                <Pill tone="warn">Paused</Pill>
+              ) : running.length ? (
+                <Pill tone="busy">{running.length} running</Pill>
+              ) : (
+                <Pill tone="muted" hollow>
+                  Idle
+                </Pill>
+              )
+            ) : (
+              <Pill
+                tone={existing === desired.length && desired.length ? "ok" : "muted"}
+                hollow={existing < desired.length}
+              >
+                {existing} of {desired.length} runners
+              </Pill>
+            )}
             {admin && !editing && (
               <Button small variant="ghost" onClick={() => setEditing(true)}>
-                Edit…
+                Edit
               </Button>
             )}
           </>
         }
-        subtitle={`${pool.scopes.map(scopeLabel).join(", ")} · ${pool.machines.length} machine${pool.machines.length === 1 ? "" : "s"}${forgejoMode}`}
-        actions={admin && <DeletePool pool={pool} onDeleted={() => void navigate({ to: "/" })} />}
+        subtitle={`${onDemand ? "On demand · " : ""}${pool.scopes.map(scopeLabel).join(", ")} · ${pool.machines.length} machine${pool.machines.length === 1 ? "" : "s"}${forgejoMode}`}
+        actions={
+          admin && (
+            <>
+              {onDemand && <PauseButton pool={pool} />}
+              <DeletePool pool={pool} onDeleted={() => void navigate({ to: "/" })} />
+            </>
+          )
+        }
       />
       {editing && (
         <div className="mt-6">
@@ -110,8 +136,10 @@ function PoolPage() {
         </Callout>
       )}
       {machinesNeedingReview.length > 0 && (
-        <Callout tone="warn" title="Runners to install">
-          Saving a pool changes nothing on machines. Review each machine's changes:{" "}
+        <Callout tone="warn" title={onDemand ? "Runner software to install" : "Runners to install"}>
+          {onDemand
+            ? "One-job runners start only on machines with the runner software installed. Review each machine's changes:"
+            : "Saving a pool changes nothing on machines. Review each machine's changes:"}{" "}
           {machinesNeedingReview.map((mid, i) => (
             <span key={mid}>
               {i > 0 && ", "}
@@ -128,54 +156,68 @@ function PoolPage() {
           .
         </Callout>
       )}
-      <Section title="Runners" count={desired.length}>
-        {desired.length === 0 ? (
-          <Card>
-            <EmptyLine>
-              No runners: choose machines whose operating system Runyard has read.
-            </EmptyLine>
-          </Card>
-        ) : (
-          <LinkTable
-            columns={[
-              { label: "Runner" },
-              { label: "Machine" },
-              { label: "Serves" },
-              { label: "Status" },
-            ]}
-            minWidth="min-w-[560px]"
-          >
-            {desired.map((d) => {
-              const runner = runnerFor(view, d);
-              const status = runner
-                ? runnerStatus(runner)
-                : { tone: "muted" as const, label: "Not installed", hollow: true };
-              const open = () =>
-                runner
-                  ? void navigate({ to: "/runners/$key", params: { key: runner.key } })
-                  : void navigate({ to: "/machines/$id", params: { id: d.machineId } });
-              return (
-                <LinkRow
-                  key={d.key}
-                  onOpen={open}
-                  opener={<span className="font-mono text-[12.5px]">{d.name}</span>}
-                >
-                  <td className="px-3 py-2.5">
-                    {view.machines.find((m) => m.id === d.machineId)?.name}
-                  </td>
-                  <td className="px-3 py-2.5 font-mono text-[12px] text-ink-2">{d.scope.target}</td>
-                  <td className="px-3 py-2.5">
-                    <span className="inline-flex items-center gap-2">
-                      <StatusDot tone={status.tone} hollow={status.hollow} />
-                      {status.label}
-                    </span>
-                  </td>
-                </LinkRow>
-              );
-            })}
-          </LinkTable>
-        )}
-      </Section>
+      {onDemand && (
+        <>
+          <Section title="Machines" count={pool.machines.length}>
+            <OnDemandMachines pool={pool} />
+          </Section>
+          <Section title="Recent one-job runners" count={dispatches.length}>
+            <Dispatches dispatches={dispatches.slice(0, 20)} />
+          </Section>
+        </>
+      )}
+      {!onDemand && (
+        <Section title="Runners" count={desired.length}>
+          {desired.length === 0 ? (
+            <Card>
+              <EmptyLine>
+                No runners: choose machines whose operating system Runyard has read.
+              </EmptyLine>
+            </Card>
+          ) : (
+            <LinkTable
+              columns={[
+                { label: "Runner" },
+                { label: "Machine" },
+                { label: "Serves" },
+                { label: "Status" },
+              ]}
+              minWidth="min-w-[560px]"
+            >
+              {desired.map((d) => {
+                const runner = runnerFor(view, d);
+                const status = runner
+                  ? runnerStatus(runner)
+                  : { tone: "muted" as const, label: "Not installed", hollow: true };
+                const open = () =>
+                  runner
+                    ? void navigate({ to: "/runners/$key", params: { key: runner.key } })
+                    : void navigate({ to: "/machines/$id", params: { id: d.machineId } });
+                return (
+                  <LinkRow
+                    key={d.key}
+                    onOpen={open}
+                    opener={<span className="font-mono text-[12.5px]">{d.name}</span>}
+                  >
+                    <td className="px-3 py-2.5">
+                      {view.machines.find((m) => m.id === d.machineId)?.name}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-[12px] text-ink-2">
+                      {d.scope.target}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className="inline-flex items-center gap-2">
+                        <StatusDot tone={status.tone} hollow={status.hollow} />
+                        {status.label}
+                      </span>
+                    </td>
+                  </LinkRow>
+                );
+              })}
+            </LinkTable>
+          )}
+        </Section>
+      )}
       {admin && repos.length > 0 && (
         <Section title="Public repositories">
           <p className="mb-3 max-w-2xl text-[12.5px] text-ink-2">
@@ -363,6 +405,161 @@ function PublicAccount({ scope, publicRepos }: { scope: Scope; publicRepos: stri
           Allowed. Review the machines' changes to install its runners.
         </p>
       )}
+    </Card>
+  );
+}
+
+/** Stops one-job runners starting for the pool, or lets them start again. Running ones finish. */
+function PauseButton({ pool }: { pool: Pool }) {
+  const queryClient = useQueryClient();
+  const toggle = useMutation({
+    mutationFn: () =>
+      call(
+        api.pools[":id"].paused.$put({ param: { id: pool.id }, json: { paused: !pool.paused } }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
+  });
+  return (
+    <Button
+      small
+      onClick={() => toggle.mutate()}
+      disabled={toggle.isPending}
+      title={toggle.error?.message}
+    >
+      {pool.paused ? "Resume" : "Pause"}
+    </Button>
+  );
+}
+
+/** Each machine's runner software and how many of its slots are in use. */
+function OnDemandMachines({ pool }: { pool: Pool }) {
+  const view = useYard();
+  const navigate = useNavigate();
+  const installed = new Set(view.pools.templateRecords.map((t) => t.key));
+  const active = view.pools.dispatches.filter(
+    (d) => d.poolId === pool.id && (d.state === "starting" || d.state === "running"),
+  );
+  return (
+    <LinkTable
+      columns={[{ label: "Machine" }, { label: "Runner software" }, { label: "Running" }]}
+      minWidth="min-w-[480px]"
+    >
+      {pool.machines.map(({ machineId, slots }) => {
+        const machine = view.machines.find((m) => m.id === machineId);
+        const templates = view.pools.templates.filter(
+          (t) => t.poolId === pool.id && t.machineId === machineId,
+        );
+        const ready = templates.length > 0 && templates.every((t) => installed.has(t.key));
+        const unsupported = machine?.os && machine.os !== "linux" && machine.os !== "macos";
+        const status = unsupported
+          ? { tone: "bad" as const, label: "Linux and macOS only", hollow: false }
+          : !machine?.os
+            ? { tone: "muted" as const, label: "OS not read yet", hollow: true }
+            : ready
+              ? { tone: "ok" as const, label: "Installed", hollow: false }
+              : { tone: "warn" as const, label: "Not installed: review changes", hollow: true };
+        const n = active.filter((d) => d.machineId === machineId).length;
+        return (
+          <LinkRow
+            key={machineId}
+            onOpen={() =>
+              void navigate({
+                to: "/machines/$id",
+                params: { id: machineId },
+                hash: ready ? undefined : "changes",
+              })
+            }
+            opener={<span className="font-medium">{machine?.name ?? machineId}</span>}
+          >
+            <td className="px-3 py-2.5">
+              <span className="inline-flex items-center gap-2">
+                <StatusDot tone={status.tone} hollow={status.hollow} />
+                {status.label}
+              </span>
+            </td>
+            <td className="px-3 py-2.5 font-mono text-[12px] tabular">
+              {n} of {slots}
+            </td>
+          </LinkRow>
+        );
+      })}
+    </LinkTable>
+  );
+}
+
+const DISPATCH_STATE = {
+  starting: { tone: "busy", label: "Starting", hollow: true },
+  running: { tone: "busy", label: "Running", hollow: false },
+  done: { tone: "ok", label: "Finished", hollow: false },
+  failed: { tone: "bad", label: "Failed", hollow: false },
+} as const;
+
+/** One-job runners the pool started, newest first, with how each ended. */
+function Dispatches({ dispatches }: { dispatches: Dispatch[] }) {
+  const view = useYard();
+  const now = useNow();
+  if (dispatches.length === 0) {
+    return (
+      <Card>
+        <EmptyLine>
+          None yet. A runner starts here when a matching job is queued and no idle runner can take
+          it.
+        </EmptyLine>
+      </Card>
+    );
+  }
+  return (
+    <Card className="overflow-hidden">
+      <ul className="divide-y divide-line">
+        {dispatches.map((d) => {
+          const state = DISPATCH_STATE[d.state];
+          const runner = view.runners.find(
+            (r) => r.scope.forgeId === d.scope.forgeId && r.name === d.runnerName,
+          );
+          const took = (d.endedAt ?? now) - d.startedAt;
+          return (
+            <li key={d.id} className="flex flex-wrap items-start gap-3 px-4 py-2.5 text-[12.5px]">
+              <span className="mt-1.5">
+                <StatusDot tone={state.tone} hollow={state.hollow} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  {runner ? (
+                    <Link
+                      to="/runners/$key"
+                      params={{ key: runner.key }}
+                      className="font-mono font-medium hover:underline"
+                    >
+                      {d.runnerName}
+                    </Link>
+                  ) : (
+                    <span className="font-mono font-medium">{d.runnerName}</span>
+                  )}
+                  <span className="text-ink-2">
+                    {state.label} ·{" "}
+                    {view.machines.find((m) => m.id === d.machineId)?.name ?? d.machineId} · for job{" "}
+                    {d.jobId} in {d.scope.target}
+                  </span>
+                </div>
+                {runner?.job && (
+                  <div className="text-ink-2">
+                    Running {runner.job.name} in {runner.job.repo}
+                  </div>
+                )}
+                {d.detail && (
+                  <div className={d.state === "failed" ? "text-bad" : "text-ink-2"}>{d.detail}</div>
+                )}
+              </div>
+              <span
+                className="shrink-0 text-[11.5px] text-ink-3 tabular"
+                title={new Date(d.startedAt).toLocaleString()}
+              >
+                {timeAgo(d.startedAt, now)} · {formatElapsed(took)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </Card>
   );
 }
