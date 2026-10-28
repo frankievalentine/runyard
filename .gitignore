@@ -33,3 +33,4 @@ dist-ssr
 .claude/worktrees/
 docker/.env
 docker/runyard.key
+*.bun-build
