@@ -33,6 +33,26 @@ No admin yet. Open the dashboard and enter this setup code to create one:
 Open the dashboard and enter the code to create the first admin. The code changes at every start
 until an admin exists, so only someone who can read Runyard's output can claim the install.
 
+## Installing a release
+
+`vp run release` runs the checks and tests, then cross-compiles `runyard` for macOS (Apple
+silicon), Linux (x64 and arm64, glibc) and Windows (x64) into `apps/cli/dist/release`, with
+`SHA256SUMS`, `VERSION` and the installers. Nothing is uploaded. Put that directory anywhere
+reachable over HTTPS (or use it as a `file://` path), then:
+
+```sh
+RUNYARD_BASE_URL=https://example.com/runyard/0.1.0 sh install.sh      # ~/.local/bin/runyard
+```
+
+```powershell
+$env:RUNYARD_BASE_URL = 'https://example.com/runyard/0.1.0'; .\install.ps1   # %LOCALAPPDATA%\Programs\Runyard
+```
+
+Both check the binary against `SHA256SUMS` before installing. That catches a corrupt or swapped
+download only when `SHA256SUMS` comes from a source you trust. `RUNYARD_INSTALL_DIR` changes
+where it goes. `vp run @runyard/server#check-powershell` parses every PowerShell script Runyard
+ships or generates, in Microsoft's PowerShell container (needs Docker).
+
 ## Running as a service
 
 `runyard service install` keeps Runyard running as your user, which it needs for your SSH keys:

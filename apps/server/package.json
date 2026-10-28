@@ -13,7 +13,8 @@
     "dev": "bun --watch src/main.ts",
     "start": "bun src/main.ts",
     "test": "bun test",
-    "demo": "bun scripts/demo.ts"
+    "demo": "bun scripts/demo.ts",
+    "check-powershell": "bun scripts/check-powershell.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.9.1",

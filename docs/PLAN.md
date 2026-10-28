@@ -152,10 +152,12 @@ Built and tested only against fakes. Deferred until a real service or machine is
     is wrong, the runner won't start.
   - Runner status values are assumed to be `offline`, `idle` and `active`.
   - Docker mode.
-- Real runner installs on macOS, Linux and Windows. The PowerShell scripts haven't been
-  syntax-checked.
+- Real runner installs on macOS, Linux and Windows. The PowerShell scripts parse
+  (`check-powershell`) but have never run on Windows.
 - `runyard service install` on each OS (only `--dry-run` has run, on macOS). The Windows
-  scheduled task and its PowerShell launcher are untested.
+  scheduled task and its PowerShell launcher parse but are untested.
+- `install.ps1` on Windows. `install.sh` has run on macOS and in a Debian container, and the
+  Linux binaries run there.
 
 ## Reference
 
