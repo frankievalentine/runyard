@@ -11,6 +11,7 @@ import {
 import type { ForgejoMonitor } from "../forgejo/monitor.ts";
 import { deleteConnection, listConnections, saveConnection } from "../forgejo/store.ts";
 import type { SecretStore } from "../secrets.ts";
+import { dependents, stillInUse } from "../pools/dependents.ts";
 import { json } from "./validate.ts";
 
 export type ForgejoDeps = { db: Db; secrets: SecretStore; forgejo: ForgejoMonitor };
@@ -63,8 +64,21 @@ export function forgejoRoutes({ db, secrets, forgejo }: ForgejoDeps) {
     )
     .delete("/connections/:id", requireAdmin(), async (c) => {
       const id = c.req.param("id");
-      if (!listConnections(db).some((x) => x.id === id))
-        return c.json({ error: "No such connection." }, 404);
+      const connection = listConnections(db).find((x) => x.id === id);
+      if (!connection) return c.json({ error: "No such connection." }, 404);
+      const left = dependents(db, { forgeId: id });
+      if (left.length)
+        return c.json(
+          {
+            error: stillInUse(
+              "This Forgejo connection",
+              left,
+              "Remove them through their machines' reviews first: Runyard needs the token to deregister them.",
+            ),
+            code: "inUse",
+          },
+          409,
+        );
       deleteConnection(db, secrets, id);
       await forgejo.refreshAll();
       return c.json({ ok: true });

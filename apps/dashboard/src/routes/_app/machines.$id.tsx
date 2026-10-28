@@ -559,8 +559,17 @@ function EditMachine({ m, close }: { m: MachineView; close: () => void }) {
 }
 
 function RemoveMachine({ m }: { m: MachineView }) {
+  const view = useYard();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  // What Runyard still has there: removing the machine first would leave it behind.
+  const left = [
+    ...view.pools.registrations.filter((r) => r.machineId === m.id).map((r) => r.runnerName),
+    ...view.pools.templateRecords
+      .filter((t) => t.machineId === m.id)
+      .map((t) => `${t.poolName} runner software`),
+  ];
+  const pools = view.pools.pools.filter((p) => p.machines.some((x) => x.machineId === m.id));
   const remove = useMutation({
     mutationFn: () => call(api.machines[":id"].$delete({ param: { id: m.id } })),
     onSuccess: async () => {
@@ -572,27 +581,100 @@ function RemoveMachine({ m }: { m: MachineView }) {
       void navigate({ to: "/" });
     },
   });
+  const decommission = useMutation({
+    mutationFn: () => call(api.machines[":id"].decommission.$post({ param: { id: m.id } })),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
+      void navigate({ to: "/machines/$id", params: { id: m.id }, hash: "changes" });
+    },
+  });
+  const inUse = left.length > 0;
   return (
     <AlertDialog.Root>
       <AlertDialog.Trigger render={<Button small variant="danger" />}>Remove</AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
-        <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,380px)] -translate-x-1/2 -translate-y-1/2 p-5">
+        <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 p-5">
           <AlertDialog.Title className="text-[15px] font-semibold">
-            Remove {m.name}?
+            {inUse ? `Decommission ${m.name} first` : `Remove ${m.name}?`}
           </AlertDialog.Title>
           <AlertDialog.Description className="mt-1.5 text-[13px] text-ink-2">
-            Runyard stops checking it and deletes its history. Nothing on the machine changes.
+            {inUse
+              ? `Runyard still has ${left.join(", ")} on it. Decommissioning takes it out of ${pools.length ? pools.map((p) => p.name).join(", ") : "its pools"}; then review and run its changes to remove them, and remove the machine after.`
+              : "Runyard stops checking it and deletes its history. Nothing on the machine changes; its page's teardown command removes what setup left there."}
           </AlertDialog.Description>
-          {remove.error && <ErrorText className="mt-2" error={remove.error} />}
+          {!inUse && <TeardownCommands m={m} />}
+          {(remove.error ?? decommission.error) && (
+            <ErrorText className="mt-2" error={remove.error ?? decommission.error} />
+          )}
           <div className="mt-5 flex justify-end gap-2">
             <AlertDialog.Close render={<Button />}>Cancel</AlertDialog.Close>
-            <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
-              Remove
-            </Button>
+            {inUse ? (
+              <Button
+                variant="danger"
+                onClick={() => decommission.mutate()}
+                disabled={decommission.isPending}
+              >
+                Decommission
+              </Button>
+            ) : (
+              <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
+                Remove
+              </Button>
+            )}
           </div>
         </AlertDialog.Popup>
       </AlertDialog.Portal>
     </AlertDialog.Root>
+  );
+}
+
+/**
+ * The commands that remove what Runyard's setup left on a machine: its key,
+ * ~/runyard-runners, and with --prepared the runyard account. Run on the
+ * machine by a person; Runyard never runs them. Served over HTTPS only.
+ */
+function TeardownCommands({ m }: { m: MachineView }) {
+  const origin = window.location.origin;
+  if (!origin.startsWith("https://"))
+    return (
+      <p className="mt-3 text-[12px] text-ink-2">
+        Open the dashboard at its HTTPS address for the command that removes Runyard's key and files
+        from the machine.
+      </p>
+    );
+  const commands =
+    m.os === "windows"
+      ? [["As the account Runyard used", `irm ${origin}/api/machine-setup/teardown.ps1 | iex`]]
+      : [
+          [
+            "As the account Runyard used",
+            `curl -fsSL ${origin}/api/machine-setup/teardown.sh | sh`,
+          ],
+          ...(m.os !== "macos"
+            ? [
+                [
+                  "Set up with the fresh-machine command: as root, also removes the runyard account",
+                  `curl -fsSL ${origin}/api/machine-setup/teardown.sh | sudo sh -s -- --prepared`,
+                ],
+              ]
+            : []),
+        ];
+  return (
+    <div className="mt-3 flex flex-col gap-2 text-[12px]">
+      <span className="font-medium">To clean up the machine too, run on it:</span>
+      {commands.map(([label, text]) => (
+        <div key={label} className="flex flex-col gap-1">
+          <span className="text-ink-2">{label}</span>
+          <div className="rounded-md border border-line bg-bg px-2 py-1.5">
+            <CopyValue
+              value={text!}
+              label="Teardown command"
+              className="font-mono text-[11.5px] break-all"
+            />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

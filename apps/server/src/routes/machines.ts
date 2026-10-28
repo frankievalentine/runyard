@@ -23,7 +23,8 @@ import {
   unignorePeer,
   updateMachine,
 } from "../machines/store.ts";
-import { listPools, listRegistrations } from "../pools/store.ts";
+import { dependents, stillInUse } from "../pools/dependents.ts";
+import { listPools, listRegistrations, savePool } from "../pools/store.ts";
 import { json } from "./validate.ts";
 
 const sshTarget = z
@@ -150,10 +151,46 @@ export function machineRoutes({ db, monitor }: { db: Db; monitor: MachineMonitor
       )
       .delete("/machines/:id", requireAdmin(), (c) => {
         const id = c.req.param("id");
-        if (!getMachine(db, id)) return c.json({ error: "No such machine." }, 404);
+        const machine = getMachine(db, id);
+        if (!machine) return c.json({ error: "No such machine." }, 404);
+        const left = dependents(db, { machineId: id });
+        if (left.length)
+          return c.json(
+            {
+              error: stillInUse(
+                machine.name,
+                left,
+                "Decommission it and run its review first, so they're removed rather than left behind.",
+              ),
+              code: "inUse",
+            },
+            409,
+          );
         deleteMachine(db, id);
         monitor.configChanged(id);
         return c.json({ ok: true });
+      })
+      // Takes a machine out of every pool; its next review removes what Runyard put there.
+      .post("/machines/:id/decommission", requireAdmin(), (c) => {
+        const id = c.req.param("id");
+        if (!getMachine(db, id)) return c.json({ error: "No such machine." }, 404);
+        const changed: string[] = [];
+        for (const pool of listPools(db)) {
+          if (!pool.machines.some((m) => m.machineId === id)) continue;
+          const { id: poolId, paused: _, ...rest } = pool;
+          savePool(
+            db,
+            {
+              ...rest,
+              scopes: rest.scopes.map((s) => ({ ...s, kind: s.kind as "user" | "org" | "repo" })),
+              machines: rest.machines.filter((m) => m.machineId !== id),
+            },
+            poolId,
+          );
+          changed.push(pool.name);
+        }
+        monitor.configChanged();
+        return c.json({ pools: changed });
       })
       // Places a runner Runyard didn't register on a machine, for display; null takes it off.
       .put(

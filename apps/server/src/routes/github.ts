@@ -18,6 +18,7 @@ import {
 import type { GithubMonitor } from "../github/monitor.ts";
 import { deleteGithubApp, listGithubApps, saveGithubApp } from "../github/store.ts";
 import type { SecretStore } from "../secrets.ts";
+import { dependents, stillInUse } from "../pools/dependents.ts";
 import { json } from "./validate.ts";
 
 export type GithubDeps = {
@@ -86,8 +87,21 @@ export function githubRoutes(deps: GithubDeps) {
     })
     .delete("/apps/:id", requireAdmin(), (c) => {
       const id = c.req.param("id");
-      if (!listGithubApps(deps.db).some((a) => a.id === id))
-        return c.json({ error: "No such GitHub App." }, 404);
+      const app = listGithubApps(deps.db).find((a) => a.id === id);
+      if (!app) return c.json({ error: "No such GitHub App." }, 404);
+      const left = dependents(deps.db, { forgeId: id });
+      if (left.length)
+        return c.json(
+          {
+            error: stillInUse(
+              app.name,
+              left,
+              "Remove them through their machines' reviews first (Decommission, or edit their pools): Runyard needs the app's credentials to deregister them.",
+            ),
+            code: "inUse",
+          },
+          409,
+        );
       deleteGithubApp(deps.db, deps.secrets, id);
       void deps.github.refreshAll();
       return c.json({ ok: true });
