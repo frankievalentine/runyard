@@ -1,12 +1,23 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router";
+import type { FleetView } from "@runyard/core";
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  redirect,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, call } from "../api.ts";
+import { CopyFeedback } from "../components/CopyValue.tsx";
 import { Button } from "../components/form.tsx";
-import { ThemeMenu } from "../components/ThemeMenu.tsx";
-import { StatusDot } from "../components/ui.tsx";
+import { Icon } from "../components/icons.tsx";
+import { Sidebar } from "../components/Sidebar.tsx";
+import { ErrorText, TimeAgo } from "../components/ui.tsx";
 import { fleetQuery, useFleet, useFleetStream } from "../lib/fleet.ts";
-import { sessionQuery } from "../lib/queries.ts";
-import { machineStatus } from "../lib/status.ts";
+import { filterFleet, flattenNav, navKey, type NavItem } from "../lib/nav.ts";
+import { healthQuery, sessionQuery } from "../lib/queries.ts";
 
 /** Every signed-in page. Sends visitors to setup or sign-in first. */
 export const Route = createFileRoute("/_app")({
@@ -19,115 +30,206 @@ export const Route = createFileRoute("/_app")({
   component: Layout,
 });
 
-const navLink =
-  "flex h-7 min-w-0 items-center gap-2 rounded-[6px] px-2 text-ink-2 hover:bg-hover data-[status=active]:bg-selected data-[status=active]:text-ink";
+const OTHER_OPEN_KEY = "runyard.otherMachinesOpen";
 
+function readOtherOpen(): boolean {
+  try {
+    return localStorage.getItem(OTHER_OPEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** fleet's window: sidebar, a header with breadcrumbs and Check now, and the page. */
 function Layout() {
   useFleetStream();
+  const view = useFleet();
   const { data: session } = useSuspenseQuery(sessionQuery);
-  const fleet = useFleet();
-  const queryClient = useQueryClient();
+  const health = useQuery(healthQuery);
+  const demo = health.data?.demo === true;
+  const admin = session.user?.role === "admin";
   const navigate = useNavigate();
-  const logout = useMutation({
-    mutationFn: () => call(api.logout.$post()),
-    onSuccess: () => {
-      queryClient.clear();
-      void navigate({ to: "/login" });
-    },
-  });
-  const user = session.user;
-  if (!user) return null;
-  const admin = user.role === "admin";
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [query, setQuery] = useState("");
+  const [otherOpen, setOtherOpenState] = useState(readOtherOpen);
+  const setOtherOpen = (open: boolean) => {
+    setOtherOpenState(open);
+    try {
+      localStorage.setItem(OTHER_OPEN_KEY, open ? "1" : "0");
+    } catch {
+      // Non-essential.
+    }
+  };
+
+  const filtered = useMemo(() => filterFleet(view, query), [view, query]);
+  const nav = useMemo(
+    () => flattenNav(filtered, query.trim() !== "" || otherOpen),
+    [filtered, query, otherOpen],
+  );
+  const selected = selectedKey(pathname);
+
+  // fleet's keyboard navigation: ↑/↓ through the sidebar, Home for the overview.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target;
+      if (
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        t instanceof HTMLSelectElement
+      )
+        return;
+      if (
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey ||
+        document.querySelector("[role=dialog], [role=menu]")
+      )
+        return;
+      let next: NavItem | undefined;
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        const i = nav.findIndex((item) => navKey(item) === selected);
+        const step = e.key === "ArrowDown" ? 1 : -1;
+        next = nav[i < 0 ? 0 : Math.max(0, Math.min(nav.length - 1, i + step))];
+      } else if (e.key === "Home") next = nav[0];
+      if (!next) return;
+      e.preventDefault();
+      void navigate({ to: next.path, params: next.params });
+      document
+        .querySelector(`[data-nav="${CSS.escape(navKey(next))}"]`)
+        ?.scrollIntoView({ block: "nearest" });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [nav, selected, navigate]);
 
   return (
-    <div className="flex h-full">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-sidebar">
-        <div className="px-4 pt-4 pb-3 text-[14px] font-semibold">Runyard</div>
-        <nav className="scroll flex min-h-0 flex-1 flex-col gap-px px-2">
-          <Link to="/" className={navLink} activeOptions={{ exact: true }}>
-            Overview
-            {fleet.alerts.length > 0 && (
-              <span className="ml-auto font-mono text-[11px] text-warn tabular">
-                {fleet.alerts.length}
-              </span>
-            )}
-          </Link>
-          <div className="mt-4 mb-1 flex items-center px-2 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">
-            Machines
-            {admin && (
-              <Link
-                to="/machines/add"
-                className="ml-auto text-[12px] font-normal tracking-normal normal-case hover:text-ink"
-              >
-                Add
-              </Link>
-            )}
-          </div>
-          {fleet.machines.length === 0 && (
-            <p className="px-2 text-[12px] text-ink-3">No machines yet.</p>
-          )}
-          {fleet.machines.map((m) => {
-            const status = machineStatus(m);
-            return (
-              <Link
-                key={m.id}
-                to="/machines/$id"
-                params={{ id: m.id }}
-                className={navLink}
-                title={status.label}
-              >
-                <StatusDot tone={status.tone} hollow={status.hollow} />
-                <span className="truncate">{m.name}</span>
-              </Link>
-            );
-          })}
-          {admin && fleet.discovered.length > 0 && (
-            <Link to="/machines/add" className={`${navLink} text-[12px] text-ink-3`}>
-              Other machines
-              <span className="ml-auto font-mono text-[11px] tabular">
-                {fleet.discovered.length}
-              </span>
-            </Link>
-          )}
-          {admin && (
+    <CopyFeedback>
+      <div className="flex h-full">
+        <Sidebar
+          view={view}
+          filtered={filtered}
+          query={query}
+          setQuery={setQuery}
+          otherOpen={otherOpen}
+          setOtherOpen={setOtherOpen}
+          selected={selected}
+          admin={admin}
+          demo={demo}
+        />
+        <Main view={view} pathname={pathname} demo={demo} />
+      </div>
+    </CopyFeedback>
+  );
+}
+
+function Main({ view, pathname, demo }: { view: FleetView; pathname: string; demo: boolean }) {
+  const queryClient = useQueryClient();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const check = useMutation({
+    mutationFn: async () => (await call(api.check.$post())) as FleetView,
+    onSuccess: (next) => queryClient.setQueryData(fleetQuery.queryKey, next),
+  });
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [pathname]);
+  const crumbs = breadcrumbs(pathname, view);
+
+  return (
+    <main className="flex min-w-0 flex-1 flex-col bg-bg">
+      <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-line px-4 xl:px-6">
+        <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
+          <ol className="flex min-w-0 items-center gap-1 text-[13px]">
+            {crumbs.map((crumb, i) => (
+              <li key={crumb.label} className="flex min-w-0 items-center gap-1">
+                {i > 0 && (
+                  <span className="shrink-0 text-ink-3">
+                    <Icon name="chevron" size={13} />
+                  </span>
+                )}
+                {crumb.to && i < crumbs.length - 1 ? (
+                  <Link to={crumb.to} className="truncate text-ink-2 hover:text-ink">
+                    {crumb.label}
+                  </Link>
+                ) : (
+                  <span className="truncate font-medium" aria-current="page" title={crumb.label}>
+                    {crumb.label}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
+        <span
+          className="hidden shrink-0 text-[12px] text-ink-2 tabular lg:inline"
+          title={new Date(view.generatedAt).toLocaleString()}
+        >
+          {demo ? (
+            "Demo data"
+          ) : (
             <>
-              <div className="mt-4 mb-1 px-2 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">
-                Settings
-              </div>
-              <Link to="/users" className={navLink}>
-                Users
-              </Link>
+              Updated <TimeAgo at={view.generatedAt} />
             </>
           )}
-        </nav>
-        <div className="flex flex-col gap-1 border-t border-line p-2">
-          <Link to="/account" className={`${navLink} !h-auto flex-col !items-start !gap-0 py-1.5`}>
-            <span className="max-w-full truncate text-ink">
-              {user.username ?? user.tailscaleLogin}
-            </span>
-            <span className="text-[11.5px] text-ink-3">
-              {admin ? "Admin" : "Viewer"}
-              {session.via === "tailscale" ? " · via Tailscale" : ""}
-            </span>
-          </Link>
-          <div className="flex items-center justify-between">
-            <ThemeMenu />
-            {session.via === "session" && (
-              <Button
-                variant="ghost"
-                small
-                onClick={() => logout.mutate()}
-                disabled={logout.isPending}
-              >
-                Sign out
-              </Button>
-            )}
-          </div>
+        </span>
+        <Button small variant="primary" disabled={check.isPending} onClick={() => check.mutate()}>
+          {check.isPending ? "Checking…" : "Check now"}
+        </Button>
+      </header>
+      {check.isError && (
+        <div className="border-b border-line px-6 py-2">
+          <ErrorText error={check.error} />
         </div>
-      </aside>
-      <main className="scroll min-w-0 flex-1 px-8 py-6">
-        <Outlet />
-      </main>
+      )}
+      {demo && <DemoBanner />}
+      <div ref={scrollRef} className="scroll min-h-0 flex-1">
+        <div className="mx-auto w-full max-w-[1200px] px-6 py-8 xl:px-8">
+          <Outlet />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+/** fleet's banner. Demo is a server mode here: on a shared server, one viewer can't switch it for everyone. */
+function DemoBanner() {
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-warn/30 bg-warn/10 px-5 py-2 text-[12px]">
+      <span className="font-semibold tracking-wide text-warn">DEMO DATA</span>
+      <span className="min-w-0 flex-1 truncate text-ink-2">
+        Fictional machines answered by a stand-in. Nothing real is contacted.
+      </span>
     </div>
   );
+}
+
+/** The sidebar row a path belongs to. */
+function selectedKey(pathname: string): string {
+  const machine = /^\/machines\/([^/]+)$/.exec(pathname);
+  if (machine && machine[1] !== "add") return `/machines/$id:${machine[1]}`;
+  const peer = /^\/peers\/([^/]+)$/.exec(pathname);
+  if (peer) return `/peers/$nodeId:${peer[1]}`;
+  return pathname === "/ignored" ? "/ignored" : pathname === "/" ? "/" : pathname;
+}
+
+function breadcrumbs(pathname: string, view: FleetView): { label: string; to?: string }[] {
+  const fleet = { label: "Fleet", to: "/" };
+  const machine = /^\/machines\/([^/]+)$/.exec(pathname)?.[1];
+  if (machine === "add") return [fleet, { label: "Add machines" }];
+  if (machine)
+    return [fleet, { label: view.machines.find((m) => m.id === machine)?.name ?? "Machine" }];
+  const peer = /^\/peers\/([^/]+)$/.exec(pathname)?.[1];
+  if (peer) {
+    return [
+      fleet,
+      { label: "Other machines" },
+      { label: view.discovered.find((p) => p.nodeId === peer)?.name ?? "Machine" },
+    ];
+  }
+  const pages: Record<string, string> = {
+    "/": "Fleet overview",
+    "/ignored": "Ignored machines",
+    "/users": "Users",
+    "/account": "Account",
+  };
+  return [fleet, { label: pages[pathname] ?? "" }];
 }

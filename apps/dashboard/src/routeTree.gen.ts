@@ -14,9 +14,11 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppIgnoredRouteImport } from './routes/_app/ignored'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as AppMachinesIdRouteImport } from './routes/_app/machines.$id'
 import { Route as AppMachinesAddRouteImport } from './routes/_app/machines.add'
+import { Route as AppPeersNodeIdRouteImport } from './routes/_app/peers.$nodeId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -42,6 +44,11 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
+const AppIgnoredRoute = AppIgnoredRouteImport.update({
+  id: '/ignored',
+  path: '/ignored',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppUsersRoute = AppUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -57,24 +64,33 @@ const AppMachinesAddRoute = AppMachinesAddRouteImport.update({
   path: '/machines/add',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPeersNodeIdRoute = AppPeersNodeIdRouteImport.update({
+  id: '/peers/$nodeId',
+  path: '/peers/$nodeId',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/account': typeof AppAccountRoute
+  '/ignored': typeof AppIgnoredRoute
   '/users': typeof AppUsersRoute
   '/machines/$id': typeof AppMachinesIdRoute
   '/machines/add': typeof AppMachinesAddRoute
+  '/peers/$nodeId': typeof AppPeersNodeIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/account': typeof AppAccountRoute
+  '/ignored': typeof AppIgnoredRoute
   '/users': typeof AppUsersRoute
   '/': typeof AppIndexRoute
   '/machines/$id': typeof AppMachinesIdRoute
   '/machines/add': typeof AppMachinesAddRoute
+  '/peers/$nodeId': typeof AppPeersNodeIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -82,10 +98,12 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/_app/account': typeof AppAccountRoute
+  '/_app/ignored': typeof AppIgnoredRoute
   '/_app/users': typeof AppUsersRoute
   '/_app/': typeof AppIndexRoute
   '/_app/machines/$id': typeof AppMachinesIdRoute
   '/_app/machines/add': typeof AppMachinesAddRoute
+  '/_app/peers/$nodeId': typeof AppPeersNodeIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -94,28 +112,34 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/account'
+    | '/ignored'
     | '/users'
     | '/machines/$id'
     | '/machines/add'
+    | '/peers/$nodeId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/setup'
     | '/account'
+    | '/ignored'
     | '/users'
     | '/'
     | '/machines/$id'
     | '/machines/add'
+    | '/peers/$nodeId'
   id:
     | '__root__'
     | '/_app'
     | '/login'
     | '/setup'
     | '/_app/account'
+    | '/_app/ignored'
     | '/_app/users'
     | '/_app/'
     | '/_app/machines/$id'
     | '/_app/machines/add'
+    | '/_app/peers/$nodeId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -161,6 +185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/ignored': {
+      id: '/_app/ignored'
+      path: '/ignored'
+      fullPath: '/ignored'
+      preLoaderRoute: typeof AppIgnoredRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/users': {
       id: '/_app/users'
       path: '/users'
@@ -182,23 +213,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMachinesAddRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/peers/$nodeId': {
+      id: '/_app/peers/$nodeId'
+      path: '/peers/$nodeId'
+      fullPath: '/peers/$nodeId'
+      preLoaderRoute: typeof AppPeersNodeIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
+  AppIgnoredRoute: typeof AppIgnoredRoute
   AppUsersRoute: typeof AppUsersRoute
   AppIndexRoute: typeof AppIndexRoute
   AppMachinesIdRoute: typeof AppMachinesIdRoute
   AppMachinesAddRoute: typeof AppMachinesAddRoute
+  AppPeersNodeIdRoute: typeof AppPeersNodeIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
+  AppIgnoredRoute: AppIgnoredRoute,
   AppUsersRoute: AppUsersRoute,
   AppIndexRoute: AppIndexRoute,
   AppMachinesIdRoute: AppMachinesIdRoute,
   AppMachinesAddRoute: AppMachinesAddRoute,
+  AppPeersNodeIdRoute: AppPeersNodeIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

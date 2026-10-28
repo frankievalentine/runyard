@@ -5,7 +5,8 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
-import { Card, ErrorText, Section } from "../../components/ui.tsx";
+import { Card, ErrorText, PageHeader, Section } from "../../components/ui.tsx";
+import { Icon } from "../../components/icons.tsx";
 import { sessionQuery, usersQuery, type UserView } from "../../lib/queries.ts";
 
 export const Route = createFileRoute("/_app/users")({
@@ -22,10 +23,11 @@ function Users() {
   const users = useQuery(usersQuery);
   return (
     <>
-      <h1 className="text-[20px] font-semibold tracking-tight">Users</h1>
-      <p className="mt-1 text-[13px] text-ink-2">
-        Viewers can see everything. Admins can also manage users, and later machines and runners.
-      </p>
+      <PageHeader
+        icon={<Icon name="users" size={18} />}
+        title="Users"
+        subtitle="Viewers can see everything. Admins can also manage machines and users."
+      />
       <Section title="People">
         {users.error && <ErrorText error={users.error} />}
         <Card className="overflow-hidden">

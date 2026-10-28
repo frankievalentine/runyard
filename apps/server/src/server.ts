@@ -57,6 +57,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     challenges: new Challenges(),
     tailnetLogin,
     monitor,
+    demo: process.env.RUNYARD_DEMO === "1",
   };
   const deps = (listener: AppDeps["listener"]): AppDeps => ({ ...shared, listener });
 

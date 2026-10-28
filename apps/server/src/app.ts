@@ -27,6 +27,8 @@ export type AppDeps = {
   challenges: Challenges;
   tailnetLogin: TailnetLogin;
   monitor: MachineMonitor;
+  /** Fictional data: the dashboard shows fleet's DEMO DATA banner. */
+  demo?: boolean;
 };
 
 export function createApi(deps: AppDeps) {
@@ -34,7 +36,7 @@ export function createApi(deps: AppDeps) {
     .basePath("/api")
     .use(sameOriginWrites())
     .use(identify(deps.db, deps.listener, deps.tailnetLogin))
-    .get("/health", (c) => c.json({ ok: true, version: pkg.version }))
+    .get("/health", (c) => c.json({ ok: true, version: pkg.version, demo: deps.demo ?? false }))
     .route("/", authRoutes(deps))
     .route("/passkeys", passkeyRoutes(deps))
     .route("/users", userRoutes(deps.db))

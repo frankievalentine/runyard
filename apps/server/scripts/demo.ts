@@ -15,6 +15,7 @@ import { start } from "../src/server.ts";
 const GIB = 1_073_741_824;
 process.env.RUNYARD_DATA_DIR ??= await mkdtemp(join(tmpdir(), "runyard-demo-"));
 process.env.RUNYARD_TAILNET = "off";
+process.env.RUNYARD_DEMO = "1";
 
 const fake = new FakeMachines();
 const node = (id: string, host: string, os: string, online: boolean, extra: object = {}) => ({

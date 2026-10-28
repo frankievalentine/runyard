@@ -3,7 +3,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
-import { Card, ErrorText, Section } from "../../components/ui.tsx";
+import { Card, ErrorText, PageHeader, Section } from "../../components/ui.tsx";
+import { Icon } from "../../components/icons.tsx";
 import { addPasskey, passkeysAvailable } from "../../lib/passkeys.ts";
 import { passkeysQuery, sessionQuery } from "../../lib/queries.ts";
 
@@ -17,7 +18,11 @@ function Account() {
   if (!user) return null;
   return (
     <>
-      <h1 className="text-[20px] font-semibold tracking-tight">Account</h1>
+      <PageHeader
+        icon={<Icon name="settings" size={18} />}
+        title={user.username ?? user.tailscaleLogin ?? "Account"}
+        subtitle={user.role === "admin" ? "Admin" : "Viewer"}
+      />
       <Section title="Sign-in">
         <Card className="flex flex-col gap-1 px-4 py-3 text-[13px]">
           {user.username && (

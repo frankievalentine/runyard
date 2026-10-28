@@ -1,122 +1,129 @@
-import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import type { FleetView } from "@runyard/core";
-import { api, call } from "../../api.ts";
-import { Button } from "../../components/form.tsx";
-import { ActiveAlerts, EventList, MachineTable } from "../../components/machines.tsx";
 import {
-  Callout,
-  Card,
-  EmptyLine,
-  ErrorText,
-  Section,
-  Stat,
-  StatStrip,
-} from "../../components/ui.tsx";
-import { fleetQuery, useFleet } from "../../lib/fleet.ts";
-import { plural, timeAgo } from "../../lib/format.ts";
-import { useNow } from "../../lib/now.ts";
-import { healthQuery, sessionQuery } from "../../lib/queries.ts";
-import { diagnosticWarnings } from "../../lib/status.ts";
+  ActiveAlerts,
+  Attention,
+  EventTimeline,
+  MachineTable,
+} from "../../components/machines.tsx";
+import { Card, Legend, PageHeader, Section, Stat, StatStrip } from "../../components/ui.tsx";
+import { Icon } from "../../components/icons.tsx";
+import { useFleet } from "../../lib/fleet.ts";
+import { plural } from "../../lib/format.ts";
+import { sessionQuery } from "../../lib/queries.ts";
 
 export const Route = createFileRoute("/_app/")({
   component: Overview,
 });
 
+/** fleet's overview. Runner counts, Working now and Queued join it once forges are connected. */
 function Overview() {
-  const fleet = useFleet();
-  const now = useNow();
+  const view = useFleet();
   const { data: session } = useSuspenseQuery(sessionQuery);
-  const health = useQuery(healthQuery);
-  const queryClient = useQueryClient();
-  const check = useMutation({
-    mutationFn: async () => (await call(api.check.$post())) as FleetView,
-    onSuccess: (view) => queryClient.setQueryData(fleetQuery.queryKey, view),
-  });
-  const machines = fleet.machines;
+  const machines = view.machines;
+  if (machines.length === 0)
+    return <Welcome admin={session.user?.role === "admin"} discovered={view.discovered.length} />;
+
   const connected = machines.filter((m) => m.connection.state === "connected").length;
   const offline = machines.filter((m) => m.connection.state === "offline").length;
-  const failing = machines.filter(
+  const problems = machines.filter(
     (m) => m.connection.state === "error" || m.connection.state === "stale",
   ).length;
-  const warnings = machines.reduce((n, m) => n + diagnosticWarnings(m), 0);
-
   return (
-    <>
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-[20px] font-semibold tracking-tight">Overview</h1>
-        <span className="text-[12px] text-ink-2">
-          {fleet.tailnet.name ? `Tailnet ${fleet.tailnet.name}` : "No tailnet"}
-          {health.data && ` · Runyard v${health.data.version}`}
-        </span>
-        <div className="ml-auto">
-          <Button small onClick={() => check.mutate()} disabled={check.isPending}>
-            {check.isPending ? "Checking…" : "Check now"}
-          </Button>
-        </div>
-      </div>
-      {check.error && <ErrorText className="mt-2" error={check.error} />}
-      {fleet.tailnet.error && (
-        <Callout tone="warn" title="Tailscale can't be read">
-          {fleet.tailnet.error}
-          {fleet.tailnet.at !== null &&
-            ` Showing the tailnet as of ${timeAgo(fleet.tailnet.at, now)}.`}{" "}
-          Machines are still checked over SSH; offline alerts wait for fresh tailnet data.
-        </Callout>
-      )}
-
-      <div className="mt-6">
+    <div>
+      <PageHeader
+        title="Fleet overview"
+        subtitle={`${plural(machines.length, "machine")}${view.tailnet.name ? ` · ${view.tailnet.name}` : ""}`}
+      />
+      <div className="mt-8">
         <StatStrip>
-          <Stat label="Machines" value={machines.length} sub={`${connected} connected`} />
           <Stat
-            label="Offline"
-            value={offline}
-            tone={offline ? "muted" : undefined}
-            sub="on the tailnet"
-          />
+            label="Connected"
+            value={connected}
+            tone="ok"
+            sub={`of ${plural(machines.length, "machine")}`}
+          >
+            <div className="flex h-1 overflow-hidden rounded-full bg-sunken" aria-hidden="true">
+              <span
+                className="bg-ok/80"
+                style={{ width: `${(connected / machines.length) * 100}%` }}
+              />
+            </div>
+          </Stat>
+          <Stat label="Offline" value={offline} tone="muted" sub="on the tailnet" />
           <Stat
             label="SSH problems"
-            value={failing}
-            tone={failing ? "bad" : undefined}
-            sub={failing ? "see each machine" : "every check succeeded"}
+            value={problems}
+            tone={problems ? "bad" : undefined}
+            sub="failing or stale reads"
           />
           <Stat
-            label="Diagnostics"
-            value={warnings}
-            tone={warnings ? "warn" : undefined}
-            sub={warnings ? plural(warnings, "warning") : "no warnings"}
+            label="Alerts"
+            value={view.alerts.length}
+            tone={view.alerts.length ? "warn" : undefined}
+            sub="offline or low disk"
           />
         </StatStrip>
       </div>
 
-      {fleet.alerts.length > 0 && (
-        <Section title="Active alerts">
-          <ActiveAlerts alerts={fleet.alerts} showMachine />
+      {view.alerts.length > 0 && (
+        <Section title="Active alerts" count={view.alerts.length}>
+          <ActiveAlerts alerts={view.alerts} showMachine />
         </Section>
       )}
+      <Attention view={view} />
 
-      <Section title="Machines">
-        {machines.length > 0 ? (
-          <MachineTable machines={machines} />
+      <Section
+        title="Machines"
+        count={machines.length}
+        action={
+          <div className="flex items-center gap-3 text-[12px] text-ink-2">
+            <Legend color="bg-meter">Used</Legend>
+            <Legend color="bg-warn">70%+</Legend>
+            <Legend color="bg-bad">85%+</Legend>
+          </div>
+        }
+      >
+        <MachineTable machines={machines} />
+      </Section>
+
+      <EventTimeline />
+    </div>
+  );
+}
+
+/** First run: what to do before there's anything to show. */
+function Welcome({ admin, discovered }: { admin: boolean; discovered: number }) {
+  return (
+    <div className="mx-auto max-w-xl pt-8">
+      <div className="flex size-10 items-center justify-center rounded-lg border border-line bg-card text-ink-2">
+        <Icon name="server" size={20} />
+      </div>
+      <h1 className="mt-4 text-[20px] font-semibold tracking-tight">Welcome to Runyard</h1>
+      <p className="mt-2 text-[13px] text-ink-2">
+        Runyard watches the machines that run your CI over SSH and your tailnet. Nothing is
+        installed on them, and checks are read-only.
+      </p>
+      <Card className="mt-6 px-4 py-4 text-[13px]">
+        {admin ? (
+          <>
+            <div className="font-medium">Add your first machine</div>
+            <p className="mt-1 text-ink-2">
+              {discovered > 0
+                ? `${plural(discovered, "desktop or server", "desktops and servers")} on your tailnet can be added in one click.`
+                : "Pick a device from your tailnet or enter any SSH target."}
+            </p>
+            <Link
+              to="/machines/add"
+              className="mt-3 inline-flex h-[28px] items-center rounded-[6px] bg-accent px-2.5 text-[12.5px] font-medium text-white hover:brightness-110"
+            >
+              Add machines
+            </Link>
+          </>
         ) : (
-          <Card>
-            <EmptyLine>
-              No machines yet.{" "}
-              {session.user?.role === "admin" ? (
-                <Link to="/machines/add" className="text-accent hover:underline">
-                  Add one by SSH target or from your tailnet.
-                </Link>
-              ) : (
-                "An admin can add them."
-              )}
-            </EmptyLine>
-          </Card>
+          <p className="text-ink-2">An admin hasn't added any machines yet.</p>
         )}
-      </Section>
-
-      <Section title="Recent events">
-        <EventList />
-      </Section>
-    </>
+      </Card>
+    </div>
   );
 }

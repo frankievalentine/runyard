@@ -117,7 +117,8 @@ function sshFailure(code: number, stderr: string, transport: SshTransport): stri
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean)
-    .at(-1);
+    .at(-1)
+    ?.replace(/\.$/, "");
   if (/Host key verification failed|REMOTE HOST IDENTIFICATION HAS CHANGED/i.test(stderr)) {
     return "The machine's SSH host key isn't trusted on this machine. Connect once with ssh to verify and accept it, then check again.";
   }

@@ -1,30 +1,35 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
-import { Dialog } from "@base-ui/react/dialog";
 import type {
   DiagnosticGroup,
   FleetView,
+  HealthView,
   MachineView,
   OsFamily,
   SshTransport,
 } from "@runyard/core";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { api, call } from "../../api.ts";
+import { CopyValue } from "../../components/CopyValue.tsx";
 import { Button, TextField } from "../../components/form.tsx";
-import { ActiveAlerts, EventList } from "../../components/machines.tsx";
+import { Icon } from "../../components/icons.tsx";
 import { MachineFields } from "../../components/MachineFields.tsx";
+import { ActiveAlerts, EventTimeline } from "../../components/machines.tsx";
 import {
   Callout,
   Card,
   EmptyLine,
   ErrorText,
+  KeyValuePanel,
   Meter,
+  PageHeader,
   Pill,
   Section,
   Stat,
   StatStrip,
   StatusDot,
+  type KeyValueRow,
 } from "../../components/ui.tsx";
 import { fleetQuery, useFleet } from "../../lib/fleet.ts";
 import {
@@ -34,19 +39,29 @@ import {
   formatUptime,
   timeAgo,
 } from "../../lib/format.ts";
+import { diskUsedFraction, memoryUsedFraction, primaryDisk } from "../../lib/health.ts";
 import { useNow } from "../../lib/now.ts";
 import { sessionQuery } from "../../lib/queries.ts";
-import { diagnosticTone, osLabel, type Tone } from "../../lib/status.ts";
+import {
+  connectionStatus,
+  diagnosticSummary,
+  diagnosticTone,
+  osLabel,
+  osLine,
+  type Tone,
+} from "../../lib/status.ts";
 
 export const Route = createFileRoute("/_app/machines/$id")({
   component: Machine,
 });
 
+/** fleet's MachineDetail; runners, changes and runner checks join it with runner management. */
 function Machine() {
   const { id } = Route.useParams();
-  const fleet = useFleet();
+  const view = useFleet();
   const { data: session } = useSuspenseQuery(sessionQuery);
-  const m = fleet.machines.find((x) => x.id === id);
+  const [editing, setEditing] = useState(false);
+  const m = view.machines.find((x) => x.id === id);
   if (!m) {
     return (
       <Card>
@@ -60,68 +75,84 @@ function Machine() {
     );
   }
   const admin = session.user?.role === "admin";
+  const status = connectionStatus(m.connection);
+  const address = m.tailnet?.address ?? m.sshTarget;
+  const os = osLine(m);
+
   return (
-    <>
-      <Header m={m} admin={admin} />
-      {(m.connection.state === "error" || m.connection.state === "stale") && (
-        <Callout
-          tone={m.connection.state === "error" ? "bad" : "warn"}
-          title="The last SSH check failed"
-        >
-          {m.connection.state === "error" ? m.connection.detail : m.connection.reason}
-        </Callout>
+    <div>
+      <PageHeader
+        icon={<Icon name="machine" size={18} />}
+        title={<CopyValue value={m.name} label="Machine name" showIcon={false} />}
+        status={
+          <>
+            <Pill tone={status.tone} hollow={status.hollow}>
+              {status.label}
+            </Pill>
+            {admin && !editing && (
+              <Button
+                small
+                variant="ghost"
+                aria-label={`Edit ${m.name}`}
+                onClick={() => setEditing(true)}
+              >
+                Edit…
+              </Button>
+            )}
+          </>
+        }
+        subtitle={
+          <>
+            <CopyValue value={address} label="Address" />
+            {os && ` · ${os}`}
+          </>
+        }
+        actions={admin && <RemoveMachine m={m} />}
+      />
+      {editing ? (
+        <EditMachine m={m} close={() => setEditing(false)} />
+      ) : (
+        m.description && (
+          <p className="mt-3 text-[12.5px] break-words whitespace-pre-wrap text-ink-2">
+            {m.description}
+          </p>
+        )
       )}
-      <div className="mt-6">
+      <div className="mt-8 space-y-3">
         <Glance m={m} />
+        {m.health && <HealthMeters h={m.health} />}
       </div>
-      <Health m={m} />
+      <ConnectionNotice m={m} />
       <Monitoring m={m} admin={admin} />
       <Diagnostics m={m} />
-      <Section title="History">
-        <EventList machineId={m.id} />
-      </Section>
-    </>
+      <Details m={m} />
+      {m.health && m.health.warnings.length > 0 && (
+        <Section title="SSH check notes" count={m.health.warnings.length}>
+          <Card className="px-4 py-3 text-[12px] text-ink-2">
+            {m.health.warnings.map((w) => (
+              <div key={w}>{w}</div>
+            ))}
+          </Card>
+        </Section>
+      )}
+      <EventTimeline machineId={m.id} />
+    </div>
   );
 }
 
-function Header({ m, admin }: { m: MachineView; admin: boolean }) {
-  const queryClient = useQueryClient();
-  const check = useMutation({
-    mutationFn: async () =>
-      (await call(api.machines[":id"].check.$post({ param: { id: m.id } }))) as FleetView,
-    onSuccess: (view) => queryClient.setQueryData(fleetQuery.queryKey, view),
-  });
-  return (
-    <>
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-[20px] font-semibold tracking-tight">{m.name}</h1>
-        {m.os && <Pill tone="muted">{osLabel[m.os]}</Pill>}
-        <div className="ml-auto flex gap-2">
-          <Button small onClick={() => check.mutate()} disabled={check.isPending}>
-            {check.isPending ? "Checking…" : "Check now"}
-          </Button>
-          {admin && <EditMachine m={m} />}
-          {admin && <RemoveMachine m={m} />}
-        </div>
-      </div>
-      {m.description && <p className="mt-1 text-[13px] text-ink-2">{m.description}</p>}
-      <p className="mt-1 text-[12px] text-ink-2">
-        <span className="font-mono select-text">{m.sshTarget}</span> ·{" "}
-        {m.transport === "tailscale" ? "Tailscale SSH" : "OpenSSH"}
-      </p>
-      {check.error && <ErrorText className="mt-2" error={check.error} />}
-    </>
-  );
-}
+type Fact = { tone: Tone; value: string; sub: ReactNode; hollow?: boolean };
 
-type Fact = { tone: Tone; value: string; sub: string; hollow?: boolean };
-
-/** Tailnet reachability, the last SSH read and uptime. Ported from fleet's MachineGlance. */
+/** Tailnet reachability, the last SSH read, and diagnostics. Ported from fleet's MachineGlance. */
 function Glance({ m }: { m: MachineView }) {
   const now = useNow();
   const t = m.tailnet;
   const tailnet: Fact = !t
-    ? { tone: "muted", value: "Not on the tailnet", sub: "reached by SSH target", hollow: true }
+    ? {
+        tone: "muted",
+        value: "Not on the tailnet",
+        sub: <CopyValue value={m.sshTarget} label="SSH target" truncate />,
+        hollow: true,
+      }
     : t.online
       ? {
           tone: "ok",
@@ -145,7 +176,11 @@ function Glance({ m }: { m: MachineView }) {
             hollow: true,
           }
         : c.state === "error"
-          ? { tone: "bad", value: "Couldn't connect", sub: "see the error above" }
+          ? {
+              tone: "bad",
+              value: "Couldn't connect",
+              sub: <CopyValue value={c.detail} label="SSH error" truncate />,
+            }
           : c.state === "offline"
             ? { tone: "muted", value: "Offline", sub: "machine is offline", hollow: true }
             : {
@@ -154,82 +189,114 @@ function Glance({ m }: { m: MachineView }) {
                 sub: "read automatically every minute",
                 hollow: true,
               };
-  const h = m.health;
+  const warnings =
+    m.diagnostics && !m.diagnostics.stale
+      ? m.diagnostics.checks.filter((x) => x.status === "warn").length
+      : 0;
+  const diagnostics: Fact = !m.diagnostics
+    ? { tone: "muted", value: "Not checked", sub: "after the first SSH read", hollow: true }
+    : m.diagnostics.stale
+      ? {
+          tone: "muted",
+          value: "Stale",
+          sub: `read ${timeAgo(m.diagnostics.asOf, now)}`,
+          hollow: true,
+        }
+      : warnings
+        ? { tone: "warn", value: diagnosticSummary(m), sub: "see Diagnostics below" }
+        : { tone: "ok", value: "No warnings", sub: `read ${timeAgo(m.diagnostics.asOf, now)}` };
   return (
     <StatStrip cols={3}>
       <Stat label="Tailnet" {...tailnet} />
       <Stat label="SSH" {...ssh} />
-      <Stat
-        label="Uptime"
-        value={h?.uptimeSecs != null ? formatUptime(h.uptimeSecs) : "—"}
-        sub={h?.osVersion ?? "operating system unknown"}
-        stale={h?.stale}
-      />
+      <Stat label="Diagnostics" {...diagnostics} />
     </StatStrip>
   );
 }
 
-function Health({ m }: { m: MachineView }) {
-  const h = m.health;
-  if (!h) return null;
-  const memoryUsed =
-    h.memoryTotalBytes != null && h.memoryAvailableBytes != null
-      ? h.memoryTotalBytes - h.memoryAvailableBytes
-      : null;
-  return (
-    <Section title="Health">
-      <StatStrip cols={3}>
-        <Stat
-          label="CPU"
-          value={h.cpuPercent != null ? formatPercent(h.cpuPercent) : "—"}
-          stale={h.stale}
-          sub={h.logicalCores ? `${h.logicalCores} cores` : undefined}
-        >
-          {h.cpuPercent != null && <Meter fraction={h.cpuPercent / 100} stale={h.stale} />}
-        </Stat>
-        <Stat
-          label="Memory"
-          value={memoryUsed != null ? formatBytes(memoryUsed) : "—"}
-          stale={h.stale}
-          sub={h.memoryTotalBytes != null ? `of ${formatBytes(h.memoryTotalBytes)}` : undefined}
-        >
-          {memoryUsed != null && h.memoryTotalBytes ? (
-            <Meter fraction={memoryUsed / h.memoryTotalBytes} stale={h.stale} />
-          ) : null}
-        </Stat>
-        <Stat
-          label="Load"
-          value={h.loadAverage ? h.loadAverage[0].toFixed(2) : "—"}
-          stale={h.stale}
-          sub={
-            h.loadAverage
-              ? `${h.loadAverage[1].toFixed(2)} · ${h.loadAverage[2].toFixed(2)} (5 and 15 min)`
-              : "not reported"
-          }
-        />
-      </StatStrip>
-      {h.disks.length > 0 && (
-        <Card className="mt-3 divide-y divide-line">
-          {h.disks.map((d) => (
-            <div key={d.mountPoint} className={`px-4 py-3 ${h.stale ? "opacity-60" : ""}`}>
-              <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[12.5px]">
-                <span className="truncate font-mono">{d.mountPoint}</span>
-                <span className="shrink-0 text-ink-2 tabular">
-                  {formatBytes(d.availableBytes)} free of {formatBytes(d.totalBytes)}
-                </span>
-              </div>
-              <Meter fraction={1 - d.availableBytes / d.totalBytes} stale={h.stale} />
-            </div>
-          ))}
-        </Card>
-      )}
-      {h.warnings.map((w) => (
-        <p key={w} className="mt-2 text-[12px] text-ink-2">
-          {w}
-        </p>
-      ))}
-    </Section>
+/** Ported from fleet's HealthMeters. */
+function HealthMeters({ h }: { h: HealthView }) {
+  const now = useNow();
+  const memory = memoryUsedFraction(h);
+  const disk = primaryDisk(h);
+  const asOf = h.stale && (
+    <span className="shrink-0 text-[11px] text-warn">as of {timeAgo(h.asOf, now)}</span>
   );
+  return (
+    <StatStrip cols={3}>
+      <Stat
+        label="CPU"
+        aside={asOf}
+        stale={h.stale}
+        value={h.cpuPercent == null ? "—" : formatPercent(h.cpuPercent)}
+        sub={
+          h.loadAverage
+            ? `load ${h.loadAverage.map((l) => l.toFixed(1)).join(" ")}`
+            : h.logicalCores == null
+              ? "unavailable"
+              : `${h.logicalCores} cores`
+        }
+      >
+        <MeterSlot fraction={h.cpuPercent == null ? null : h.cpuPercent / 100} stale={h.stale} />
+      </Stat>
+      <Stat
+        label="Memory"
+        aside={asOf}
+        stale={h.stale}
+        value={memory == null ? "—" : formatPercent(memory * 100)}
+        sub={`${formatBytes(h.memoryAvailableBytes)} free of ${formatBytes(h.memoryTotalBytes)}`}
+      >
+        <MeterSlot fraction={memory} stale={h.stale} />
+      </Stat>
+      <Stat
+        label="Disk free"
+        aside={asOf}
+        stale={h.stale}
+        value={disk ? formatBytes(disk.availableBytes) : "—"}
+        sub={
+          disk
+            ? `of ${formatBytes(disk.totalBytes)}${h.disks.length > 1 ? ` · ${h.disks.length} disks` : ""}`
+            : "not reported"
+        }
+      >
+        <MeterSlot fraction={diskUsedFraction(disk)} stale={h.stale} />
+      </Stat>
+    </StatStrip>
+  );
+}
+
+/** Keeps the cards aligned when one has no reading. */
+function MeterSlot({ fraction, stale }: { fraction: number | null; stale: boolean }) {
+  return fraction == null ? <div className="h-1" /> : <Meter fraction={fraction} stale={stale} />;
+}
+
+/** Ported from fleet. */
+function ConnectionNotice({ m }: { m: MachineView }) {
+  const now = useNow();
+  const c = m.connection;
+  switch (c.state) {
+    case "stale":
+      return (
+        <Callout tone="warn" title={`Showing the last SSH read, from ${timeAgo(c.checkedAt, now)}`}>
+          {c.reason} Health above is not current.
+        </Callout>
+      );
+    case "offline":
+      return (
+        <Callout tone="warn" title="Offline on the tailnet">
+          {c.lastSeen ? `Last seen ${timeAgo(c.lastSeen, now)}.` : "Not seen recently."} Health
+          shows the last read.
+        </Callout>
+      );
+    case "error":
+      return (
+        <Callout tone="bad" title="Couldn't read this machine over SSH">
+          {c.detail}
+        </Callout>
+      );
+    default:
+      return null;
+  }
 }
 
 function Monitoring({ m, admin }: { m: MachineView; admin: boolean }) {
@@ -245,24 +312,36 @@ function Monitoring({ m, admin }: { m: MachineView; admin: boolean }) {
   });
   return (
     <Section title="Monitoring">
-      <Card className="flex flex-wrap items-start gap-3 px-4 py-3">
-        <p className="min-w-0 flex-1 basis-[260px] text-[12px] text-ink-2">
-          {pausedUntil
-            ? `Alerts are paused until ${formatClock(pausedUntil)}. History continues.`
-            : "Alerts after 3 minutes offline on the tailnet, or disk space confirmed below 10%."}
-        </p>
-        {admin && (
-          <Button small disabled={maintenance.isPending} onClick={() => maintenance.mutate()}>
-            {pausedUntil ? "End maintenance" : "Maintenance for 1 hour"}
-          </Button>
-        )}
-        {maintenance.error && <ErrorText className="w-full" error={maintenance.error} />}
-      </Card>
-      {m.alerts.length > 0 && (
-        <div className="mt-3">
-          <ActiveAlerts alerts={m.alerts} />
+      <Card className="overflow-hidden">
+        <div className="flex flex-wrap items-start gap-3 px-4 py-3">
+          <div className="min-w-0 flex-1 basis-[260px]">
+            <p className="text-[12px] text-ink-2">
+              {pausedUntil
+                ? `Alerts are paused until ${formatClock(pausedUntil)}. History continues.`
+                : "Alerts after 3 minutes offline or confirmed disk space below 10%. Maintenance pauses alerts for an hour."}
+            </p>
+            {maintenance.isError && <ErrorText error={maintenance.error} className="mt-2" />}
+          </div>
+          {admin && (
+            <Button small disabled={maintenance.isPending} onClick={() => maintenance.mutate()}>
+              {maintenance.isPending
+                ? "Saving…"
+                : pausedUntil
+                  ? "End maintenance"
+                  : "Maintenance for 1 hour"}
+            </Button>
+          )}
         </div>
-      )}
+        {m.alerts.length > 0 ? (
+          <div className="border-t border-line">
+            <ActiveAlerts alerts={m.alerts} />
+          </div>
+        ) : (
+          <div className="border-t border-line">
+            <EmptyLine>No active alerts.</EmptyLine>
+          </div>
+        )}
+      </Card>
     </Section>
   );
 }
@@ -278,11 +357,14 @@ function Diagnostics({ m }: { m: MachineView }) {
   const now = useNow();
   const d = m.diagnostics;
   return (
-    <Section title="Diagnostics">
+    <Section
+      title="Machine diagnostics"
+      action={<span className="text-[12px] text-ink-2">{diagnosticSummary(m)}</span>}
+    >
       <p className={`mb-3 text-[12px] ${d?.stale ? "text-warn" : "text-ink-2"}`}>
         {d
-          ? `${d.stale ? "Last successful read" : "Checked"} ${timeAgo(d.asOf, now)}. ${d.stale ? "These findings may have changed. " : ""}Read-only, over SSH, every minute.`
-          : "Diagnostics appear after a successful SSH check."}
+          ? `${d.stale ? "Last successful read" : "Checked"} ${timeAgo(d.asOf, now)}. ${d.stale ? "These findings may have changed. " : ""}Read automatically over SSH; Check now refreshes them.`
+          : "Diagnostics will appear after a successful SSH check."}
       </p>
       {d && (
         <div className="grid grid-cols-1 items-start gap-3 min-[1100px]:grid-cols-2">
@@ -311,7 +393,12 @@ function Diagnostics({ m }: { m: MachineView }) {
                             {c.value}
                           </dd>
                         </div>
-                        <dd className="mt-1.5 text-[11.5px] leading-relaxed break-words text-ink-2 select-text">
+                        <dd className="mt-1.5 text-[11.5px] leading-relaxed break-words text-ink-2">
+                          {c.status === "warn" && !d.stale && (
+                            <span className="mr-2">
+                              <Pill tone="warn">Warning</Pill>
+                            </span>
+                          )}
                           {c.detail}
                         </dd>
                       </div>
@@ -327,8 +414,78 @@ function Diagnostics({ m }: { m: MachineView }) {
   );
 }
 
-function EditMachine({ m }: { m: MachineView }) {
-  const [open, setOpen] = useState(false);
+/** How Runyard reaches the machine, and what the tailnet knows about it. Ported from fleet's MachineFacts. */
+function Details({ m }: { m: MachineView }) {
+  const now = useNow();
+  const t = m.tailnet;
+  const connection: KeyValueRow[] = [
+    ["SSH target", <span className="font-mono">{m.sshTarget}</span>, m.sshTarget],
+    ["Connect with", m.transport === "tailscale" ? "Tailscale SSH" : "OpenSSH"],
+    ["Operating system", m.os ? osLabel[m.os] : "Detect"],
+  ];
+  if (m.health?.uptimeSecs != null) connection.push(["Uptime", formatUptime(m.health.uptimeSecs)]);
+  const disks = m.health?.disks ?? [];
+  const tailnet: KeyValueRow[] = [
+    [
+      "Status",
+      t
+        ? t.online
+          ? "Online"
+          : `Offline${t.lastSeen ? `, last seen ${timeAgo(t.lastSeen, now)}` : ""}`
+        : "Not found",
+    ],
+  ];
+  if (t) {
+    tailnet.push(
+      ["Hostname", t.name, t.name],
+      ["MagicDNS", t.address, t.address],
+      [
+        "Addresses",
+        t.ips.length ? (
+          <span className="flex flex-col items-start gap-1">
+            {t.ips.map((ip) => (
+              <CopyValue key={ip} value={ip} label="IP address" truncate />
+            ))}
+          </span>
+        ) : (
+          "—"
+        ),
+      ],
+      [
+        "Tailscale SSH",
+        m.diagnostics?.checks.find((c) => c.id === "tailscale-ssh")?.value ??
+          (t.tailscaleSsh ? "Advertised" : "Not advertised"),
+      ],
+    );
+    if (t.tags.length) tailnet.push(["Tags", t.tags.join(", "), t.tags.join(", ")]);
+  }
+  return (
+    <Section title="Details">
+      <div className="grid grid-cols-1 gap-3 min-[1100px]:grid-cols-2">
+        <KeyValuePanel title="Connection" rows={connection} />
+        <KeyValuePanel title="Tailnet" rows={tailnet} />
+      </div>
+      {disks.length > 1 && (
+        <Card className="mt-3 divide-y divide-line">
+          {disks.map((d) => (
+            <div key={d.mountPoint} className={`px-4 py-3 ${m.health?.stale ? "opacity-60" : ""}`}>
+              <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[12.5px]">
+                <span className="truncate font-mono">{d.mountPoint}</span>
+                <span className="shrink-0 text-ink-2 tabular">
+                  {formatBytes(d.availableBytes)} free of {formatBytes(d.totalBytes)}
+                </span>
+              </div>
+              <Meter fraction={1 - d.availableBytes / d.totalBytes} stale={m.health?.stale} />
+            </div>
+          ))}
+        </Card>
+      )}
+    </Section>
+  );
+}
+
+/** fleet edits in place below the header. */
+function EditMachine({ m, close }: { m: MachineView; close: () => void }) {
   const [name, setName] = useState(m.name);
   const [description, setDescription] = useState(m.description);
   const [sshTarget, setSshTarget] = useState(m.sshTarget);
@@ -345,7 +502,7 @@ function EditMachine({ m }: { m: MachineView }) {
       ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey });
-      setOpen(false);
+      close();
     },
   });
   const submit = (e: FormEvent) => {
@@ -353,43 +510,37 @@ function EditMachine({ m }: { m: MachineView }) {
     save.mutate();
   };
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger render={<Button small />}>Edit</Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-black/30" />
-        <Dialog.Popup className="panel fixed top-1/2 left-1/2 max-h-[90vh] w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto p-5">
-          <Dialog.Title className="text-[15px] font-semibold">Edit {m.name}</Dialog.Title>
-          <form onSubmit={submit} className="mt-4 flex flex-col gap-4">
-            <TextField
-              label="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-            <TextField
-              label="Description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-            <MachineFields
-              sshTarget={sshTarget}
-              setSshTarget={setSshTarget}
-              transport={transport}
-              setTransport={setTransport}
-              expectedOs={expectedOs}
-              setExpectedOs={setExpectedOs}
-            />
-            {save.error && <ErrorText error={save.error} />}
-            <div className="flex justify-end gap-2">
-              <Dialog.Close render={<Button />}>Cancel</Dialog.Close>
-              <Button type="submit" variant="primary" disabled={save.isPending}>
-                Save
-              </Button>
-            </div>
-          </form>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Card className="mt-4 max-w-xl px-4 py-4">
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <TextField
+          label="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          autoFocus
+        />
+        <TextField
+          label="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <MachineFields
+          sshTarget={sshTarget}
+          setSshTarget={setSshTarget}
+          transport={transport}
+          setTransport={setTransport}
+          expectedOs={expectedOs}
+          setExpectedOs={setExpectedOs}
+        />
+        {save.error && <ErrorText error={save.error} />}
+        <div className="flex gap-2">
+          <Button type="submit" variant="primary" disabled={save.isPending}>
+            Save
+          </Button>
+          <Button onClick={close}>Cancel</Button>
+        </div>
+      </form>
+    </Card>
   );
 }
 
@@ -399,13 +550,17 @@ function RemoveMachine({ m }: { m: MachineView }) {
   const remove = useMutation({
     mutationFn: () => call(api.machines[":id"].$delete({ param: { id: m.id } })),
     onSuccess: async () => {
+      queryClient.setQueryData<FleetView>(
+        fleetQuery.queryKey,
+        (v) => v && { ...v, machines: v.machines.filter((x) => x.id !== m.id) },
+      );
       await queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey });
       void navigate({ to: "/" });
     },
   });
   return (
     <AlertDialog.Root>
-      <AlertDialog.Trigger render={<Button variant="danger" small />}>Remove</AlertDialog.Trigger>
+      <AlertDialog.Trigger render={<Button small variant="ghost" />}>Remove…</AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
         <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,380px)] -translate-x-1/2 -translate-y-1/2 p-5">

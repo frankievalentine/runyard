@@ -5,7 +5,16 @@ import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
 import { MachineFields } from "../../components/MachineFields.tsx";
-import { Card, EmptyLine, ErrorText, Pill, Section, StatusDot } from "../../components/ui.tsx";
+import {
+  Card,
+  EmptyLine,
+  ErrorText,
+  PageHeader,
+  Pill,
+  Section,
+  StatusDot,
+} from "../../components/ui.tsx";
+import { Icon } from "../../components/icons.tsx";
 import { fleetQuery, useFleet } from "../../lib/fleet.ts";
 import { timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
@@ -24,11 +33,11 @@ function AddMachines() {
   const fleet = useFleet();
   return (
     <>
-      <h1 className="text-[20px] font-semibold tracking-tight">Add machines</h1>
-      <p className="mt-1 max-w-2xl text-[13px] text-ink-2">
-        Runyard checks a machine's health over SSH every minute, read-only. Nothing is installed on
-        it. Only machines you add are checked.
-      </p>
+      <PageHeader
+        icon={<Icon name="plus" size={18} />}
+        title="Add machines"
+        subtitle="Runyard reads a machine's health over SSH every minute, read-only. Nothing is installed on it, and only machines you add are checked."
+      />
       <Section title="From your tailnet">
         <Card className="divide-y divide-line overflow-hidden">
           {fleet.discovered.length === 0 && (
