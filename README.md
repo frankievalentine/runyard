@@ -33,6 +33,25 @@ No admin yet. Open the dashboard and enter this setup code to create one:
 Open the dashboard and enter the code to create the first admin. The code changes at every start
 until an admin exists, so only someone who can read Runyard's output can claim the install.
 
+## Running as a service
+
+`runyard service install` keeps Runyard running as your user, which it needs for your SSH keys:
+
+| OS      | How                                                                    | Starts          |
+| ------- | ---------------------------------------------------------------------- | --------------- |
+| Linux   | `/etc/systemd/system/runyard.service` with `User=` you (asks for sudo) | At boot         |
+| macOS   | `~/Library/LaunchAgents/dev.runyard.plist`                             | When you log in |
+| Windows | A `Runyard` scheduled task, without a stored password                  | When you log on |
+
+`RUNYARD_*` settings in your environment carry into the service, except `RUNYARD_SECRET_KEY`:
+service definitions are readable by other users, so use `RUNYARD_SECRET_KEY_FILE`. Add
+`--dry-run` to see what would change. `runyard service status` and `runyard service uninstall`
+do what they say; uninstalling keeps Runyard's data. The log is `journalctl -u runyard` on
+Linux and `runyard.log` in the data directory elsewhere; a fresh install prints its setup code
+there. On Linux, let the user fetch tailnet certificates with
+`sudo tailscale set --operator=$USER`. An SSH agent isn't available to the service; use key
+files.
+
 ## Access over Tailscale
 
 When Tailscale is running on the same machine, Runyard also serves HTTPS on the machine's tailnet

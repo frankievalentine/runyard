@@ -41,6 +41,10 @@ describe("setup checks", () => {
       detail: expect.stringContaining("secret.key"),
     });
     expect(checks.disk?.state).toBe("ok");
+    expect(checks.service).toMatchObject({
+      state: "warn",
+      fix: expect.stringContaining("runyard service install"),
+    });
   });
 
   test("pass with ssh, a key, a key from the environment and the tailnet serving", async () => {
@@ -52,10 +56,10 @@ describe("setup checks", () => {
       programs: { ssh: "/usr/bin/ssh", tailscale: "tailscale" },
       tailnet: () => ({ kind: "serving", url: "https://box.tail1.ts.net:7443/" }),
       dataDir: home,
-      env: { RUNYARD_SECRET_KEY: "x" },
+      env: { RUNYARD_SECRET_KEY: "x", RUNYARD_SERVICE: "1" },
       home,
     });
-    expect(checks.map((c) => c.state)).toEqual(["ok", "ok", "ok", "ok", "ok"]);
+    expect(checks.map((c) => c.state)).toEqual(["ok", "ok", "ok", "ok", "ok", "ok"]);
     expect(byId(checks).sshKey?.detail).toBe("~/.ssh/id_ed25519");
   });
 });

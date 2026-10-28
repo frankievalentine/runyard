@@ -1,3 +1,3 @@
-import { start } from "./server.ts";
+import { main } from "./cli.ts";
 
-await start();
+await main(process.argv.slice(2));

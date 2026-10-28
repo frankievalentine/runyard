@@ -6,7 +6,8 @@
   "type": "module",
   "exports": {
     "./app": "./src/app.ts",
-    "./server": "./src/server.ts"
+    "./server": "./src/server.ts",
+    "./cli": "./src/cli.ts"
   },
   "scripts": {
     "dev": "bun --watch src/main.ts",

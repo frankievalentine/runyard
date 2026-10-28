@@ -154,6 +154,8 @@ Built and tested only against fakes. Deferred until a real service or machine is
   - Docker mode.
 - Real runner installs on macOS, Linux and Windows. The PowerShell scripts haven't been
   syntax-checked.
+- `runyard service install` on each OS (only `--dry-run` has run, on macOS). The Windows
+  scheduled task and its PowerShell launcher are untested.
 
 ## Reference
 

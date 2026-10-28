@@ -34,7 +34,14 @@ const LOW_DISK_PERCENT = 10;
 
 /** What the control machine needs for Runyard to work, each with a one-line fix. Read-only. */
 export async function setupChecks(deps: CheckDeps): Promise<SetupCheck[]> {
-  return Promise.all([ssh(deps), sshKey(deps), tailnet(deps), secretKey(deps), disk(deps)]);
+  return Promise.all([
+    ssh(deps),
+    sshKey(deps),
+    tailnet(deps),
+    secretKey(deps),
+    disk(deps),
+    service(deps),
+  ]);
 }
 
 async function ssh({ run, programs, platform = process.platform }: CheckDeps): Promise<SetupCheck> {
@@ -96,7 +103,11 @@ async function tailnet(deps: CheckDeps): Promise<SetupCheck> {
         title,
         state: "warn",
         detail: state.message,
-        fix: "Install Tailscale and sign in to reach Runyard from your other devices. Runyard checks again every five minutes.",
+        fix:
+          (deps.platform ?? process.platform) === "linux" &&
+          /denied|permission|operator/i.test(state.message)
+            ? "Let Runyard's user fetch certificates: `sudo tailscale set --operator=<user>`. Runyard checks again every five minutes."
+            : "Install Tailscale and sign in to reach Runyard from your other devices. Runyard checks again every five minutes.",
       };
   }
 }
@@ -121,6 +132,26 @@ async function secretKey({ env = process.env, dataDir }: CheckDeps): Promise<Set
     state: "warn",
     detail: `Generated beside the database, at ${join(dataDir, "secret.key")}.`,
     fix: "Back it up somewhere other than the database's backups: without it, stored GitHub and Forgejo credentials can't be read.",
+  };
+}
+
+async function service({ env = process.env }: CheckDeps): Promise<SetupCheck> {
+  const title = "Background service";
+  if (env.RUNYARD_SERVICE === "1") {
+    return {
+      id: "service",
+      title,
+      state: "ok",
+      detail: "Runyard runs as a service and restarts on its own.",
+      fix: null,
+    };
+  }
+  return {
+    id: "service",
+    title,
+    state: "warn",
+    detail: "Runyard was started by hand; it stops when that terminal closes.",
+    fix: "Run `runyard service install` to keep it running.",
   };
 }
 
