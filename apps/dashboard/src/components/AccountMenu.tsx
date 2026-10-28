@@ -7,7 +7,7 @@ import { setTheme, useTheme, type Theme } from "../lib/theme.ts";
 import { Icon } from "./icons.tsx";
 
 const item =
-  "flex h-7 w-full cursor-default items-center gap-2 rounded-[4px] px-2 text-left outline-none data-[highlighted]:bg-selected";
+  "flex h-7 w-full items-center gap-2 rounded-[4px] px-2 text-left outline-none data-[highlighted]:bg-selected";
 
 /** Takes the place of fleet's Settings gear: account, users, theme and sign-out. */
 export function AccountMenu() {
