@@ -1,0 +1,55 @@
+# Runyard with Tailscale as a sidecar. Runyard shares the sidecar's network and
+# its tailscaled socket, and serves HTTPS on the tailnet itself (port 7443).
+#
+#   cp docker/.env.example docker/.env    # then set TS_AUTHKEY
+#   vp run release
+#   docker compose -f docker/compose.yaml up -d --build
+#   docker compose -f docker/compose.yaml logs runyard    # the setup code
+services:
+  tailscale:
+    image: tailscale/tailscale:v1.104.2
+    hostname: ${RUNYARD_HOSTNAME:-runyard}
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:?Set TS_AUTHKEY in docker/.env}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SOCKET: /var/run/tailscale/tailscaled.sock
+      # Kernel networking puts the tailnet address on an interface Runyard can listen on.
+      TS_USERSPACE: "false"
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - tailscale-socket:/var/run/tailscale
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    restart: unless-stopped
+
+  runyard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: runyard:local
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+    environment:
+      RUNYARD_SECRET_KEY_FILE: /run/secrets/runyard_key
+    volumes:
+      - runyard-data:/data
+      - tailscale-socket:/var/run/tailscale
+      - ${RUNYARD_SSH_DIR:-~/.ssh}:/ssh:ro
+    secrets:
+      - runyard_key
+    restart: unless-stopped
+
+secrets:
+  runyard_key:
+    # `openssl rand -base64 32 > docker/runyard.key && chmod 600 docker/runyard.key`.
+    # Back it up apart from the data volume: it decrypts the stored forge credentials.
+    file: ./runyard.key
+
+volumes:
+  tailscale-state:
+  tailscale-socket:
+  runyard-data:

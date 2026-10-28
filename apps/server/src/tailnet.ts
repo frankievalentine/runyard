@@ -69,7 +69,7 @@ export class TailnetListener {
     const { tailscale, dataDir, port, fetch } = this.options;
     const self = await tailscale.self();
     if (self instanceof Error)
-      return this.problem(`${self.message} Serving on loopback only.`, true);
+      return this.problem(`${sentence(self.message)} Serving on loopback only.`, true);
     if (!self.canCert) {
       return this.problem(
         "This tailnet can't issue HTTPS certificates. Turn on HTTPS Certificates in the Tailscale admin console (DNS page).",
@@ -116,4 +116,10 @@ export class TailnetListener {
     if (message !== this.lastProblem) this.options.log?.(message);
     this.lastProblem = message;
   }
+}
+
+/** Ends a CLI message with a period, so another sentence can follow it. */
+function sentence(text: string): string {
+  const trimmed = text.trim();
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }

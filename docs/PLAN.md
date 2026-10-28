@@ -135,6 +135,7 @@ Further packages are extracted when a boundary is proven, not up front.
    - A Docker image (the binary on Debian slim, with the ssh client and Tailscale CLI) and a
      compose file with the official Tailscale container as a sidecar: Runyard shares its network
      and socket; SSH keys and `known_hosts` are mounted read-only.
+   - (Done, except the live tests listed under Pending live verification.)
 7. **Webhooks and JIT**
    - Opt-in webhooks (Funnel or a public URL, HMAC verified).
    - A dispatcher that mints just-in-time runner configs for queued jobs and runs single-job
@@ -156,6 +157,9 @@ Built and tested only against fakes. Deferred until a real service or machine is
   (`check-powershell`) but have never run on Windows.
 - `runyard service install` on each OS (only `--dry-run` has run, on macOS). The Windows
   scheduled task and its PowerShell launcher parse but are untested.
+- The Docker compose file with a real `TS_AUTHKEY`. Locally, the image builds and serves, the
+  entrypoint fixes SSH key modes, and Runyard reads an unauthenticated sidecar's state through
+  the shared socket; joining a tailnet and `tailscale cert` there are untested.
 - `install.ps1` on Windows. `install.sh` has run on macOS and in a Debian container, and the
   Linux binaries run there.
 

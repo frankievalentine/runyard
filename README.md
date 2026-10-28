@@ -53,6 +53,26 @@ download only when `SHA256SUMS` comes from a source you trust. `RUNYARD_INSTALL_
 where it goes. `vp run @runyard/server#check-powershell` parses every PowerShell script Runyard
 ships or generates, in Microsoft's PowerShell container (needs Docker).
 
+## Docker
+
+`docker/compose.yaml` runs Runyard beside the official Tailscale container. Runyard shares the
+sidecar's network and its tailscaled socket and serves HTTPS on the tailnet itself, so the
+dashboard is at `https://<RUNYARD_HOSTNAME>.<tailnet>.ts.net:7443/` and nowhere else.
+
+```sh
+vp run release
+cp docker/.env.example docker/.env                 # set TS_AUTHKEY
+openssl rand -base64 32 > docker/runyard.key && chmod 600 docker/runyard.key
+docker compose -f docker/compose.yaml up -d --build
+docker compose -f docker/compose.yaml logs runyard # the setup code
+```
+
+The sidecar uses kernel networking (`/dev/net/tun`, `NET_ADMIN`), so the tailnet address is on
+an interface Runyard can listen on. Your `~/.ssh` (or `RUNYARD_SSH_DIR`) is mounted read-only
+and copied in with the modes ssh requires; `known_hosts` must already trust each machine. The
+container runs as root, because `tailscale cert` through the sidecar needs root. Back up
+`docker/runyard.key` apart from the `runyard-data` volume.
+
 ## Running as a service
 
 `runyard service install` keeps Runyard running as your user, which it needs for your SSH keys:

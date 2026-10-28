@@ -1,0 +1,6 @@
+*
+!apps/cli/dist/release/
+!docker/entrypoint.sh
+apps/cli/dist/release/*.exe
+apps/cli/dist/release/*darwin*
+apps/cli/dist/release/*.ps1
