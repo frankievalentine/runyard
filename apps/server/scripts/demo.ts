@@ -12,6 +12,8 @@ import { createMachine, listMachines } from "../src/machines/store.ts";
 import { FakeGithub } from "../src/github/fake.ts";
 import { listGithubApps, saveGithubApp } from "../src/github/store.ts";
 import { FakeMachines, macReport } from "../src/machines/fake.ts";
+import { FakeRunnerHost } from "../src/pools/fake-host.ts";
+import type { FakeGithub as FakeGithubType } from "../src/github/fake.ts";
 import { start } from "../src/server.ts";
 
 const GIB = 1_073_741_824;
@@ -70,10 +72,59 @@ const linux = (freeGiB: number) =>
     "RFM\tdiag:complete\t1",
   ].join("\n");
 
-fake.machines.set("ci@studio-mini.demo.ts.net", () =>
-  macReport(180).replace("RFM\tcpu\t23.50", `RFM\tcpu\t${(10 + Math.random() * 20).toFixed(2)}`),
+/**
+ * Each demo machine answers health checks and runs runner scripts on a fake
+ * host. A runner that installs shows up in the fake GitHub, and one that's
+ * removed disappears, so pools can be reviewed and applied end to end.
+ */
+let nextRunnerId = 100;
+function runnerHost(
+  health: () => string,
+  githubFor: (owner: string) => FakeGithubType,
+  os: string,
+) {
+  const host = new FakeRunnerHost();
+  return (stdin: string) => {
+    if (stdin.includes("metric os")) return health();
+    const result = host.answer(stdin);
+    const last = host.received.at(-1);
+    const url = last?.env.RF_URL;
+    if (last && typeof result === "string" && url) {
+      const owner = new URL(url).pathname.slice(1);
+      const gh = githubFor(owner);
+      const labels = ["self-hosted", os, ...(last.env.RF_LABELS ?? "").split(",").filter(Boolean)];
+      gh.runners.set(owner, [
+        ...(gh.runners.get(owner) ?? []),
+        { id: nextRunnerId++, name: last.env.RF_NAME!, os, status: "online", busy: false, labels },
+      ]);
+    } else if (last?.op === "remove" && typeof result === "string") {
+      for (const gh of [github, personal]) {
+        for (const [owner, list] of gh.runners)
+          gh.runners.set(
+            owner,
+            list.filter((r) => r.name !== last.env.RF_NAME),
+          );
+      }
+    }
+    return result;
+  };
+}
+const githubFor = (owner: string) => (owner.startsWith("frankie-demo") ? personal : github);
+fake.machines.set(
+  "ci@studio-mini.demo.ts.net",
+  runnerHost(
+    () =>
+      macReport(180)
+        .replace("RFM\tcpu\t23.50", `RFM\tcpu\t${(10 + Math.random() * 20).toFixed(2)}`)
+        .replace("RFM\tdiag:complete", "RFM\tdiag:architecture\tarm64\nRFM\tdiag:complete"),
+    githubFor,
+    "macOS",
+  ),
 );
-fake.machines.set("linux-builder.demo.ts.net", () => linux(22));
+fake.machines.set(
+  "linux-builder.demo.ts.net",
+  runnerHost(() => linux(22), githubFor, "Linux"),
+);
 fake.machines.set("admin@lab-server.internal", {
   code: 255,
   stdout: "",

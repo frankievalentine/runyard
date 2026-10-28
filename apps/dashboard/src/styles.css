@@ -145,3 +145,16 @@ code,
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
   }
 }
+
+/* fleet's sidebar tree connector. */
+.tree-child {
+  position: relative;
+}
+.tree-child::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--border-strong);
+}

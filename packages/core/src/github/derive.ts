@@ -58,6 +58,8 @@ export type InstallationView = {
   accountType: "User" | "Organization";
   repositorySelection: "all" | "selected";
   repoCount: number;
+  /** The repositories it can read, most recently pushed first (at most 200 listed). */
+  repos: string[];
   runnersAt: number | null;
   runnersError: string | null;
   jobsAt: number | null;
@@ -173,6 +175,7 @@ export function deriveGithub(
         accountType: i.accountType,
         repositorySelection: i.repositorySelection,
         repoCount: i.repos.length,
+        repos: i.repos.slice(0, 200),
         runnersAt: i.runners?.at ?? null,
         runnersError: i.runnersError?.value ?? null,
         jobsAt: i.jobs?.at ?? null,

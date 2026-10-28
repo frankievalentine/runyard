@@ -214,6 +214,8 @@ function selectedKey(pathname: string): string {
   if (machine && machine[1] !== "add") return `/machines/$id:${machine[1]}`;
   const peer = /^\/peers\/([^/]+)$/.exec(pathname);
   if (peer) return `/peers/$nodeId:${peer[1]}`;
+  const pool = /^\/pools\/([^/]+)$/.exec(pathname);
+  if (pool && pool[1] !== "new") return `/pools/$id:${pool[1]}`;
   const runner = /^\/runners\/([^/]+)$/.exec(pathname);
   if (runner) return `/runners/$key:${decodeURIComponent(runner[1]!)}`;
   return pathname === "/ignored" ? "/ignored" : pathname === "/" ? "/" : pathname;
@@ -233,6 +235,9 @@ function breadcrumbs(pathname: string, view: FleetView): { label: string; to?: s
       { label: view.discovered.find((p) => p.nodeId === peer)?.name ?? "Machine" },
     ];
   }
+  const pool = /^\/pools\/([^/]+)$/.exec(pathname)?.[1];
+  if (pool === "new") return [fleet, { label: "New pool" }];
+  if (pool) return [fleet, { label: view.pools.pools.find((p) => p.id === pool)?.name ?? "Pool" }];
   const runner = /^\/runners\/([^/]+)$/.exec(pathname)?.[1];
   if (runner) {
     const key = decodeURIComponent(runner);

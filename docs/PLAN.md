@@ -106,6 +106,7 @@ Further packages are extracted when a boundary is proven, not up front.
    - Review and re-verified execution.
    - Port the GitHub runner install and retire scripts for macOS, Linux and Windows.
    - Add the public repository guard.
+   - (Done. Legacy-runner migration, adopting hand-registered runners and Windows logon tasks are left for later.)
 5. **Forgejo**
    - Monitoring, then the `forgejo-runner` lifecycle (host and Docker modes).
    - Verify the runner and job listing endpoints against target Forgejo versions before designing

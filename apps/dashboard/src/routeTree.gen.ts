@@ -20,6 +20,8 @@ import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as AppMachinesIdRouteImport } from './routes/_app/machines.$id'
 import { Route as AppMachinesAddRouteImport } from './routes/_app/machines.add'
 import { Route as AppPeersNodeIdRouteImport } from './routes/_app/peers.$nodeId'
+import { Route as AppPoolsIdRouteImport } from './routes/_app/pools.$id'
+import { Route as AppPoolsNewRouteImport } from './routes/_app/pools.new'
 import { Route as AppRunnersKeyRouteImport } from './routes/_app/runners.$key'
 import { Route as AppSettingsGithubRouteImport } from './routes/_app/settings.github'
 
@@ -77,6 +79,16 @@ const AppPeersNodeIdRoute = AppPeersNodeIdRouteImport.update({
   path: '/peers/$nodeId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPoolsIdRoute = AppPoolsIdRouteImport.update({
+  id: '/pools/$id',
+  path: '/pools/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPoolsNewRoute = AppPoolsNewRouteImport.update({
+  id: '/pools/new',
+  path: '/pools/new',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRunnersKeyRoute = AppRunnersKeyRouteImport.update({
   id: '/runners/$key',
   path: '/runners/$key',
@@ -99,6 +111,8 @@ export interface FileRoutesByFullPath {
   '/machines/$id': typeof AppMachinesIdRoute
   '/machines/add': typeof AppMachinesAddRoute
   '/peers/$nodeId': typeof AppPeersNodeIdRoute
+  '/pools/$id': typeof AppPoolsIdRoute
+  '/pools/new': typeof AppPoolsNewRoute
   '/runners/$key': typeof AppRunnersKeyRoute
   '/settings/github': typeof AppSettingsGithubRoute
 }
@@ -113,6 +127,8 @@ export interface FileRoutesByTo {
   '/machines/$id': typeof AppMachinesIdRoute
   '/machines/add': typeof AppMachinesAddRoute
   '/peers/$nodeId': typeof AppPeersNodeIdRoute
+  '/pools/$id': typeof AppPoolsIdRoute
+  '/pools/new': typeof AppPoolsNewRoute
   '/runners/$key': typeof AppRunnersKeyRoute
   '/settings/github': typeof AppSettingsGithubRoute
 }
@@ -129,6 +145,8 @@ export interface FileRoutesById {
   '/_app/machines/$id': typeof AppMachinesIdRoute
   '/_app/machines/add': typeof AppMachinesAddRoute
   '/_app/peers/$nodeId': typeof AppPeersNodeIdRoute
+  '/_app/pools/$id': typeof AppPoolsIdRoute
+  '/_app/pools/new': typeof AppPoolsNewRoute
   '/_app/runners/$key': typeof AppRunnersKeyRoute
   '/_app/settings/github': typeof AppSettingsGithubRoute
 }
@@ -145,6 +163,8 @@ export interface FileRouteTypes {
     | '/machines/$id'
     | '/machines/add'
     | '/peers/$nodeId'
+    | '/pools/$id'
+    | '/pools/new'
     | '/runners/$key'
     | '/settings/github'
   fileRoutesByTo: FileRoutesByTo
@@ -159,6 +179,8 @@ export interface FileRouteTypes {
     | '/machines/$id'
     | '/machines/add'
     | '/peers/$nodeId'
+    | '/pools/$id'
+    | '/pools/new'
     | '/runners/$key'
     | '/settings/github'
   id:
@@ -174,6 +196,8 @@ export interface FileRouteTypes {
     | '/_app/machines/$id'
     | '/_app/machines/add'
     | '/_app/peers/$nodeId'
+    | '/_app/pools/$id'
+    | '/_app/pools/new'
     | '/_app/runners/$key'
     | '/_app/settings/github'
   fileRoutesById: FileRoutesById
@@ -263,6 +287,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPeersNodeIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/pools/$id': {
+      id: '/_app/pools/$id'
+      path: '/pools/$id'
+      fullPath: '/pools/$id'
+      preLoaderRoute: typeof AppPoolsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pools/new': {
+      id: '/_app/pools/new'
+      path: '/pools/new'
+      fullPath: '/pools/new'
+      preLoaderRoute: typeof AppPoolsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/runners/$key': {
       id: '/_app/runners/$key'
       path: '/runners/$key'
@@ -289,6 +327,8 @@ interface AppRouteChildren {
   AppMachinesIdRoute: typeof AppMachinesIdRoute
   AppMachinesAddRoute: typeof AppMachinesAddRoute
   AppPeersNodeIdRoute: typeof AppPeersNodeIdRoute
+  AppPoolsIdRoute: typeof AppPoolsIdRoute
+  AppPoolsNewRoute: typeof AppPoolsNewRoute
   AppRunnersKeyRoute: typeof AppRunnersKeyRoute
   AppSettingsGithubRoute: typeof AppSettingsGithubRoute
 }
@@ -302,6 +342,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppMachinesIdRoute: AppMachinesIdRoute,
   AppMachinesAddRoute: AppMachinesAddRoute,
   AppPeersNodeIdRoute: AppPeersNodeIdRoute,
+  AppPoolsIdRoute: AppPoolsIdRoute,
+  AppPoolsNewRoute: AppPoolsNewRoute,
   AppRunnersKeyRoute: AppRunnersKeyRoute,
   AppSettingsGithubRoute: AppSettingsGithubRoute,
 }

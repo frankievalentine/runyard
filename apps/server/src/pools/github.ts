@@ -103,3 +103,18 @@ export async function latestRunnerAsset(http: GithubHttp, platform: string): Pro
   const digest = asset.digest?.startsWith("sha256:") ? asset.digest.slice(7) : null;
   return { url: asset.browser_download_url, name, sha256: digest };
 }
+
+/**
+ * The repository's policy for running workflows from fork pull requests, or
+ * null when GitHub won't say (older API, or a permission Runyard lacks).
+ */
+export async function forkApprovalPolicy(http: GithubHttp, repo: string): Promise<string | null> {
+  try {
+    const { body } = await http.get(
+      `/repos/${repo.split("/").map(encodeURIComponent).join("/")}/actions/permissions/fork-pr-contributor-approval`,
+    );
+    return (body as { approval_policy?: string }).approval_policy ?? null;
+  } catch {
+    return null;
+  }
+}

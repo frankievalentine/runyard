@@ -11,7 +11,9 @@ import { requireAdmin, requireUser, type AppEnv } from "../auth/identity.ts";
 import type { Db } from "../db/index.ts";
 import { getMachine, listMachines } from "../machines/store.ts";
 import type { MachineMonitor } from "../machines/monitor.ts";
+import type { GithubMonitor } from "../github/monitor.ts";
 import { EngineError, type PoolEngine } from "../pools/engine.ts";
+import { forkApprovalPolicy, repoIsPrivate } from "../pools/github.ts";
 import {
   allowPublicRepo,
   deletePool,
@@ -43,10 +45,15 @@ const poolSchema = z.object({
     .max(50),
 });
 
-export type PoolDeps = { db: Db; engine: PoolEngine; monitor: MachineMonitor };
+export type PoolDeps = {
+  db: Db;
+  engine: PoolEngine;
+  monitor: MachineMonitor;
+  github: GithubMonitor;
+};
 
 /** Pools, reviews and their execution, and public-repository overrides. */
-export function poolRoutes({ db, engine, monitor }: PoolDeps) {
+export function poolRoutes({ db, engine, monitor, github }: PoolDeps) {
   /** Refuses a definition with unknown machines, bad targets, or runners that would share a name. */
   const check = (input: PoolInput, id?: string): string | null => {
     for (const m of input.machines)
@@ -116,6 +123,24 @@ export function poolRoutes({ db, engine, monitor }: PoolDeps) {
     .get("/operations/:id", requireUser(), (c) => {
       const op = engine.operation(c.req.param("id"));
       return op ? c.json(op) : c.json({ error: "No such operation." }, 404);
+    })
+    .get("/public-repos/check", requireAdmin(), async (c) => {
+      const forgeId = c.req.query("forgeId") ?? "";
+      const repo = c.req.query("repo") ?? "";
+      if (!isValidScopeTarget("repo", repo))
+        return c.json({ error: `${repo} isn't a repository.` }, 400);
+      const http = github.clientFor({ forgeId, kind: "repo", target: repo });
+      if (!http)
+        return c.json(
+          { error: `Runyard's GitHub App isn't installed on ${repo.split("/")[0]}.` },
+          409,
+        );
+      // Only what GitHub's API exposes is checked; the rest is reported as unverifiable.
+      const [isPrivate, forkApproval] = await Promise.all([
+        repoIsPrivate(http, repo),
+        forkApprovalPolicy(http, repo),
+      ]);
+      return c.json({ public: !isPrivate, forkApproval });
     })
     .post(
       "/public-repos",

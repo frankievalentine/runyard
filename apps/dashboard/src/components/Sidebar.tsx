@@ -1,4 +1,4 @@
-import type { FleetView } from "@runyard/core";
+import type { FleetView, RunnerView } from "@runyard/core";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { navKey, type NavItem } from "../lib/nav.ts";
@@ -43,7 +43,11 @@ export function Sidebar({
   const searching = query.trim() !== "";
   const showOther = searching || otherOpen;
   const showRunners = searching || runnersOpen;
-  const runners = filtered.github.runners;
+  const runners = filtered.github.runners.filter((r) => !r.machineId);
+  const byMachine = new Map<string, RunnerView[]>();
+  for (const r of filtered.github.runners) {
+    if (r.machineId) byMachine.set(r.machineId, [...(byMachine.get(r.machineId) ?? []), r]);
+  }
   const is = (item: NavItem) => navKey(item) === selected;
 
   return (
@@ -134,16 +138,44 @@ export function Sidebar({
         {filtered.machines.map((m) => {
           const status = machineStatus(m);
           const item = { path: "/machines/$id", params: { id: m.id } };
+          const own = byMachine.get(m.id) ?? [];
+          const busy = own.filter((r) => r.activity === "busy").length;
+          const idle = own.filter((r) => r.activity === "idle").length;
+          // fleet's summary: runners when it has any, otherwise its own state.
+          const summary =
+            m.connection.state === "offline" || own.length === 0
+              ? machineSummary(m)
+              : busy
+                ? `${busy}/${own.length} working`
+                : idle
+                  ? `${idle} idle`
+                  : machineSummary(m);
           return (
-            <Row
-              key={m.id}
-              item={item}
-              selected={is(item)}
-              icon={<StatusDot tone={status.tone} hollow={status.hollow} />}
-              label={m.name}
-              title={machineTooltip(m)}
-              trailing={machineSummary(m)}
-            />
+            <div key={m.id}>
+              <Row
+                item={item}
+                selected={is(item)}
+                icon={
+                  <StatusDot
+                    tone={busy && m.connection.state === "connected" ? "busy" : status.tone}
+                    hollow={status.hollow}
+                  />
+                }
+                label={m.name}
+                title={machineTooltip(m)}
+                trailing={summary}
+              />
+              {own.map((r) => (
+                <RunnerRow
+                  key={r.key}
+                  r={r}
+                  selected={is({ path: "/runners/$key", params: { key: r.key } })}
+                  nested
+                  // Per-repository runners share a name; the scope tells them apart.
+                  showScope={own.filter((o) => o.name === r.name).length > 1}
+                />
+              ))}
+            </div>
           );
         })}
         {filtered.discovered.length > 0 && (
@@ -180,33 +212,52 @@ export function Sidebar({
               onToggle={() => setRunnersOpen(!runnersOpen)}
             />
             {showRunners &&
-              runners.map((r) => {
-                const status = runnerStatus(r);
-                const item = { path: "/runners/$key", params: { key: r.key } };
-                return (
-                  <Row
-                    key={r.key}
-                    item={item}
-                    selected={is(item)}
-                    label={r.name}
-                    title={`${r.name} · ${r.scopeLabel}: ${status.label}`}
-                    trailing={
-                      <span
-                        className={`flex items-center gap-1.5 ${status.tone === "busy" ? "text-accent" : ""}`}
-                      >
-                        {r.job?.startedAt ? (
-                          <Elapsed since={r.job.startedAt} />
-                        ) : (
-                          <span className="sr-only">{status.label}</span>
-                        )}
-                        <StatusDot tone={status.tone} hollow={status.hollow} size={6} />
-                      </span>
-                    }
-                  />
-                );
-              })}
+              runners.map((r) => (
+                <RunnerRow
+                  key={r.key}
+                  r={r}
+                  selected={is({ path: "/runners/$key", params: { key: r.key } })}
+                />
+              ))}
           </>
         )}
+        {(view.pools.pools.length > 0 || admin) && (
+          <Heading
+            title="Pools"
+            count={view.pools.pools.length}
+            action={
+              admin && (
+                <Link
+                  to="/pools/new"
+                  aria-label="New pool"
+                  title="New pool"
+                  className="flex size-5 items-center justify-center rounded text-ink-2 hover:bg-hover hover:text-ink"
+                >
+                  <Icon name="plus" size={13} />
+                </Link>
+              )
+            }
+          />
+        )}
+        {view.pools.pools.map((p) => {
+          const desired = view.pools.desired.filter((d) => d.poolId === p.id);
+          const existing = desired.filter((d) =>
+            view.github.runners.some(
+              (r) => r.machineId === d.machineId && r.name.toLowerCase() === d.name.toLowerCase(),
+            ),
+          ).length;
+          const item = { path: "/pools/$id", params: { id: p.id } };
+          return (
+            <Row
+              key={p.id}
+              item={item}
+              selected={is(item)}
+              icon={<Icon name="plan" />}
+              label={p.name}
+              trailing={`${existing}/${desired.length}`}
+            />
+          );
+        })}
         {filtered.ignored.length > 0 && (
           <Row
             item={{ path: "/ignored" }}
@@ -226,6 +277,44 @@ export function Sidebar({
   );
 }
 
+/** A runner row, nested under its machine like fleet's tree. */
+function RunnerRow({
+  r,
+  selected,
+  nested,
+  showScope,
+}: {
+  r: RunnerView;
+  selected: boolean;
+  nested?: boolean;
+  showScope?: boolean;
+}) {
+  const status = runnerStatus(r);
+  return (
+    <div className={nested ? "tree-child" : undefined}>
+      <Row
+        item={{ path: "/runners/$key", params: { key: r.key } }}
+        selected={selected}
+        indent={nested}
+        label={showScope ? `${r.name} · ${r.scopeLabel.split("/").at(-1)}` : r.name}
+        title={`${r.name} · ${r.scopeLabel}: ${status.label}`}
+        trailing={
+          <span
+            className={`flex items-center gap-1.5 ${status.tone === "busy" ? "text-accent" : ""}`}
+          >
+            {r.job?.startedAt ? (
+              <Elapsed since={r.job.startedAt} />
+            ) : (
+              <span className="sr-only">{status.label}</span>
+            )}
+            <StatusDot tone={status.tone} hollow={status.hollow} size={6} />
+          </span>
+        }
+      />
+    </div>
+  );
+}
+
 function Row({
   item,
   selected,
@@ -233,8 +322,10 @@ function Row({
   label,
   trailing,
   title,
+  indent,
 }: {
   item: NavItem;
+  indent?: boolean;
   selected: boolean;
   icon?: ReactNode;
   label: string;
@@ -243,7 +334,9 @@ function Row({
 }) {
   const navigate = useNavigate();
   return (
-    <div className={`flex h-7 rounded-md ${selected ? "bg-selected" : "hover:bg-hover"}`}>
+    <div
+      className={`flex rounded-md ${indent ? "ml-5 h-6" : "h-7"} ${selected ? "bg-selected" : "hover:bg-hover"}`}
+    >
       <button
         data-nav={navKey(item)}
         type="button"
@@ -257,7 +350,9 @@ function Row({
             {icon}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate text-[13px]">{label}</span>
+        <span className={`min-w-0 flex-1 truncate ${indent ? "text-[12px]" : "text-[13px]"}`}>
+          {label}
+        </span>
         {trailing != null && (
           <span className="shrink-0 text-[11px] text-ink-2 tabular">{trailing}</span>
         )}

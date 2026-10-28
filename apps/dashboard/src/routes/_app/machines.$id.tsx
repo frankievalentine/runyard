@@ -15,6 +15,7 @@ import { CopyValue } from "../../components/CopyValue.tsx";
 import { Button, TextField } from "../../components/form.tsx";
 import { Icon } from "../../components/icons.tsx";
 import { MachineFields } from "../../components/MachineFields.tsx";
+import { MachineChanges, MachineRunners } from "../../components/changes.tsx";
 import { ActiveAlerts, EventTimeline } from "../../components/machines.tsx";
 import {
   Callout,
@@ -123,6 +124,8 @@ function Machine() {
         {m.health && <HealthMeters h={m.health} />}
       </div>
       <ConnectionNotice m={m} />
+      <MachineRunners m={m} />
+      <MachineChanges m={m} admin={admin} />
       <Monitoring m={m} admin={admin} />
       <Diagnostics m={m} />
       <Details m={m} />

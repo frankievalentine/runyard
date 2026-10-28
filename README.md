@@ -68,6 +68,29 @@ kept for 30 days, up to 5,000 events. **Maintenance for 1 hour** pauses a machin
 To try the dashboard without touching real machines, `vp run -r build` then
 `bun apps/server/scripts/demo.ts` runs Runyard against a fictional fleet.
 
+## Runners and pools
+
+A **pool** is runner capacity: labels, the machines it runs on (with how many runners each), and
+the GitHub organizations or repositories it serves. Create one under **Pools ▸ +**. An
+organization gets one runner per slot; a personal account's repositories each get their own,
+because GitHub can't share a personal account's runner across repositories.
+
+Saving a pool changes nothing on machines. On a machine's page, **Review changes** reads the
+machine over SSH and GitHub and shows the plan; **Run** reads both again and does nothing if
+anything changed since the review. Reviews expire after 15 minutes and work once. Runyard keeps
+fleet's guards: it never uses `--replace`, never moves or deletes a runner directory, never
+touches a busy runner, changes one runner at a time, and stops at the first failure.
+Registration tokens are minted at the moment of use and sent only over SSH stdin.
+
+Runners live under `~/runyard-runners` (`C:\runyard-runners` on Windows) as a per-user
+LaunchAgent on macOS (it starts after the user logs in), a systemd service on Linux, or a
+Windows service. Linux needs root for dependencies and the service: use non-interactive sudo or
+enter the password in the review, used for that run only. NixOS needs
+`apps/server/scripts/nixos-runner-prerequisites.nix` imported and rebuilt first.
+
+Runyard refuses to register runners for a public personal repository until an admin types its
+name, and for an organization whose Default runner group allows public repositories.
+
 ## Passkeys
 
 Signed-in users can add passkeys under **Account** and then sign in without a password. Passkeys
