@@ -24,6 +24,7 @@ import { Route as AppPeersNodeIdRouteImport } from './routes/_app/peers.$nodeId'
 import { Route as AppPoolsIdRouteImport } from './routes/_app/pools.$id'
 import { Route as AppPoolsNewRouteImport } from './routes/_app/pools.new'
 import { Route as AppRunnersKeyRouteImport } from './routes/_app/runners.$key'
+import { Route as AppSettingsBoatRouteImport } from './routes/_app/settings.boat'
 import { Route as AppSettingsForgejoRouteImport } from './routes/_app/settings.forgejo'
 import { Route as AppSettingsGithubRouteImport } from './routes/_app/settings.github'
 
@@ -101,6 +102,11 @@ const AppRunnersKeyRoute = AppRunnersKeyRouteImport.update({
   path: '/runners/$key',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsBoatRoute = AppSettingsBoatRouteImport.update({
+  id: '/settings/boat',
+  path: '/settings/boat',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsForgejoRoute = AppSettingsForgejoRouteImport.update({
   id: '/settings/forgejo',
   path: '/settings/forgejo',
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/pools/$id': typeof AppPoolsIdRoute
   '/pools/new': typeof AppPoolsNewRoute
   '/runners/$key': typeof AppRunnersKeyRoute
+  '/settings/boat': typeof AppSettingsBoatRoute
   '/settings/forgejo': typeof AppSettingsForgejoRoute
   '/settings/github': typeof AppSettingsGithubRoute
 }
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/pools/$id': typeof AppPoolsIdRoute
   '/pools/new': typeof AppPoolsNewRoute
   '/runners/$key': typeof AppRunnersKeyRoute
+  '/settings/boat': typeof AppSettingsBoatRoute
   '/settings/forgejo': typeof AppSettingsForgejoRoute
   '/settings/github': typeof AppSettingsGithubRoute
 }
@@ -165,6 +173,7 @@ export interface FileRoutesById {
   '/_app/pools/$id': typeof AppPoolsIdRoute
   '/_app/pools/new': typeof AppPoolsNewRoute
   '/_app/runners/$key': typeof AppRunnersKeyRoute
+  '/_app/settings/boat': typeof AppSettingsBoatRoute
   '/_app/settings/forgejo': typeof AppSettingsForgejoRoute
   '/_app/settings/github': typeof AppSettingsGithubRoute
 }
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/pools/$id'
     | '/pools/new'
     | '/runners/$key'
+    | '/settings/boat'
     | '/settings/forgejo'
     | '/settings/github'
   fileRoutesByTo: FileRoutesByTo
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
     | '/pools/$id'
     | '/pools/new'
     | '/runners/$key'
+    | '/settings/boat'
     | '/settings/forgejo'
     | '/settings/github'
   id:
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/_app/pools/$id'
     | '/_app/pools/new'
     | '/_app/runners/$key'
+    | '/_app/settings/boat'
     | '/_app/settings/forgejo'
     | '/_app/settings/github'
   fileRoutesById: FileRoutesById
@@ -339,6 +351,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRunnersKeyRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/boat': {
+      id: '/_app/settings/boat'
+      path: '/settings/boat'
+      fullPath: '/settings/boat'
+      preLoaderRoute: typeof AppSettingsBoatRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/forgejo': {
       id: '/_app/settings/forgejo'
       path: '/settings/forgejo'
@@ -369,6 +388,7 @@ interface AppRouteChildren {
   AppPoolsIdRoute: typeof AppPoolsIdRoute
   AppPoolsNewRoute: typeof AppPoolsNewRoute
   AppRunnersKeyRoute: typeof AppRunnersKeyRoute
+  AppSettingsBoatRoute: typeof AppSettingsBoatRoute
   AppSettingsForgejoRoute: typeof AppSettingsForgejoRoute
   AppSettingsGithubRoute: typeof AppSettingsGithubRoute
 }
@@ -386,6 +406,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPoolsIdRoute: AppPoolsIdRoute,
   AppPoolsNewRoute: AppPoolsNewRoute,
   AppRunnersKeyRoute: AppRunnersKeyRoute,
+  AppSettingsBoatRoute: AppSettingsBoatRoute,
   AppSettingsForgejoRoute: AppSettingsForgejoRoute,
   AppSettingsGithubRoute: AppSettingsGithubRoute,
 }

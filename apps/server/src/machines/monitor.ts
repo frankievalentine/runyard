@@ -9,6 +9,7 @@ import {
   parseReport,
   type EventKind,
   type FleetView,
+  type BoatObservation,
   type ForgejoConnectionObservation,
   type GithubAppObservation,
   type Pool,
@@ -49,6 +50,7 @@ type Deps = {
   /** GitHub runners and jobs, joined into the fleet view. */
   github?: () => GithubAppObservation[];
   forgejo?: () => ForgejoConnectionObservation[];
+  boat?: () => BoatObservation | null;
   /** Pools and the runners Runyard registered, joined into the fleet view. */
   pools?: () => { pools: Pool[]; registrations: Registration[] };
 };
@@ -196,6 +198,7 @@ export class MachineMonitor {
       states: new Map([...this.states].map(([id, s]) => [id, s.state])),
       github: this.deps.github?.(),
       forgejo: this.deps.forgejo?.(),
+      boat: this.deps.boat?.(),
       ...this.deps.pools?.(),
       now,
     });

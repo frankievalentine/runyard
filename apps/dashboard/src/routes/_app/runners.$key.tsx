@@ -13,7 +13,7 @@ import {
   StatStrip,
 } from "../../components/ui.tsx";
 import { useFleet } from "../../lib/fleet.ts";
-import { timeAgo } from "../../lib/format.ts";
+import { formatDollars, timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
 import { runnerStatus } from "../../lib/status.ts";
 
@@ -27,6 +27,7 @@ function Runner() {
   const view = useFleet();
   const now = useNow();
   const r = view.runners.find((x) => x.key === key);
+  const vm = r ? view.boatVms[r.key] : undefined;
   if (!r) {
     return (
       <Card>
@@ -65,6 +66,15 @@ function Runner() {
           </>
         }
       />
+      {vm && (
+        <p className="mt-3 text-[12.5px] text-ink-2">
+          Running on boat VM <span className="font-mono text-ink">{vm.id}</span> · {vm.type}
+          {vm.size && ` (${vm.size})`} ·{" "}
+          {vm.dollars === null
+            ? "cost unknown"
+            : `${formatDollars(vm.dollars)} so far at list price`}
+        </p>
+      )}
       <div className="mt-8">
         <StatStrip cols={3}>
           <Stat

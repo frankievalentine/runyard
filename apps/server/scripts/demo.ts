@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Glob } from "bun";
 import { createMachine, listMachines } from "../src/machines/store.ts";
+import { FakeBoat } from "../src/boat/fake.ts";
 import { FakeForgejo } from "../src/forgejo/fake.ts";
 import { listConnections, saveConnection } from "../src/forgejo/store.ts";
 import { FakeGithub } from "../src/github/fake.ts";
@@ -309,12 +310,41 @@ forgejo.jobs.set("org:yard-club", [
   { id: 51, run_id: 5, repo_id: 32, name: "lint", status: "waiting", runs_on: ["docker"] },
 ]);
 
+// A fictional boat account: the VM running the lint job, and one left running for hours.
+const boat = new FakeBoat();
+boat.limits.activeSandboxes = 2;
+boat.limits.starts.minute.used = 1;
+const isoAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+boat.sandboxes = [
+  {
+    id: "bx_c1web905",
+    name: "ci-acme-demo-web-9005",
+    state: "running",
+    type: "default",
+    vcpu: 4,
+    memoryGB: 8,
+    createdAt: isoAgo(3),
+    cost: { since: isoAgo(3), seconds: 180, dollars: 0.0018 },
+  },
+  {
+    id: "bx_scratch7",
+    name: "scratch",
+    state: "idle",
+    type: "large",
+    vcpu: 8,
+    memoryGB: 16,
+    createdAt: isoAgo(26 * 60),
+    cost: { since: isoAgo(26 * 60), seconds: 187_200, dollars: 1.87 },
+  },
+];
+
 const {
   db,
   monitor,
   secrets,
   github: githubMonitor,
   forgejo: forgejoMonitor,
+  boat: boatMonitor,
 } = await start(dashboard, {
   run: fake.run,
   programs: fake.programs,
@@ -322,6 +352,7 @@ const {
   fetch: (request) => {
     const host = new URL(request.url).host;
     if (host === "forgejo.demo" || host === "code.forgejo.org") return forgejo.fetch(request);
+    if (host === "boat.dev") return boat.fetch(request);
     return (host === "api.personal.github.demo" ? personal : github).fetch(request);
   },
   githubApiBase: "https://api.github.demo",
@@ -373,6 +404,7 @@ if (listConnections(db).length === 0) {
   await saveConnection(db, secrets, "https://forgejo.demo", forgejo.login, forgejo.token);
 }
 await forgejoMonitor.refreshAll();
+await boatMonitor.connect(boat.token);
 if (listMachines(db).length === 0) {
   createMachine(db, {
     name: "Studio mini",

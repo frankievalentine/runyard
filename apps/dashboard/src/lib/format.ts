@@ -56,3 +56,10 @@ export function formatUptime(secs: number): string {
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`;
 }
+
+/** List-price dollars: cents once there are any, otherwise enough digits to see a fraction of a cent. */
+export function formatDollars(dollars: number): string {
+  if (dollars >= 0.01) return `$${dollars.toFixed(2)}`;
+  if (dollars === 0) return "$0.00";
+  return `$${dollars.toPrecision(2)}`;
+}

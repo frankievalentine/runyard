@@ -162,7 +162,9 @@ Built and tested only against fakes. Deferred until a real service or machine is
   the shared socket; joining a tailnet and `tailscale cert` there are untested.
 - `install.ps1` on Windows.
 - boat's `runs-on: boat` jobs: labels come from boat's docs; whether boat's runners appear in
-  GitHub's runner list, and how their names look, is unknown. Runyard shows them either way. `install.sh` has run on macOS and in a Debian container, and the
+  GitHub's runner list, and how their names look, is unknown. Runyard shows them either way.
+- The read-only boat connection: built from boat's API docs. The per-VM `cost` object's fields
+  (assumed `dollars`) and the `ci-<repo>-<job id>` VM names are documented but unseen. `install.sh` has run on macOS and in a Debian container, and the
   Linux binaries run there.
 
 ## Reference

@@ -10,6 +10,8 @@ import { ManifestStates } from "./github/manifest.ts";
 import { GithubMonitor } from "./github/monitor.ts";
 import { ForgejoMonitor } from "./forgejo/monitor.ts";
 import { FakeForgejo } from "./forgejo/fake.ts";
+import { FakeBoat } from "./boat/fake.ts";
+import { BoatMonitor } from "./boat/monitor.ts";
 import { FakeMachines } from "./machines/fake.ts";
 import { importKey } from "./crypto.ts";
 import { SecretStore } from "./secrets.ts";
@@ -51,6 +53,13 @@ export async function testApp(
     fetch: fakeForgejo.fetch,
     onChange: () => monitor?.tick(),
   });
+  const fakeBoat = new FakeBoat();
+  const boat = new BoatMonitor({
+    secrets,
+    fetch: fakeBoat.fetch,
+    now: () => clock.now,
+    onChange: () => monitor?.tick(),
+  });
   monitor = new MachineMonitor({
     db,
     run: fake.run,
@@ -59,6 +68,7 @@ export async function testApp(
     now: () => clock.now,
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),
+    boat: () => boat.observation(),
     pools: () => ({ pools: listPools(db), registrations: listRegistrations(db) }),
   });
   const engine = new PoolEngine({
@@ -78,6 +88,7 @@ export async function testApp(
     secrets,
     github,
     forgejo,
+    boat,
     engine,
     states: new ManifestStates(),
     fetch: fakeGithub.fetch,
@@ -115,6 +126,8 @@ export async function testApp(
     engine,
     forgejo,
     fakeForgejo,
+    boat,
+    fakeBoat,
   };
 }
 

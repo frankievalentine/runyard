@@ -16,6 +16,7 @@ import type { Fetch } from "./github/client.ts";
 import { ManifestStates } from "./github/manifest.ts";
 import { GithubMonitor } from "./github/monitor.ts";
 import { ForgejoMonitor } from "./forgejo/monitor.ts";
+import { BoatMonitor } from "./boat/monitor.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
 import { PoolEngine } from "./pools/engine.ts";
 import { listPools, listRegistrations } from "./pools/store.ts";
@@ -62,6 +63,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   let monitor: MachineMonitor | undefined;
   const github = new GithubMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
   const forgejo = new ForgejoMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
+  const boat = new BoatMonitor({ secrets, fetch, onChange: () => monitor?.tick() });
   monitor = new MachineMonitor({
     db,
     run,
@@ -69,6 +71,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     tailscale,
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),
+    boat: () => boat.observation(),
     pools: () => ({ pools: listPools(db), registrations: listRegistrations(db) }),
   });
   monitor.start();
@@ -85,6 +88,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   });
   void github.start();
   void forgejo.start();
+  void boat.start();
   // Assigned once the tailnet listener exists, after the loopback server starts.
   let tailnet: TailnetListener | undefined;
   const tailnetState = (): TailnetState =>
@@ -103,6 +107,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     secrets,
     github,
     forgejo,
+    boat,
     states: new ManifestStates(),
     fetch,
     apiBase: overrides.githubApiBase,
@@ -132,5 +137,5 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   }
   if (adminCount(db) === 0) setup.issue();
 
-  return { server, tailnet, db, secrets, monitor, github, forgejo };
+  return { server, tailnet, db, secrets, monitor, github, forgejo, boat };
 }

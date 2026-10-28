@@ -19,7 +19,7 @@ import {
 } from "../../components/ui.tsx";
 import { Icon } from "../../components/icons.tsx";
 import { useFleet } from "../../lib/fleet.ts";
-import { plural } from "../../lib/format.ts";
+import { formatDollars, plural } from "../../lib/format.ts";
 import { sessionQuery } from "../../lib/queries.ts";
 import { setupSteps } from "../../lib/setup.ts";
 
@@ -48,6 +48,25 @@ function Overview() {
       </div>
 
       {session.user?.role === "admin" && <SetupProgress view={view} />}
+
+      {view.boat && view.boat.leftover.length > 0 && (
+        <Card className="mt-6 flex flex-wrap items-center gap-3 border-warn/30 bg-warn/5 px-4 py-3 text-[13px]">
+          <div className="min-w-0 flex-1">
+            <span className="font-medium">
+              {plural(view.boat.leftover.length, "boat VM")} running outside CI
+            </span>
+            {(() => {
+              const total = view.boat.leftover.reduce((sum, v) => sum + (v.dollars ?? 0), 0);
+              return total > 0 ? (
+                <span className="text-ink-2"> · {formatDollars(total)} so far this month</span>
+              ) : null;
+            })()}
+          </div>
+          <Link to="/settings/boat" className="font-medium text-accent hover:underline">
+            See them
+          </Link>
+        </Card>
+      )}
 
       {view.alerts.length > 0 && (
         <Section title="Active alerts" count={view.alerts.length}>

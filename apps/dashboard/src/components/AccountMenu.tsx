@@ -67,6 +67,9 @@ export function AccountMenu() {
                 >
                   Forgejo
                 </Menu.Item>
+                <Menu.Item className={item} onClick={() => void navigate({ to: "/settings/boat" })}>
+                  boat
+                </Menu.Item>
                 <Menu.Item className={item} onClick={() => void navigate({ to: "/users" })}>
                   Users
                 </Menu.Item>

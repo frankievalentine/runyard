@@ -1,7 +1,8 @@
 import type { FleetView, JobView, QueuedJobView, RunnerView } from "@runyard/core";
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { formatElapsed, plural } from "../lib/format.ts";
+import { useFleet } from "../lib/fleet.ts";
+import { formatDollars, formatElapsed, plural } from "../lib/format.ts";
 import { useNow } from "../lib/now.ts";
 import { isBuiltinLabel, runnerStatus } from "../lib/status.ts";
 import { CopyValue } from "./CopyValue.tsx";
@@ -70,6 +71,7 @@ export function GitHubLink({
 export function RunnerLine({ r }: { r: RunnerView }) {
   const navigate = useNavigate();
   const status = runnerStatus(r);
+  const vm = useFleet().boatVms[r.key];
   const detail = r.job
     ? `${r.job.repo} · ${r.name}`
     : r.activity === "busy"
@@ -92,6 +94,14 @@ export function RunnerLine({ r }: { r: RunnerView }) {
         </div>
         <div className="truncate font-mono text-[12px] text-ink-2">{detail}</div>
       </div>
+      {vm?.dollars != null && (
+        <span
+          className="shrink-0 text-[12px] text-ink-2 tabular"
+          title={`${vm.type} boat VM, cost so far at list price`}
+        >
+          {formatDollars(vm.dollars)}
+        </span>
+      )}
       <span className="shrink-0 text-[12px] text-ink-2 tabular">
         {r.job?.startedAt ? <Elapsed since={r.job.startedAt} /> : status.label}
       </span>
@@ -133,9 +143,7 @@ export function QueueList({
           </span>
         </EmptyLine>
       ) : (
-        jobs.map((job) => (
-          <QueuedJob key={job.id} job={job} runners={view.runners} compact={compact} />
-        ))
+        jobs.map((job) => <QueuedJob key={job.id} job={job} view={view} compact={compact} />)
       )}
       {limit && view.queue.jobs.length > limit && (
         <EmptyLine>and {view.queue.jobs.length - limit} more in Queued jobs</EmptyLine>
@@ -146,14 +154,15 @@ export function QueueList({
 
 function QueuedJob({
   job,
-  runners,
+  view,
   compact,
 }: {
   job: QueuedJobView;
-  runners: RunnerView[];
+  view: FleetView;
   compact?: boolean;
 }) {
-  const eligible = runners.filter((r) => job.eligible.includes(r.key));
+  const eligible = view.runners.filter((r) => job.eligible.includes(r.key));
+  const limits = job.onDemand === "boat" ? view.boat?.limits : null;
   const idle = eligible.filter((r) => r.activity === "idle").length;
   return (
     <div
@@ -170,7 +179,11 @@ function QueuedJob({
       <div
         className={`flex shrink-0 gap-2 ${compact ? "flex-wrap items-center" : "flex-col items-end"}`}
       >
-        {job.onDemand ? (
+        {limits?.atConcurrencyLimit ? (
+          <Pill tone="warn">Waiting: boat is at {limits.maxActiveSandboxes} VMs</Pill>
+        ) : limits?.atStartLimit ? (
+          <Pill tone="warn">Waiting for boat's start limit</Pill>
+        ) : job.onDemand ? (
           // The service starts a VM for the job; no runner exists until then.
           <Pill tone="info">Starts on {job.onDemand}</Pill>
         ) : eligible.length === 0 ? (

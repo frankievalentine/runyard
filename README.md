@@ -159,6 +159,12 @@ since boat starts a VM per job and no runner exists beforehand. Running boat job
 running self-hosted or boat job whose runner isn't in GitHub's runner list still shows, known
 from the job itself.
 
+Optionally, connect boat under **Account menu ▸ boat** with a key limited to `sandbox.read`
+and `account.read`. Runyard then shows each boat job's VM size and cost so far, your plan's
+VM and start limits (queued boat jobs say when they're waiting on them), and VMs billing outside
+a running CI job, with a warning on the overview. Costs are this UTC month at list price, as
+boat reports them. Runyard only reads; it never starts, stops or changes a VM.
+
 ### Forgejo
 
 Connect a Forgejo instance (15 or later) under **Account menu ▸ Forgejo** with an access token

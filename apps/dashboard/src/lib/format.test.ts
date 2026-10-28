@@ -1,5 +1,12 @@
 import { expect, test } from "vite-plus/test";
-import { formatBytes, formatElapsed, formatUptime, plural, timeAgo } from "./format.ts";
+import {
+  formatBytes,
+  formatDollars,
+  formatElapsed,
+  formatUptime,
+  plural,
+  timeAgo,
+} from "./format.ts";
 
 test("timeAgo", () => {
   expect(timeAgo(null, 0)).toBe("never");
@@ -28,4 +35,10 @@ test("formatElapsed is a steady timer", () => {
   expect(formatElapsed(42_000)).toBe("0:42");
   expect(formatElapsed(725_000)).toBe("12:05");
   expect(formatElapsed(3_729_000)).toBe("1:02:09");
+});
+
+test("formats list-price dollars", () => {
+  expect(formatDollars(12.345)).toBe("$12.35");
+  expect(formatDollars(0.0006)).toBe("$0.00060");
+  expect(formatDollars(0)).toBe("$0.00");
 });

@@ -1,3 +1,5 @@
+import { boatVmsByRunner, deriveBoat, type BoatView, type BoatVm } from "../boat/derive.ts";
+import type { BoatObservation } from "../boat/model.ts";
 import { deriveForgejo, type ForgejoView } from "../forgejo/derive.ts";
 import type { ForgejoConnectionObservation } from "../forgejo/model.ts";
 import {
@@ -110,6 +112,10 @@ export type FleetView = {
   /** Every forge's self-hosted jobs waiting for a runner. */
   queue: { jobs: QueuedJobView[]; complete: boolean; at: number | null };
   summary: { runners: number; busy: number; idle: number; offline: number; unknown: number };
+  /** boat's VMs and limits, when connected. */
+  boat: BoatView | null;
+  /** The boat VM running each boat runner's job, by runner key. */
+  boatVms: Record<string, BoatVm>;
   pools: PoolsView;
 };
 
@@ -132,6 +138,8 @@ export function deriveFleet(input: {
   states: ReadonlyMap<string, MachineState>;
   github?: GithubAppObservation[];
   forgejo?: ForgejoConnectionObservation[];
+  /** Present once a boat API key is saved. */
+  boat?: BoatObservation | null;
   pools?: Pool[];
   registrations?: Registration[];
   now: number;
@@ -191,7 +199,13 @@ export function deriveFleet(input: {
       .map(peerView),
     ignored: candidates.filter((p) => input.ignoredNodeIds.has(p.nodeId)).map(peerView),
     alerts: machines.flatMap((m) => m.alerts),
-    ...forges(input.github ?? [], input.forgejo ?? [], input.registrations ?? [], now),
+    ...forges(
+      input.github ?? [],
+      input.forgejo ?? [],
+      input.registrations ?? [],
+      now,
+      input.boat ?? null,
+    ),
     pools: poolsView(
       input.pools ?? [],
       input.registrations ?? [],
@@ -210,6 +224,7 @@ function forges(
   forgejo: ForgejoConnectionObservation[],
   registrations: Registration[],
   now: number,
+  boatObs: BoatObservation | null,
 ) {
   const links = new Map(
     registrations.map((r) => [`${scopeKey(r.scope)}:${r.runnerName.toLowerCase()}`, r.machineId]),
@@ -222,7 +237,10 @@ function forges(
   const summary = { runners: runners.length, busy: 0, idle: 0, offline: 0, unknown: 0 };
   for (const r of runners) summary[r.activity]++;
   const at = [gh.queue.at, fj.queue.at].filter((t): t is number => t !== null);
+  const boat = boatObs ? deriveBoat(boatObs, runners, now) : null;
   return {
+    boat,
+    boatVms: boat ? Object.fromEntries(boatVmsByRunner(boat, runners)) : {},
     github: gh,
     forgejo: fj,
     runners,

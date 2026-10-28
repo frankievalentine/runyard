@@ -63,6 +63,8 @@ const view = (machines: MachineView[], error: string | null = null): FleetView =
   runners: [],
   queue: { jobs: [], complete: true, at: null },
   summary: { runners: 0, busy: 0, idle: 0, offline: 0, unknown: 0 },
+  boat: null,
+  boatVms: {},
   pools: { pools: [], desired: [], collisions: [], registrations: [] },
 });
 
