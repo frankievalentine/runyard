@@ -45,10 +45,27 @@ export type Alert = {
 
 export type Connection =
   | { state: "connected"; checkedAt: number }
-  | { state: "stale"; checkedAt: number; reason: string }
+  | { state: "stale"; checkedAt: number; reason: string; problem?: SshProblem }
   | { state: "offline"; lastSeen: number | null }
-  | { state: "error"; detail: string }
+  | { state: "error"; detail: string; problem?: SshProblem }
   | { state: "pending" };
+
+/** Why an SSH connection failed, as far as ssh's messages tell. */
+export type SshProblem =
+  /** The SSH server didn't answer: it's off, or a firewall drops the port. */
+  | "connectionRefused"
+  /** The name doesn't resolve or there's no route to it. */
+  | "unreachable"
+  /** No known_hosts entry for it yet. */
+  | "hostKeyUnknown"
+  /** Its host key differs from the trusted one: a reinstall, or someone in between. */
+  | "hostKeyChanged"
+  /** The machine refused the user or key. */
+  | "loginRefused"
+  | "timeout"
+  /** ssh or tailscale couldn't be run here. */
+  | "noProgram"
+  | "other";
 
 /** What one monitoring round sees of a machine. */
 export type Observed = {

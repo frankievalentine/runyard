@@ -3,8 +3,14 @@ import { mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FIXTURE_FINGERPRINT, FIXTURE_KEY } from "./key-fixture.ts";
-import { ensureRunyardKey, parsePublicKey, runyardPublicKey, runyardSshPaths } from "./keys.ts";
-import { scriptCommand } from "./ssh.ts";
+import {
+  ensureRunyardKey,
+  keyComment,
+  parsePublicKey,
+  runyardPublicKey,
+  runyardSshPaths,
+} from "./keys.ts";
+import { scriptCommand, sshFailure } from "./ssh.ts";
 
 describe("Runyard's SSH key", () => {
   test("fingerprints match ssh-keygen's, and anything else isn't a key", () => {
@@ -15,6 +21,7 @@ describe("Runyard's SSH key", () => {
       ),
     ).toBeNull();
     expect(parsePublicKey("not a key")).toBeNull();
+    expect(keyComment("Frankie's Macbook Air")).toBe("runyard@Frankie-s-Macbook-Air");
     expect(parsePublicKey("ssh-ed25519 $(reboot)")).toBeNull();
   });
 
@@ -36,8 +43,13 @@ describe("Runyard's SSH key", () => {
     expect(await Bun.file(paths.knownHosts).text()).toBe("");
     expect(await runyardPublicKey(paths)).toMatchObject({
       fingerprint: FIXTURE_FINGERPRINT,
-      line: FIXTURE_KEY,
+      line: FIXTURE_KEY.replace("fixture", "runyard@fixture"),
     });
+    await Bun.write(
+      `${paths.identity}.pub`,
+      `${FIXTURE_KEY.replace("fixture", "runyard@Bo's Mac")}\n`,
+    );
+    expect((await runyardPublicKey(paths))?.line).toEndWith(" runyard@Bo-s-Mac");
   });
 
   test("a failed ssh-keygen is reported, not thrown", async () => {
@@ -67,5 +79,29 @@ describe("Runyard's SSH key", () => {
       'UserKnownHostsFile="/data dir/ssh/known_hosts" ~/.ssh/known_hosts ~/.ssh/known_hosts2',
     );
     expect(argv.indexOf("--")).toBe(argv.length - 3);
+  });
+});
+
+describe("sorting SSH failures", () => {
+  const kind = (stderr: string, code = 255) => sshFailure(code, stderr, "openssh").problem;
+  test("each of ssh's messages maps to the step it failed at", () => {
+    expect(kind("ssh: connect to host box port 22: Connection refused")).toBe("connectionRefused");
+    expect(kind("ssh: Could not resolve hostname box: nodename nor servname provided")).toBe(
+      "unreachable",
+    );
+    expect(
+      kind(
+        "No ED25519 host key is known for box and you have requested strict checking.\nHost key verification failed.",
+      ),
+    ).toBe("hostKeyUnknown");
+    expect(
+      kind(
+        "@@@@@\n@ WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! @\nHost key verification failed.",
+      ),
+    ).toBe("hostKeyChanged");
+    expect(kind("ci@box: Permission denied (publickey,password).")).toBe("loginRefused");
+    expect(kind("", 124)).toBe("timeout");
+    expect(kind("not found", 127)).toBe("noProgram");
+    expect(kind("kex_exchange_identification: read: Connection reset by peer")).toBe("other");
   });
 });

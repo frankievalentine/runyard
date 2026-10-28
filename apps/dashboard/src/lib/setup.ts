@@ -1,4 +1,4 @@
-import type { YardView } from "@runyard/core";
+import { nextAccessStep, type YardView } from "@runyard/core";
 import { runnerFor } from "./pools.ts";
 
 export type SetupStep = {
@@ -13,6 +13,7 @@ export function setupSteps(view: YardView): SetupStep[] {
   const githubReady = view.github.apps.some((a) => a.installations.length > 0);
   const forgejoReady = view.forgejo.connections.some((c) => !c.error);
   const reachable = view.machines.filter((m) => m.connection.state === "connected");
+  const stuck = machineToConnect(view);
   const pools = view.pools.pools;
   const runners = view.pools.desired.filter((d) => runnerFor(view, d));
   // An on-demand pool's runners exist only per job; its installed software is the step done.
@@ -36,9 +37,11 @@ export function setupSteps(view: YardView): SetupStep[] {
       done: reachable.length > 0,
       detail: reachable.length
         ? `${reachable.length} reachable over SSH.`
-        : view.machines.length
-          ? "Runyard can't reach your machines over SSH yet. Open one to see why."
-          : "Pick a device from your tailnet or enter any SSH target.",
+        : stuck
+          ? `${stuck.machine.name}: ${stuck.step.title}. ${stuck.step.detail}`
+          : view.machines.length
+            ? "Checking your machines over SSH…"
+            : "Pick a device from your tailnet or enter any SSH target.",
     },
     {
       id: "pool",
@@ -64,4 +67,13 @@ export function setupSteps(view: YardView): SetupStep[] {
 /** The first machine with runners still to install, for the last step's link. */
 export function machineToReview(view: YardView): string | null {
   return view.pools.desired.find((d) => !runnerFor(view, d))?.machineId ?? null;
+}
+
+/** The first machine Runyard can't get into yet, and the step it's stuck on. */
+export function machineToConnect(view: YardView) {
+  for (const machine of view.machines) {
+    const step = nextAccessStep(machine);
+    if (step) return { machine, step };
+  }
+  return null;
 }

@@ -41,6 +41,7 @@ import {
   type Connection,
   type MachineState,
   type Observed,
+  type SshProblem,
 } from "./monitoring.ts";
 
 /** Tailnet data older than this no longer counts as a fresh observation. */
@@ -63,7 +64,7 @@ export type Timed<T> = { at: number; value: T };
 
 export type MachineObservation = {
   report: Timed<MachineReport> | null;
-  error: Timed<string> | null;
+  error: (Timed<string> & { problem?: SshProblem }) | null;
 };
 
 export type TailnetObservation = {
@@ -399,8 +400,14 @@ export function connection(
     observation.error && (!report || observation.error.at >= report.at) ? observation.error : null;
   if (report && !error && now - report.at <= SSH_STALE_AFTER_MS)
     return { state: "connected", checkedAt: report.at };
+  const problem = error?.problem ? { problem: error.problem } : {};
   if (report)
-    return { state: "stale", checkedAt: report.at, reason: error?.value ?? "No recent SSH check." };
-  if (error) return { state: "error", detail: error.value };
+    return {
+      state: "stale",
+      checkedAt: report.at,
+      reason: error?.value ?? "No recent SSH check.",
+      ...problem,
+    };
+  if (error) return { state: "error", detail: error.value, ...problem };
   return { state: "pending" };
 }

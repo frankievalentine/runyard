@@ -1,6 +1,6 @@
 import type { YardView } from "@runyard/core";
 import { expect, test } from "vite-plus/test";
-import { machineToReview, setupSteps } from "./setup.ts";
+import { machineToConnect, machineToReview, setupSteps } from "./setup.ts";
 
 const empty = {
   machines: [],
@@ -19,7 +19,15 @@ test("steps follow what exists", () => {
   const view = {
     ...empty,
     forgejo: { connections: [{ forgeId: "fj_1", error: null }] },
-    machines: [{ id: "m1", connection: { state: "connected" } }],
+    machines: [
+      {
+        id: "m1",
+        sshTarget: "box",
+        transport: "openssh",
+        health: null,
+        connection: { state: "connected" },
+      },
+    ],
     pools: {
       pools: [{ id: "p1", name: "ci" }],
       desired: [
@@ -55,4 +63,25 @@ test("installed runner software for an on-demand pool completes the last step", 
     done: true,
     detail: "Runner software installed for on-demand pools.",
   });
+});
+
+test("the machine step names the first machine Runyard can't get into, and why", () => {
+  const view = {
+    ...empty,
+    machines: [
+      {
+        id: "m1",
+        name: "Builder",
+        sshTarget: "ci@builder",
+        transport: "openssh",
+        os: "linux",
+        health: null,
+        connection: { state: "error", detail: "Refused.", problem: "loginRefused" },
+      },
+    ],
+  } as unknown as YardView;
+  const step = setupSteps(view).find((s) => s.id === "machine")!;
+  expect(step.done).toBe(false);
+  expect(step.detail).toMatch(/^Builder: Authorize Runyard's key\. Refused\./);
+  expect(machineToConnect(view)?.machine.id).toBe("m1");
 });

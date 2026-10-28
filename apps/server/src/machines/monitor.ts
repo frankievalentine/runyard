@@ -27,7 +27,7 @@ import {
 import type { CommandRunner } from "../command.ts";
 import type { Db } from "../db/index.ts";
 import type { TailscaleCli } from "../tailscale.ts";
-import { inspect, type SshPrograms } from "./ssh.ts";
+import { inspect, SshError, type SshPrograms } from "./ssh.ts";
 import {
   appendEvents,
   ignoredNodeIds,
@@ -267,7 +267,11 @@ export class MachineMonitor {
       const message = error instanceof Error ? error.message : String(error);
       this.observations.set(machine.id, {
         report: previous.report,
-        error: { at: this.now(), value: message },
+        error: {
+          at: this.now(),
+          value: message,
+          ...(error instanceof SshError ? { problem: error.problem } : {}),
+        },
       });
     }
   }

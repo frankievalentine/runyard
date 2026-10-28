@@ -5,3 +5,4 @@ export * from "./monitoring.ts";
 export * from "./report.ts";
 export * from "./derive.ts";
 export * from "./tailnet.ts";
+export * from "./access.ts";

@@ -37,13 +37,23 @@ export async function ensureRunyardKey(
   if (!existsSync(paths.knownHosts)) await writeFile(paths.knownHosts, "", { mode: 0o600 });
   if (existsSync(paths.identity)) return null;
   const res = await run(
-    [keygen, "-q", "-t", "ed25519", "-N", "", "-C", `runyard@${hostname()}`, "-f", paths.identity],
+    [keygen, "-q", "-t", "ed25519", "-N", "", "-C", keyComment(hostname()), "-f", paths.identity],
     { timeoutMs: 15_000 },
   );
   if (res.code !== 0)
     return `Couldn't create Runyard's SSH key with ${keygen}: ${res.stderr.trim() || `exit ${res.code}`}`;
   await chmod(paths.identity, 0o600);
   return null;
+}
+
+/**
+ * The key's comment, naming this Runyard install in authorized_keys. Kept to
+ * characters that are safe inside the quoted setup commands: computer names
+ * such as "Frankie's Macbook Air" carry quotes and spaces.
+ */
+export function keyComment(host: string): string {
+  const safe = host.replace(/[^A-Za-z0-9.-]+/g, "-").replace(/^-+|-+$/g, "");
+  return `runyard@${safe || "host"}`;
 }
 
 export type PublicKey = { type: string; key: string; line: string; fingerprint: string };
@@ -67,6 +77,8 @@ export async function runyardPublicKey(paths: RunyardSsh): Promise<PublicKey | n
   if (!(await file.exists())) return null;
   const text = (await file.text()).trim();
   const parsed = parsePublicKey(text);
-  // Keep the comment: it names the Runyard install in authorized_keys.
-  return parsed ? { ...parsed, line: text } : null;
+  if (!parsed) return null;
+  // Keep the comment, which names the install, but only its safe characters (keys made before this rule).
+  const comment = text.split(/\s+/).slice(2).join(" ");
+  return { ...parsed, line: `${parsed.line} ${keyComment(comment.replace(/^runyard@/, ""))}` };
 }

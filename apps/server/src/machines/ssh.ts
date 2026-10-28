@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import type { OsFamily, SshTransport } from "@runyard/core";
+import type { OsFamily, SshProblem, SshTransport } from "@runyard/core";
 import windowsDiagnostics from "../../scripts/machine-diagnostics.ps1" with { type: "text" };
 import posixDiagnostics from "../../scripts/machine-diagnostics.sh" with { type: "text" };
 import windowsHealth from "../../scripts/machine-health.ps1" with { type: "text" };
@@ -127,24 +127,62 @@ export async function inspect(
   const { argv, stdin } = scriptCommand(programs, machine, windows, inspectionScript(windows));
   const res = await run(argv, { stdin, timeoutMs: SSH_TIMEOUT_MS });
   if (res.code === 0) return res.stdout;
-  throw new Error(sshFailure(res.code, res.stderr, machine.transport));
+  throw sshFailure(res.code, res.stderr, machine.transport);
 }
 
-function sshFailure(code: number, stderr: string, transport: SshTransport): string {
+/** An SSH failure as a sentence for the dashboard, with its kind for the setup steps. */
+export class SshError extends Error {
+  constructor(
+    message: string,
+    readonly problem: SshProblem,
+  ) {
+    super(message);
+  }
+}
+
+export function sshFailure(code: number, stderr: string, transport: SshTransport): SshError {
   const program = transport === "tailscale" ? "tailscale ssh" : "ssh";
-  if (code === 124) return `The SSH check didn't finish within ${SSH_TIMEOUT_MS / 1000} seconds.`;
-  if (code === 127) return `Couldn't run ${program}: ${stderr.trim() || "not found"}.`;
+  if (code === 124)
+    return new SshError(
+      `The SSH check didn't finish within ${SSH_TIMEOUT_MS / 1000} seconds.`,
+      "timeout",
+    );
+  if (code === 127)
+    return new SshError(`Couldn't run ${program}: ${stderr.trim() || "not found"}.`, "noProgram");
   const line = stderr
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean)
     .at(-1)
     ?.replace(/\.$/, "");
-  if (/Host key verification failed|REMOTE HOST IDENTIFICATION HAS CHANGED/i.test(stderr)) {
-    return "The machine's SSH host key isn't trusted on this machine. Connect once with ssh to verify and accept it, then check again.";
-  }
-  if (/Permission denied/i.test(stderr)) {
-    return `SSH refused the login: ${line}. Check the user name and that this machine's key is authorized.`;
-  }
-  return `${program} failed (exit ${code})${line ? `: ${line}` : "."}`;
+  if (/REMOTE HOST IDENTIFICATION HAS CHANGED|Host key for .* has changed/i.test(stderr))
+    return new SshError(
+      "The machine's SSH host key changed since it was trusted. That happens after a reinstall, or if something is intercepting the connection. Check before trusting the new key.",
+      "hostKeyChanged",
+    );
+  if (/Host key verification failed|No \S+ host key is known/i.test(stderr))
+    return new SshError(
+      "The machine's SSH host key isn't trusted yet. Trust it from the machine's setup steps, then check again.",
+      "hostKeyUnknown",
+    );
+  if (/Permission denied|Too many authentication failures/i.test(stderr))
+    return new SshError(
+      `SSH refused the login: ${line}. Check the user name and that Runyard's key is authorized.`,
+      "loginRefused",
+    );
+  if (/Connection refused/i.test(stderr))
+    return new SshError(
+      "The machine refused the connection: its SSH server isn't running, or a firewall blocks it.",
+      "connectionRefused",
+    );
+  if (
+    /Could not resolve hostname|No route to host|Network is unreachable|Connection timed out|Operation timed out/i.test(
+      stderr,
+    )
+  )
+    return new SshError(
+      `Couldn't reach the machine: ${line}. Check its address and that it's on the network.`,
+      "unreachable",
+    );
+  return new SshError(`${program} failed (exit ${code})${line ? `: ${line}` : "."}`, "other");
 }

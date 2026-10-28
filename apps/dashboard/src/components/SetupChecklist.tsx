@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { useYard } from "../lib/yard.ts";
 import { checksQuery } from "../lib/queries.ts";
-import { machineToReview, setupSteps, type SetupStep } from "../lib/setup.ts";
+import { machineToConnect, machineToReview, setupSteps, type SetupStep } from "../lib/setup.ts";
 import { Icon } from "./icons.tsx";
 import { Card } from "./ui.tsx";
 
@@ -31,13 +31,18 @@ export function SetupChecklist() {
   const done = steps.filter((s) => s.done).length;
   if (hidden || done === steps.length) return null;
   const review = machineToReview(view);
+  const stuck = machineToConnect(view);
   const actions: Record<SetupStep["id"], ReactNode> = {
     forge: (
       <Link to="/settings/connections" className={button}>
         Connect a forge
       </Link>
     ),
-    machine: (
+    machine: stuck ? (
+      <Link to="/machines/$id" params={{ id: stuck.machine.id }} hash="setup" className={button}>
+        Open {stuck.machine.name}
+      </Link>
+    ) : (
       <Link to="/machines/add" className={button}>
         Add machines
       </Link>
