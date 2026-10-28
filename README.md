@@ -5,507 +5,125 @@
 <p align="center">CI runners for GitHub and Forgejo, on your machines and boat.dev.</p>
 <p align="center"><sub>Builds on <a href="https://github.com/aarondfrancis/fleet">aarondfrancis/fleet</a></sub></p>
 
-Runyard is a self-hosted control service and web dashboard for CI runners. It runs on one
-always-on machine, watches your other machines over SSH and Tailscale, installs GitHub and
-Forgejo runners on them after you review the changes, and starts one-job runners when work is
-queued. Jobs that run on boat.dev's on-demand VMs show up alongside, with each VM's cost.
+Runyard is a self-hosted dashboard and control service for CI runners. It runs on one machine,
+reaches your others over SSH and Tailscale, and installs GitHub and Forgejo runners on them
+after you review exactly what will change.
 
-- **One view of your runners:** every machine's health, every runner's state, and the jobs
-  waiting for them, across GitHub accounts, organizations and Forgejo.
-- **Runners from pools, not by hand:** describe the capacity you want (labels, machines,
-  repositories) and Runyard works out the runners and installs them, one reviewed change at a
-  time.
-- **On-demand runners:** a fresh one-job runner for each queued job, on your own machines.
-- **Guided machine setup:** one command on a machine and Runyard can reach it.
-- **Safe by default:** nothing changes on a machine without a review, busy runners are never
-  touched, and public repositories are refused unless you say otherwise.
-
-## Contents
-
-- [Quick start](#quick-start)
-- [Requirements](#requirements)
-- [Machines](#machines)
-- [Runners and pools](#runners-and-pools)
-- [Forges and services](#forges-and-services): GitHub, Forgejo, boat.dev, webhooks
-- [AI agents (MCP)](#ai-agents-mcp)
-- [Running Runyard](#running-runyard): as a service, Docker, Tailscale, users
-- [Security](#security)
-- [Configuration](#configuration)
-- [Development](#development)
-- [Credits](#credits)
+- **See everything:** machine health, every runner, and every queued job with why it's waiting.
+- **Describe capacity, not runners:** a pool's labels, machines and repositories become
+  runners, persistent or one per job.
+- **Set up a machine with one command:** Runyard authorizes its key, trusts the host and checks
+  it's ready to build, installing missing tools if you ask.
+- **Prove it works:** run a short test job on any runner.
+- **Safe by default:** nothing changes without a review, busy runners are never touched, and
+  public repositories are refused unless you allow them.
+- **Works with agents:** an MCP server lets AI agents read your CI and prepare changes for you
+  to run.
 
 ## Quick start
 
-### 1. Install Runyard on an always-on machine
-
 ```sh
-curl -fsSL https://<runyard-domain>/install.sh | sh
+curl -fsSL https://<runyard-domain>/install.sh | sh   # macOS or Linux; install.ps1 on Windows
+runyard service install                                # keep it running
 ```
 
-```powershell
-irm https://<runyard-domain>/install.ps1 | iex
-```
+> Releases aren't published yet. Until they are, build one: clone this repository, run
+> `vp install && vp run release`, then
+> `RUNYARD_BASE_URL=file://$PWD/apps/cli/dist/release sh install/install.sh`.
 
-The installer picks the build for the machine (macOS on Apple silicon, Linux x64 or arm64,
-Windows x64), checks it against the release's `SHA256SUMS`, and puts `runyard` in
-`~/.local/bin` (`%LOCALAPPDATA%\Programs\Runyard` on Windows).
+Runyard prints its address (`https://<machine>.<tailnet>.ts.net:7443` with Tailscale, otherwise
+`http://127.0.0.1:7420`) and a one-time setup code. Open it, enter the code to create the first
+admin, and follow **Getting started** on the overview:
 
-> **Releases aren't published yet.** Until they are, build one yourself: clone this repository,
-> run `vp install` and `vp run release`, then
-> `RUNYARD_BASE_URL=file://$PWD/apps/cli/dist/release sh install/install.sh`. See
-> [Development](#development) for the tools it needs.
-
-### 2. Start it
-
-```sh
-runyard                    # runs in the foreground and prints its address and a setup code
-runyard service install    # or keep it running in the background (see Running as a service)
-```
-
-With Tailscale running on the machine, the dashboard is at
-`https://<machine>.<tailnet>.ts.net:7443`, reachable from any device on your tailnet. Without
-it, Runyard serves `http://127.0.0.1:7420` on that machine only.
-
-### 3. Claim the install
-
-Open the dashboard and enter the setup code from Runyard's output to create the first admin:
-
-```
-No admin yet. Open the dashboard and enter this setup code to create one:
-
-    CVZR-SYJD-4HZP
-```
-
-The code changes at every start until an admin exists, so only someone who can read Runyard's
-output can claim it.
-
-### 4. Follow Getting started
-
-The overview then shows **Getting started**, which checks the control machine (SSH, Runyard's
-SSH key, Tailscale HTTPS, the secret key, disk space, the service) and walks through four steps.
-Each one links to the page that does it and ticks itself off from what Runyard sees.
-
-1. **Connect GitHub or Forgejo.** For GitHub, Runyard creates its own GitHub App with one
-   confirmation on GitHub; install it on your account or organization and pick repositories.
-   For Forgejo, paste an access token. See [GitHub](#github) and [Forgejo](#forgejo).
-2. **Add a machine and connect it.** Pick a tailnet device or enter an SSH target, then run the
-   one-line setup command the machine's page shows (on a fresh Linux LXC or VPS, the
-   fresh-machine version, as root). See [Machines](#machines) and
-   [Runner machines](#runner-machines).
-3. **Create a pool:** labels, machines and the repositories to serve. Runyard suggests pools from
-   queued jobs and idle machines. See [Runners and pools](#runners-and-pools).
-4. **Install the runners.** On the machine's page, **Review changes** shows exactly what will
-   happen; **Run** carries it out. Runners appear on GitHub or Forgejo and start taking jobs.
-
-To look around first without touching anything real, run the demo yard (see
-[Development](#development)).
+1. **Connect GitHub or Forgejo:** Runyard creates its own GitHub App, or takes a Forgejo token.
+2. **Add a machine** and run the one-line setup command its page shows. On a fresh Linux LXC
+   or VPS, use the fresh-machine version as root: it also installs the SSH server and creates a
+   `runyard` account.
+3. **Create a pool:** labels, machines and the repositories it serves.
+4. **Review and run** the machine's changes. Its runners start taking jobs.
 
 ## Requirements
 
-**The machine Runyard runs on** (the control machine):
+- **Runyard's machine:** macOS on Apple silicon, Linux (x64 or arm64, glibc) or Windows x64, or
+  Docker, with the OpenSSH client. [Tailscale](https://tailscale.com) is optional and
+  recommended: it gives the HTTPS address, device discovery, sign-in by tailnet identity and
+  the one-line machine setup.
+- **Runner machines:** anything reachable over SSH.
 
-- macOS on Apple silicon, Linux (x64 or arm64, glibc), or Windows x64. Or Docker.
-- The OpenSSH client: `ssh`, `ssh-keygen` and `ssh-keyscan`.
-- Optional, recommended: [Tailscale](https://tailscale.com) with MagicDNS and HTTPS
-  Certificates turned on, for the HTTPS dashboard address, device discovery, sign-in by tailnet
-  identity, and the one-line machine setup command.
+  | OS      | GitHub runners | Forgejo runners | One per job |
+  | ------- | -------------- | --------------- | ----------- |
+  | macOS   | Yes            | No              | Yes         |
+  | Linux   | Yes            | Yes             | Yes         |
+  | Windows | Yes            | No              | Not yet     |
 
-**Machines that run runners:** anything Runyard can reach over SSH.
+- **Forges:** GitHub (personal accounts and organizations) and Forgejo 15 or later.
 
-| OS      | GitHub runners        | Forgejo runners | On-demand pools |
-| ------- | --------------------- | --------------- | --------------- |
-| macOS   | Yes (LaunchAgent)     | No              | Yes             |
-| Linux   | Yes (systemd)         | Yes             | Yes             |
-| Windows | Yes (Windows service) | No              | Not yet         |
+## How it works
 
-Linux installs need root for dependencies and the service: non-interactive sudo, or the
-password entered in the review. NixOS needs `apps/server/scripts/nixos-runner-prerequisites.nix`
-imported first.
+- **Machines.** Runyard checks each machine every minute over SSH, read-only, and shows its
+  health, history and **runner readiness**: the tools jobs need, the clock, and whether it
+  reaches your forges. Until a machine connects, its page walks through the setup steps.
+- **Pools.** A pool is **persistent** (registered runners that wait for jobs) or **on demand**
+  (a fresh one-job runner for each queued job). It can install missing tools (Essentials, Build
+  tools, Docker) and clean up after each job.
+- **Reviews.** Saving a pool changes nothing. A machine's **Review changes** shows the exact
+  plan; **Run** re-reads everything first and does nothing if anything changed.
+- **Testing.** **Test this runner** runs a short workflow on exactly that runner.
+- **boat.dev.** Jobs for boat.dev's VMs show alongside, with each VM's cost.
+- **Webhooks** (optional) make Runyard notice queued GitHub jobs in seconds instead of about 45.
+- **AI agents.** Agents read everything and can prepare pools and reviews; only you run a
+  review. Create a token under **Settings ▸ Account**, then, for Claude Code:
 
-**Forges:** GitHub (personal accounts and organizations) and Forgejo 15 or later.
-
-## Machines
-
-Add machines under **Machines ▸ Add**: pick one of your tailnet's desktops and servers, or enter
-any SSH target (`user@host` or a `Host` alias from `~/.ssh/config`). Only machines you add are
-checked. Every minute Runyard reads CPU, memory, load, disks, uptime and selected power and
-Tailscale settings over SSH, read-only, with at most four sessions at a time.
-
-### Connecting a machine
-
-Until Runyard has reached a machine once, its page shows **Connect Runyard to &lt;machine&gt;**:
-the steps in the order SSH meets them (SSH server on, host key trusted, Runyard's key
-authorized, connected), where the last check stopped, and the commands for that step on the
-machine's OS.
-
-The quickest way through is the **setup command** at the top of those steps. Run it on the
-machine, as the account Runyard should sign in as:
-
-```sh
-curl -fsSL https://<runyard>/api/machine-setup/script.sh | sh -s -- <code>               # macOS, Linux
-& ([scriptblock]::Create((irm https://<runyard>/api/machine-setup/script.ps1))) <code>   # Windows
-```
-
-It checks that the SSH server is on (and says how to turn it on if not), adds Runyard's public
-key to `~/.ssh/authorized_keys` (`administrators_authorized_keys` for a Windows administrator,
-from an administrator PowerShell) with agent, port and X11 forwarding off, and reports the
-account name, OS and SSH host keys back. Runyard fills in the SSH user if the target had none,
-trusts exactly those host keys, and checks the machine. The code works once, for 15 minutes. The
-command is offered only when you use the dashboard over HTTPS, its tailnet address, so the
-script and its report can't be altered on the way. It installs nothing.
-
-On a **fresh Linux machine** (a new LXC or VPS with only `root`), run the fresh-machine version
-the page shows instead, as root: the same command with `--prepare`. It also installs the SSH
-server and `sudo` if they're missing, creates a `runyard` account that signs in with Runyard's
-key only, keeps that account's processes running after it logs out (so one-job runners survive
-the SSH session), and adds it to the `docker` group if Docker is installed. Runner installs need
-root, so it gives the account sudo: passwordless with `--sudo` (or if you answer yes when it
-asks), otherwise with a password you set, which Runyard asks for in each review. The plain
-command refuses to run as root on Linux, because runners can't be installed as root.
-
-By hand instead, the steps give the commands to copy, and **Read its host key** shows the
-machine's host key fingerprint with the command that prints it on the machine. Trusting it reads
-the key again and keeps only that fingerprint; when Tailscale publishes the machine's host keys,
-the page says whether they match. A host key that changed is never replaced without an explicit
-**Replace**.
-
-### How Runyard signs in
-
-Runyard has its own ed25519 key and `known_hosts`, created in its data directory (`ssh/`) on
-first start. **Machines ▸ Add** shows the public key. Every connection offers that key and
-checks those host keys alongside your own, so machines you already reach with `ssh` need nothing
-new: your keys, agent and `~/.ssh/config` keep working. Machines that publish Tailscale SSH are
-reached with `tailscale ssh`, which checks host keys and sign-in itself (your tailnet's SSH
-rules must allow the user). Windows machines need their OS set to Windows, so Runyard talks
-PowerShell. Removing a machine from Runyard leaves Runyard's key on it; delete the `runyard@`
-line from its `authorized_keys`.
-
-### Runner machines
-
-What a machine needs to host runners, by kind:
-
-- **Proxmox LXC.** On the Proxmox host, download the Debian 12 template (**local ▸ CT
-  Templates**, or `pveam download local debian-12-standard_<version>_amd64.tar.zst`) and create
-  an unprivileged container from it with the CPU, memory and disk your jobs need. Turn on
-  **Options ▸ Features ▸ nesting** and **keyctl** if jobs will use Docker (Forgejo's Docker
-  mode, or GitHub `container:` and `services:` jobs). To put the container on your tailnet, add
-  Tailscale's device lines to `/etc/pve/lxc/<id>.conf`, then restart it and install Tailscale
-  inside:
-
-  ```
-  lxc.cgroup2.devices.allow: c 10:200 rwm
-  lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
+  ```sh
+  claude mcp add --transport http runyard https://<runyard>/api/mcp \
+    --header "Authorization: Bearer <token>"
   ```
 
-  Without Tailscale, add it to Runyard by its LAN address instead. Then `pct enter <id>`,
-  install `curl` if it's missing, and run the machine's fresh-machine setup command as root.
+The [guide](docs/GUIDE.md) covers each in detail, along with Docker, running as a service,
+Tailscale, users and passkeys, runner machines (Proxmox LXC, VPS, Mac, Windows), and moving
+existing runners into a pool.
 
-- **Linux VPS.** Install Tailscale (`curl -fsSL https://tailscale.com/install.sh | sh`, then
-  `sudo tailscale up`) so Runyard reaches it privately and the setup command can report back,
-  then run the fresh-machine setup command as root. A VPS reached over public SSH works with the
-  by-hand steps too, but keep its SSH port firewalled to the machines that need it.
-- **Mac.** Turn on **System Settings ▸ General ▸ Sharing ▸ Remote Login**, then run the setup
-  command as the account the runners should use. Runners on macOS are LaunchAgents, which run
-  only while that account is logged in: turn on automatic login for it (**Users & Groups**;
-  unavailable while FileVault is on) and stop the Mac sleeping (`sudo pmset -a sleep 0`, and
-  keep a laptop on power). Runyard flags a Mac in a pool when automatic login is off or is for another account, and when it sleeps.
-- **Windows.** Turn on OpenSSH Server (the setup command prints how), then run the Windows setup
-  command as the runners' account; for an administrator account, from an administrator
-  PowerShell. Runners run as Windows services.
+## Safety
 
-### Runner readiness
-
-Each check also reads whether a machine has what CI jobs commonly need, shown under **Runner
-readiness** on its page:
-
-- **Required:** git, curl and tar (plus the Command Line Tools on a Mac, and Node.js where a
-  Forgejo pool runs jobs on the machine itself), a clock within a minute of Runyard's, and the
-  forges reachable over HTTPS.
-- **Its pools' labels:** `docker` needs a Docker this account can use, `xcode` or `xcode-16`
-  needs that Xcode, and `gpu`, `cuda` or `nvidia` need an NVIDIA GPU with `nvidia-smi`. Other
-  labels aren't checked.
-- **Recommended:** unzip, zip, xz, zstd, jq, gpg, a C compiler and make, Python 3, and Docker.
-
-Each missing item says how to install it, and a pool can install them for you: under **Tools
-to install where they're missing**, pick **Essentials** (git, curl, tar, unzip, zip, xz, zstd,
-jq, gpg), **Build tools** (a C compiler, make, Python 3) or **Docker**. Each machine's review then
-shows an **Install tools** step for just what its last check found missing, ahead of the
-runners, and carries it out with the package manager (apt, dnf, zypper or pacman, with the
-review's sudo) or Homebrew on a Mac. Docker comes from the distribution's own packages and the
-runner's account joins the `docker` group; on a Mac, Docker and the Command Line Tools stay
-manual, and Homebrew must already be installed. Runyard also puts Homebrew's directories on the
-PATH its Mac runners start with, so jobs find what it installs. A machine in a pool that's missing something required
-or promised shows under **Needs attention** and on the pool's page, and the pool form suggests
-labels every chosen machine can carry. The check itself only reads.
-
-### Alerts and history
-
-A machine alerts when it's offline on the tailnet for three minutes, or when disk space is below
-10% on readings a minute apart (clearing at 12%). Reboots and SSH failures are recorded too.
-History is kept for 30 days, up to 5,000 events. **Maintenance for 1 hour** pauses a machine's
-alerts.
-
-## Runners and pools
-
-A **pool** is runner capacity: labels, the machines it runs on (with how many runners each), and
-the accounts or repositories it serves. Create one under **Pools ▸ +**, which opens with
-suggestions Runyard can justify from what it sees: queued jobs no runner has the labels for, and
-connected machines not yet in a pool. The form shows the runners the pool calls for before you
-save it. An organization gets one runner per slot; a personal GitHub account's repositories each
-get their own, because GitHub can't share a personal account's runner across repositories.
-
-Saving a pool changes nothing on machines. On a machine's page, **Review changes** reads the
-machine and the forge and shows the plan; **Run** reads both again and does nothing if anything
-changed since the review. Runners live under `~/runyard-runners` (`C:\runyard-runners` on
-Windows), as a LaunchAgent on macOS (it starts after the user logs in), a systemd service on
-Linux, or a Windows service.
-
-### Testing a runner
-
-A GitHub runner Runyard installed has **Test this runner** on its page: pick a repository it
-serves and Runyard starts a short workflow on exactly that runner, through the label only it
-carries (`runyard-runner-<name>`), then shows whether it passed, with a link to the run. The
-check prints the runner's tools, compiles and runs a small C program, and optionally runs a
-container. The workflow lives in your repository: the first time, Runyard shows the file to add
-at `.github/workflows/runyard-runner-check.yml` (it never writes to your repositories). Starting
-it needs the GitHub App's **Actions: Read and write** permission; apps created before that need
-it changed in the app's settings on GitHub and the change accepted on each installation.
-
-### Cleanup after each job
-
-Persistent runners keep their workspace and Docker data between jobs, which keeps builds warm
-but lets one job affect the next. A persistent pool's **After each job** setting can clear the
-job's workspace, or the workspace and unused Docker data (stopped containers, dangling images,
-unused networks and anonymous volumes). Runyard sets it up through GitHub's job-completed hook:
-the review writes `runyard-job-completed.sh` into each runner's directory, points the runner's
-`.env` at it and restarts the runner, only while it's idle. The hook deletes only inside the
-job's workspace under that runner's `_work` directory and never fails a job. It's for GitHub
-runners on Linux and macOS; forgejo-runner has no job-completed hook, and on-demand runners
-start clean anyway.
-
-### On-demand pools
-
-A pool is **persistent** (each slot is a registered runner waiting for jobs) or **on demand**.
-An on-demand pool keeps no registered runners. Its review installs the runner software once per
-machine, under `~/runyard-runners/<pool>/template-*`. After that, when a job is queued that no
-idle runner can take and the pool serves its repository and has its labels, Runyard:
-
-1. mints a single-use registration at that moment (GitHub's just-in-time config, or an
-   ephemeral Forgejo runner);
-2. copies the runner software into its own directory and starts a one-job runner there;
-3. lets the runner take one job and deregister itself, then removes the directory.
-
-Each job gets at most one runner; slots cap how many run at once per machine, and a pool can be
-paused. A runner that never shows up on the forge is deleted after 10 minutes. Starts and
-results appear on the pool page and in each machine's history. On-demand pools run on Linux and
-macOS for now.
-
-### Runners Runyard didn't install
-
-Runners registered another way show under **Unassigned runners**. On a runner's page, choose
-the machine it **Runs on** to show it there. To hand it over to Runyard, **Move into pool**
-picks a persistent pool on that machine that serves its scope (or creates one from the runner's
-labels). The pool's own runner is installed through the usual review; once it's online, idle
-and labeled, the machine's review offers to **Retire** the old one, which deregisters it on the
-forge and shows the steps to remove its service. Runyard never changes the old runner's
-directory.
-
-## Forges and services
-
-### GitHub
-
-Under **Settings ▸ Connections ▸ GitHub**, Runyard creates a GitHub App for itself through
-GitHub's manifest flow: you confirm it on GitHub, then install it on your personal account or an
-organization and choose its repositories. The app's credentials are stored encrypted. Runyard
-reads runners and queued jobs for the installation's repositories, and registers runners with
-tokens it mints at the moment of use. It also asks for Actions read and write, to start a runner's test job.
-
-### Forgejo
-
-Connect a Forgejo instance (15 or later) under **Settings ▸ Connections ▸ Forgejo** with an
-access token whose user, organization and repository scopes are set to read and write. Runyard
-watches that user's runners and those of every organization they belong to. A pool can serve
-the account or an organization. Jobs run on the machine (host mode) or, per pool, in Docker
-containers from a default image; Docker must already be installed and usable by the SSH user.
-forgejo-runner is published for Linux only, so Forgejo runners install on Linux machines as
-`runyard-forgejo-<name>` systemd services, from the latest forgejo-runner release with its
-SHA-256 checked.
-
-### boat.dev
-
-Runyard shows jobs that ask for [boat.dev](https://docs.boat.dev/ci.md)'s labels (`boat`,
-`boat-small`, `boat-large`, `boat-xlarge`) as "Starts on boat.dev", since boat.dev starts a VM
-per job. The sidebar's **boat.dev** row opens its running and queued jobs. Optionally, connect
-boat.dev there with a key limited to `sandbox.read` and `account.read`: Runyard then shows each
-job's VM size and cost so far, your plan's limits, and VMs still billing outside a CI job. Costs
-are this UTC month at list price. Runyard only reads; it never starts, stops or changes a VM.
-
-### GitHub webhooks
-
-Optional: without them Runyard notices queued jobs within about 45 seconds; with them, within
-seconds. Runyard listens for webhooks only on `127.0.0.1:7444`, and that listener accepts nothing
-but signed deliveries. Under **Settings ▸ Connections ▸ GitHub ▸ Webhooks**:
-
-1. Expose the listener, for example with `tailscale funnel --bg http://127.0.0.1:7444`. Runyard
-   shows the command; it never changes what's public on your tailnet itself.
-2. Set each app's webhook: Runyard points it at the public address with a fresh secret.
-3. In the app's settings on GitHub, tick **Active** and the **Workflow job** event.
-
-A delivery only makes Runyard re-read jobs and runners through the API; nothing in a payload is
-acted on.
-
-## AI agents (MCP)
-
-Runyard serves an [MCP](https://modelcontextprotocol.io) server at `/api/mcp` (Streamable HTTP),
-so an agent such as Claude Code can ask about your CI and prepare changes for you. Create a token
-under **Settings ▸ Account ▸ Access tokens**, then, for Claude Code:
-
-```sh
-claude mcp add --transport http runyard https://<runyard>/api/mcp \
-  --header "Authorization: Bearer <token>"
-```
-
-- **Read only** tokens can call `yard_summary`, `list_machines`, `get_machine` (health,
-  readiness, the steps to connect it with commands, recent history), `list_runners`,
-  `list_queued_jobs` (with why each one waits), `list_pools` and `list_test_jobs`.
-- **Read and prepare** tokens (admins only) can also `add_machine`, `save_pool`,
-  `prepare_review`, `machine_setup_command` and `start_test_job`.
-
-No tool runs a review or deletes anything. `prepare_review` returns the plan and a link to the
-machine's page with that review open, marked with the token that prepared it, for you to check
-and **Run**. Everything a token prepares is recorded in the machine's history as yours, via that
-token. A token never has more access than its user, is shown once and stored hashed, can expire,
-and works only on `/api/mcp`. Use the dashboard's HTTPS address, so the token travels encrypted;
-the machine setup command needs it too.
-
-## Running Runyard
-
-### As a service
-
-`runyard service install` keeps Runyard running as your user, which it needs for your own SSH
-keys and `~/.ssh/config`:
-
-| OS      | How                                                                    | Starts          |
-| ------- | ---------------------------------------------------------------------- | --------------- |
-| Linux   | `/etc/systemd/system/runyard.service` with `User=` you (asks for sudo) | At boot         |
-| macOS   | `~/Library/LaunchAgents/dev.runyard.plist`                             | When you log in |
-| Windows | A `Runyard` scheduled task, without a stored password                  | When you log on |
-
-`RUNYARD_*` settings in your environment carry into the service, except `RUNYARD_SECRET_KEY`
-(service definitions are readable by other users; use `RUNYARD_SECRET_KEY_FILE`). Add
-`--dry-run` to see what would change. `runyard service status` and `runyard service uninstall`
-do what they say; uninstalling keeps Runyard's data. The log is `journalctl -u runyard` on Linux
-and `runyard.log` in the data directory elsewhere, and a fresh install prints its setup code
-there. On Linux, let the user fetch tailnet certificates with
-`sudo tailscale set --operator=$USER`.
-
-### Docker
-
-`docker/compose.yaml` runs Runyard beside the official Tailscale container. Runyard shares the
-sidecar's network and tailscaled socket and serves HTTPS on the tailnet itself, at
-`https://<RUNYARD_HOSTNAME>.<tailnet>.ts.net:7443/` and nowhere else. The image is built from a
-local release:
-
-```sh
-vp run release
-cp docker/.env.example docker/.env                 # set TS_AUTHKEY
-openssl rand -base64 32 > docker/runyard.key && chmod 600 docker/runyard.key
-docker compose -f docker/compose.yaml up -d --build
-docker compose -f docker/compose.yaml logs runyard # the setup code
-```
-
-Runyard's own SSH key and `known_hosts` live in the `runyard-data` volume, so machines set up
-from the dashboard need nothing mounted. Your `~/.ssh` (or `RUNYARD_SSH_DIR`) is also mounted
-read-only, for machines you already reach with your own keys. The container runs as root,
-because `tailscale cert` through the sidecar needs it. Back up `docker/runyard.key` apart from
-the `runyard-data` volume.
-
-### Over Tailscale
-
-When Tailscale runs on the same machine, Runyard serves HTTPS on its tailnet addresses with a
-certificate from `tailscale cert`, renewed on its own; no `tailscale serve` setup is needed, and
-any Tailscale install works. The tailnet needs **MagicDNS** and **HTTPS Certificates** turned
-on. Until they are, or while Tailscale is down, Runyard serves on loopback only and says why.
-
-### Users and passkeys
-
-On the tailnet, Runyard identifies each connection's device with `tailscale whois`, so people
-whose Tailscale login is added under **Settings ▸ Users** are signed in automatically, as an
-admin or a viewer. On loopback, users sign in with a username and password, and can add
-passkeys under **Account**. Passkeys need HTTPS or `localhost`, and work only on the address
-they were added from.
-
-## Security
-
-- **Reading is read-only.** Monitoring never changes a machine or a forge, and never mints a
-  token.
-- **Every change is reviewed.** A review shows each step; running it re-reads the machine and
-  the forge and refuses if the plan changed. Reviews work once and expire after 15 minutes.
-- **Runners are handled carefully.** Runyard never uses `--replace`, never moves or deletes a
-  configured runner directory, never restarts or removes a busy runner, changes one runner at a
-  time, and stops at the first failure. A runner is retired only once its replacement is
-  online, idle, labeled and running.
-- **Tokens are short-lived.** Registration and removal tokens are minted at the moment of use and
-  sent only over SSH stdin, never as arguments or files.
-- **Public repositories are refused** by default: anyone who can open a fork pull request could
-  run code on a persistent runner. A public repository needs its name typed by an admin, and an
-  organization whose Default runner group admits public repositories is refused.
-- **SSH is hardened:** batch mode, strict host key checking, no agent or port forwarding, and
-  host keys trusted only after you compare them or a machine reports them with its setup code.
-- **Credentials are encrypted** at rest with a key from the environment or a key file (see
-  [Configuration](#configuration)).
-- **Webhooks are only a nudge:** signatures are checked, and a delivery only triggers a re-read
-  through the API.
-- **Agents prepare, people run:** MCP access tokens can read and prepare changes, never run a
-  review; only a dashboard session can.
+- Every change is a review you run; reviews work once and expire after 15 minutes.
+- Runyard never uses `--replace`, never moves or deletes a runner's directory, and never
+  restarts or removes a busy runner.
+- Registration tokens are minted at the moment of use and sent only over SSH stdin.
+- Public repositories are refused unless an admin types the repository's name.
+- SSH runs in batch mode with strict host key checking and no forwarding; credentials are
+  encrypted at rest.
+- Agents' access tokens can prepare changes but never run them.
 
 ## Configuration
 
-| Variable                  | Effect                                                                                                                                                                                                        |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RUNYARD_HOST`            | Server bind address (default `127.0.0.1`).                                                                                                                                                                    |
-| `RUNYARD_PORT`            | Server port (default `7420`); the dashboard dev proxy follows it.                                                                                                                                             |
-| `RUNYARD_DATA_DIR`        | Database, SSH key and generated secret key location. Defaults to `~/Library/Application Support/Runyard` on macOS and `$XDG_DATA_HOME/runyard` (`~/.local/share/runyard`) elsewhere. Created with mode `700`. |
-| `RUNYARD_SECRET_KEY`      | Base64 32-byte key (`openssl rand -base64 32`) that encrypts stored credentials.                                                                                                                              |
-| `RUNYARD_SECRET_KEY_FILE` | File holding that key. Used when `RUNYARD_SECRET_KEY` is unset; defaults to `secret.key` in the data directory, generated with mode `600` on first start.                                                     |
-| `RUNYARD_TAILNET`         | `off` disables the tailnet HTTPS listener.                                                                                                                                                                    |
-| `RUNYARD_TAILNET_PORT`    | Tailnet HTTPS port (default `7443`). macOS lets any user bind `443`; Linux needs extra privileges for it.                                                                                                     |
-| `RUNYARD_TAILSCALE`       | Path to the `tailscale` CLI, if it isn't on `PATH`.                                                                                                                                                           |
-| `RUNYARD_WEBHOOK_PORT`    | Loopback port for GitHub webhooks (default `7444`).                                                                                                                                                           |
-| `RUNYARD_WEBHOOKS`        | `off` to skip the webhook listener.                                                                                                                                                                           |
-| `RUNYARD_SSH`             | Path to `ssh` (default `/usr/bin/ssh` where it exists, else `ssh` on `PATH`).                                                                                                                                 |
-| `RUNYARD_SSH_KEYGEN`      | Path to `ssh-keygen`, which creates Runyard's own key (default `/usr/bin/ssh-keygen` where it exists).                                                                                                        |
-| `RUNYARD_SSH_KEYSCAN`     | Path to `ssh-keyscan`, which reads machines' host keys (default `/usr/bin/ssh-keyscan` where it exists).                                                                                                      |
-| `RUNYARD_ORIGIN`          | The dashboard's public URL, such as `https://runyard.example.com`. Only needed behind a TLS-terminating reverse proxy, so passkeys and the machine setup command use the address the browser uses.            |
+Runyard needs no configuration to start. The most useful settings:
 
-A key file in the data directory only protects a copy of the database taken on its own, such as a
-backup. To keep the two apart, pass the key through the environment or a file stored elsewhere.
-Runyard refuses to start with a key that doesn't match the database, or a key file other users
-can read.
+| Variable                  | Effect                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| `RUNYARD_DATA_DIR`        | Where the database, SSH key and secret key live.                              |
+| `RUNYARD_SECRET_KEY_FILE` | The key that encrypts stored credentials; keep it apart from the data.        |
+| `RUNYARD_PORT`            | Local port (default `7420`); `RUNYARD_TAILNET_PORT` for the tailnet (`7443`). |
+| `RUNYARD_TAILNET`         | `off` to skip the tailnet HTTPS listener.                                     |
+| `RUNYARD_ORIGIN`          | The public URL, only behind a TLS-terminating reverse proxy.                  |
+
+All settings are in the [guide](docs/GUIDE.md#configuration).
 
 ## Development
 
-Runyard is in early development: everything is built and tested against fakes, and the parts
-still to try on real forges and machines are listed in [docs/PLAN.md](docs/PLAN.md), with the
-design and roadmap. It needs [Vite+](https://viteplus.dev) (`vp`) and [Bun](https://bun.sh).
+Runyard is in early development: it's built and tested against fakes, and what's still to try on
+real forges and machines is listed in [docs/PLAN.md](docs/PLAN.md). It needs
+[Vite+](https://viteplus.dev) (`vp`) and [Bun](https://bun.sh).
 
 ```sh
 vp install
-vp run dev        # server on 127.0.0.1:7420 and the dashboard dev server with /api proxied to it
-vp run ready      # format, lint and type checks, then every package's tests and builds
-vp run ci         # ready, then a smoke test of the compiled binary (CI runs locally for now)
-vp run release    # cross-compiled binaries, SHA256SUMS and the installers in apps/cli/dist/release
+vp run dev                                         # server and dashboard, with live reload
+vp run ci                                          # checks, tests, build and a smoke test
+vp run -r build && bun apps/server/scripts/demo.ts # a fictional yard, nothing real contacted
+vp run @runyard/server#check-powershell           # parse the PowerShell scripts (needs Docker)
 ```
-
-`vp run -r build` produces `apps/cli/dist/runyard`, a single binary with the dashboard embedded.
-To try the dashboard against a fictional yard, without touching real machines or forges, run
-`vp run -r build` and then `bun apps/server/scripts/demo.ts`.
-`vp run @runyard/server#check-powershell` parses every PowerShell script Runyard ships or
-generates, in Microsoft's PowerShell container (needs Docker).
 
 ## Credits
 
-Runyard builds on [fleet](https://github.com/aarondfrancis/fleet) by Aaron Francis. Its SSH
-hardening, machine health and diagnostics scripts, alert rules, plan-and-apply safety rules, and
-the runner install and retire scripts for macOS, Linux and Windows are ported from fleet, as is
-the shape of much of the dashboard.
+Runyard builds on [fleet](https://github.com/aarondfrancis/fleet) by Aaron Francis: its SSH
+hardening, machine health scripts, alert rules, plan-and-apply safety rules and runner scripts
+are ported from fleet.

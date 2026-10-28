@@ -30,7 +30,7 @@ fi
 
 if [ -f /etc/NIXOS ]; then
   if [ ! -x /bin/bash ] || [ ! -e /run/current-system/sw/share/nix-ld/lib/libicuuc.so ]; then
-    echo "NixOS needs Runyard's runner prerequisites module imported and rebuilt first (see the README, NixOS)" >&2
+    echo "NixOS needs Runyard's runner prerequisites module imported and rebuilt first (see docs/GUIDE.md, NixOS)" >&2
     exit 2
   fi
   export LD_LIBRARY_PATH="/run/current-system/sw/share/nix-ld/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"

@@ -111,7 +111,7 @@ if [ "$prepare" = yes ]; then
     exit 2
   fi
   if [ -e /etc/NIXOS ]; then
-    echo "On NixOS, declare the account and SSH server in your configuration instead (see Runyard's README)." >&2
+    echo "On NixOS, declare the account and SSH server in your configuration instead (see Runyard's guide, docs/GUIDE.md)." >&2
     exit 2
   fi
 
