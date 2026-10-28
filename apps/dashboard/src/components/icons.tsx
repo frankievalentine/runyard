@@ -1,4 +1,4 @@
-/** fleet's icon set (aarondfrancis/fleet src/components/icons.tsx), with users and plus added and a cog for settings. */
+/** aarondfrancis/fleet's icon set (aarondfrancis/fleet src/components/icons.tsx), with users and plus added and a cog for settings. */
 export function Icon({ name, size = 14 }: { name: IconName; size?: number }) {
   const common = {
     width: size,
@@ -94,7 +94,7 @@ export function Icon({ name, size = 14 }: { name: IconName; size?: number }) {
         </svg>
       );
     case "settings":
-      // A cog. fleet's version was a circle with rays, which reads as a sun (a theme toggle).
+      // A cog. aarondfrancis/fleet's version was a circle with rays, which reads as a sun (a theme toggle).
       return (
         <svg {...common}>
           <path d="M6.68 3.07L7.07 1.37L8.93 1.37L9.32 3.07L10.55 3.58L12.03 2.65L13.35 3.97L12.42 5.45L12.93 6.68L14.63 7.07L14.63 8.93L12.93 9.32L12.42 10.55L13.35 12.03L12.03 13.35L10.55 12.42L9.32 12.93L8.93 14.63L7.07 14.63L6.68 12.93L5.45 12.42L3.97 13.35L2.65 12.03L3.58 10.55L3.07 9.32L1.37 8.93L1.37 7.07L3.07 6.68L3.58 5.45L2.65 3.97L3.97 2.65L5.45 3.58Z" />

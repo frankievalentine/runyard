@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import { body, send, sessionCookie, testApp } from "../testing.ts";
 
 async function admin() {
@@ -67,7 +67,7 @@ test("boat VMs, their live cost and the plan's limits reach the view; Runyard on
     },
   ];
   await t.raw("POST", "/api/boat/connection", { token: t.fakeBoat.token });
-  const view = await body<FleetView>(t.raw("GET", "/api/fleet"));
+  const view = await body<YardView>(t.raw("GET", "/api/yard"));
   expect(view.boat?.running.map((v) => [v.id, v.jobId, v.dollars])).toEqual([
     ["bx_scr34567", null, 0.018],
     ["bx_ci234567", 9005, 0.0006],
@@ -86,7 +86,7 @@ test("disconnecting forgets the key and hides boat", async () => {
   const t = await admin();
   await t.raw("POST", "/api/boat/connection", { token: t.fakeBoat.token });
   await t.raw("DELETE", "/api/boat/connection");
-  expect((await body<FleetView>(t.raw("GET", "/api/fleet"))).boat).toBeNull();
+  expect((await body<YardView>(t.raw("GET", "/api/yard"))).boat).toBeNull();
   await t.boat.refresh();
   expect(t.boat.observation()).toBeNull();
 });

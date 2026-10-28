@@ -1,4 +1,4 @@
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import { expect, test } from "vite-plus/test";
 import { slug, suggestPools } from "./pool-suggestions.ts";
 
@@ -33,7 +33,7 @@ const base = {
   },
   queue: { jobs: [] },
   pools: { pools: [], desired: [], registrations: [], collisions: [] },
-} as unknown as FleetView;
+} as unknown as YardView;
 
 test("queued jobs no runner matches suggest a pool on machines of their OS", () => {
   const view = {
@@ -56,7 +56,7 @@ test("queued jobs no runner matches suggest a pool on machines of their OS", () 
           eligible: [],
           onDemand: null,
         },
-        // Matched, or boat.dev's: not this fleet's to fill.
+        // Matched, or boat.dev's: not Runyard's to fill.
         {
           id: 3,
           forge: "github",
@@ -75,7 +75,7 @@ test("queued jobs no runner matches suggest a pool on machines of their OS", () 
         },
       ],
     },
-  } as unknown as FleetView;
+  } as unknown as YardView;
   const [first] = suggestPools(view);
   expect(first).toMatchObject({
     title: "2 queued jobs wait for xcode",
@@ -103,7 +103,7 @@ test("a job asking only for an OS reads as needing that OS; its machines aren't 
         },
       ],
     },
-  } as unknown as FleetView;
+  } as unknown as YardView;
   const suggestions = suggestPools(view);
   expect(suggestions[0]?.title).toBe("1 queued job waits for a macOS runner");
   expect(suggestions.map((s) => s.id)).toEqual([suggestions[0]!.id, "os:linux"]);
@@ -118,7 +118,7 @@ test("machines without a pool get one suggestion per OS; Forgejo only on Linux",
   const taken = {
     ...base,
     pools: { ...base.pools, pools: [{ id: "p", name: "linux", machines: [] }] },
-  } as unknown as FleetView;
+  } as unknown as YardView;
   expect(suggestPools(taken)[0]!.draft.name).toBe("linux-2");
 });
 

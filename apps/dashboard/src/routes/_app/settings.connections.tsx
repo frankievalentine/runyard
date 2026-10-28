@@ -3,7 +3,7 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Button } from "../../components/form.tsx";
 import { Card, ErrorText, Pill, Section, StatusDot, SubHeader } from "../../components/ui.tsx";
-import { useFleet } from "../../lib/fleet.ts";
+import { useYard } from "../../lib/yard.ts";
 import { plural } from "../../lib/format.ts";
 import { checksQuery, sessionQuery } from "../../lib/queries.ts";
 
@@ -22,7 +22,7 @@ const primary =
   "inline-flex h-[28px] items-center rounded-[6px] bg-accent px-2.5 text-[12.5px] font-medium text-white hover:brightness-110";
 
 function Connections() {
-  const view = useFleet();
+  const view = useYard();
   const apps = view.github.apps;
   const installs = apps.reduce((n, a) => n + a.installations.length, 0);
   const conns = view.forgejo.connections;

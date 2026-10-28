@@ -12,7 +12,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { api, call } from "../api.ts";
-import { fleetQuery, useFleet } from "../lib/fleet.ts";
+import { yardQuery, useYard } from "../lib/yard.ts";
 import { slug, type PoolDraft } from "../lib/pool-suggestions.ts";
 import { availableScopes, isForgejo, sameScope } from "../lib/pools.ts";
 import { osLabel } from "../lib/status.ts";
@@ -50,7 +50,7 @@ export function PoolForm({
   initial?: PoolDraft;
   onDone?: () => void;
 }) {
-  const view = useFleet();
+  const view = useYard();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const start = pool ?? initial;
@@ -139,7 +139,7 @@ export function PoolForm({
         : call(api.pools.$post({ json }));
     },
     onSuccess: async ({ id }) => {
-      await queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey });
+      await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
       if (onDone) onDone();
       else void navigate({ to: "/pools/$id", params: { id } });
     },

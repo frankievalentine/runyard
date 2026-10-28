@@ -12,7 +12,7 @@ import {
   Section,
   StatusDot,
 } from "../../components/ui.tsx";
-import { useFleet } from "../../lib/fleet.ts";
+import { useYard } from "../../lib/yard.ts";
 import { sessionQuery } from "../../lib/queries.ts";
 import { osLabel } from "../../lib/status.ts";
 
@@ -20,9 +20,9 @@ export const Route = createFileRoute("/_app/ignored")({
   component: Ignored,
 });
 
-/** fleet's IgnoredDetail. */
+/** aarondfrancis/fleet's IgnoredDetail. */
 function Ignored() {
-  const view = useFleet();
+  const view = useYard();
   const { data: session } = useSuspenseQuery(sessionQuery);
   return (
     <div>

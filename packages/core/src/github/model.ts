@@ -61,6 +61,6 @@ export type GithubAppObservation = {
   rateLimit: RateLimit | null;
 };
 
-/** Ported from fleet's status rules. */
+/** Ported from aarondfrancis/fleet's status rules. */
 export const GITHUB_STALE_AFTER_MS = 150_000;
 export const JOBS_STALE_AFTER_MS = 300_000;

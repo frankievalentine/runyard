@@ -16,7 +16,7 @@ import {
   StatusDot,
   SubHeader,
 } from "../../components/ui.tsx";
-import { fleetQuery, useFleet } from "../../lib/fleet.ts";
+import { yardQuery, useYard } from "../../lib/yard.ts";
 import { plural, timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
 import { healthQuery, sessionQuery } from "../../lib/queries.ts";
@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_app/settings/github")({
 });
 
 function GithubSettings() {
-  const { github } = useFleet();
+  const { github } = useYard();
   const { created, error } = Route.useSearch();
   const justCreated = github.apps.find((a) => a.forgeId === created);
   return (
@@ -251,7 +251,7 @@ function RemoveApp({ app }: { app: GithubAppView }) {
   const queryClient = useQueryClient();
   const remove = useMutation({
     mutationFn: () => call(api.github.apps[":id"].$delete({ param: { id: app.forgeId } })),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
   });
   return (
     <AlertDialog.Root>

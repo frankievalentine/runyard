@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import type { Review } from "./engine.ts";
 import { listDispatches, listTemplates } from "./store.ts";
 import { finish, setup, type Setup } from "./test-helpers.ts";
@@ -126,7 +126,7 @@ describe("on-demand pools", () => {
     await queue(s, 504, ["self-hosted", "gpu"]);
     await round(s);
     expect(s.fakeGithub.jitConfigs).toEqual([]);
-    const view = await s.call<FleetView>("GET", "/api/fleet");
+    const view = await s.call<YardView>("GET", "/api/yard");
     expect(view.pools.pools[0]).toMatchObject({ mode: "onDemand", paused: false });
   });
 

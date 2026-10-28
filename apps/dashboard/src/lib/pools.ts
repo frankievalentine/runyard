@@ -1,4 +1,4 @@
-import type { DesiredRunner, FleetView, ForgeKind, RunnerView, Scope } from "@runyard/core";
+import type { DesiredRunner, YardView, ForgeKind, RunnerView, Scope } from "@runyard/core";
 
 export function sameScope(a: Scope, b: Scope): boolean {
   return (
@@ -9,7 +9,7 @@ export function sameScope(a: Scope, b: Scope): boolean {
 }
 
 /** The forge's runner for a desired one: same scope, same name. */
-export function runnerFor(view: FleetView, d: DesiredRunner): RunnerView | undefined {
+export function runnerFor(view: YardView, d: DesiredRunner): RunnerView | undefined {
   return view.runners.find(
     (r) => sameScope(r.scope, d.scope) && r.name.toLowerCase() === d.name.toLowerCase(),
   );
@@ -21,7 +21,7 @@ export type ScopeOption = { scope: Scope; label: string; group: string; forge: F
  * Scopes a pool can serve: each GitHub organization installation and each
  * repository of a personal one, and each Forgejo account and organization.
  */
-export function availableScopes(view: FleetView): ScopeOption[] {
+export function availableScopes(view: YardView): ScopeOption[] {
   const out: ScopeOption[] = [];
   for (const app of view.github.apps) {
     for (const i of app.installations) {
@@ -58,7 +58,7 @@ export function availableScopes(view: FleetView): ScopeOption[] {
 }
 
 /** Whether a scope belongs to a Forgejo connection. */
-export function isForgejo(view: FleetView, scope: Scope): boolean {
+export function isForgejo(view: YardView, scope: Scope): boolean {
   return view.forgejo.connections.some((c) => c.forgeId === scope.forgeId);
 }
 

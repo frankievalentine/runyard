@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { macReport } from "../machines/fake.ts";
 import { body, send, sessionCookie, testApp } from "../testing.ts";
 import { createUser } from "../auth/users.ts";
-import type { FleetView, MachineConfig } from "@runyard/core";
+import type { YardView, MachineConfig } from "@runyard/core";
 
 const PASSWORD = "correct horse battery";
 
@@ -20,10 +20,10 @@ async function signedIn() {
   return { ...t, admin: sessionCookie(res), viewer };
 }
 
-test("viewers can read the fleet but not change machines", async () => {
+test("viewers can read the yard but not change machines", async () => {
   const { app, viewer } = await signedIn();
-  expect((await send(app, "GET", "/api/fleet")).status).toBe(401);
-  expect((await send(app, "GET", "/api/fleet", undefined, { Cookie: viewer })).status).toBe(200);
+  expect((await send(app, "GET", "/api/yard")).status).toBe(401);
+  expect((await send(app, "GET", "/api/yard", undefined, { Cookie: viewer })).status).toBe(200);
   const add = await send(
     app,
     "POST",
@@ -61,8 +61,8 @@ test("adds a machine, checks it and lists its events", async () => {
     ),
   );
   await monitor.checkNow(created.id);
-  const fleet = await body<FleetView>(send(app, "GET", "/api/fleet", undefined, { Cookie: admin }));
-  expect(fleet.machines[0]).toMatchObject({ name: "Mini", connection: { state: "connected" } });
+  const yard = await body<YardView>(send(app, "GET", "/api/yard", undefined, { Cookie: admin }));
+  expect(yard.machines[0]).toMatchObject({ name: "Mini", connection: { state: "connected" } });
   const events = await body<{ kind: string }[]>(
     send(app, "GET", `/api/events?machine=${created.id}`, undefined, { Cookie: admin }),
   );
@@ -98,20 +98,20 @@ test("adds a discovered peer, or ignores and restores it", async () => {
     transport: "tailscale",
     expectedOs: "linux",
   });
-  let fleet = await body<FleetView>(send(app, "GET", "/api/fleet", undefined, { Cookie: admin }));
-  expect(fleet.discovered).toEqual([]);
-  expect(fleet.ignored.map((p) => p.nodeId)).toEqual(["n2"]);
+  let yard = await body<YardView>(send(app, "GET", "/api/yard", undefined, { Cookie: admin }));
+  expect(yard.discovered).toEqual([]);
+  expect(yard.ignored.map((p) => p.nodeId)).toEqual(["n2"]);
   await send(app, "DELETE", "/api/peers/n2/ignore", undefined, { Cookie: admin });
-  fleet = await body<FleetView>(send(app, "GET", "/api/fleet", undefined, { Cookie: admin }));
-  expect(fleet.discovered.map((p) => p.nodeId)).toEqual(["n2"]);
+  yard = await body<YardView>(send(app, "GET", "/api/yard", undefined, { Cookie: admin }));
+  expect(yard.discovered.map((p) => p.nodeId)).toEqual(["n2"]);
 });
 
-test("streams the fleet view as server-sent events", async () => {
+test("streams the yard view as server-sent events", async () => {
   const { app, viewer } = await signedIn();
   const res = await send(app, "GET", "/api/stream", undefined, { Cookie: viewer });
   expect(res.headers.get("content-type")).toContain("text/event-stream");
   const reader = res.body!.getReader();
   const { value } = await reader.read();
-  expect(new TextDecoder().decode(value)).toContain("event: fleet");
+  expect(new TextDecoder().decode(value)).toContain("event: yard");
   await reader.cancel();
 });

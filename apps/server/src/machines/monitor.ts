@@ -1,6 +1,6 @@
 import {
   MAINTENANCE_MS,
-  deriveFleet,
+  deriveYard,
   findPeer,
   newMachineState,
   observe,
@@ -8,7 +8,7 @@ import {
   osFromTailnet,
   parseReport,
   type EventKind,
-  type FleetView,
+  type YardView,
   type BoatObservation,
   type ForgejoConnectionObservation,
   type GithubAppObservation,
@@ -50,11 +50,11 @@ type Deps = {
   tailscale: TailscaleCli;
   now?: () => number;
   log?: (message: string) => void;
-  /** GitHub runners and jobs, joined into the fleet view. */
+  /** GitHub runners and jobs, joined into the yard view. */
   github?: () => GithubAppObservation[];
   forgejo?: () => ForgejoConnectionObservation[];
   boat?: () => BoatObservation | null;
-  /** Pools and the runners Runyard registered, joined into the fleet view. */
+  /** Pools and the runners Runyard registered, joined into the yard view. */
   pools?: () => {
     pools: Pool[];
     registrations: Registration[];
@@ -67,7 +67,7 @@ type Deps = {
 /**
  * Collects observations (tailnet every 15 seconds, SSH rounds a minute apart
  * with at most four sessions), evaluates monitoring transitions every five
- * seconds into the event journal, and publishes the derived fleet view.
+ * seconds into the event journal, and publishes the derived yard view.
  */
 export class MachineMonitor {
   private readonly now: () => number;
@@ -75,8 +75,8 @@ export class MachineMonitor {
   private tailnet: TailnetObservation = { at: null, snapshot: null, error: null };
   private states: Map<string, { target: string; state: MachineState }>;
   private checking = new Map<string, Promise<void>>();
-  private listeners = new Set<(view: FleetView) => void>();
-  private current: FleetView;
+  private listeners = new Set<(view: YardView) => void>();
+  private current: YardView;
   private published = "";
   private timers: ReturnType<typeof setInterval>[] = [];
   private wake: (() => void) | undefined;
@@ -88,13 +88,13 @@ export class MachineMonitor {
     this.current = this.derive();
   }
 
-  /** The latest fleet view. */
-  get view(): FleetView {
+  /** The latest yard view. */
+  get view(): YardView {
     return this.current;
   }
 
   /** Called with every changed view; returns an unsubscribe function. */
-  subscribe(listener: (view: FleetView) => void): () => void {
+  subscribe(listener: (view: YardView) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
@@ -198,8 +198,8 @@ export class MachineMonitor {
     this.publish();
   }
 
-  private derive(now = this.now()): FleetView {
-    return deriveFleet({
+  private derive(now = this.now()): YardView {
+    return deriveYard({
       machines: listMachines(this.deps.db),
       observations: this.observations,
       tailnet: this.tailnet,

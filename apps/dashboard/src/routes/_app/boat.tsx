@@ -17,7 +17,7 @@ import {
   Stat,
   StatStrip,
 } from "../../components/ui.tsx";
-import { fleetQuery, useFleet } from "../../lib/fleet.ts";
+import { yardQuery, useYard } from "../../lib/yard.ts";
 import { formatDollars, timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
 import { healthQuery, sessionQuery } from "../../lib/queries.ts";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_app/boat")({
 
 /** boat.dev: its CI jobs from GitHub's data, and with a read-only key, VMs, cost and limits. */
 function BoatPage() {
-  const view = useFleet();
+  const view = useYard();
   const { data: session } = useSuspenseQuery(sessionQuery);
   const admin = session.user?.role === "admin";
   const now = useNow();
@@ -173,7 +173,7 @@ function Connect() {
     mutationFn: () => call(api.boat.connection.$post({ json: { token } })),
     onSuccess: async () => {
       setToken("");
-      await queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey });
+      await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
     },
   });
   const submit = (e: FormEvent) => {
@@ -218,7 +218,7 @@ function Disconnect() {
   const queryClient = useQueryClient();
   const remove = useMutation({
     mutationFn: () => call(api.boat.connection.$delete()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
   });
   return (
     <AlertDialog.Root>

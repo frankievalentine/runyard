@@ -1,7 +1,7 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
 import type {
   DiagnosticGroup,
-  FleetView,
+  YardView,
   HealthView,
   MachineView,
   OsFamily,
@@ -32,7 +32,7 @@ import {
   StatusDot,
   type KeyValueRow,
 } from "../../components/ui.tsx";
-import { fleetQuery, useFleet } from "../../lib/fleet.ts";
+import { yardQuery, useYard } from "../../lib/yard.ts";
 import {
   formatBytes,
   formatClock,
@@ -56,10 +56,10 @@ export const Route = createFileRoute("/_app/machines/$id")({
   component: Machine,
 });
 
-/** fleet's MachineDetail; runners, changes and runner checks join it with runner management. */
+/** aarondfrancis/fleet's MachineDetail; runners, changes and runner checks join it with runner management. */
 function Machine() {
   const { id } = Route.useParams();
-  const view = useFleet();
+  const view = useYard();
   const { data: session } = useSuspenseQuery(sessionQuery);
   const [editing, setEditing] = useState(false);
   const m = view.machines.find((x) => x.id === id);
@@ -145,7 +145,7 @@ function Machine() {
 
 type Fact = { tone: Tone; value: string; sub: ReactNode; hollow?: boolean };
 
-/** Tailnet reachability, the last SSH read, and diagnostics. Ported from fleet's MachineGlance. */
+/** Tailnet reachability, the last SSH read, and diagnostics. Ported from aarondfrancis/fleet's MachineGlance. */
 function Glance({ m }: { m: MachineView }) {
   const now = useNow();
   const t = m.tailnet;
@@ -217,7 +217,7 @@ function Glance({ m }: { m: MachineView }) {
   );
 }
 
-/** Ported from fleet's HealthMeters. */
+/** Ported from aarondfrancis/fleet's HealthMeters. */
 function HealthMeters({ h }: { h: HealthView }) {
   const now = useNow();
   const memory = memoryUsedFraction(h);
@@ -273,7 +273,7 @@ function MeterSlot({ fraction, stale }: { fraction: number | null; stale: boolea
   return fraction == null ? <div className="h-1" /> : <Meter fraction={fraction} stale={stale} />;
 }
 
-/** Ported from fleet. */
+/** Ported from aarondfrancis/fleet. */
 function ConnectionNotice({ m }: { m: MachineView }) {
   const now = useNow();
   const c = m.connection;
@@ -311,7 +311,7 @@ function Monitoring({ m, admin }: { m: MachineView; admin: boolean }) {
       call(
         api.machines[":id"].maintenance.$post({ param: { id: m.id }, json: { on: !pausedUntil } }),
       ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
   });
   return (
     <Section title="Monitoring">
@@ -355,7 +355,7 @@ const GROUPS: [DiagnosticGroup, string][] = [
   ["system", "System"],
 ];
 
-/** Ported from fleet's MachineDiagnostics. */
+/** Ported from aarondfrancis/fleet's MachineDiagnostics. */
 function Diagnostics({ m }: { m: MachineView }) {
   const now = useNow();
   const d = m.diagnostics;
@@ -417,7 +417,7 @@ function Diagnostics({ m }: { m: MachineView }) {
   );
 }
 
-/** How Runyard reaches the machine, and what the tailnet knows about it. Ported from fleet's MachineFacts. */
+/** How Runyard reaches the machine, and what the tailnet knows about it. Ported from aarondfrancis/fleet's MachineFacts. */
 function Details({ m }: { m: MachineView }) {
   const now = useNow();
   const t = m.tailnet;
@@ -487,7 +487,7 @@ function Details({ m }: { m: MachineView }) {
   );
 }
 
-/** fleet edits in place below the header. */
+/** aarondfrancis/fleet edits in place below the header. */
 function EditMachine({ m, close }: { m: MachineView; close: () => void }) {
   const [name, setName] = useState(m.name);
   const [description, setDescription] = useState(m.description);
@@ -504,7 +504,7 @@ function EditMachine({ m, close }: { m: MachineView; close: () => void }) {
         }),
       ),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey });
+      await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
       close();
     },
   });
@@ -553,11 +553,11 @@ function RemoveMachine({ m }: { m: MachineView }) {
   const remove = useMutation({
     mutationFn: () => call(api.machines[":id"].$delete({ param: { id: m.id } })),
     onSuccess: async () => {
-      queryClient.setQueryData<FleetView>(
-        fleetQuery.queryKey,
+      queryClient.setQueryData<YardView>(
+        yardQuery.queryKey,
         (v) => v && { ...v, machines: v.machines.filter((x) => x.id !== m.id) },
       );
-      await queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey });
+      await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
       void navigate({ to: "/" });
     },
   });

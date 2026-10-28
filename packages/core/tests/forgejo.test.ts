@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { deriveFleet, deriveForgejo, type ForgejoConnectionObservation } from "../src/index.ts";
+import { deriveYard, deriveForgejo, type ForgejoConnectionObservation } from "../src/index.ts";
 
 const user = { forgeId: "fj", kind: "user" as const, target: "frankie" };
 const conn = (over: Partial<ForgejoConnectionObservation> = {}): ForgejoConnectionObservation => ({
@@ -91,8 +91,8 @@ test("waiting jobs queue with the user's label-compatible runners", () => {
   ]);
 });
 
-test("the fleet view merges both forges' runners, queue and counts", () => {
-  const fleet = deriveFleet({
+test("the yard view merges both forges' runners, queue and counts", () => {
+  const yard = deriveYard({
     machines: [],
     observations: new Map(),
     tailnet: { at: null, snapshot: null, error: null },
@@ -101,10 +101,10 @@ test("the fleet view merges both forges' runners, queue and counts", () => {
     forgejo: [conn()],
     now: 1000,
   });
-  expect(fleet.runners).toHaveLength(3);
-  expect(fleet.summary).toMatchObject({ runners: 3, busy: 1, idle: 1, offline: 1 });
-  expect(fleet.queue.jobs).toHaveLength(1);
-  expect(fleet.queue.complete).toBe(true);
+  expect(yard.runners).toHaveLength(3);
+  expect(yard.summary).toMatchObject({ runners: 3, busy: 1, idle: 1, offline: 1 });
+  expect(yard.queue.jobs).toHaveLength(1);
+  expect(yard.queue.complete).toBe(true);
 });
 
 test("an admin's assignment places a runner on a machine; a registration wins", () => {
@@ -118,14 +118,14 @@ test("an admin's assignment places a runner on a machine; a registration wins", 
     now: 1000,
   };
   const scope = { forgeId: "fj", kind: "user" as const, target: "Frankie" };
-  const fleet = deriveFleet({
+  const yard = deriveYard({
     ...base,
     assignments: [{ scope, runnerName: "BOX-CI-01", machineId: "m1" }],
   });
-  const box = fleet.runners.find((r) => r.name === "box-ci-01")!;
+  const box = yard.runners.find((r) => r.name === "box-ci-01")!;
   expect(box.machineId).toBe("m1");
-  expect(fleet.assignedRunners).toEqual([box.key]);
-  const registered = deriveFleet({
+  expect(yard.assignedRunners).toEqual([box.key]);
+  const registered = deriveYard({
     ...base,
     assignments: [{ scope, runnerName: "box-ci-01", machineId: "m1" }],
     registrations: [

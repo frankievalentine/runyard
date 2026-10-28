@@ -12,7 +12,7 @@ const OS_NAMES: Record<string, OsFamily> = {
 /**
  * Decodes the health and diagnostics script output (`RFM\tname\tvalue` rows
  * ending in `RFM_END`), rejecting truncated or inconsistent reports. Ported
- * from fleet's `parse_inspection`, without the runner probe.
+ * from aarondfrancis/fleet's `parse_inspection`, without the runner probe.
  *
  * `expectedOs` is the OS the machine should report; `other` accepts any.
  */

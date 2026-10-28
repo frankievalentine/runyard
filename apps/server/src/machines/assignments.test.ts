@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import { body, send, sessionCookie, testApp } from "../testing.ts";
 import { createMachine } from "./store.ts";
 
@@ -33,7 +33,7 @@ test("an admin places a runner on a machine, takes it off, and deleting the mach
       })
     ).status,
   ).toBe(201);
-  const forgeId = (await body<FleetView>(raw("GET", "/api/fleet"))).forgejo.connections[0]!.forgeId;
+  const forgeId = (await body<YardView>(raw("GET", "/api/yard"))).forgejo.connections[0]!.forgeId;
   const machine = createMachine(t.deps.db, {
     name: "Laptop",
     sshTarget: "me@laptop",
@@ -49,17 +49,17 @@ test("an admin places a runner on a machine, takes it off, and deleting the mach
   expect((await send(t.app, "PUT", "/api/runners/assignment", {})).status).toBe(401);
   expect((await assign("m_missing")).status).toBe(404);
   expect((await assign(machine.id)).status).toBe(200);
-  let view = await body<FleetView>(raw("GET", "/api/fleet"));
+  let view = await body<YardView>(raw("GET", "/api/yard"));
   expect(view.runners[0]).toMatchObject({ name: "laptop", machineId: machine.id });
   expect(view.assignedRunners).toEqual([view.runners[0]!.key]);
 
   await assign(null);
-  view = await body<FleetView>(raw("GET", "/api/fleet"));
+  view = await body<YardView>(raw("GET", "/api/yard"));
   expect(view.runners[0]?.machineId).toBeNull();
 
   await assign(machine.id);
   await raw("DELETE", `/api/machines/${machine.id}`);
-  view = await body<FleetView>(raw("GET", "/api/fleet"));
+  view = await body<YardView>(raw("GET", "/api/yard"));
   expect(view.runners[0]?.machineId).toBeNull();
   expect(view.assignedRunners).toEqual([]);
 });

@@ -1,7 +1,7 @@
-import type { FleetView, JobView, QueuedJobView, RunnerView } from "@runyard/core";
+import type { YardView, JobView, QueuedJobView, RunnerView } from "@runyard/core";
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useFleet } from "../lib/fleet.ts";
+import { useYard } from "../lib/yard.ts";
 import { formatDollars, formatElapsed, plural } from "../lib/format.ts";
 import { useNow } from "../lib/now.ts";
 import { isBuiltinLabel, runnerStatus } from "../lib/status.ts";
@@ -9,7 +9,7 @@ import { CopyValue } from "./CopyValue.tsx";
 import { Icon } from "./icons.tsx";
 import { Card, EmptyLine, Pill, StatusDot } from "./ui.tsx";
 
-/** Ported from fleet's runner pieces (details/shared.tsx and QueueDetail.tsx). */
+/** Ported from aarondfrancis/fleet's runner pieces (details/shared.tsx and QueueDetail.tsx). */
 
 /** A steady timer that ticks by itself. */
 export function Elapsed({ since }: { since: number }) {
@@ -71,7 +71,7 @@ export function GitHubLink({
 export function RunnerLine({ r }: { r: RunnerView }) {
   const navigate = useNavigate();
   const status = runnerStatus(r);
-  const vm = useFleet().boatVms[r.key];
+  const vm = useYard().boatVms[r.key];
   // The job's own name leads; workflow names (often just "CI") go underneath.
   const detail = r.job
     ? [r.job.workflowName, r.job.repo, r.name].filter(Boolean).join(" · ")
@@ -112,13 +112,13 @@ export function RunnerLine({ r }: { r: RunnerView }) {
 }
 
 /** What an empty queue means: nothing waiting, or no job data yet. */
-export function emptyQueueText(view: FleetView): string {
+export function emptyQueueText(view: YardView): string {
   if (!forgesConnected(view)) return "Connect GitHub or Forgejo to see queued jobs.";
   return view.queue.at ? "Nothing queued for self-hosted runners." : "Waiting for job data.";
 }
 
 /** Whether any forge is connected, so runner and queue sections have something to show. */
-export function forgesConnected(view: FleetView): boolean {
+export function forgesConnected(view: YardView): boolean {
   return view.github.apps.length > 0 || view.forgejo.connections.length > 0;
 }
 
@@ -128,7 +128,7 @@ export function QueueList({
   limit,
   compact,
 }: {
-  view: FleetView;
+  view: YardView;
   /** A subset of the queue, such as boat.dev's jobs. */
   jobs?: QueuedJobView[];
   limit?: number;
@@ -161,7 +161,7 @@ function QueuedJob({
   compact,
 }: {
   job: QueuedJobView;
-  view: FleetView;
+  view: YardView;
   compact?: boolean;
 }) {
   const eligible = view.runners.filter((r) => job.eligible.includes(r.key));
@@ -228,7 +228,7 @@ export function JobTitle({ job }: { job: JobView }) {
   );
 }
 
-/** fleet's cells in the machine table: one small block per runner. */
+/** aarondfrancis/fleet's cells in the machine table: one small block per runner. */
 export function RunnerCells({ runners }: { runners: RunnerView[] }) {
   return (
     <span

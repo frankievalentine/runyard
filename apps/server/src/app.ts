@@ -35,7 +35,7 @@ export type AppDeps = {
   challenges: Challenges;
   tailnetLogin: TailnetLogin;
   monitor: MachineMonitor;
-  /** Fictional data: the dashboard shows fleet's DEMO DATA banner. */
+  /** Fictional data: the dashboard shows aarondfrancis/fleet's DEMO DATA banner. */
   demo?: boolean;
   engine: PoolEngine;
   forgejo: ForgejoMonitor;

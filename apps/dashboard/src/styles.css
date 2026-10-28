@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Semantic tokens, ported from fleet's palette. Each is `light-dark(light, dark)`;
+ * Semantic tokens, ported from aarondfrancis/fleet's palette. Each is `light-dark(light, dark)`;
  * `color-scheme` picks the side: the OS preference by default, or the theme the
  * viewer chose (`data-theme` on <html>).
  */
@@ -157,7 +157,7 @@ code,
   }
 }
 
-/* fleet's sidebar tree connector. */
+/* aarondfrancis/fleet's sidebar tree connector. */
 .tree-child {
   position: relative;
 }

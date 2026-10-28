@@ -11,7 +11,7 @@ export type Tone = "busy" | "ok" | "warn" | "bad" | "muted" | "info";
 
 export type StatusLabel = { tone: Tone; label: string; hollow?: boolean };
 
-/** Ported from fleet: a hollow dot means old or unknown data. */
+/** Ported from aarondfrancis/fleet: a hollow dot means old or unknown data. */
 export function connectionStatus(c: Connection): StatusLabel {
   switch (c.state) {
     case "connected":
@@ -87,7 +87,7 @@ export function machineTooltip(m: MachineView): string {
   return [m.name, m.description].filter(Boolean).join("\n");
 }
 
-/** Ported from fleet: warnings and unknowns, or why there's nothing to say. */
+/** Ported from aarondfrancis/fleet: warnings and unknowns, or why there's nothing to say. */
 export function diagnosticSummary(m: MachineView): string {
   const d = m.diagnostics;
   if (!d) return "Not checked";
@@ -111,7 +111,7 @@ export function osLine(m: MachineView): string | null {
   return m.os ? osLabel[m.os] : null;
 }
 
-/** Ported from fleet's runnerStatus: a hollow dot means old or unknown data. */
+/** Ported from aarondfrancis/fleet's runnerStatus: a hollow dot means old or unknown data. */
 export function runnerStatus(r: RunnerView): StatusLabel {
   switch (r.activity) {
     case "busy":

@@ -1,4 +1,4 @@
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import {
   keepPreviousData,
   queryOptions,
@@ -10,21 +10,21 @@ import { api, call } from "../api.ts";
 import { sessionQuery } from "./queries.ts";
 
 /** The server pushes every change over SSE, so this is never refetched on a timer. */
-export const fleetQuery = queryOptions({
-  queryKey: ["fleet"],
-  queryFn: async () => (await call(api.fleet.$get())) as FleetView,
+export const yardQuery = queryOptions({
+  queryKey: ["yard"],
+  queryFn: async () => (await call(api.yard.$get())) as YardView,
   staleTime: Number.POSITIVE_INFINITY,
 });
 
-/** Keeps the fleet view current from the server's event stream while mounted. */
-export function useFleetStream() {
+/** Keeps the yard view current from the server's event stream while mounted. */
+export function useYardStream() {
   const queryClient = useQueryClient();
   useEffect(() => {
     const source = new EventSource("/api/stream");
-    source.addEventListener("fleet", (event) => {
+    source.addEventListener("yard", (event) => {
       queryClient.setQueryData(
-        fleetQuery.queryKey,
-        JSON.parse((event as MessageEvent<string>).data) as FleetView,
+        yardQuery.queryKey,
+        JSON.parse((event as MessageEvent<string>).data) as YardView,
       );
       // A changed view may come with new events.
       void queryClient.invalidateQueries({ queryKey: ["events"] });
@@ -38,8 +38,8 @@ export function useFleetStream() {
   }, [queryClient]);
 }
 
-export function useFleet(): FleetView {
-  return useSuspenseQuery(fleetQuery).data;
+export function useYard(): YardView {
+  return useSuspenseQuery(yardQuery).data;
 }
 
 /** Events per history page. */

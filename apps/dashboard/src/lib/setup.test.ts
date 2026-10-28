@@ -1,4 +1,4 @@
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import { expect, test } from "vite-plus/test";
 import { machineToReview, setupSteps } from "./setup.ts";
 
@@ -8,7 +8,7 @@ const empty = {
   forgejo: { connections: [] },
   runners: [],
   pools: { pools: [], desired: [], registrations: [], collisions: [] },
-} as unknown as FleetView;
+} as unknown as YardView;
 
 test("a fresh install has nothing done", () => {
   expect(setupSteps(empty).map((s) => s.done)).toEqual([false, false, false, false]);
@@ -30,7 +30,7 @@ test("steps follow what exists", () => {
       collisions: [],
     },
     runners: [{ name: "box-ci-01", scope }],
-  } as unknown as FleetView;
+  } as unknown as YardView;
   const steps = setupSteps(view);
   expect(steps.map((s) => s.done)).toEqual([true, true, true, true]);
   expect(steps[3]?.detail).toBe("1 of 2 runners registered.");
@@ -38,7 +38,7 @@ test("steps follow what exists", () => {
 });
 
 test("an app without installations isn't connected yet", () => {
-  const view = { ...empty, github: { apps: [{ installations: [] }] } } as unknown as FleetView;
+  const view = { ...empty, github: { apps: [{ installations: [] }] } } as unknown as YardView;
   expect(setupSteps(view)[0]).toMatchObject({
     done: false,
     detail: expect.stringContaining("Install the GitHub App"),

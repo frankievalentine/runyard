@@ -59,7 +59,7 @@ export type LocalTemplate = { path: string; present: boolean; version: string | 
 
 export type ForgejoMode = { kind: "host" } | { kind: "docker"; image: string };
 
-/** How a runner runs on its machine, from fleet's service modes. */
+/** How a runner runs on its machine, from aarondfrancis/fleet's service modes. */
 export type ServiceMode = "launchagent" | "systemd" | "windows-service";
 
 export function serviceModeFor(os: OsFamily): ServiceMode | null {
@@ -111,7 +111,7 @@ export type RemoteRunner = {
   labels: string[];
 };
 
-/** Fleet's guard: a running service is active (systemd), running (Windows) or active (launchctl). */
+/** aarondfrancis/fleet's guard: a running service is active (systemd), running (Windows) or active (launchctl). */
 export function isActive(service: string): boolean {
   return service === "active" || service === "running";
 }

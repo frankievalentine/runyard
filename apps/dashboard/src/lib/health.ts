@@ -1,6 +1,6 @@
 import type { DiskStats, HealthView } from "@runyard/core";
 
-/** Ported from fleet's lib/health.ts. */
+/** Ported from aarondfrancis/fleet's lib/health.ts. */
 export function memoryUsedFraction(health: HealthView | null | undefined): number | null {
   if (health?.memoryTotalBytes == null || health.memoryAvailableBytes == null) return null;
   return 1 - health.memoryAvailableBytes / Math.max(1, health.memoryTotalBytes);

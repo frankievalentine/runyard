@@ -32,7 +32,7 @@ import { TailscaleCli, WhoisCache } from "./tailscale.ts";
  * Opens storage, then serves on loopback TCP and, when Tailscale is available,
  * on HTTPS at this machine's tailnet addresses with its `*.ts.net` certificate.
  */
-/** Replaces the programs Runyard runs; the demo harness uses it to fake a whole fleet. */
+/** Replaces the programs Runyard runs; the demo harness uses it to fake a whole yard. */
 export type StartOverrides = {
   run?: CommandRunner;
   programs?: SshPrograms;

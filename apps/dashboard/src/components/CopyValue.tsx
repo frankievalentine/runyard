@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
-/** Ported from fleet: one small confirmation for the latest copy on the page. */
+/** Ported from aarondfrancis/fleet: one small confirmation for the latest copy on the page. */
 const Feedback = createContext<(message: string, failed?: boolean) => void>(() => {});
 
 export function CopyFeedback({ children }: { children: ReactNode }) {

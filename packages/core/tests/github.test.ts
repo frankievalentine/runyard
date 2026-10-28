@@ -89,7 +89,7 @@ const app = (installations: InstallationObservation[]): GithubAppObservation => 
 });
 
 describe("deriveGithub", () => {
-  test("runner activity, the running job and fleet-wide counts", () => {
+  test("runner activity, the running job and yard-wide counts", () => {
     const view = deriveGithub([app([install()])], 1000);
     expect(view.runners.map((r) => [r.name, r.activity])).toEqual([
       ["mini-01", "busy"],
@@ -211,7 +211,7 @@ describe("on-demand runners and runners GitHub doesn't list", () => {
               runnerId: 9002,
               runnerName: "elsewhere",
             }),
-            // GitHub's own runners aren't this fleet's.
+            // GitHub's own runners aren't Runyard's.
             job({
               id: 303,
               status: "in_progress",

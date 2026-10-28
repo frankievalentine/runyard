@@ -9,7 +9,7 @@ import { Icon } from "./icons.tsx";
 const item =
   "flex h-7 w-full items-center gap-2 rounded-[4px] px-2 text-left outline-none data-[highlighted]:bg-selected";
 
-/** fleet's Settings gear: Settings, the theme and sign-out. */
+/** aarondfrancis/fleet's Settings gear: Settings, the theme and sign-out. */
 export function AccountMenu() {
   const { data: session } = useSuspenseQuery(sessionQuery);
   const theme = useTheme();

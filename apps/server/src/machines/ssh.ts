@@ -7,7 +7,7 @@ import posixHealth from "../../scripts/machine-health.sh" with { type: "text" };
 import type { CommandRunner } from "../command.ts";
 
 /**
- * Added to the user's own OpenSSH configuration on every connection (fleet's
+ * Added to the user's own OpenSSH configuration on every connection (aarondfrancis/fleet's
  * hardening): never prompt, never trust an unknown host key, never forward
  * anything to the machine.
  */

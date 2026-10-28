@@ -1,4 +1,4 @@
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import { runnerFor } from "./pools.ts";
 
 export type SetupStep = {
@@ -9,7 +9,7 @@ export type SetupStep = {
 };
 
 /** The Getting started steps, read from what's already set up. Nothing is stored. */
-export function setupSteps(view: FleetView): SetupStep[] {
+export function setupSteps(view: YardView): SetupStep[] {
   const githubReady = view.github.apps.some((a) => a.installations.length > 0);
   const forgejoReady = view.forgejo.connections.some((c) => !c.error);
   const reachable = view.machines.filter((m) => m.connection.state === "connected");
@@ -58,6 +58,6 @@ export function setupSteps(view: FleetView): SetupStep[] {
 }
 
 /** The first machine with runners still to install, for the last step's link. */
-export function machineToReview(view: FleetView): string | null {
+export function machineToReview(view: YardView): string | null {
   return view.pools.desired.find((d) => !runnerFor(view, d))?.machineId ?? null;
 }

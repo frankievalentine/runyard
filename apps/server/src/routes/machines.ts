@@ -36,11 +36,11 @@ export function machineRoutes({ db, monitor }: { db: Db; monitor: MachineMonitor
   const user = requireUser();
   return (
     new Hono<AppEnv>()
-      .get("/fleet", user, (c) => c.json(monitor.view))
+      .get("/yard", user, (c) => c.json(monitor.view))
       .get("/stream", user, (c) =>
         streamSSE(c, async (stream) => {
           const send = (view: unknown) =>
-            stream.writeSSE({ event: "fleet", data: JSON.stringify(view) });
+            stream.writeSSE({ event: "yard", data: JSON.stringify(view) });
           const unsubscribe = monitor.subscribe((view) => void send(view));
           stream.onAbort(unsubscribe);
           await send(monitor.view);

@@ -1,8 +1,8 @@
-import { deriveIssues, type Alert, type FleetView, type MachineView } from "@runyard/core";
+import { deriveIssues, type Alert, type YardView, type MachineView } from "@runyard/core";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { EVENTS_PAGE, eventsQuery, useFleet } from "../lib/fleet.ts";
+import { EVENTS_PAGE, eventsQuery, useYard } from "../lib/yard.ts";
 import { formatBytes, formatClock, formatPercent, formatUptime, timeAgo } from "../lib/format.ts";
 import { diskUsedFraction, memoryUsedFraction, primaryDisk } from "../lib/health.ts";
 import { useNow } from "../lib/now.ts";
@@ -29,7 +29,7 @@ import {
   StatusDot,
 } from "./ui.tsx";
 
-/** Active alerts, with the machine named when listed across machines. Ported from fleet's Monitoring. */
+/** Active alerts, with the machine named when listed across machines. Ported from aarondfrancis/fleet's Monitoring. */
 export function ActiveAlerts({
   alerts,
   showMachine = false,
@@ -82,8 +82,8 @@ export function ActiveAlerts({
   );
 }
 
-/** fleet's Needs attention: everything worth a look besides active alerts. */
-export function Attention({ view }: { view: FleetView }) {
+/** aarondfrancis/fleet's Needs attention: everything worth a look besides active alerts. */
+export function Attention({ view }: { view: YardView }) {
   const navigate = useNavigate();
   const issues = deriveIssues(view);
   if (issues.length === 0) return null;
@@ -148,11 +148,11 @@ const COLUMNS = [
   { label: "Uptime", className: "hidden px-3 min-[1300px]:table-cell" },
 ];
 
-/** Ported from fleet's MachineTable, with its Runners column. */
+/** Ported from aarondfrancis/fleet's MachineTable, with its Runners column. */
 export function MachineTable({ machines }: { machines: MachineView[] }) {
   const navigate = useNavigate();
   const now = useNow();
-  const { runners } = useFleet();
+  const { runners } = useYard();
   if (!machines.length) {
     return (
       <Card>

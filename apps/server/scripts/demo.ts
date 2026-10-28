@@ -1,5 +1,5 @@
 /**
- * Runs Runyard against a fictional fleet: a fake runner answers `tailscale
+ * Runs Runyard against a fictional yard: a fake runner answers `tailscale
  * status` and every SSH session, so nothing real is contacted. For UI work
  * and screenshots: `bun apps/server/scripts/demo.ts`, then open the URL and
  * enter the setup code it prints. Data lives in a fresh temporary directory.
@@ -143,7 +143,7 @@ const files = (await Bun.file(join(dist, "index.html")).exists())
 const dashboard = files.length ? new Map(files.map((f) => [`/${f}`, join(dist, f)])) : undefined;
 
 // A fictional GitHub with one app per account, as private apps require: an
-// organization with a busy fleet, and a personal account's per-repo runners.
+// organization with a busy yard, and a personal account's per-repo runners.
 // The fakes' app keys persist beside the demo's data, so a restart's first
 // refresh already signs with the key Runyard has stored.
 const keysFile = join(demoDir, "demo-github-keys.json");
@@ -450,4 +450,4 @@ if (listMachines(db).length === 0) {
 }
 // Check right away instead of waiting for the next minute-long round.
 await monitor.checkNow();
-console.log("Demo fleet: every answer is fake; nothing real is contacted.");
+console.log("Demo yard: every answer is fake; nothing real is contacted.");

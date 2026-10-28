@@ -101,7 +101,7 @@ export type MachineView = {
 /** A runner Runyard didn't register, placed on a machine by an admin. Display only. */
 export type RunnerAssignment = { scope: Scope; runnerName: string; machineId: string };
 
-export type FleetView = {
+export type YardView = {
   generatedAt: number;
   tailnet: { name: string | null; at: number | null; stale: boolean; error: string | null };
   machines: MachineView[];
@@ -142,7 +142,7 @@ export type PoolsView = {
 };
 
 /** The whole dashboard view, from configuration and observations. No I/O. */
-export function deriveFleet(input: {
+export function deriveYard(input: {
   machines: MachineConfig[];
   observations: ReadonlyMap<string, MachineObservation>;
   tailnet: TailnetObservation;
@@ -158,7 +158,7 @@ export function deriveFleet(input: {
   templateRecords?: TemplateRecord[];
   dispatches?: Dispatch[];
   now: number;
-}): FleetView {
+}): YardView {
   const { now, tailnet } = input;
   const peers = tailnet.snapshot?.peers ?? [];
   const tailnetFresh = tailnet.at !== null && now - tailnet.at <= TAILNET_STALE_AFTER_MS;
@@ -364,7 +364,7 @@ function healthView(observation: MachineObservation | undefined, now: number): H
   };
 }
 
-/** Ported from fleet's `machine_connection`. */
+/** Ported from aarondfrancis/fleet's `machine_connection`. */
 export function connection(
   peer: TailnetPeer | undefined,
   observation: MachineObservation | undefined,

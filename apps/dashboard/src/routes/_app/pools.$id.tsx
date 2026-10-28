@@ -20,7 +20,7 @@ import {
   Section,
   StatusDot,
 } from "../../components/ui.tsx";
-import { fleetQuery, useFleet } from "../../lib/fleet.ts";
+import { yardQuery, useYard } from "../../lib/yard.ts";
 import { isForgejo, runnerFor, scopeLabel } from "../../lib/pools.ts";
 import { sessionQuery } from "../../lib/queries.ts";
 import { runnerStatus } from "../../lib/status.ts";
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_app/pools/$id")({
 
 function PoolPage() {
   const { id } = Route.useParams();
-  const view = useFleet();
+  const view = useYard();
   const navigate = useNavigate();
   const { data: session } = useSuspenseQuery(sessionQuery);
   const [editing, setEditing] = useState(false);
@@ -372,7 +372,7 @@ function DeletePool({ pool, onDeleted }: { pool: Pool; onDeleted: () => void }) 
   const remove = useMutation({
     mutationFn: () => call(api.pools[":id"].$delete({ param: { id: pool.id } })),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey });
+      await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
       onDeleted();
     },
   });

@@ -1,4 +1,4 @@
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -15,8 +15,8 @@ import { Button } from "../components/form.tsx";
 import { Icon } from "../components/icons.tsx";
 import { Sidebar } from "../components/Sidebar.tsx";
 import { ErrorText, TimeAgo } from "../components/ui.tsx";
-import { fleetQuery, useFleet, useFleetStream } from "../lib/fleet.ts";
-import { filterFleet, flattenNav, navKey, type NavItem } from "../lib/nav.ts";
+import { yardQuery, useYard, useYardStream } from "../lib/yard.ts";
+import { filterYard, flattenNav, navKey, type NavItem } from "../lib/nav.ts";
 import { healthQuery, sessionQuery } from "../lib/queries.ts";
 
 /** Every signed-in page. Sends visitors to setup or sign-in first. */
@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_app")({
     if (session.setupRequired) throw redirect({ to: "/setup" });
     if (!session.user) throw redirect({ to: "/login" });
   },
-  loader: ({ context }) => context.queryClient.ensureQueryData(fleetQuery),
+  loader: ({ context }) => context.queryClient.ensureQueryData(yardQuery),
   component: Layout,
 });
 
@@ -50,10 +50,10 @@ function useOpenGroup(key: string): [boolean, (open: boolean) => void] {
   return [open, setOpen];
 }
 
-/** fleet's window: sidebar, a header with breadcrumbs and Check now, and the page. */
+/** aarondfrancis/fleet's window: sidebar, a header with breadcrumbs and Check now, and the page. */
 function Layout() {
-  useFleetStream();
-  const view = useFleet();
+  useYardStream();
+  const view = useYard();
   const { data: session } = useSuspenseQuery(sessionQuery);
   const health = useQuery(healthQuery);
   const demo = health.data?.demo === true;
@@ -64,7 +64,7 @@ function Layout() {
   const [otherOpen, setOtherOpen] = useOpenGroup("runyard.otherMachinesOpen");
   const [runnersOpen, setRunnersOpen] = useOpenGroup("runyard.runnersOpen");
 
-  const filtered = useMemo(() => filterFleet(view, query), [view, query]);
+  const filtered = useMemo(() => filterYard(view, query), [view, query]);
   const nav = useMemo(
     () =>
       flattenNav(filtered, query.trim() !== "" || otherOpen, query.trim() !== "" || runnersOpen),
@@ -72,7 +72,7 @@ function Layout() {
   );
   const selected = selectedKey(pathname);
 
-  // fleet's keyboard navigation: ↑/↓ through the sidebar, Home for the overview.
+  // aarondfrancis/fleet's keyboard navigation: ↑/↓ through the sidebar, Home for the overview.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target;
@@ -128,12 +128,12 @@ function Layout() {
   );
 }
 
-function Main({ view, pathname, demo }: { view: FleetView; pathname: string; demo: boolean }) {
+function Main({ view, pathname, demo }: { view: YardView; pathname: string; demo: boolean }) {
   const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
   const check = useMutation({
-    mutationFn: async () => (await call(api.check.$post())) as FleetView,
-    onSuccess: (next) => queryClient.setQueryData(fleetQuery.queryKey, next),
+    mutationFn: async () => (await call(api.check.$post())) as YardView,
+    onSuccess: (next) => queryClient.setQueryData(yardQuery.queryKey, next),
   });
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
@@ -216,7 +216,7 @@ function UpdateBar() {
   );
 }
 
-/** fleet's banner. Demo is a server mode here: on a shared server, one viewer can't switch it for everyone. */
+/** aarondfrancis/fleet's banner. Demo is a server mode here: on a shared server, one viewer can't switch it for everyone. */
 function DemoBanner() {
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-warn/30 bg-warn/10 px-5 py-2 text-[12px]">
@@ -241,27 +241,27 @@ function selectedKey(pathname: string): string {
   return pathname === "/ignored" ? "/ignored" : pathname === "/" ? "/" : pathname;
 }
 
-function breadcrumbs(pathname: string, view: FleetView): { label: string; to?: string }[] {
-  const fleet = { label: "Yard", to: "/" };
+function breadcrumbs(pathname: string, view: YardView): { label: string; to?: string }[] {
+  const yard = { label: "Yard", to: "/" };
   const machine = /^\/machines\/([^/]+)$/.exec(pathname)?.[1];
-  if (machine === "add") return [fleet, { label: "Add machines" }];
+  if (machine === "add") return [yard, { label: "Add machines" }];
   if (machine)
-    return [fleet, { label: view.machines.find((m) => m.id === machine)?.name ?? "Machine" }];
+    return [yard, { label: view.machines.find((m) => m.id === machine)?.name ?? "Machine" }];
   const peer = /^\/peers\/([^/]+)$/.exec(pathname)?.[1];
   if (peer) {
     return [
-      fleet,
+      yard,
       { label: "Tailnet devices" },
       { label: view.discovered.find((p) => p.nodeId === peer)?.name ?? "Machine" },
     ];
   }
   const pool = /^\/pools\/([^/]+)$/.exec(pathname)?.[1];
-  if (pool === "new") return [fleet, { label: "New pool" }];
-  if (pool) return [fleet, { label: view.pools.pools.find((p) => p.id === pool)?.name ?? "Pool" }];
+  if (pool === "new") return [yard, { label: "New pool" }];
+  if (pool) return [yard, { label: view.pools.pools.find((p) => p.id === pool)?.name ?? "Pool" }];
   const runner = /^\/runners\/([^/]+)$/.exec(pathname)?.[1];
   if (runner) {
     const key = decodeURIComponent(runner);
-    return [fleet, { label: view.runners.find((r) => r.key === key)?.name ?? "Runner" }];
+    return [yard, { label: view.runners.find((r) => r.key === key)?.name ?? "Runner" }];
   }
   const pages: Record<string, string> = {
     "/queue": "Queued jobs",
@@ -284,5 +284,5 @@ function breadcrumbs(pathname: string, view: FleetView): { label: string; to?: s
       { label: s.label },
     ];
   }
-  return [fleet, { label: pages[pathname] ?? "" }];
+  return [yard, { label: pages[pathname] ?? "" }];
 }

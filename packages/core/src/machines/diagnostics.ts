@@ -10,7 +10,7 @@ import {
 
 /**
  * Interprets a report's configuration facts, without network calls or
- * changes to the machine. Ported from fleet's `machine_diagnostics`; runner
+ * changes to the machine. Ported from aarondfrancis/fleet's `machine_diagnostics`; runner
  * checks arrive with runner management.
  */
 export function evaluateDiagnostics(report: MachineReport): Diagnostic[] {

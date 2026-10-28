@@ -1,4 +1,4 @@
-/** Ported from fleet's dashboard; timestamps are epoch milliseconds. */
+/** Ported from aarondfrancis/fleet's dashboard; timestamps are epoch milliseconds. */
 
 /** Elapsed time as a steady timer: `0:42`, `12:05`, `1:02:09`. */
 export function formatElapsed(ms: number): string {

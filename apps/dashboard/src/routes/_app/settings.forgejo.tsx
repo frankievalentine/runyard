@@ -14,7 +14,7 @@ import {
   StatusDot,
   SubHeader,
 } from "../../components/ui.tsx";
-import { fleetQuery, useFleet } from "../../lib/fleet.ts";
+import { yardQuery, useYard } from "../../lib/yard.ts";
 import { plural, timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
 import { healthQuery, sessionQuery } from "../../lib/queries.ts";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_app/settings/forgejo")({
 });
 
 function ForgejoSettings() {
-  const { forgejo } = useFleet();
+  const { forgejo } = useYard();
   return (
     <div>
       <SubHeader
@@ -132,7 +132,7 @@ function Connect() {
     mutationFn: () => call(api.forgejo.connections.$post({ json: { url, token } })),
     onSuccess: async () => {
       setToken("");
-      await queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey });
+      await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
     },
   });
   const submit = (e: FormEvent) => {
@@ -186,7 +186,7 @@ function RemoveConnection({ conn }: { conn: ForgejoConnectionView }) {
   const queryClient = useQueryClient();
   const remove = useMutation({
     mutationFn: () => call(api.forgejo.connections[":id"].$delete({ param: { id: conn.forgeId } })),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
   });
   return (
     <AlertDialog.Root>

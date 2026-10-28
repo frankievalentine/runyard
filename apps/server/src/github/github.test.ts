@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import { body, send, sessionCookie, testApp } from "../testing.ts";
 import { secrets as secretsTable } from "../db/schema.ts";
 import { listGithubApps } from "./store.ts";
@@ -28,8 +28,8 @@ async function createApp(t: Awaited<ReturnType<typeof admin>>, org: string | nul
   return { action, manifest: JSON.parse(manifest) as Record<string, unknown>, callback, state };
 }
 
-const fleet = async (t: Awaited<ReturnType<typeof admin>>) =>
-  body<FleetView>(send(t.app, "GET", "/api/fleet", undefined, { Cookie: t.cookie }));
+const yard = async (t: Awaited<ReturnType<typeof admin>>) =>
+  body<YardView>(send(t.app, "GET", "/api/yard", undefined, { Cookie: t.cookie }));
 
 describe("GitHub App setup", () => {
   test("builds a manifest for the user's or an organization's settings", async () => {
@@ -141,7 +141,7 @@ describe("GitHub monitoring", () => {
     await createApp(t);
     await t.github.refreshAll();
 
-    const view = await fleet(t);
+    const view = await yard(t);
     expect(view.github.apps[0]?.installations[0]).toMatchObject({
       account: "acme",
       accountType: "Organization",
@@ -191,7 +191,7 @@ describe("GitHub monitoring", () => {
     ]);
     await createApp(t);
     await t.github.refreshAll();
-    const view = await fleet(t);
+    const view = await yard(t);
     expect(view.github.runners.map((r) => [r.scopeLabel, r.activity])).toEqual([
       ["frankie/app", "idle"],
       ["frankie/site", "offline"],
@@ -225,7 +225,7 @@ describe("GitHub monitoring", () => {
     t.fakeGithub.tokens.clear();
     // The cached token is now unknown to GitHub.
     await t.github.pollRunners();
-    const view = await fleet(t);
+    const view = await yard(t);
     expect(view.github.apps[0]?.installations[0]?.runnersError).toContain("401");
   });
 });

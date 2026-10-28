@@ -16,7 +16,7 @@ import {
   StatStrip,
   ErrorText,
 } from "../../components/ui.tsx";
-import { fleetQuery, useFleet } from "../../lib/fleet.ts";
+import { yardQuery, useYard } from "../../lib/yard.ts";
 import { sessionQuery } from "../../lib/queries.ts";
 import { formatDollars, timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
@@ -26,10 +26,10 @@ export const Route = createFileRoute("/_app/runners/$key")({
   component: Runner,
 });
 
-/** fleet's RunnerDetail; machine and runner-management state join it with runner management. */
+/** aarondfrancis/fleet's RunnerDetail; machine and runner-management state join it with runner management. */
 function Runner() {
   const { key } = Route.useParams();
-  const view = useFleet();
+  const view = useYard();
   const now = useNow();
   const r = view.runners.find((x) => x.key === key);
   const vm = r ? view.boatVms[r.key] : undefined;
@@ -218,7 +218,7 @@ function Runner() {
  * shows there. Display only: Runyard still won't change it.
  */
 function RunsOn({ r, assigned }: { r: RunnerView; assigned: boolean }) {
-  const view = useFleet();
+  const view = useYard();
   const queryClient = useQueryClient();
   const save = useMutation({
     mutationFn: (machineId: string | null) =>
@@ -235,7 +235,7 @@ function RunsOn({ r, assigned }: { r: RunnerView; assigned: boolean }) {
           },
         }),
       ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
   });
   return (
     <Card className="mt-6 flex flex-wrap items-center gap-3 px-4 py-3 text-[13px]">

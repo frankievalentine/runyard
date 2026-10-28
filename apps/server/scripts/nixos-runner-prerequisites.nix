@@ -1,6 +1,6 @@
-# From aarondfrancis/fleet (crates/fleet/scripts/nixos-runner-prerequisites.nix), unchanged.
-# Import this module from /etc/nixos/configuration.nix before fleet apply.
-# Runner names, paths, labels and registration remain owned by fleet.toml.
+# From aarondfrancis/fleet (crates/fleet/scripts/nixos-runner-prerequisites.nix); only these
+# comments changed. Import it from /etc/nixos/configuration.nix and rebuild before Runyard
+# installs runners on the machine. Runner names, paths, labels and registration stay with Runyard.
 { pkgs, ... }: {
   programs.nix-ld.enable = true;
   programs.nix-ld.libraries = with pkgs; [

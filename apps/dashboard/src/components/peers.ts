@@ -2,13 +2,13 @@ import type { MachineConfig } from "@runyard/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { api, call } from "../api.ts";
-import { fleetQuery } from "../lib/fleet.ts";
+import { yardQuery } from "../lib/yard.ts";
 
 /** Add, ignore and restore for tailnet devices that aren't Runyard machines. */
 export function usePeerActions(nodeId: string) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const refresh = () => queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
   return {
     add: useMutation({
       mutationFn: async () =>

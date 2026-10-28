@@ -119,7 +119,7 @@ type Context = {
 };
 
 /**
- * fleet's desired-state engine for pools: review re-reads the machine and
+ * aarondfrancis/fleet's desired-state engine for pools: review re-reads the machine and
  * GitHub, execute reads them again and refuses unless the plan is unchanged.
  * Reviews are single-use and expire; one operation runs per machine, one
  * runner at a time, stopping at the first failure.

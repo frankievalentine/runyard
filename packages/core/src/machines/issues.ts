@@ -1,4 +1,4 @@
-import type { FleetView } from "./derive.ts";
+import type { YardView } from "./derive.ts";
 
 export type Issue = {
   id: string;
@@ -12,10 +12,10 @@ export type Issue = {
 
 /**
  * What needs a look, besides active alerts (shown separately). Ported from
- * fleet's `issues`: findings come only from current data, and an active alert
+ * aarondfrancis/fleet's `issues`: findings come only from current data, and an active alert
  * replaces the matching disk or offline row.
  */
-export function deriveIssues(view: FleetView): Issue[] {
+export function deriveIssues(view: YardView): Issue[] {
   const issues: Issue[] = [];
   if (view.tailnet.error) {
     issues.push({

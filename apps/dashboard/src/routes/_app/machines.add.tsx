@@ -15,7 +15,7 @@ import {
   StatusDot,
 } from "../../components/ui.tsx";
 import { Icon } from "../../components/icons.tsx";
-import { fleetQuery, useFleet } from "../../lib/fleet.ts";
+import { yardQuery, useYard } from "../../lib/yard.ts";
 import { timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
 import { sessionQuery } from "../../lib/queries.ts";
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_app/machines/add")({
 });
 
 function AddMachines() {
-  const fleet = useFleet();
+  const yard = useYard();
   return (
     <>
       <PageHeader
@@ -40,14 +40,14 @@ function AddMachines() {
       />
       <Section title="From your tailnet">
         <Card className="divide-y divide-line overflow-hidden">
-          {fleet.discovered.length === 0 && (
+          {yard.discovered.length === 0 && (
             <EmptyLine>
-              {fleet.tailnet.error
+              {yard.tailnet.error
                 ? "Tailscale can't be read on this machine, so there's nothing to list."
                 : "Every desktop and server on the tailnet is already added or ignored."}
             </EmptyLine>
           )}
-          {fleet.discovered.map((peer) => (
+          {yard.discovered.map((peer) => (
             <PeerRow key={peer.nodeId} peer={peer} />
           ))}
         </Card>
@@ -55,10 +55,10 @@ function AddMachines() {
       <Section title="By SSH target">
         <AddBySsh />
       </Section>
-      {fleet.ignored.length > 0 && (
+      {yard.ignored.length > 0 && (
         <Section title="Ignored">
           <Card className="divide-y divide-line overflow-hidden">
-            {fleet.ignored.map((peer) => (
+            {yard.ignored.map((peer) => (
               <PeerRow key={peer.nodeId} peer={peer} ignored />
             ))}
           </Card>
@@ -72,7 +72,7 @@ function PeerRow({ peer, ignored = false }: { peer: PeerView; ignored?: boolean 
   const now = useNow();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const refresh = () => queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
   const add = useMutation({
     mutationFn: () => call(api.peers[":nodeId"].add.$post({ param: { nodeId: peer.nodeId } })),
     onSuccess: async (machine) => {
@@ -127,7 +127,7 @@ function AddBySsh() {
     mutationFn: () =>
       call(api.machines.$post({ json: { name, sshTarget, transport, expectedOs } })),
     onSuccess: async (machine) => {
-      await queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey });
+      await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
       void navigate({ to: "/machines/$id", params: { id: machine.id } });
     },
   });

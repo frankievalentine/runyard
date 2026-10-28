@@ -1,4 +1,4 @@
-import type { FleetView, RunnerView } from "@runyard/core";
+import type { YardView, RunnerView } from "@runyard/core";
 
 /** A sidebar destination, in display order, for keyboard navigation. */
 export type NavItem = { path: string; params?: Record<string, string> };
@@ -7,8 +7,8 @@ export function navKey(item: NavItem): string {
   return item.params ? `${item.path}:${Object.values(item.params).join(":")}` : item.path;
 }
 
-/** Narrows the fleet by the sidebar filter: names, descriptions, addresses and OS. */
-export function filterFleet(view: FleetView, query: string): FleetView {
+/** Narrows the yard by the sidebar filter: names, descriptions, addresses and OS. */
+export function filterYard(view: YardView, query: string): YardView {
   const q = query.trim().toLowerCase();
   if (!q) return view;
   const match = (...values: (string | null | undefined)[]) =>
@@ -45,7 +45,7 @@ export function unassignedGroups(
 }
 
 /** Everything the sidebar shows, top to bottom, for keyboard navigation. */
-export function flattenNav(view: FleetView, otherOpen: boolean, runnersOpen = false): NavItem[] {
+export function flattenNav(view: YardView, otherOpen: boolean, runnersOpen = false): NavItem[] {
   const runner = (r: RunnerView) => ({ path: "/runners/$key", params: { key: r.key } });
   const boat = view.runners.filter((r) => r.onDemand === "boat.dev");
   return [

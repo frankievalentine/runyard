@@ -1,4 +1,5 @@
-# From aarondfrancis/fleet (crates/fleet/scripts/worker-nixos-service.py); units renamed runyard-*.
+# From aarondfrancis/fleet (crates/fleet/scripts/worker-nixos-service.py); units and the
+# service-ready marker renamed runyard-*, and the marker opened at install (see install()).
 """Install or remove one generated native service; invoked as root through SSH stdin."""
 from __future__ import annotations
 
@@ -27,7 +28,7 @@ def render_service(root: str, name: str, user: str) -> str:
     wantedBy = [ "multi-user.target" ];
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
-    unitConfig.ConditionPathExists = {q(root + "/.fleet-service-ready")};
+    unitConfig.ConditionPathExists = {q(root + "/.runyard-service-ready")};
     path = with pkgs; [ bash coreutils git ];
     environment = {{
       NIX_LD_LIBRARY_PATH = "/run/current-system/sw/share/nix-ld/lib";
@@ -80,11 +81,16 @@ def install(root: str, name: str, user: str) -> None:
         config.write_text(source.replace("imports = [", "imports = [\n    " + entry, 1))
     else:
         module.write_text(content)
-    # A fresh service cannot start at switch/reboot until the controller opens
-    # the marker after checking trusted-group membership and labels.
+    # A fresh service can't start at switch or reboot until the marker exists.
+    # In aarondfrancis/fleet the controller opened it after its group and label
+    # checks; Runyard's review makes those checks before any install runs, so the
+    # marker is opened here, after the switch and before the install starts it.
     subprocess.run(["nixos-rebuild", "switch"], check=True)
     service_file.write_text(unit + "\n")
     os.chown(service_file, account.pw_uid, account.pw_gid)
+    ready = path / ".runyard-service-ready"
+    ready.touch()
+    os.chown(ready, account.pw_uid, account.pw_gid)
 
 
 def uninstall(root: str, name: str, user: str) -> None:
@@ -113,7 +119,7 @@ def uninstall(root: str, name: str, user: str) -> None:
     if module.exists():
         module.unlink()
     subprocess.run(["nixos-rebuild", "switch"], check=True)
-    (path / ".fleet-service-ready").unlink(missing_ok=True)
+    (path / ".runyard-service-ready").unlink(missing_ok=True)
     service_file.unlink()
 
 

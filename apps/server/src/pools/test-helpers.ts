@@ -1,5 +1,5 @@
 import { expect } from "bun:test";
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import { createMachine } from "../machines/store.ts";
 import { macReport } from "../machines/fake.ts";
 import { body, send, sessionCookie, testApp } from "../testing.ts";
@@ -50,7 +50,7 @@ export async function setup(installation: {
   );
   await t.github.refreshAll();
   const forgeId = (
-    await body<FleetView>(send(t.app, "GET", "/api/fleet", undefined, { Cookie: cookie }))
+    await body<YardView>(send(t.app, "GET", "/api/yard", undefined, { Cookie: cookie }))
   ).github.apps[0]!.forgeId;
   const call = <T>(method: string, path: string, json?: unknown) =>
     body<T>(send(t.app, method, path, json, { Cookie: cookie }));

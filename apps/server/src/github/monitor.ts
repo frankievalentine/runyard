@@ -13,7 +13,7 @@ import { GithubAppAuth } from "./app-auth.ts";
 import { GithubHttp, type Fetch } from "./client.ts";
 import { githubAppKey, listGithubApps, type GithubAppConfig } from "./store.ts";
 
-/** fleet's cadence: runners every 20 seconds, jobs every 45; installations change rarely. */
+/** aarondfrancis/fleet's cadence: runners every 20 seconds, jobs every 45; installations change rarely. */
 export const RUNNERS_INTERVAL_MS = 20_000;
 export const JOBS_INTERVAL_MS = 45_000;
 export const INSTALLATIONS_INTERVAL_MS = 5 * 60_000;
@@ -37,7 +37,7 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 
 /**
  * Reads every GitHub App's installations, runners and in-flight jobs. Calls
- * `onChange` after each poll so the fleet view republishes.
+ * `onChange` after each poll so the yard view republishes.
  */
 export class GithubMonitor {
   private apps = new Map<string, AppState>();

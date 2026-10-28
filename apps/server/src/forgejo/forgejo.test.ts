@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import { macReport } from "../machines/fake.ts";
 import { createMachine } from "../machines/store.ts";
 import type { OperationView, Review } from "../pools/engine.ts";
@@ -109,7 +109,7 @@ describe("Forgejo connections", () => {
       },
     ]);
     await connect(s);
-    const view = await s.call<FleetView>("GET", "/api/fleet");
+    const view = await s.call<YardView>("GET", "/api/yard");
     expect(view.forgejo.connections[0]?.scopes.map((x) => [x.kind, x.target])).toEqual([
       ["user", "frankie"],
       ["org", "acme"],

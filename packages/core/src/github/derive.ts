@@ -243,7 +243,7 @@ export function deriveGithub(
   };
 }
 
-/** Jobs that ask for a self-hosted runner; GitHub-hosted jobs aren't this fleet's. */
+/** Jobs that ask for a self-hosted runner; GitHub-hosted jobs aren't Runyard's. */
 export function isSelfHosted(job: GhJob): boolean {
   return job.labels.some((l) => l.toLowerCase() === "self-hosted");
 }

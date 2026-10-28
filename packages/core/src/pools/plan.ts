@@ -98,7 +98,7 @@ export function labelDrift(desired: string[], actual: string[]) {
 
 /**
  * Desired versus actual for one machine, as plan items. Pure. Ported from
- * fleet's plan.py rules: unreachable sources block instead of looking
+ * aarondfrancis/fleet's plan.py rules: unreachable sources block instead of looking
  * missing, half-configured runners need a person, busy runners are never
  * touched, and nothing is ever replaced.
  */

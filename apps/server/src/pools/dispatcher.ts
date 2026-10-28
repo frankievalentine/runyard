@@ -3,7 +3,7 @@ import {
   planDispatches,
   type Dispatch,
   type DispatchPlan,
-  type FleetView,
+  type YardView,
   type ForgeKind,
   type MachineConfig,
 } from "@runyard/core";
@@ -36,8 +36,8 @@ type Deps = {
   engine: PoolEngine;
   github: GithubMonitor;
   forgejo?: ForgejoMonitor;
-  /** The current fleet view: queue, runners and machines. */
-  view: () => FleetView;
+  /** The current yard view: queue, runners and machines. */
+  view: () => YardView;
   now?: () => number;
   onChange?: () => void;
 };

@@ -1,7 +1,7 @@
 import type { GhJob, GhRunner } from "@runyard/core";
 import { GithubError, type GithubHttp } from "./client.ts";
 
-/** Ported from fleet's github.rs limits: a busy repository can't monopolize a poll. */
+/** Ported from aarondfrancis/fleet's github.rs limits: a busy repository can't monopolize a poll. */
 export const MAX_REPOS = 50;
 const CONCURRENCY = 4;
 const MAX_RUN_PAGES = 4;

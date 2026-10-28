@@ -5,7 +5,7 @@ import type { Tone } from "../lib/status.ts";
 import { CopyValue } from "./CopyValue.tsx";
 import { Icon } from "./icons.tsx";
 
-/** Primitives ported from fleet's dashboard (src/components/ui.tsx, Table.tsx, details/shared.tsx). */
+/** Primitives ported from aarondfrancis/fleet's dashboard (src/components/ui.tsx, Table.tsx, details/shared.tsx). */
 
 export const toneVar: Record<Tone, string> = {
   busy: "var(--busy)",

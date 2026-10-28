@@ -1,6 +1,6 @@
 # Runyard plan
 
-Runyard is a self-hosted control service and web dashboard for fleets of self-hosted CI runners
+Runyard is a self-hosted control service and web dashboard for self-hosted CI runners
 on GitHub Actions and Forgejo Actions. It runs on one always-on machine and is reachable from any
 browser on your tailnet. It takes its operating principles from
 [aarondfrancis/fleet](https://github.com/aarondfrancis/fleet) (agentless SSH monitoring, reviewed
@@ -24,7 +24,7 @@ inventory.
 | Area             | Decision                                                                                           | Notes                                                                                                                                                                                                                                          |
 | ---------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Form factor      | Control service + web dashboard                                                                    | The service polls, holds credentials and runs changes; any browser views it.                                                                                                                                                                   |
-| Language         | TypeScript on Bun                                                                                  | One language across the stack. Machine scripts (sh/PowerShell) are ported from fleet.                                                                                                                                                          |
+| Language         | TypeScript on Bun                                                                                  | One language across the stack. Machine scripts (sh/PowerShell) are ported from aarondfrancis/fleet.                                                                                                                                            |
 | Toolchain        | Vite+ (`vp`) with Bun workspaces                                                                   | `vp check` for format, lint and types; `vp run -r` for workspace tasks.                                                                                                                                                                        |
 | Server           | Hono                                                                                               | Typed RPC client (`hc`) shared with the dashboard; no codegen.                                                                                                                                                                                 |
 | Storage          | SQLite (`bun:sqlite`) + Drizzle                                                                    | One file. Forge credentials encrypted at rest with a key from env or a key file.                                                                                                                                                               |
@@ -72,7 +72,7 @@ New, because there's no GitHub runner group to enforce policy outside organizati
   run code on a persistent runner. Registering to a public repository needs an explicit
   per-repository override. The override is shown with the repository's fork pull request
   approval setting.
-- GitHub organizations keep the runner group policy check from fleet.
+- GitHub organizations keep the runner group policy check from aarondfrancis/fleet.
 
 ## Layout
 
@@ -191,7 +191,7 @@ Built and tested only against fakes. Deferred until a real service or machine is
 
 ## Reference
 
-Fleet's sources are the reference for ports:
+aarondfrancis/fleet's sources are the reference for ports:
 `git clone https://github.com/aarondfrancis/fleet`. The useful parts are:
 
 - `crates/fleet/scripts/`: health, diagnostics, install and retire scripts.

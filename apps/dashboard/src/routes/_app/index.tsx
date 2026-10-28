@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   ActiveAlerts,
@@ -18,7 +18,7 @@ import {
   StatStrip,
 } from "../../components/ui.tsx";
 import { SetupChecklist } from "../../components/SetupChecklist.tsx";
-import { useFleet } from "../../lib/fleet.ts";
+import { useYard } from "../../lib/yard.ts";
 import { plural } from "../../lib/format.ts";
 import { sessionQuery } from "../../lib/queries.ts";
 
@@ -26,9 +26,9 @@ export const Route = createFileRoute("/_app/")({
   component: Overview,
 });
 
-/** fleet's overview: counts, setup until done, what needs a look, work in progress, machines and recent activity. */
+/** aarondfrancis/fleet's overview: counts, setup until done, what needs a look, work in progress, machines and recent activity. */
 function Overview() {
-  const view = useFleet();
+  const view = useYard();
   const { data: session } = useSuspenseQuery(sessionQuery);
   const admin = session.user?.role === "admin";
   const machines = view.machines;
@@ -106,8 +106,8 @@ function Overview() {
   );
 }
 
-/** fleet's stat strip, once a forge is connected. */
-function RunnerStrip({ view }: { view: FleetView }) {
+/** aarondfrancis/fleet's stat strip, once a forge is connected. */
+function RunnerStrip({ view }: { view: YardView }) {
   const s = view.summary;
   const q = view.queue;
   return (
@@ -141,7 +141,7 @@ function RunnerStrip({ view }: { view: FleetView }) {
 }
 
 /** Machine health counts, before GitHub is connected. */
-function MachineStrip({ view }: { view: FleetView }) {
+function MachineStrip({ view }: { view: YardView }) {
   const machines = view.machines;
   const connected = machines.filter((m) => m.connection.state === "connected").length;
   const offline = machines.filter((m) => m.connection.state === "offline").length;

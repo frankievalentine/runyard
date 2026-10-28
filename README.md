@@ -1,6 +1,6 @@
 # Runyard
 
-A self-hosted control service and web dashboard for fleets of self-hosted GitHub Actions and
+A self-hosted control service and web dashboard for self-hosted GitHub Actions and
 Forgejo Actions runners. Runyard runs on one always-on machine, reaches your other machines over
 SSH, and serves its dashboard to any browser on your tailnet.
 
@@ -115,17 +115,17 @@ checked. Every minute Runyard reads CPU, memory, load, disks, uptime and selecte
 Tailscale settings over SSH, read-only, with at most four sessions at a time. Nothing is installed
 on the machines.
 
-SSH runs as the user Runyard runs as, with that user's keys and configuration, plus fleet's
+SSH runs as the user Runyard runs as, with that user's keys and configuration, plus aarondfrancis/fleet's
 hardening: batch mode, host keys must already be trusted (connect once with `ssh` to accept one),
 and no agent or port forwarding. Machines that publish Tailscale SSH are reached with
 `tailscale ssh`. Windows machines need their OS set to Windows, so Runyard talks PowerShell.
 
-Alerts follow fleet's rules: offline for three minutes on the tailnet, or disk space below 10% on
+Alerts follow aarondfrancis/fleet's rules: offline for three minutes on the tailnet, or disk space below 10% on
 readings a minute apart (clearing at 12%). Reboots and SSH failures are recorded too. History is
 kept for 30 days, up to 5,000 events. **Maintenance for 1 hour** pauses a machine's alerts.
 
 To try the dashboard without touching real machines, `vp run -r build` then
-`bun apps/server/scripts/demo.ts` runs Runyard against a fictional fleet.
+`bun apps/server/scripts/demo.ts` runs Runyard against a fictional yard.
 
 ## Runners and pools
 
@@ -141,7 +141,7 @@ form; either way, the form shows the runners the pool calls for before you save 
 Saving a pool changes nothing on machines. On a machine's page, **Review changes** reads the
 machine over SSH and GitHub and shows the plan; **Run** reads both again and does nothing if
 anything changed since the review. Reviews expire after 15 minutes and work once. Runyard keeps
-fleet's guards: it never uses `--replace`, never moves or deletes a runner directory, never
+aarondfrancis/fleet's guards: it never uses `--replace`, never moves or deletes a runner directory, never
 touches a busy runner, changes one runner at a time, and stops at the first failure.
 Registration tokens are minted at the moment of use and sent only over SSH stdin.
 

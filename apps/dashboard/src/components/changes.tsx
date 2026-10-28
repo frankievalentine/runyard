@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../api.ts";
-import { useFleet } from "../lib/fleet.ts";
+import { useYard } from "../lib/yard.ts";
 import { timeAgo } from "../lib/format.ts";
 import { useNow } from "../lib/now.ts";
 import { runnerFor } from "../lib/pools.ts";
@@ -37,9 +37,9 @@ const ACTION: Record<PlanItem["action"], string> = {
   removeTemplate: "Remove runner software",
 };
 
-/** The machine's runners: the ones GitHub lists for it, and the ones its pools still call for. ported from fleet's RunnerTable. */
+/** The machine's runners: the ones GitHub lists for it, and the ones its pools still call for. ported from aarondfrancis/fleet's RunnerTable. */
 export function MachineRunners({ m }: { m: MachineView }) {
-  const view = useFleet();
+  const view = useYard();
   const navigate = useNavigate();
   const linked = view.runners.filter((r) => r.machineId === m.id);
   const missing = view.pools.desired.filter((d) => d.machineId === m.id && !runnerFor(view, d));
@@ -101,7 +101,7 @@ export function MachineRunners({ m }: { m: MachineView }) {
   );
 }
 
-/** fleet's Changes: review re-reads the machine and GitHub; execute reads them again before doing anything. */
+/** aarondfrancis/fleet's Changes: review re-reads the machine and GitHub; execute reads them again before doing anything. */
 export function MachineChanges({ m, admin }: { m: MachineView; admin: boolean }) {
   const now = useNow();
   const [review, setReview] = useState<Review | null>(null);

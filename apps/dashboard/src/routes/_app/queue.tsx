@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Icon } from "../../components/icons.tsx";
 import { emptyQueueText, forgesConnected, QueueList } from "../../components/runners.tsx";
 import { Card, PageHeader } from "../../components/ui.tsx";
-import { useFleet } from "../../lib/fleet.ts";
+import { useYard } from "../../lib/yard.ts";
 import { timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
 
@@ -10,9 +10,9 @@ export const Route = createFileRoute("/_app/queue")({
   component: Queue,
 });
 
-/** fleet's QueueDetail. */
+/** aarondfrancis/fleet's QueueDetail. */
 function Queue() {
-  const view = useFleet();
+  const view = useYard();
   const now = useNow();
   const q = view.queue;
   const connected = forgesConnected(view);

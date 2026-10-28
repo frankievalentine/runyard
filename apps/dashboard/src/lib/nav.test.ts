@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import type { FleetView, RunnerView } from "@runyard/core";
-import { filterFleet, flattenNav, navKey, unassignedGroups } from "./nav.ts";
+import type { YardView, RunnerView } from "@runyard/core";
+import { filterYard, flattenNav, navKey, unassignedGroups } from "./nav.ts";
 
 const view = {
   generatedAt: 0,
@@ -35,13 +35,13 @@ const view = {
   runners: [],
   boat: null,
   pools: { pools: [], desired: [], registrations: [], collisions: [] },
-} as unknown as FleetView;
+} as unknown as YardView;
 
 test("filters by name, description, address and OS", () => {
-  expect(filterFleet(view, "primary").machines.map((m) => m.id)).toEqual(["m2"]);
-  expect(filterFleet(view, "LINUX").machines.map((m) => m.id)).toEqual(["m2"]);
-  expect(filterFleet(view, "linux").discovered).toHaveLength(1);
-  expect(filterFleet(view, "  ")).toBe(view);
+  expect(filterYard(view, "primary").machines.map((m) => m.id)).toEqual(["m2"]);
+  expect(filterYard(view, "LINUX").machines.map((m) => m.id)).toEqual(["m2"]);
+  expect(filterYard(view, "linux").discovered).toHaveLength(1);
+  expect(filterYard(view, "  ")).toBe(view);
 });
 
 test("flattens the sidebar in display order, other machines only when open", () => {
@@ -62,12 +62,12 @@ test("flattens the sidebar in display order, other machines only when open", () 
         scope: { kind: "org", target: "acme" },
       },
     ],
-  } as unknown as FleetView;
+  } as unknown as YardView;
   expect(flattenNav(withRunner, false, true).map(navKey)).toContain("/runners/$key:gh:org:acme:1");
   const onDemand = {
     ...view,
     runners: [{ key: "boat-1", onDemand: "boat.dev" }],
-  } as unknown as FleetView;
+  } as unknown as YardView;
   expect(flattenNav(onDemand, false, false).map(navKey)).toContain("/runners/$key:boat-1");
   expect(flattenNav(withRunner, false, false).map(navKey)).not.toContain(
     "/runners/$key:gh:org:acme:1",
@@ -76,7 +76,7 @@ test("flattens the sidebar in display order, other machines only when open", () 
   const linked = {
     ...view,
     runners: [{ key: "r1", machineId: "m1", scope: { kind: "org", target: "acme" } }],
-  } as unknown as FleetView;
+  } as unknown as YardView;
   expect(flattenNav(linked, false).map(navKey).slice(2, 5)).toEqual([
     "/machines/$id:m1",
     "/runners/$key:r1",

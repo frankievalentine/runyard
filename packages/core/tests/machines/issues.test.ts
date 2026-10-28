@@ -1,10 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import {
-  deriveIssues,
-  emptyGithubView,
-  type FleetView,
-  type MachineView,
-} from "../../src/index.ts";
+import { deriveIssues, emptyGithubView, type YardView, type MachineView } from "../../src/index.ts";
 
 const machine = (over: Partial<MachineView>): MachineView => ({
   id: "m1",
@@ -51,7 +46,7 @@ const machine = (over: Partial<MachineView>): MachineView => ({
   ...over,
 });
 
-const view = (machines: MachineView[], error: string | null = null): FleetView => ({
+const view = (machines: MachineView[], error: string | null = null): YardView => ({
   generatedAt: 0,
   tailnet: { name: null, at: null, stale: true, error },
   machines,
@@ -129,7 +124,7 @@ test("boat.dev VMs left running need a look", () => {
   const withBoat = {
     ...view([]),
     boat: { at: 1, stale: false, error: null, limits: null, running: [vm], leftover: [vm] },
-  } as unknown as FleetView;
+  } as unknown as YardView;
   expect(deriveIssues(withBoat).find((i) => i.id === "boat:leftover")).toMatchObject({
     title: "1 boat.dev VM running outside CI",
     page: "boat",

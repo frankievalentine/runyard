@@ -1,6 +1,6 @@
 import type { RateLimit } from "@runyard/core";
 
-/** Ported from fleet's github.rs: conditional requests, bounded pagination and readable errors. */
+/** Ported from aarondfrancis/fleet's github.rs: conditional requests, bounded pagination and readable errors. */
 export const API_VERSION = "2022-11-28";
 const MAX_CACHED_PAGES = 512;
 const REQUEST_TIMEOUT_MS = 20_000;

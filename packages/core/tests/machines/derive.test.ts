@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
 import {
   connection,
-  deriveFleet,
+  deriveYard,
   findPeer,
   newMachineState,
   type MachineConfig,
@@ -51,7 +51,7 @@ const report: MachineReport = {
 
 describe("connection", () => {
   const ok: MachineObservation = { report: { at: 0, value: report }, error: null };
-  test("follows fleet's rules", () => {
+  test("follows aarondfrancis/fleet's rules", () => {
     expect(connection(undefined, undefined, 0)).toEqual({ state: "pending" });
     expect(connection(peer({ online: false, lastSeen: 5 }), ok, 0)).toEqual({
       state: "offline",
@@ -91,9 +91,9 @@ describe("findPeer", () => {
   });
 });
 
-describe("deriveFleet", () => {
+describe("deriveYard", () => {
   test("splits peers into machines, discovered and ignored", () => {
-    const view = deriveFleet({
+    const view = deriveYard({
       machines: [machine()],
       observations: new Map([["m1", { report: { at: 0, value: report }, error: null }]]),
       tailnet: {
@@ -130,7 +130,7 @@ describe("deriveFleet", () => {
       ignoredNodeIds: new Set<string>(),
       states: new Map(),
     };
-    const failed = deriveFleet({
+    const failed = deriveYard({
       ...base,
       observations: new Map([
         ["m1", { report: { at: 0, value: report }, error: { at: 5, value: "x" } }],
@@ -138,7 +138,7 @@ describe("deriveFleet", () => {
       now: 10,
     });
     expect(failed.machines[0]?.health?.stale).toBe(true);
-    const old = deriveFleet({
+    const old = deriveYard({
       ...base,
       observations: new Map([["m1", { report: { at: 0, value: report }, error: null }]]),
       now: 150_001,
@@ -150,7 +150,7 @@ describe("deriveFleet", () => {
   test("collects alerts from monitoring state", () => {
     const state = newMachineState("Mini");
     state.offlineAlert = 0;
-    const view = deriveFleet({
+    const view = deriveYard({
       machines: [machine()],
       observations: new Map(),
       tailnet: {

@@ -13,7 +13,7 @@ import {
   Pill,
   Section,
 } from "../../components/ui.tsx";
-import { useFleet } from "../../lib/fleet.ts";
+import { useYard } from "../../lib/yard.ts";
 import { timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
 import { sessionQuery } from "../../lib/queries.ts";
@@ -23,10 +23,10 @@ export const Route = createFileRoute("/_app/peers/$nodeId")({
   component: Peer,
 });
 
-/** A tailnet device that isn't a Runyard machine: fleet's Other machines page, with Add instead of automatic checks. */
+/** A tailnet device that isn't a Runyard machine: aarondfrancis/fleet's Other machines page, with Add instead of automatic checks. */
 function Peer() {
   const { nodeId } = Route.useParams();
-  const view = useFleet();
+  const view = useYard();
   const now = useNow();
   const { data: session } = useSuspenseQuery(sessionQuery);
   const actions = usePeerActions(nodeId);

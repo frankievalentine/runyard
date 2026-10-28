@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
-import { useFleet } from "../lib/fleet.ts";
+import { useYard } from "../lib/yard.ts";
 import { checksQuery } from "../lib/queries.ts";
 import { machineToReview, setupSteps, type SetupStep } from "../lib/setup.ts";
 import { Icon } from "./icons.tsx";
@@ -24,7 +24,7 @@ function readHidden(): boolean {
  * done or this viewer hides it. Steps come from what already exists.
  */
 export function SetupChecklist() {
-  const view = useFleet();
+  const view = useYard();
   const [hidden, setHidden] = useState(readHidden);
   const checks = useQuery(checksQuery);
   const steps = setupSteps(view);

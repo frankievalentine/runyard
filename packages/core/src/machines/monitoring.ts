@@ -1,6 +1,6 @@
 import { freePercent, gib, LOW_DISK_FREE_PERCENT, type DiskStats } from "./model.ts";
 
-/** Ported from fleet's `monitoring/state.rs`; runner service tracking arrives with runner management. */
+/** Ported from aarondfrancis/fleet's `monitoring/state.rs`; runner service tracking arrives with runner management. */
 export const OFFLINE_DELAY_MS = 3 * 60_000;
 export const DISK_DELAY_MS = 60_000;
 /** A low-disk alert clears only this far above the threshold, so readings near it don't flap. */
@@ -330,7 +330,7 @@ export function alerts(
       machineName: m.name,
       kind: "lowDisk",
       since,
-      // Ordered by capacity reading, as fleet does, so the tightest disk comes first.
+      // Ordered by capacity reading, as aarondfrancis/fleet does, so the tightest disk comes first.
       detail: [...groups.values()]
         .sort((a, b) => a.free - b.free || a.total - b.total)
         .map((g) => diskDetail(g.mounts.join(", "), g.free, g.total))

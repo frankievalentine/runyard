@@ -1,5 +1,5 @@
 import type {
-  FleetView,
+  YardView,
   ForgejoMode,
   OsFamily,
   PoolMode,
@@ -34,7 +34,7 @@ const MAX = 4;
  * Pools Runyard can justify from what it sees, most useful first: queued jobs
  * that no runner matches, then machines not in any pool yet. No I/O.
  */
-export function suggestPools(view: FleetView): PoolSuggestion[] {
+export function suggestPools(view: YardView): PoolSuggestion[] {
   const options = availableScopes(view);
   const pooled = new Set(view.pools.pools.flatMap((p) => p.machines.map((m) => m.machineId)));
   const usable = view.machines.filter((m) => m.os !== null);

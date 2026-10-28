@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Icon } from "../../components/icons.tsx";
 import { PoolForm } from "../../components/PoolForm.tsx";
 import { Card, PageHeader, Section } from "../../components/ui.tsx";
-import { useFleet } from "../../lib/fleet.ts";
+import { useYard } from "../../lib/yard.ts";
 import { suggestPools, type PoolSuggestion } from "../../lib/pool-suggestions.ts";
 import { sessionQuery } from "../../lib/queries.ts";
 
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/pools/new")({
 });
 
 function NewPool() {
-  const view = useFleet();
+  const view = useYard();
   // Computed once, so suggestions don't reshuffle while the form is being filled in.
   const [suggestions] = useState(() => suggestPools(view));
   const [picked, setPicked] = useState<PoolSuggestion | null>(null);

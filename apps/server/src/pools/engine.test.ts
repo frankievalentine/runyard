@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { FleetView } from "@runyard/core";
+import type { YardView } from "@runyard/core";
 import { createMachine } from "../machines/store.ts";
 import { send } from "../testing.ts";
 import type { OperationView, Review } from "./engine.ts";
@@ -64,7 +64,7 @@ describe("pool engine", () => {
       },
     ]);
     await s.github.pollRunners();
-    const view = await s.call<FleetView>("GET", "/api/fleet");
+    const view = await s.call<YardView>("GET", "/api/yard");
     expect(view.github.runners[0]).toMatchObject({ name: "mini-mac-01", machineId: s.machine.id });
     expect((await s.call<Review>("POST", `/api/machines/${s.machine.id}/review`)).items).toEqual(
       [],

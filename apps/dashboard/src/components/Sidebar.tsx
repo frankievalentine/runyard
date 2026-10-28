@@ -1,4 +1,4 @@
-import type { FleetView, RunnerView } from "@runyard/core";
+import type { YardView, RunnerView } from "@runyard/core";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { healthQuery } from "../lib/queries.ts";
@@ -19,7 +19,7 @@ import { Icon } from "./icons.tsx";
 import { EmptyLine, StatusDot, TimeAgo } from "./ui.tsx";
 
 /**
- * fleet's sidebar: overview, filter, then machines (with their runners), pools,
+ * aarondfrancis/fleet's sidebar: overview, filter, then machines (with their runners), pools,
  * on-demand runners, unassigned runners, tailnet devices and ignored.
  * `filtered` is `view` narrowed by the query.
  */
@@ -36,8 +36,8 @@ export function Sidebar({
   admin,
   demo,
 }: {
-  view: FleetView;
-  filtered: FleetView;
+  view: YardView;
+  filtered: YardView;
   query: string;
   setQuery: (q: string) => void;
   otherOpen: boolean;
@@ -153,7 +153,7 @@ export function Sidebar({
           const own = byMachine.get(m.id) ?? [];
           const busy = own.filter((r) => r.activity === "busy").length;
           const idle = own.filter((r) => r.activity === "idle").length;
-          // fleet's summary: runners when it has any, otherwise its own state.
+          // aarondfrancis/fleet's summary: runners when it has any, otherwise its own state.
           const summary =
             m.connection.state === "offline" || own.length === 0
               ? machineSummary(m)
@@ -330,7 +330,7 @@ export function Sidebar({
   );
 }
 
-/** A runner row, nested under its machine like fleet's tree. */
+/** A runner row, nested under its machine like aarondfrancis/fleet's tree. */
 function RunnerRow({
   r,
   selected,
@@ -454,7 +454,7 @@ function Heading({
   );
 }
 
-function Footer({ view, demo }: { view: FleetView; demo: boolean }) {
+function Footer({ view, demo }: { view: YardView; demo: boolean }) {
   const apps = view.github.apps;
   const conns = view.forgejo.connections;
   const forgeError =
@@ -469,7 +469,7 @@ function Footer({ view, demo }: { view: FleetView; demo: boolean }) {
     .filter((t): t is number => t !== null)
     .sort((a, b) => a - b)[0];
   const problem = Boolean(view.tailnet.error) || forgeError || view.alerts.length > 0;
-  // fleet's footer: the state of the data sources, most pressing first. Details are on
+  // aarondfrancis/fleet's footer: the state of the data sources, most pressing first. Details are on
   // the overview's Needs attention and Settings ▸ Connections.
   const text = demo ? (
     "Demo · fictional machines"

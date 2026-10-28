@@ -2,7 +2,7 @@
   "name": "runyard",
   "version": "0.0.0",
   "private": true,
-  "description": "Self-hosted dashboard and control service for GitHub Actions and Forgejo runner fleets",
+  "description": "Self-hosted dashboard and control service for GitHub Actions and Forgejo runners",
   "workspaces": [
     "packages/*",
     "apps/*",
