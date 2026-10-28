@@ -70,6 +70,35 @@ export class GithubHttp {
     return page;
   }
 
+  /** A write (POST, PUT, DELETE). Never cached. */
+  async send(method: "POST" | "PUT" | "DELETE", path: string, body?: unknown): Promise<unknown> {
+    const url = `${this.apiBase.replace(/\/$/, "")}${path}`;
+    let res: Response;
+    try {
+      res = await this.fetch(
+        new Request(url, {
+          method,
+          headers: {
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": API_VERSION,
+            "User-Agent": "runyard",
+            Authorization: `Bearer ${await this.token()}`,
+            ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+          },
+          body: body === undefined ? undefined : JSON.stringify(body),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        }),
+      );
+    } catch (error) {
+      throw new GithubError(
+        `Couldn't reach GitHub: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    this.recordRate(res.headers);
+    if (!res.ok) throw await errorFor(res, this.rateLimit);
+    return res.status === 204 ? null : ((await res.json()) as unknown);
+  }
+
   /** Pages through a list in `field`; `truncated` when it didn't fit in `maxPages`. */
   async collection<T>(path: string, field: string | null, perPage: number, maxPages: number) {
     const items: T[] = [];

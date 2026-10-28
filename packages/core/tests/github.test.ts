@@ -157,3 +157,12 @@ describe("deriveGithub", () => {
     expect(view.queue.complete).toBe(false);
   });
 });
+
+test("links runners Runyard registered to their machines", () => {
+  const view = deriveGithub([app([install()])], 1000, new Map([["gh:org:acme:mini-02", "m1"]]));
+  expect(view.runners.map((r) => [r.name, r.machineId])).toEqual([
+    ["mini-01", null],
+    ["mini-02", "m1"],
+    ["old", null],
+  ]);
+});

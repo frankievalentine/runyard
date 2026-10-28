@@ -44,6 +44,14 @@ export class FakeGithub {
   runs = new Map<string, { id: number; status: "queued" | "in_progress"; jobs: Job[] }[]>();
   tokens = new Map<string, number>();
   requests: string[] = [];
+  /** Repositories GitHub reports as public. */
+  publicRepos = new Set<string>();
+  /** Organizations whose Default runner group admits public repositories. */
+  openGroups = new Set<string>();
+  /** Registration and removal tokens handed out, by scope (organization or `owner/repo`). */
+  issued: { kind: "registration" | "remove"; owner: string; token: string }[] = [];
+  /** Label updates, by `owner:runnerId`. */
+  labelUpdates: { owner: string; runnerId: number; labels: string[] }[] = [];
   /** Answers a converted manifest with this owner. */
   manifestOwner = { login: "frankie", type: "User" };
   readonly fetch: Fetch;
@@ -114,9 +122,76 @@ export class FakeGithub {
       });
     });
     app.get("/orgs/:org/actions/runners", (c) => this.runnerList(c, c.req.param("org")));
+    for (const kind of ["registration", "remove"] as const) {
+      const issue = (c: Context, owner: string) => {
+        if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
+        const token = `${kind === "registration" ? "AREG" : "AREM"}${crypto.randomUUID().replace(/-/g, "")}`;
+        this.issued.push({ kind, owner, token });
+        return c.json({ token, expires_at: new Date(Date.now() + 3_600_000).toISOString() }, 201);
+      };
+      const suffix = kind === "registration" ? "registration-token" : "remove-token";
+      app.post(`/orgs/:org/actions/runners/${suffix}`, (c) => issue(c, c.req.param("org")));
+      app.post(`/repos/:owner/:repo/actions/runners/${suffix}`, (c) =>
+        issue(c, `${c.req.param("owner")}/${c.req.param("repo")}`),
+      );
+    }
+    const putLabels = async (c: Context, owner: string) => {
+      if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
+      const { labels } = (await c.req.json()) as { labels: string[] };
+      const runnerId = Number(c.req.param("id"));
+      this.labelUpdates.push({ owner, runnerId, labels });
+      const runner = (this.runners.get(owner) ?? []).find((r) => r.id === runnerId);
+      if (runner)
+        runner.labels = [
+          ...runner.labels.filter((l) =>
+            ["self-hosted", "macOS", "Linux", "Windows", "X64", "ARM64"].includes(l),
+          ),
+          ...labels,
+        ];
+      return c.json({ total_count: labels.length, labels: labels.map((name) => ({ name })) });
+    };
+    app.put("/orgs/:org/actions/runners/:id/labels", (c) => putLabels(c, c.req.param("org")));
+    app.put("/repos/:owner/:repo/actions/runners/:id/labels", (c) =>
+      putLabels(c, `${c.req.param("owner")}/${c.req.param("repo")}`),
+    );
+    app.get("/orgs/:org/actions/runner-groups", (c) => {
+      if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
+      const groups = [
+        {
+          id: 1,
+          name: "Default",
+          default: true,
+          allows_public_repositories: this.openGroups.has(c.req.param("org")),
+        },
+      ];
+      return this.page(c, { total_count: 1, runner_groups: groups });
+    });
+    app.get("/repos/actions/runner/releases/latest", (c) =>
+      this.page(c, {
+        tag_name: "v2.329.0",
+        assets: ["osx-arm64", "osx-x64", "linux-x64", "linux-arm64", "win-x64"].map((p) => {
+          const name = `actions-runner-${p}-2.329.0.${p.startsWith("win") ? "zip" : "tar.gz"}`;
+          return {
+            name,
+            browser_download_url: `https://github.com/actions/runner/releases/download/v2.329.0/${name}`,
+            digest: `sha256:${"ab".repeat(32)}`,
+          };
+        }),
+      }),
+    );
     app.get("/repos/:owner/:repo/actions/runners", (c) =>
       this.runnerList(c, `${c.req.param("owner")}/${c.req.param("repo")}`),
     );
+    app.get("/repos/:owner/:repo", (c) => {
+      if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
+      const full = `${c.req.param("owner")}/${c.req.param("repo")}`;
+      const isPublic = this.publicRepos.has(full);
+      return this.page(c, {
+        full_name: full,
+        private: !isPublic,
+        visibility: isPublic ? "public" : "private",
+      });
+    });
     app.get("/repos/:owner/:repo/actions/runs", (c) => {
       if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
       const runs = (this.runs.get(`${c.req.param("owner")}/${c.req.param("repo")}`) ?? []).filter(

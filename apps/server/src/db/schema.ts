@@ -149,3 +149,71 @@ export const githubApps = sqliteTable("github_apps", {
   apiBase: text().notNull(),
   createdAt: integer({ mode: "timestamp_ms" }).notNull(),
 });
+
+/** Runner capacity. Machines and scopes are separate tables so removals cascade. */
+export const pools = sqliteTable("pools", {
+  id: text().primaryKey(),
+  name: text().notNull().unique(),
+  /** JSON array of the labels the pool's runners register with. */
+  labels: text().notNull(),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull(),
+});
+
+export const poolMachines = sqliteTable(
+  "pool_machines",
+  {
+    poolId: text()
+      .notNull()
+      .references(() => pools.id, { onDelete: "cascade" }),
+    machineId: text()
+      .notNull()
+      .references(() => machines.id, { onDelete: "cascade" }),
+    slots: integer().notNull(),
+  },
+  (t) => [
+    index("pool_machines_pool").on(t.poolId),
+    check("pool_machines_slots", sql`${t.slots} BETWEEN 1 AND 16`),
+  ],
+);
+
+export const poolScopes = sqliteTable(
+  "pool_scopes",
+  {
+    poolId: text()
+      .notNull()
+      .references(() => pools.id, { onDelete: "cascade" }),
+    forgeId: text().notNull(),
+    kind: text({ enum: ["org", "repo"] }).notNull(),
+    target: text().notNull(),
+  },
+  (t) => [index("pool_scopes_pool").on(t.poolId)],
+);
+
+/**
+ * Runners Runyard registered, so they stay linked to their machine and can
+ * be found and removed when no pool wants them. Not cascaded from pools: a
+ * deleted pool's runners still exist until removed.
+ */
+export const registrations = sqliteTable("registrations", {
+  key: text().primaryKey(),
+  machineId: text().notNull(),
+  runnerName: text().notNull(),
+  forgeId: text().notNull(),
+  scopeKind: text({ enum: ["org", "repo"] }).notNull(),
+  scopeTarget: text().notNull(),
+  path: text().notNull(),
+  serviceMode: text({ enum: ["launchagent", "systemd", "windows-service"] }).notNull(),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull(),
+});
+
+/** Public personal repositories an admin allowed persistent runners for, by typing the name. */
+export const publicRepoOverrides = sqliteTable(
+  "public_repo_overrides",
+  {
+    forgeId: text().notNull(),
+    repo: text().notNull(),
+    confirmedBy: text().notNull(),
+    confirmedAt: integer({ mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [index("public_repo_overrides_repo").on(t.forgeId, t.repo)],
+);

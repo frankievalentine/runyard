@@ -14,3 +14,8 @@ declare module "*.ps1" {
   const script: string;
   export default script;
 }
+
+declare module "*.py" {
+  const script: string;
+  export default script;
+}

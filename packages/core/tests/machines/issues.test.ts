@@ -59,6 +59,7 @@ const view = (machines: MachineView[], error: string | null = null): FleetView =
   ignored: [],
   alerts: machines.flatMap((m) => m.alerts),
   github: emptyGithubView,
+  pools: { pools: [], desired: [], collisions: [], registrations: [] },
 });
 
 test("lists warnings, SSH failures and a tailnet problem", () => {

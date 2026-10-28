@@ -16,6 +16,8 @@ import type { Fetch } from "./github/client.ts";
 import { ManifestStates } from "./github/manifest.ts";
 import { GithubMonitor } from "./github/monitor.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
+import { PoolEngine } from "./pools/engine.ts";
+import { listPools, listRegistrations } from "./pools/store.ts";
 import { installedPrograms, type SshPrograms } from "./machines/ssh.ts";
 import { loadSecretKey, SecretStore } from "./secrets.ts";
 import { TailnetListener } from "./tailnet.ts";
@@ -63,8 +65,18 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     programs: overrides.programs ?? installedPrograms(),
     tailscale,
     github: () => github.observations(),
+    pools: () => ({ pools: listPools(db), registrations: listRegistrations(db) }),
   });
   monitor.start();
+  const programs = overrides.programs ?? installedPrograms();
+  const engine = new PoolEngine({
+    db,
+    run,
+    programs,
+    github,
+    machineView: (id) => monitor?.view.machines.find((m) => m.id === id),
+    onChange: () => monitor?.tick(),
+  });
   void github.start();
   const shared = {
     db,
@@ -74,6 +86,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     tailnetLogin,
     monitor,
     demo: process.env.RUNYARD_DEMO === "1",
+    engine,
     secrets,
     github,
     states: new ManifestStates(),

@@ -91,8 +91,16 @@ export const emptyGithubView: GithubView = {
   summary: { runners: 0, busy: 0, idle: 0, offline: 0, unknown: 0 },
 };
 
-/** Runners, their jobs and the self-hosted queue across every app and installation. No I/O. */
-export function deriveGithub(apps: GithubAppObservation[], now: number): GithubView {
+/**
+ * Runners, their jobs and the self-hosted queue across every app and
+ * installation. No I/O. `links` maps `scopeKey:name` (lowercase name) to the
+ * machine Runyard registered that runner on.
+ */
+export function deriveGithub(
+  apps: GithubAppObservation[],
+  now: number,
+  links: ReadonlyMap<string, string> = new Map(),
+): GithubView {
   const runners: RunnerView[] = [];
   const queued: { job: GhJob }[] = [];
   let complete = true;
@@ -139,7 +147,7 @@ export function deriveGithub(apps: GithubAppObservation[], now: number): GithubV
           asOf: inst.runners.at,
           stale,
           job: activity === "busy" && job ? jobView(job) : null,
-          machineId: null,
+          machineId: links.get(`${scopeKey(scope)}:${runner.name.toLowerCase()}`) ?? null,
         });
       }
     }

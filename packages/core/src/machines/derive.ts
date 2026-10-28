@@ -1,5 +1,9 @@
 import { deriveGithub, type GithubView } from "../github/derive.ts";
 import type { GithubAppObservation } from "../github/model.ts";
+import { scopeKey } from "../scope.ts";
+import { desiredRunners, nameCollisions } from "../pools/desired.ts";
+import type { DesiredRunner, Pool } from "../pools/model.ts";
+import type { Registration } from "../pools/plan.ts";
 import { evaluateDiagnostics } from "./diagnostics.ts";
 import {
   canHostRunners,
@@ -92,6 +96,17 @@ export type FleetView = {
   ignored: PeerView[];
   alerts: Alert[];
   github: GithubView;
+  pools: PoolsView;
+};
+
+export type PoolsView = {
+  pools: Pool[];
+  /** Every runner the pools call for. */
+  desired: DesiredRunner[];
+  /** Desired runners that would share a name in one scope. */
+  collisions: string[];
+  /** Runners Runyard registered. */
+  registrations: Registration[];
 };
 
 /** The whole dashboard view, from configuration and observations. No I/O. */
@@ -102,6 +117,8 @@ export function deriveFleet(input: {
   ignoredNodeIds: ReadonlySet<string>;
   states: ReadonlyMap<string, MachineState>;
   github?: GithubAppObservation[];
+  pools?: Pool[];
+  registrations?: Registration[];
   now: number;
 }): FleetView {
   const { now, tailnet } = input;
@@ -159,8 +176,28 @@ export function deriveFleet(input: {
       .map(peerView),
     ignored: candidates.filter((p) => input.ignoredNodeIds.has(p.nodeId)).map(peerView),
     alerts: machines.flatMap((m) => m.alerts),
-    github: deriveGithub(input.github ?? [], now),
+    github: deriveGithub(
+      input.github ?? [],
+      now,
+      new Map(
+        (input.registrations ?? []).map((r) => [
+          `${scopeKey(r.scope)}:${r.runnerName.toLowerCase()}`,
+          r.machineId,
+        ]),
+      ),
+    ),
+    pools: poolsView(input.pools ?? [], input.registrations ?? [], machines),
   };
+}
+
+function poolsView(
+  pools: Pool[],
+  registrations: Registration[],
+  machines: MachineView[],
+): PoolsView {
+  const info = new Map(machines.map((m) => [m.id, { name: m.name, os: m.os }]));
+  const desired = desiredRunners(pools, info);
+  return { pools, desired, collisions: nameCollisions(desired), registrations };
 }
 
 /** What the monitoring state machine needs from a machine's view. */

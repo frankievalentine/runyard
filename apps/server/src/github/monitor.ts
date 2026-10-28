@@ -118,6 +118,27 @@ export class GithubMonitor {
     if (notify) this.deps.onChange?.();
   }
 
+  /**
+   * The installation client that can act on a scope: the app's installation on
+   * the organization, or on the account owning the repository.
+   */
+  clientFor(scope: Scope): GithubHttp | null {
+    const app = this.apps.get(scope.forgeId);
+    const owner = (
+      scope.kind === "repo" ? scope.target.split("/")[0]! : scope.target
+    ).toLowerCase();
+    for (const inst of app?.installations.values() ?? []) {
+      if (inst.observation.account.toLowerCase() === owner) return inst.http;
+    }
+    return null;
+  }
+
+  /** GitHub's web address for the app's account; runners register against it. */
+  webBaseFor(forgeId: string): string {
+    const html = this.apps.get(forgeId)?.config.htmlUrl;
+    return html ? new URL(html).origin : "https://github.com";
+  }
+
   private installations(): InstallationState[] {
     return [...this.apps.values()].flatMap((app) => [...app.installations.values()]);
   }

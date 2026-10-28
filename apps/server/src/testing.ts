@@ -12,6 +12,8 @@ import { FakeMachines } from "./machines/fake.ts";
 import { importKey } from "./crypto.ts";
 import { SecretStore } from "./secrets.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
+import { PoolEngine } from "./pools/engine.ts";
+import { listPools, listRegistrations } from "./pools/store.ts";
 
 /** An app on an in-memory database. `codes` collects every setup code announced. */
 export async function testApp(
@@ -42,12 +44,23 @@ export async function testApp(
     tailscale: fake.tailscale,
     now: () => clock.now,
     github: () => github.observations(),
+    pools: () => ({ pools: listPools(db), registrations: listRegistrations(db) }),
+  });
+  const engine = new PoolEngine({
+    db,
+    run: fake.run,
+    programs: fake.programs,
+    github,
+    machineView: (id) => monitor?.view.machines.find((m) => m.id === id),
+    now: () => clock.now,
+    onChange: () => monitor?.tick(),
   });
   const deps: AppDeps = {
     db,
     monitor,
     secrets,
     github,
+    engine,
     states: new ManifestStates(),
     fetch: fakeGithub.fetch,
     apiBase: "https://api.github.test",
@@ -60,7 +73,7 @@ export async function testApp(
     tailnetLogin: async (c) => c.req.header("X-Test-Tailnet-Login")?.toLowerCase() ?? null,
   };
   const app = createApp(deps, options.dashboard);
-  return { app, deps, codes, setup, fake, clock, monitor, github, fakeGithub };
+  return { app, deps, codes, setup, fake, clock, monitor, github, fakeGithub, engine };
 }
 
 /** A same-origin JSON request as the dashboard would send it, with an optional cookie and extra headers. */
