@@ -5,13 +5,13 @@
   "description": "Runyard control service: forge and machine polling, desired-state engine, and the HTTP API that serves the dashboard",
   "type": "module",
   "exports": {
-    "./app": "./src/app.ts"
+    "./app": "./src/app.ts",
+    "./server": "./src/server.ts"
   },
   "scripts": {
     "dev": "bun --watch src/main.ts",
     "start": "bun src/main.ts",
-    "test": "bun test",
-    "build": "bun build --compile src/main.ts --outfile dist/runyard"
+    "test": "bun test"
   },
   "dependencies": {
     "@runyard/core": "workspace:*",

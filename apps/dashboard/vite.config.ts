@@ -1,8 +1,14 @@
+import tailwindcss from "@tailwindcss/vite";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, lazyPlugins } from "vite-plus";
 
+const generated = ["src/routeTree.gen.ts"];
+
 export default defineConfig({
+  fmt: { ignorePatterns: generated },
   lint: {
+    ignorePatterns: generated,
     plugins: ["react", "typescript", "oxc"],
     rules: {
       "react/rules-of-hooks": "error",
@@ -12,7 +18,12 @@ export default defineConfig({
     options: { typeAware: true, typeCheck: true },
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
   },
-  plugins: lazyPlugins(() => [react()]),
+  // The router plugin generates src/routeTree.gen.ts and must run before React's.
+  plugins: lazyPlugins(() => [
+    tanstackRouter({ target: "react", autoCodeSplitting: true }),
+    react(),
+    tailwindcss(),
+  ]),
   server: {
     proxy: { "/api": `http://127.0.0.1:${process.env.RUNYARD_PORT ?? 7420}` },
   },
