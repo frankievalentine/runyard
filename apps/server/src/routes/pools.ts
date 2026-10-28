@@ -22,6 +22,7 @@ import {
   listPools,
   revokePublicRepo,
   savePool,
+  setPoolPaused,
   type PoolInput,
 } from "../pools/store.ts";
 import { json } from "./validate.ts";
@@ -65,6 +66,7 @@ const poolSchema = z.object({
       }),
     ])
     .default({ kind: "host" }),
+  mode: z.enum(["persistent", "onDemand"]).default("persistent"),
 });
 
 export type PoolDeps = {
@@ -105,7 +107,7 @@ export function poolRoutes({ db, engine, monitor, github, forgejo }: PoolDeps) {
       }
     }
     const collisions = nameCollisions(
-      desiredRunners([...others, { id: id ?? "new", ...input }], info, kinds),
+      desiredRunners([...others, { id: id ?? "new", paused: false, ...input }], info, kinds),
     );
     return collisions[0] ?? null;
   };
@@ -116,87 +118,99 @@ export function poolRoutes({ db, engine, monitor, github, forgejo }: PoolDeps) {
       throw error;
     });
 
-  return new Hono<AppEnv>()
-    .post("/pools", requireAdmin(), json(poolSchema), (c) => {
-      const input = c.req.valid("json");
-      const problem = check(input);
-      if (problem) return c.json({ error: problem }, 400);
-      const id = savePool(db, input);
-      monitor.configChanged();
-      return c.json({ id }, 201);
-    })
-    .put("/pools/:id", requireAdmin(), json(poolSchema), (c) => {
-      const id = c.req.param("id");
-      if (!listPools(db).some((p) => p.id === id)) return c.json({ error: "No such pool." }, 404);
-      const input = c.req.valid("json");
-      const problem = check(input, id);
-      if (problem) return c.json({ error: problem }, 400);
-      savePool(db, input, id);
-      monitor.configChanged();
-      return c.json({ id });
-    })
-    .delete("/pools/:id", requireAdmin(), (c) => {
-      deletePool(db, c.req.param("id"));
-      monitor.configChanged();
-      return c.json({ ok: true });
-    })
-    .post("/machines/:id/review", requireAdmin(), (c) =>
-      errors(async () => c.json(await engine.review(c.req.param("id")))),
-    )
-    .post(
-      "/reviews/:id/execute",
-      requireAdmin(),
-      json(z.object({ sudoPassword: z.string().max(1024).optional() })),
-      (c) =>
-        errors(async () =>
-          c.json(await engine.execute(c.req.param("id"), c.req.valid("json")), 202),
+  return (
+    new Hono<AppEnv>()
+      .post("/pools", requireAdmin(), json(poolSchema), (c) => {
+        const input = c.req.valid("json");
+        const problem = check(input);
+        if (problem) return c.json({ error: problem }, 400);
+        const id = savePool(db, input);
+        monitor.configChanged();
+        return c.json({ id }, 201);
+      })
+      .put("/pools/:id", requireAdmin(), json(poolSchema), (c) => {
+        const id = c.req.param("id");
+        if (!listPools(db).some((p) => p.id === id)) return c.json({ error: "No such pool." }, 404);
+        const input = c.req.valid("json");
+        const problem = check(input, id);
+        if (problem) return c.json({ error: problem }, 400);
+        savePool(db, input, id);
+        monitor.configChanged();
+        return c.json({ id });
+      })
+      .delete("/pools/:id", requireAdmin(), (c) => {
+        deletePool(db, c.req.param("id"));
+        monitor.configChanged();
+        return c.json({ ok: true });
+      })
+      // Stops or resumes one-job runners starting for an on-demand pool; running ones finish.
+      .put("/pools/:id/paused", requireAdmin(), json(z.object({ paused: z.boolean() })), (c) => {
+        const id = c.req.param("id");
+        if (!listPools(db).some((p) => p.id === id)) return c.json({ error: "No such pool." }, 404);
+        setPoolPaused(db, id, c.req.valid("json").paused);
+        monitor.configChanged();
+        return c.json({ ok: true });
+      })
+      .post("/machines/:id/review", requireAdmin(), (c) =>
+        errors(async () => c.json(await engine.review(c.req.param("id")))),
+      )
+      .post(
+        "/reviews/:id/execute",
+        requireAdmin(),
+        json(z.object({ sudoPassword: z.string().max(1024).optional() })),
+        (c) =>
+          errors(async () =>
+            c.json(await engine.execute(c.req.param("id"), c.req.valid("json")), 202),
+          ),
+      )
+      .get("/operations", requireUser(), (c) => c.json(engine.recentOperations()))
+      .get("/operations/:id", requireUser(), (c) => {
+        const op = engine.operation(c.req.param("id"));
+        return op ? c.json(op) : c.json({ error: "No such operation." }, 404);
+      })
+      .get("/public-repos/check", requireAdmin(), async (c) => {
+        const forgeId = c.req.query("forgeId") ?? "";
+        const repo = c.req.query("repo") ?? "";
+        if (!isValidScopeTarget("repo", repo))
+          return c.json({ error: `${repo} isn't a repository.` }, 400);
+        const http = github.clientFor({ forgeId, kind: "repo", target: repo });
+        if (!http)
+          return c.json(
+            { error: `Runyard's GitHub App isn't installed on ${repo.split("/")[0]}.` },
+            409,
+          );
+        // Only what GitHub's API exposes is checked; the rest is reported as unverifiable.
+        const [isPrivate, forkApproval] = await Promise.all([
+          repoIsPrivate(http, repo),
+          forkApprovalPolicy(http, repo),
+        ]);
+        return c.json({ public: !isPrivate, forkApproval });
+      })
+      .post(
+        "/public-repos",
+        requireAdmin(),
+        json(
+          z.object({ forgeId: z.string(), repo: z.string().trim(), confirm: z.string().trim() }),
         ),
-    )
-    .get("/operations", requireUser(), (c) => c.json(engine.recentOperations()))
-    .get("/operations/:id", requireUser(), (c) => {
-      const op = engine.operation(c.req.param("id"));
-      return op ? c.json(op) : c.json({ error: "No such operation." }, 404);
-    })
-    .get("/public-repos/check", requireAdmin(), async (c) => {
-      const forgeId = c.req.query("forgeId") ?? "";
-      const repo = c.req.query("repo") ?? "";
-      if (!isValidScopeTarget("repo", repo))
-        return c.json({ error: `${repo} isn't a repository.` }, 400);
-      const http = github.clientFor({ forgeId, kind: "repo", target: repo });
-      if (!http)
-        return c.json(
-          { error: `Runyard's GitHub App isn't installed on ${repo.split("/")[0]}.` },
-          409,
-        );
-      // Only what GitHub's API exposes is checked; the rest is reported as unverifiable.
-      const [isPrivate, forkApproval] = await Promise.all([
-        repoIsPrivate(http, repo),
-        forkApprovalPolicy(http, repo),
-      ]);
-      return c.json({ public: !isPrivate, forkApproval });
-    })
-    .post(
-      "/public-repos",
-      requireAdmin(),
-      json(z.object({ forgeId: z.string(), repo: z.string().trim(), confirm: z.string().trim() })),
-      (c) => {
-        const { forgeId, repo, confirm } = c.req.valid("json");
-        if (!isValidScopeTarget("repo", repo) && !isValidScopeTarget("user", repo))
-          return c.json({ error: `${repo} isn't a repository or account.` }, 400);
-        if (confirm !== repo) return c.json({ error: `Type ${repo} exactly to confirm.` }, 400);
-        const user = c.get("identity").user!;
-        allowPublicRepo(db, forgeId, repo, user.username ?? user.tailscaleLogin ?? user.id);
-        return c.json({ ok: true });
-      },
-    )
-    .delete(
-      "/public-repos",
-      requireAdmin(),
-      json(z.object({ forgeId: z.string(), repo: z.string() })),
-      (c) => {
-        const { forgeId, repo } = c.req.valid("json");
-        revokePublicRepo(db, forgeId, repo);
-        return c.json({ ok: true });
-      },
-    );
+        (c) => {
+          const { forgeId, repo, confirm } = c.req.valid("json");
+          if (!isValidScopeTarget("repo", repo) && !isValidScopeTarget("user", repo))
+            return c.json({ error: `${repo} isn't a repository or account.` }, 400);
+          if (confirm !== repo) return c.json({ error: `Type ${repo} exactly to confirm.` }, 400);
+          const user = c.get("identity").user!;
+          allowPublicRepo(db, forgeId, repo, user.username ?? user.tailscaleLogin ?? user.id);
+          return c.json({ ok: true });
+        },
+      )
+      .delete(
+        "/public-repos",
+        requireAdmin(),
+        json(z.object({ forgeId: z.string(), repo: z.string() })),
+        (c) => {
+          const { forgeId, repo } = c.req.valid("json");
+          revokePublicRepo(db, forgeId, repo);
+          return c.json({ ok: true });
+        },
+      )
+  );
 }

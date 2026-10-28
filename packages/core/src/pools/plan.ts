@@ -2,7 +2,11 @@ import { scopeKey } from "../scope.ts";
 import type { RunnerKind, Scope } from "../model.ts";
 import {
   isActive,
+  serviceModeFor,
   type DesiredRunner,
+  type DesiredTemplate,
+  type LocalTemplate,
+  type TemplateRecord,
   type ForgejoMode,
   type LocalRunner,
   type RemoteRunner,
@@ -21,7 +25,9 @@ export type PlanAction =
   | "inspectOffline"
   | "publicRepo"
   | "groupPolicy"
-  | "unsupportedPlatform";
+  | "unsupportedPlatform"
+  | "installTemplate"
+  | "removeTemplate";
 
 export type PlanItem = {
   action: PlanAction;
@@ -70,6 +76,12 @@ export type PlanInput = {
   machineError: string | null;
   /** Per scope key: why GitHub couldn't be read. */
   githubErrors: ReadonlyMap<string, string>;
+  /** On-demand pools' runner templates for this machine. */
+  templates?: DesiredTemplate[];
+  /** Templates Runyard installed earlier. */
+  templateRecords?: TemplateRecord[];
+  /** Template probes by exact path. */
+  localTemplates?: ReadonlyMap<string, LocalTemplate>;
 };
 
 /** Labels GitHub adds by itself; reconciling never adds or removes them. */
@@ -260,6 +272,95 @@ export function planMachine(input: PlanInput): PlanItem[] {
       reason:
         "No pool needs it any more: stop and uninstall its service and deregister it. The directory is kept.",
       blocked: false,
+    });
+  }
+  items.push(...planTemplates(input));
+  return items;
+}
+
+/**
+ * On-demand pools' runner templates: installed once per machine and runner
+ * program, under the same guards as runners, and removed when no pool needs
+ * them. One-job runners are started from them later, without a review.
+ */
+function planTemplates(input: PlanInput): PlanItem[] {
+  const items: PlanItem[] = [];
+  const wanted = (input.templates ?? []).filter((t) => t.machineId === input.machineId);
+  const wantedKeys = new Set(wanted.map((t) => t.key));
+  for (const t of wanted) {
+    const mode = serviceModeFor(t.os);
+    const item = (action: PlanAction, reason: string, blocked: boolean): PlanItem => ({
+      action,
+      machineId: t.machineId,
+      runnerName: `${t.poolName} template`,
+      scope: t.scopes[0]!,
+      path: t.path,
+      reason,
+      blocked,
+      serviceMode: mode ?? "systemd",
+      runnerKind: t.runnerKind,
+      labels: t.labels,
+      ...(t.forgejoMode ? { forgejoMode: t.forgejoMode } : {}),
+    });
+    if (t.os !== "linux" && t.os !== "macos") {
+      items.push(
+        item(
+          "unsupportedPlatform",
+          "On-demand runners run on Linux and macOS machines for now.",
+          true,
+        ),
+      );
+      continue;
+    }
+    if (t.runnerKind === "forgejo" && t.os !== "linux") {
+      items.push(item("unsupportedPlatform", "forgejo-runner is only published for Linux.", true));
+      continue;
+    }
+    if (input.machineError) {
+      items.push(item("inspect", input.machineError, true));
+      continue;
+    }
+    const local = input.localTemplates?.get(t.path);
+    if (local?.present) continue;
+    // A one-job runner may serve any of the pool's scopes, so each must pass.
+    const refused = t.scopes
+      .map((s) => ({ s, policy: input.policies.get(scopeKey(s)) }))
+      .find(({ policy }) => !policy || !policy.ok);
+    if (refused) {
+      const action =
+        refused.s.kind === "repo" || t.runnerKind === "forgejo" ? "publicRepo" : "groupPolicy";
+      items.push(
+        item(
+          action,
+          refused.policy && !refused.policy.ok
+            ? refused.policy.reason
+            : "Its access policy couldn't be checked.",
+          true,
+        ),
+      );
+      continue;
+    }
+    items.push(
+      item(
+        "installTemplate",
+        `Download and unpack ${t.runnerKind === "forgejo" ? "forgejo-runner" : "GitHub's runner"} for one-job runners; nothing is registered until a job needs it.`,
+        false,
+      ),
+    );
+  }
+  for (const r of input.templateRecords ?? []) {
+    if (r.machineId !== input.machineId || wantedKeys.has(r.key)) continue;
+    if (input.localTemplates && !input.localTemplates.get(r.path)?.present) continue;
+    items.push({
+      action: "removeTemplate",
+      machineId: r.machineId,
+      runnerName: `${r.poolName} template`,
+      scope: r.scope,
+      path: r.path,
+      reason: "No on-demand pool needs it any more: delete the unpacked runner software.",
+      blocked: false,
+      serviceMode: r.serviceMode,
+      runnerKind: r.runnerKind,
     });
   }
   return items;

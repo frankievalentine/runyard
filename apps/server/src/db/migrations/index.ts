@@ -6,6 +6,7 @@ import githubApps from "./0004_github_apps.sql" with { type: "text" };
 import pools from "./0005_pools.sql" with { type: "text" };
 import forgejo from "./0006_forgejo.sql" with { type: "text" };
 import runnerAssignments from "./0007_runner_assignments.sql" with { type: "text" };
+import onDemand from "./0008_on_demand.sql" with { type: "text" };
 
 /**
  * Every migration drizzle-kit generated, oldest first. Add new files here;
@@ -20,6 +21,7 @@ export const migrations: readonly Migration[] = [
   { name: "0005_pools", sql: pools },
   { name: "0006_forgejo", sql: forgejo },
   { name: "0007_runner_assignments", sql: runnerAssignments },
+  { name: "0008_on_demand", sql: onDemand },
 ];
 
 export type Migration = { name: string; sql: string };

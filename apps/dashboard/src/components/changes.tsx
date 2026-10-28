@@ -33,6 +33,8 @@ const ACTION: Record<PlanItem["action"], string> = {
   publicRepo: "Public repository",
   groupPolicy: "Group allows public repositories",
   unsupportedPlatform: "Unsupported platform",
+  installTemplate: "Install runner software",
+  removeTemplate: "Remove runner software",
 };
 
 /** The machine's runners: the ones GitHub lists for it, and the ones its pools still call for. ported from fleet's RunnerTable. */

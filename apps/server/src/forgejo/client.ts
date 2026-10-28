@@ -153,12 +153,19 @@ export class ForgejoApi {
     }));
   }
 
-  /** Creates the runner on Forgejo; the uuid and token go into the runner's own config. */
-  async register(scope: Scope, name: string): Promise<{ id: number; uuid: string; token: string }> {
+  /**
+   * Creates the runner on Forgejo; the uuid and token go into the runner's own
+   * config. An ephemeral runner takes one job and is removed.
+   */
+  async register(
+    scope: Scope,
+    name: string,
+    ephemeral = false,
+  ): Promise<{ id: number; uuid: string; token: string }> {
     return (await this.request("POST", runnersPath(scope), {
       name,
       description: "Managed by Runyard",
-      ephemeral: false,
+      ephemeral,
     })) as {
       id: number;
       uuid: string;

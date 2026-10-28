@@ -169,6 +169,12 @@ export const pools = sqliteTable("pools", {
     .notNull()
     .default("host"),
   forgejoImage: text(),
+  /** `persistent` keeps registered runners; `onDemand` starts a one-job runner per queued job. */
+  mode: text({ enum: ["persistent", "onDemand"] })
+    .notNull()
+    .default("persistent"),
+  /** On demand only: no new runners start while paused. */
+  paused: integer({ mode: "boolean" }).notNull().default(false),
   createdAt: integer({ mode: "timestamp_ms" }).notNull(),
 });
 
@@ -260,4 +266,45 @@ export const runnerAssignments = sqliteTable(
     assignedAt: integer({ mode: "timestamp_ms" }).notNull(),
   },
   (t) => [primaryKey({ columns: [t.forgeId, t.scopeKind, t.scopeTarget, t.runnerName] })],
+);
+
+/** Runner templates Runyard installed for on-demand pools, so it can remove them later. */
+export const runnerTemplates = sqliteTable("runner_templates", {
+  key: text().primaryKey(),
+  machineId: text()
+    .notNull()
+    .references(() => machines.id, { onDelete: "cascade" }),
+  poolId: text().notNull(),
+  poolName: text().notNull(),
+  forgeId: text().notNull(),
+  scopeKind: text({ enum: ["user", "org", "repo"] }).notNull(),
+  scopeTarget: text().notNull(),
+  runnerKind: text({ enum: ["actions", "forgejo"] }).notNull(),
+  path: text().notNull(),
+  serviceMode: text({ enum: ["launchagent", "systemd", "windows-service"] }).notNull(),
+  createdAt: integer({ mode: "timestamp_ms" }).notNull(),
+});
+
+/** One-job runners Runyard started for queued jobs, newest kept for the pool page and the journal. */
+export const dispatches = sqliteTable(
+  "dispatches",
+  {
+    id: text().primaryKey(),
+    poolId: text().notNull(),
+    machineId: text()
+      .notNull()
+      .references(() => machines.id, { onDelete: "cascade" }),
+    runnerName: text().notNull(),
+    runnerKind: text({ enum: ["actions", "forgejo"] }).notNull(),
+    forgeId: text().notNull(),
+    scopeKind: text({ enum: ["user", "org", "repo"] }).notNull(),
+    scopeTarget: text().notNull(),
+    jobId: integer().notNull(),
+    runnerId: integer(),
+    state: text({ enum: ["starting", "running", "done", "failed"] }).notNull(),
+    startedAt: integer({ mode: "timestamp_ms" }).notNull(),
+    endedAt: integer({ mode: "timestamp_ms" }),
+    detail: text(),
+  },
+  (t) => [index("dispatches_job").on(t.jobId), index("dispatches_started").on(t.startedAt)],
 );

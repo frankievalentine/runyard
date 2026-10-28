@@ -1,4 +1,11 @@
-import type { FleetView, ForgejoMode, OsFamily, QueuedJobView, Scope } from "@runyard/core";
+import type {
+  FleetView,
+  ForgejoMode,
+  OsFamily,
+  PoolMode,
+  QueuedJobView,
+  Scope,
+} from "@runyard/core";
 import { availableScopes, sameScope } from "./pools.ts";
 import { isBuiltinLabel, osLabel } from "./status.ts";
 
@@ -9,6 +16,7 @@ export type PoolDraft = {
   machines: { machineId: string; slots: number }[];
   scopes: Scope[];
   forgejoMode: ForgejoMode;
+  mode?: PoolMode;
 };
 
 export type PoolSuggestion = {

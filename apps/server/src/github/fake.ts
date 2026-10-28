@@ -40,6 +40,9 @@ export class FakeGithub {
   installations: Installation[] = [];
   /** Runners by organization name or `owner/repo`. */
   runners = new Map<string, Runner[]>();
+  /** Single-use runner configs handed out, and runners deleted through the API. */
+  jitConfigs: { owner: string; name: string; labels: string[]; config: string; id: number }[] = [];
+  deletedRunners: { owner: string; id: number }[] = [];
   /** Workflow runs by `owner/repo`, each with its jobs. */
   runs = new Map<string, { id: number; status: "queued" | "in_progress"; jobs: Job[] }[]>();
   tokens = new Map<string, number>();
@@ -143,6 +146,37 @@ export class FakeGithub {
         issue(c, `${c.req.param("owner")}/${c.req.param("repo")}`),
       );
     }
+    // Single-use runners: registered at once (offline until they connect), like GitHub does.
+    const jit = async (c: Context, owner: string) => {
+      if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
+      const { name, labels } = (await c.req.json()) as { name: string; labels: string[] };
+      const id = 50_000 + this.jitConfigs.length;
+      const config = `JIT${crypto.randomUUID().replace(/-/g, "")}`;
+      this.jitConfigs.push({ owner, name, labels, config, id });
+      this.runners.set(owner, [
+        ...(this.runners.get(owner) ?? []),
+        { id, name, os: "macOS", status: "offline", busy: false, labels },
+      ]);
+      return c.json({ runner: { id, name }, encoded_jit_config: config }, 201);
+    };
+    app.post("/orgs/:org/actions/runners/generate-jitconfig", (c) => jit(c, c.req.param("org")));
+    app.post("/repos/:owner/:repo/actions/runners/generate-jitconfig", (c) =>
+      jit(c, `${c.req.param("owner")}/${c.req.param("repo")}`),
+    );
+    const removeRunner = (c: Context, owner: string) => {
+      if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
+      const id = Number(c.req.param("id"));
+      this.deletedRunners.push({ owner, id });
+      this.runners.set(
+        owner,
+        (this.runners.get(owner) ?? []).filter((r) => r.id !== id),
+      );
+      return c.body(null, 204);
+    };
+    app.delete("/orgs/:org/actions/runners/:id", (c) => removeRunner(c, c.req.param("org")));
+    app.delete("/repos/:owner/:repo/actions/runners/:id", (c) =>
+      removeRunner(c, `${c.req.param("owner")}/${c.req.param("repo")}`),
+    );
     const putLabels = async (c: Context, owner: string) => {
       if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
       const { labels } = (await c.req.json()) as { labels: string[] };

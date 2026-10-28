@@ -1,9 +1,19 @@
-import type { ForgejoMode, Pool, Registration, Scope } from "@runyard/core";
-import { and, eq } from "drizzle-orm";
+import type {
+  Dispatch,
+  ForgejoMode,
+  Pool,
+  PoolMode,
+  Registration,
+  Scope,
+  TemplateRecord,
+} from "@runyard/core";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import type { Db } from "../db/index.ts";
 import {
+  dispatches,
   poolMachines,
   pools,
+  runnerTemplates,
   poolScopes,
   publicRepoOverrides,
   registrations,
@@ -15,6 +25,7 @@ export type PoolInput = {
   machines: { machineId: string; slots: number }[];
   scopes: { forgeId: string; kind: "user" | "org" | "repo"; target: string }[];
   forgejoMode: ForgejoMode;
+  mode: PoolMode;
 };
 
 export function listPools(db: Db): Pool[] {
@@ -33,6 +44,8 @@ export function listPools(db: Db): Pool[] {
         p.forgejoMode === "docker" && p.forgejoImage
           ? { kind: "docker", image: p.forgejoImage }
           : { kind: "host" },
+      mode: p.mode,
+      paused: p.paused,
       machines: machines
         .filter((m) => m.poolId === p.id)
         .map(({ machineId, slots }) => ({ machineId, slots })),
@@ -55,6 +68,7 @@ export function savePool(
       labels: JSON.stringify(input.labels),
       forgejoMode: input.forgejoMode.kind,
       forgejoImage: input.forgejoMode.kind === "docker" ? input.forgejoMode.image : null,
+      mode: input.mode,
     };
     if (exists) tx.update(pools).set(row).where(eq(pools.id, id)).run();
     else
@@ -152,4 +166,118 @@ export function revokePublicRepo(db: Db, forgeId: string, repo: string) {
       ),
     )
     .run();
+}
+
+/** Pauses or resumes an on-demand pool's dispatch. */
+export function setPoolPaused(db: Db, id: string, paused: boolean) {
+  db.update(pools).set({ paused }).where(eq(pools.id, id)).run();
+}
+
+type ScopeKind = "user" | "org" | "repo";
+
+export function listTemplates(db: Db): TemplateRecord[] {
+  return db
+    .select()
+    .from(runnerTemplates)
+    .all()
+    .map((t) => ({
+      key: t.key,
+      machineId: t.machineId,
+      poolId: t.poolId,
+      poolName: t.poolName,
+      scope: { forgeId: t.forgeId, kind: t.scopeKind, target: t.scopeTarget },
+      runnerKind: t.runnerKind,
+      path: t.path,
+      serviceMode: t.serviceMode,
+    }));
+}
+
+export function recordTemplate(db: Db, t: TemplateRecord) {
+  const row = {
+    machineId: t.machineId,
+    poolId: t.poolId,
+    poolName: t.poolName,
+    forgeId: t.scope.forgeId,
+    scopeKind: t.scope.kind as ScopeKind,
+    scopeTarget: t.scope.target,
+    runnerKind: t.runnerKind,
+    path: t.path,
+    serviceMode: t.serviceMode,
+  };
+  db.insert(runnerTemplates)
+    .values({ key: t.key, ...row, createdAt: new Date() })
+    .onConflictDoUpdate({ target: runnerTemplates.key, set: row })
+    .run();
+}
+
+export function forgetTemplate(db: Db, machineId: string, path: string) {
+  db.delete(runnerTemplates)
+    .where(and(eq(runnerTemplates.machineId, machineId), eq(runnerTemplates.path, path)))
+    .run();
+}
+
+/** How many finished dispatches are kept, newest first. */
+const DISPATCH_HISTORY = 500;
+
+export function listDispatches(db: Db, limit = DISPATCH_HISTORY): Dispatch[] {
+  return db
+    .select()
+    .from(dispatches)
+    .orderBy(desc(dispatches.startedAt))
+    .limit(limit)
+    .all()
+    .map((d) => ({
+      id: d.id,
+      poolId: d.poolId,
+      machineId: d.machineId,
+      runnerName: d.runnerName,
+      runnerKind: d.runnerKind,
+      scope: { forgeId: d.forgeId, kind: d.scopeKind, target: d.scopeTarget },
+      jobId: d.jobId,
+      runnerId: d.runnerId,
+      state: d.state,
+      startedAt: d.startedAt.getTime(),
+      endedAt: d.endedAt?.getTime() ?? null,
+      detail: d.detail,
+    }));
+}
+
+export function saveDispatch(db: Db, d: Dispatch) {
+  const row = {
+    poolId: d.poolId,
+    machineId: d.machineId,
+    runnerName: d.runnerName,
+    runnerKind: d.runnerKind,
+    forgeId: d.scope.forgeId,
+    scopeKind: d.scope.kind as ScopeKind,
+    scopeTarget: d.scope.target,
+    jobId: d.jobId,
+    runnerId: d.runnerId,
+    state: d.state,
+    startedAt: new Date(d.startedAt),
+    endedAt: d.endedAt === null ? null : new Date(d.endedAt),
+    detail: d.detail,
+  };
+  db.insert(dispatches)
+    .values({ id: d.id, ...row })
+    .onConflictDoUpdate({ target: dispatches.id, set: row })
+    .run();
+}
+
+/** Drops finished dispatches beyond the newest DISPATCH_HISTORY. */
+export function pruneDispatches(db: Db) {
+  const keep = listDispatches(db).at(-1);
+  if (!keep) return;
+  db.delete(dispatches)
+    .where(
+      and(
+        lt(dispatches.startedAt, new Date(keep.startedAt)),
+        inArray(dispatches.state, ["done", "failed"]),
+      ),
+    )
+    .run();
+}
+
+export function deleteDispatch(db: Db, id: string) {
+  db.delete(dispatches).where(eq(dispatches.id, id)).run();
 }

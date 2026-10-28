@@ -1,9 +1,11 @@
 import {
   desiredRunners,
+  desiredTemplates,
   POOL_NAME,
   type ForgeKind,
   type ForgejoMode,
   type Pool,
+  type PoolMode,
   type Scope,
 } from "@runyard/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -21,9 +23,22 @@ import { Card, EmptyLine, ErrorText } from "./ui.tsx";
 
 const PREVIEW_ROWS = 8;
 
+const MODES = [
+  [
+    "persistent",
+    "Keep runners registered",
+    "Each slot is a runner that stays registered and waits for jobs. Best for warm caches.",
+  ],
+  [
+    "onDemand",
+    "Start a runner per job",
+    "Runyard installs the runner once, then starts a one-job runner for each queued job and removes it after. Linux and macOS.",
+  ],
+] as const;
+
 /**
  * Creates a pool, or edits one in place, in three steps: what it serves, where
- * it runs, and its labels and name. The preview shows the runners it calls for.
+ * and how it runs, and its labels and name. The preview shows what it calls for.
  */
 export function PoolForm({
   pool,
@@ -51,6 +66,8 @@ export function PoolForm({
   const [image, setImage] = useState(
     start?.forgejoMode.kind === "docker" ? start.forgejoMode.image : "node:22-bookworm",
   );
+  const [poolMode, setPoolMode] = useState<PoolMode>(start?.mode ?? "persistent");
+  const onDemand = poolMode === "onDemand";
   const options = availableScopes(view);
   const servesForgejo = scopes.some((s) => isForgejo(view, s));
   const labelList = labels
@@ -58,7 +75,7 @@ export function PoolForm({
     .map((l) => l.trim())
     .filter(Boolean);
   const effectiveName = nameTouched ? name.trim() : slug(labelList[0] ?? "") || name.trim();
-  const draft: PoolDraft = {
+  const draft: PoolDraft & { mode: PoolMode } = {
     name: effectiveName,
     labels: labelList,
     machines: Object.entries(slots)
@@ -66,6 +83,7 @@ export function PoolForm({
       .map(([machineId, n]) => ({ machineId, slots: n })),
     scopes,
     forgejoMode: mode === "docker" ? { kind: "docker", image: image.trim() } : { kind: "host" },
+    mode: poolMode,
   };
 
   const preview = useMemo(() => {
@@ -74,22 +92,32 @@ export function PoolForm({
       ...view.github.apps.map((a): [string, ForgeKind] => [a.forgeId, "github"]),
       ...view.forgejo.connections.map((c): [string, ForgeKind] => [c.forgeId, "forgejo"]),
     ]);
-    return desiredRunners(
-      [{ id: pool?.id ?? "new", ...draft, name: draft.name || "pool" }],
-      info,
-      kinds,
-    );
+    const asPool: Pool = {
+      id: pool?.id ?? "new",
+      paused: false,
+      ...draft,
+      name: draft.name || "pool",
+    };
+    return {
+      runners: desiredRunners([asPool], info, kinds),
+      templates: desiredTemplates([asPool], info, kinds),
+    };
     // The draft is rebuilt each render; its parts are the real dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, pool?.id, draft.name, labels, slots, scopes, mode, image]);
-  const unknownOs = draft.machines.filter(
-    (m) => !view.machines.find((x) => x.id === m.machineId)?.os,
-  );
+  }, [view, pool?.id, draft.name, labels, slots, scopes, mode, image, poolMode]);
+  const osOf = (machineId: string) => view.machines.find((x) => x.id === machineId)?.os;
+  const unknownOs = draft.machines.filter((m) => !osOf(m.machineId));
   const forgejoOffLinux =
     servesForgejo &&
     draft.machines.some((m) => {
-      const os = view.machines.find((x) => x.id === m.machineId)?.os;
+      const os = osOf(m.machineId);
       return os && os !== "linux";
+    });
+  const offPlatform =
+    onDemand &&
+    draft.machines.some((m) => {
+      const os = osOf(m.machineId);
+      return os && os !== "linux" && os !== "macos";
     });
   const nameError =
     draft.name && !POOL_NAME.test(draft.name)
@@ -128,6 +156,7 @@ export function PoolForm({
     );
   const setSlot = (id: string, n: number) =>
     setSlots({ ...slots, [id]: Math.max(0, Math.min(16, n)) });
+  const total = draft.machines.reduce((n, m) => n + m.slots, 0);
 
   return (
     <Card className="max-w-3xl overflow-hidden">
@@ -163,11 +192,33 @@ export function PoolForm({
           </p>
         </Step>
 
-        <Step
-          n={2}
-          title="Where it runs"
-          hint="How many runners each machine gets. Most machines need one."
-        >
+        <Step n={2} title="Where and how it runs" hint="Choose how runners run, then the machines.">
+          <fieldset className="mb-3 grid grid-cols-1 gap-2 min-[700px]:grid-cols-2">
+            <legend className="sr-only">How runners run</legend>
+            {MODES.map(([value, title, text]) => (
+              <label
+                key={value}
+                className={`flex cursor-pointer gap-2 rounded-md border px-3 py-2 ${poolMode === value ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
+              >
+                <input
+                  type="radio"
+                  name="poolMode"
+                  className="mt-1"
+                  checked={poolMode === value}
+                  onChange={() => setPoolMode(value)}
+                />
+                <span>
+                  <span className="block font-medium">{title}</span>
+                  <span className="block text-[12px] text-ink-2">{text}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <p className="mb-1.5 text-[12px] text-ink-2">
+            {onDemand
+              ? "The most one-job runners each machine runs at once."
+              : "How many runners each machine gets. Most machines need one."}
+          </p>
           {view.machines.length === 0 ? (
             <EmptyLine>Add a machine first.</EmptyLine>
           ) : (
@@ -266,29 +317,68 @@ export function PoolForm({
         </Step>
 
         <div className="border-t border-line bg-sunken/40 px-5 py-4">
-          <div className="font-medium">
-            {preview.length === 0
-              ? "No runners yet"
-              : `Will call for ${preview.length} runner${preview.length === 1 ? "" : "s"}`}
-          </div>
-          {preview.length === 0 ? (
-            <p className="mt-1 text-[12.5px] text-ink-2">
-              Choose at least one account or repository and one machine.
-            </p>
-          ) : (
-            <ul className="mt-2 space-y-1 font-mono text-[12px]">
-              {preview.slice(0, PREVIEW_ROWS).map((d) => (
-                <li key={d.key} className="flex flex-wrap gap-x-2">
-                  <span>{d.name}</span>
-                  <span className="text-ink-3">
-                    → {d.scope.target} on {view.machines.find((m) => m.id === d.machineId)?.name}
-                  </span>
-                </li>
-              ))}
-              {preview.length > PREVIEW_ROWS && (
-                <li className="text-ink-3">and {preview.length - PREVIEW_ROWS} more</li>
+          {onDemand ? (
+            <>
+              <div className="font-medium">
+                {preview.templates.length === 0
+                  ? "No runners yet"
+                  : `Up to ${total} one-job runner${total === 1 ? "" : "s"} at once`}
+              </div>
+              {preview.templates.length === 0 ? (
+                <p className="mt-1 text-[12.5px] text-ink-2">
+                  Choose at least one account or repository and one machine.
+                </p>
+              ) : (
+                <ul className="mt-2 space-y-1 text-[12px]">
+                  {preview.templates.map((t) => (
+                    <li key={t.key}>
+                      <span className="font-medium">
+                        {view.machines.find((m) => m.id === t.machineId)?.name}
+                      </span>
+                      <span className="text-ink-2">
+                        {" "}
+                        · up to {slots[t.machineId] ?? 0} at once ·{" "}
+                        {t.runnerKind === "forgejo" ? "forgejo-runner" : "GitHub's runner"} kept at{" "}
+                        <span className="font-mono">{t.path}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               )}
-            </ul>
+              {offPlatform && (
+                <Note>
+                  On-demand runners run on Linux and macOS for now; other machines are skipped.
+                </Note>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="font-medium">
+                {preview.runners.length === 0
+                  ? "No runners yet"
+                  : `Will call for ${preview.runners.length} runner${preview.runners.length === 1 ? "" : "s"}`}
+              </div>
+              {preview.runners.length === 0 ? (
+                <p className="mt-1 text-[12.5px] text-ink-2">
+                  Choose at least one account or repository and one machine.
+                </p>
+              ) : (
+                <ul className="mt-2 space-y-1 font-mono text-[12px]">
+                  {preview.runners.slice(0, PREVIEW_ROWS).map((d) => (
+                    <li key={d.key} className="flex flex-wrap gap-x-2">
+                      <span>{d.name}</span>
+                      <span className="text-ink-3">
+                        → {d.scope.target} on{" "}
+                        {view.machines.find((m) => m.id === d.machineId)?.name}
+                      </span>
+                    </li>
+                  ))}
+                  {preview.runners.length > PREVIEW_ROWS && (
+                    <li className="text-ink-3">and {preview.runners.length - PREVIEW_ROWS} more</li>
+                  )}
+                </ul>
+              )}
+            </>
           )}
           {unknownOs.length > 0 && (
             <Note>
@@ -312,7 +402,9 @@ export function PoolForm({
             </Button>
             {onDone && <Button onClick={onDone}>Cancel</Button>}
             <span className="text-[12px] text-ink-3">
-              Saving changes nothing on machines; you review each machine's changes next.
+              {onDemand
+                ? "Saving changes nothing on machines; reviewing each machine's changes installs the runner software."
+                : "Saving changes nothing on machines; you review each machine's changes next."}
             </span>
           </div>
         </div>

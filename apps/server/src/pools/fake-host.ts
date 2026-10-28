@@ -15,13 +15,42 @@ type Dir = {
 export class FakeRunnerHost {
   dirs = new Map<string, Dir>();
   received: {
-    op: "probe" | "install" | "start" | "remove" | "configure";
+    op:
+      | "probe"
+      | "install"
+      | "start"
+      | "remove"
+      | "configure"
+      | "template-probe"
+      | "template-install"
+      | "template-remove"
+      | "jit-start"
+      | "sweep";
     env: Record<string, string>;
   }[] = [];
+  /** Installed templates by path, with their version. */
+  templates = new Map<string, string>();
+  /** One-job runners started, by name: alive until a test ends them. */
+  jobs = new Map<string, "alive" | "exited">();
   /** Makes the next operation script fail with this output. */
   failNext: string | null = null;
 
   answer = (stdin: string): string | CommandResult => {
+    if (stdin.includes("RT_END")) {
+      this.received.push({ op: "template-probe", env: {} });
+      const paths = [...stdin.matchAll(/^path=(.+)$/gm)].map((m) => unquote(m[1]!));
+      const rows = paths.map((p, i) => {
+        const version = this.templates.get(p);
+        return `RT\t${i}\t${version ? "true" : "false"}\t${version ?? ""}`;
+      });
+      return `${rows.join("\n")}\nRT_END\n`;
+    }
+    if (stdin.includes("RJ_END")) {
+      this.received.push({ op: "sweep", env: {} });
+      const rows = [...this.jobs].map(([name, state]) => `RJ\t${state}\t${name}`);
+      for (const [name, state] of this.jobs) if (state === "exited") this.jobs.delete(name);
+      return `${rows.join("\n")}\nRJ_END\n`;
+    }
     if (stdin.includes("RF_PROBE_END")) {
       this.received.push({ op: "probe", env: {} });
       const paths = [...stdin.matchAll(/^path=(.+)$/gm)].map((m) => unquote(m[1]!));
@@ -35,6 +64,28 @@ export class FakeRunnerHost {
     const env = Object.fromEntries(
       [...stdin.matchAll(/^export (RF_[A-Z_]+)=(.+)$/gm)].map((m) => [m[1]!, unquote(m[2]!)]),
     );
+    if ("RF_JOB_DIR" in env) {
+      this.received.push({ op: "jit-start", env });
+      if (this.failNext) {
+        const output = this.failNext;
+        this.failNext = null;
+        return { code: 1, stdout: "", stderr: output };
+      }
+      this.jobs.set(env.RF_NAME!, "alive");
+      return `started ${env.RF_NAME}`;
+    }
+    if ("RF_KIND" in env || stdin.includes("isn't a Runyard template")) {
+      const op = "RF_KIND" in env ? "template-install" : "template-remove";
+      this.received.push({ op, env });
+      if (this.failNext) {
+        const output = this.failNext;
+        this.failNext = null;
+        return { code: 1, stdout: "", stderr: output };
+      }
+      if (op === "template-install") this.templates.set(env.RF_ROOT!, env.RF_VERSION!);
+      else this.templates.delete(env.RF_ROOT!);
+      return `${op} ${env.RF_ROOT}`;
+    }
     // forgejo-remove carries no token, so its rename of .runner identifies it.
     const op =
       "RF_ASSET_URL" in env || "RF_BINARY_URL" in env

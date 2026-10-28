@@ -20,8 +20,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { listAssignments } from "./machines/assignments.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
+import { Dispatcher } from "./pools/dispatcher.ts";
 import { PoolEngine } from "./pools/engine.ts";
-import { listPools, listRegistrations } from "./pools/store.ts";
+import { listDispatches, listPools, listRegistrations, listTemplates } from "./pools/store.ts";
 
 /** An app on an in-memory database. `codes` collects every setup code announced. */
 export async function testApp(
@@ -74,6 +75,8 @@ export async function testApp(
       pools: listPools(db),
       registrations: listRegistrations(db),
       assignments: listAssignments(db),
+      templateRecords: listTemplates(db),
+      dispatches: listDispatches(db, 100),
     }),
   });
   const engine = new PoolEngine({
@@ -87,6 +90,18 @@ export async function testApp(
     now: () => clock.now,
     onChange: () => monitor?.tick(),
   });
+  const dispatcher = new Dispatcher({
+    db,
+    run: fake.run,
+    programs: fake.programs,
+    engine,
+    github,
+    forgejo,
+    view: () => monitor!.view,
+    now: () => clock.now,
+    onChange: () => monitor?.tick(),
+  });
+
   const deps: AppDeps = {
     db,
     monitor,
@@ -133,6 +148,7 @@ export async function testApp(
     fakeForgejo,
     boat,
     fakeBoat,
+    dispatcher,
   };
 }
 

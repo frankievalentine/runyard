@@ -1,4 +1,4 @@
-import type { LocalRunner, ServiceMode } from "@runyard/core";
+import type { LocalRunner, LocalTemplate, ServiceMode } from "@runyard/core";
 import nixosHelper from "../../scripts/runner-nixos-service.py" with { type: "text" };
 import installPs1 from "../../scripts/runner-install.ps1" with { type: "text" };
 import installSh from "../../scripts/runner-install.sh" with { type: "text" };
@@ -11,6 +11,10 @@ import forgejoConfigure from "../../scripts/forgejo-configure.sh" with { type: "
 import forgejoInstall from "../../scripts/forgejo-install.sh" with { type: "text" };
 import forgejoRemove from "../../scripts/forgejo-remove.sh" with { type: "text" };
 import forgejoStart from "../../scripts/forgejo-start.sh" with { type: "text" };
+import jitStart from "../../scripts/jit-start.sh" with { type: "text" };
+import jitSweep from "../../scripts/jit-sweep.sh" with { type: "text" };
+import templateInstall from "../../scripts/template-install.sh" with { type: "text" };
+import templateRemove from "../../scripts/template-remove.sh" with { type: "text" };
 
 export type Operation =
   | "install"
@@ -19,7 +23,14 @@ export type Operation =
   | "forgejo-install"
   | "forgejo-start"
   | "forgejo-configure"
-  | "forgejo-remove";
+  | "forgejo-remove"
+  | "template-install"
+  | "template-remove"
+  | "jit-start"
+  | "jit-sweep";
+
+/** Values that are paths on the machine: a leading `~/` becomes the remote home directory. */
+const PATHS = new Set(["RF_ROOT", "RF_TEMPLATE", "RF_JOB_DIR"]);
 
 const SCRIPTS: Record<Operation, { posix: string; windows: string }> = {
   install: { posix: installSh, windows: installPs1 },
@@ -42,6 +53,17 @@ const SCRIPTS: Record<Operation, { posix: string; windows: string }> = {
     posix: forgejoRemove,
     windows: "throw 'forgejo-runner is only published for Linux'",
   },
+  // On-demand runners run on Linux and macOS for now; the plan refuses Windows.
+  "template-install": {
+    posix: templateInstall,
+    windows: "throw 'on-demand runners need Linux or macOS'",
+  },
+  "template-remove": {
+    posix: templateRemove,
+    windows: "throw 'on-demand runners need Linux or macOS'",
+  },
+  "jit-start": { posix: jitStart, windows: "throw 'on-demand runners need Linux or macOS'" },
+  "jit-sweep": { posix: jitSweep, windows: "throw 'on-demand runners need Linux or macOS'" },
 };
 
 /** A POSIX single-quoted string. */
@@ -73,7 +95,7 @@ export function operationScript(
     return `${env}\n${SCRIPTS[op].windows}`;
   }
   const env = entries
-    .map(([k, v]) => `export ${k}=${k === "RF_ROOT" ? shPath(v) : shQuote(v)}`)
+    .map(([k, v]) => `export ${k}=${PATHS.has(k) ? shPath(v) : shQuote(v)}`)
     .join("\n");
   const nixos = `export RF_NIXOS_SERVICE_HELPER=${shQuote(nixosHelper)}`;
   return `${env}\n${nixos}\n${runAsRoot}\n${SCRIPTS[op].posix}`;
@@ -204,4 +226,42 @@ export function parseProbe(
   if (result.size !== targets.length)
     throw new ProbeError("The runner check skipped some directories.");
   return result;
+}
+
+/** Checks template directories by exact path: present (with Runyard's marker) and which version. */
+export function templateProbeScript(paths: string[]): string {
+  const rows = paths.map(
+    (p, i) => `path=${shPath(p)}
+if [ -f "$path/.runyard-template" ]; then printf 'RT\\t%s\\ttrue\\t%s\\n' ${i} "$(awk '{print $2}' "$path/.runyard-template")"
+else printf 'RT\\t%s\\tfalse\\t\\n' ${i}; fi`,
+  );
+  return ["set -u", ...rows, "printf 'RT_END\\n'"].join("\n");
+}
+
+export function parseTemplateProbe(output: string, paths: string[]): Map<string, LocalTemplate> {
+  if (!/(^|\n)RT_END\r?\n?$/.test(output.trimEnd() + "\n")) {
+    throw new ProbeError("The template check didn't finish.");
+  }
+  const out = new Map<string, LocalTemplate>();
+  for (const line of output.split(/\r?\n/)) {
+    const [tag, index, present, version] = line.split("\t");
+    const path = tag === "RT" ? paths[Number(index)] : undefined;
+    if (path) out.set(path, { path, present: present === "true", version: version || null });
+  }
+  return out;
+}
+
+/** The sweep's answer: one-job runner directories still running, and ones that exited. */
+export function parseSweep(output: string): { alive: string[]; exited: string[] } {
+  if (!/(^|\n)RJ_END\r?\n?$/.test(output.trimEnd() + "\n")) {
+    throw new ProbeError("The runner sweep didn't finish.");
+  }
+  const alive: string[] = [];
+  const exited: string[] = [];
+  for (const line of output.split(/\r?\n/)) {
+    const [tag, state, name] = line.split("\t");
+    if (tag !== "RJ" || !name) continue;
+    (state === "alive" ? alive : exited).push(name);
+  }
+  return { alive, exited };
 }

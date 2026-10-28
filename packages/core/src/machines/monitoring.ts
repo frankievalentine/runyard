@@ -20,7 +20,11 @@ export type EventKind =
   | "diskRecovered"
   | "maintenanceStarted"
   | "maintenanceEnded"
-  | "alertsResumed";
+  | "alertsResumed"
+  /** On-demand pools: one-job runners Runyard started and how they ended. */
+  | "runnerStarted"
+  | "runnerFinished"
+  | "runnerFailed";
 
 /** `notify` marks changes a future notification channel should announce. */
 export type Change = { kind: EventKind; detail: string; notify: boolean };

@@ -1,7 +1,7 @@
 import type { OsFamily } from "../machines/model.ts";
 import { runnerKindFor, type ForgeKind } from "../model.ts";
 import { scopeKey } from "../scope.ts";
-import { serviceModeFor, type DesiredRunner, type Pool } from "./model.ts";
+import { serviceModeFor, type DesiredRunner, type DesiredTemplate, type Pool } from "./model.ts";
 
 export const POOL_NAME = /^[a-z0-9](?:[a-z0-9-]{0,22}[a-z0-9])?$/;
 /** GitHub limits runner names to 64 characters. */
@@ -40,7 +40,8 @@ export function desiredRunners(
   forges: ReadonlyMap<string, ForgeKind> = new Map(),
 ): DesiredRunner[] {
   const out: DesiredRunner[] = [];
-  for (const pool of pools) {
+  // On-demand pools keep no registered runners; see desiredTemplates.
+  for (const pool of pools.filter((p) => p.mode !== "onDemand")) {
     for (const { machineId, slots } of pool.machines) {
       const machine = machines.get(machineId);
       const mode = machine?.os ? serviceModeFor(machine.os) : null;
@@ -74,6 +75,44 @@ export function desiredRunners(
             ...(kind === "forgejo" ? { forgejoMode: pool.forgejoMode } : {}),
           });
         }
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The runner templates on-demand pools call for: one per machine and runner
+ * program (GitHub's actions/runner, forgejo-runner) the pool's scopes need.
+ */
+export function desiredTemplates(
+  pools: Pool[],
+  machines: ReadonlyMap<string, MachineInfo>,
+  forges: ReadonlyMap<string, ForgeKind> = new Map(),
+): DesiredTemplate[] {
+  const out: DesiredTemplate[] = [];
+  for (const pool of pools.filter((p) => p.mode === "onDemand")) {
+    for (const { machineId } of pool.machines) {
+      const os = machines.get(machineId)?.os;
+      if (!os) continue;
+      const sep = os === "windows" ? "\\" : "/";
+      for (const kind of ["actions", "forgejo"] as const) {
+        const scopes = pool.scopes.filter(
+          (s) => runnerKindFor[forges.get(s.forgeId) ?? "github"] === kind,
+        );
+        if (scopes.length === 0) continue;
+        out.push({
+          key: `${pool.id}:${machineId}:${kind}`,
+          poolId: pool.id,
+          poolName: pool.name,
+          machineId,
+          os,
+          runnerKind: kind,
+          path: [runnerRoot(os), pool.name, `template-${kind}`].join(sep),
+          scopes,
+          labels: [...new Set([...pool.labels, "runyard", `runyard-pool-${pool.name}`])],
+          ...(kind === "forgejo" ? { forgejoMode: pool.forgejoMode } : {}),
+        });
       }
     }
   }

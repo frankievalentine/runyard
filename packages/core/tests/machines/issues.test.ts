@@ -66,7 +66,15 @@ const view = (machines: MachineView[], error: string | null = null): FleetView =
   boat: null,
   boatVms: {},
   assignedRunners: [],
-  pools: { pools: [], desired: [], collisions: [], registrations: [] },
+  pools: {
+    pools: [],
+    desired: [],
+    collisions: [],
+    registrations: [],
+    templates: [],
+    templateRecords: [],
+    dispatches: [],
+  },
 });
 
 test("lists warnings, SSH failures and a tailnet problem", () => {

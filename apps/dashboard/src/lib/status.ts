@@ -64,6 +64,9 @@ export const eventStyle: Record<EventKind, { label: string; tone: Tone }> = {
   maintenanceStarted: { label: "Maintenance started", tone: "muted" },
   maintenanceEnded: { label: "Maintenance ended", tone: "muted" },
   alertsResumed: { label: "Alerts resumed", tone: "warn" },
+  runnerStarted: { label: "One-job runner started", tone: "busy" },
+  runnerFinished: { label: "One-job runner finished", tone: "ok" },
+  runnerFailed: { label: "One-job runner failed", tone: "bad" },
 };
 
 export const osLabel: Record<string, string> = {

@@ -26,6 +26,8 @@ const pool = (over: Partial<Pool> = {}): Pool => ({
   machines: [{ machineId: "m1", slots: 2 }],
   scopes: [org],
   forgejoMode: { kind: "host" },
+  mode: "persistent",
+  paused: false,
   ...over,
 });
 const machines = new Map<string, { name: string; os: OsFamily | null }>([

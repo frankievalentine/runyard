@@ -118,3 +118,26 @@ export async function forkApprovalPolicy(http: GithubHttp, repo: string): Promis
     return null;
   }
 }
+
+/**
+ * A single-use runner registration: the runner takes one job and GitHub
+ * removes it. Runner group 1 is the Default group, as for persistent runners.
+ */
+export async function jitConfig(
+  http: GithubHttp,
+  scope: Scope,
+  name: string,
+  labels: string[],
+): Promise<{ runnerId: number; config: string }> {
+  const body = (await http.send("POST", `${runnersPath(scope)}/generate-jitconfig`, {
+    name,
+    runner_group_id: 1,
+    labels,
+    work_folder: "_work",
+  })) as { runner: { id: number }; encoded_jit_config: string };
+  return { runnerId: body.runner.id, config: body.encoded_jit_config };
+}
+
+export async function deleteRunner(http: GithubHttp, scope: Scope, runnerId: number) {
+  await http.send("DELETE", `${runnersPath(scope)}/${runnerId}`);
+}

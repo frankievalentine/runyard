@@ -11,7 +11,51 @@ export type Pool = {
   scopes: Scope[];
   /** Where Forgejo runners run jobs: on the machine, or in Docker containers from an image. */
   forgejoMode: ForgejoMode;
+  /**
+   * Persistent pools keep registered runners; on-demand pools keep only a runner
+   * template per machine and start a one-job runner for each matching queued job.
+   */
+  mode: PoolMode;
+  /** On demand only: no new runners start while paused. */
+  paused: boolean;
 };
+
+export type PoolMode = "persistent" | "onDemand";
+
+/**
+ * The runner software an on-demand pool needs on one machine: unpacked, never
+ * configured. One-job runners are copied from it.
+ */
+export type DesiredTemplate = {
+  /** Stable identity: pool, machine and runner program. */
+  key: string;
+  poolId: string;
+  poolName: string;
+  machineId: string;
+  os: OsFamily;
+  runnerKind: RunnerKind;
+  path: string;
+  /** The pool's scopes this runner program serves. */
+  scopes: Scope[];
+  labels: string[];
+  forgejoMode?: ForgejoMode;
+};
+
+/** A template Runyard installed, kept so it can be removed when no longer wanted. */
+export type TemplateRecord = {
+  key: string;
+  machineId: string;
+  poolId: string;
+  poolName: string;
+  /** One of the scopes it served, for display. */
+  scope: Scope;
+  runnerKind: RunnerKind;
+  path: string;
+  serviceMode: ServiceMode;
+};
+
+/** A probe of a template directory. */
+export type LocalTemplate = { path: string; present: boolean; version: string | null };
 
 export type ForgejoMode = { kind: "host" } | { kind: "docker"; image: string };
 

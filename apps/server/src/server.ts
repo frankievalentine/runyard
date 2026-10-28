@@ -19,8 +19,9 @@ import { ForgejoMonitor } from "./forgejo/monitor.ts";
 import { BoatMonitor } from "./boat/monitor.ts";
 import { listAssignments } from "./machines/assignments.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
+import { Dispatcher } from "./pools/dispatcher.ts";
 import { PoolEngine } from "./pools/engine.ts";
-import { listPools, listRegistrations } from "./pools/store.ts";
+import { listDispatches, listPools, listRegistrations, listTemplates } from "./pools/store.ts";
 import { installedPrograms, type SshPrograms } from "./machines/ssh.ts";
 import { loadSecretKey, SecretStore } from "./secrets.ts";
 import { setupChecks, type TailnetState } from "./setup/checks.ts";
@@ -77,6 +78,8 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
       pools: listPools(db),
       registrations: listRegistrations(db),
       assignments: listAssignments(db),
+      templateRecords: listTemplates(db),
+      dispatches: listDispatches(db, 100),
     }),
   });
   monitor.start();
@@ -91,9 +94,21 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     machineView: (id) => monitor?.view.machines.find((m) => m.id === id),
     onChange: () => monitor?.tick(),
   });
+  const dispatcher = new Dispatcher({
+    db,
+    run,
+    programs,
+    engine,
+    github,
+    forgejo,
+    view: () => monitor!.view,
+    onChange: () => monitor?.tick(),
+  });
+
   void github.start();
   void forgejo.start();
   void boat.start();
+  dispatcher.start();
   // Assigned once the tailnet listener exists, after the loopback server starts.
   let tailnet: TailnetListener | undefined;
   const tailnetState = (): TailnetState =>
@@ -142,5 +157,5 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   }
   if (adminCount(db) === 0) setup.issue();
 
-  return { server, tailnet, db, secrets, monitor, github, forgejo, boat };
+  return { server, tailnet, db, secrets, monitor, github, forgejo, boat, dispatcher };
 }

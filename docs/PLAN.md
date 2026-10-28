@@ -137,9 +137,31 @@ Further packages are extracted when a boundary is proven, not up front.
      and socket; SSH keys and `known_hosts` are mounted read-only.
    - (Done, except the live tests listed under Pending live verification.)
 7. **Webhooks and JIT**
-   - Opt-in webhooks (Funnel or a public URL, HMAC verified).
-   - A dispatcher that mints just-in-time runner configs for queued jobs and runs single-job
-     runners on idle machines.
+   - Decided: JIT runners first (both forges, on polling), webhooks second (GitHub only:
+     Forgejo has no confirmed webhook for a queued job). Per-pool approval: a pool is
+     **Persistent** or **On demand**; one machine can be in both kinds of pool.
+   - **On-demand pools** call for one runner template per machine, not registrations: the runner
+     software unpacked under `~/runyard-runners/<pool>/template`, never configured. The existing
+     review installs and removes templates (`installTemplate`, `removeTemplate`), with the same
+     re-verification and public-repository guard; switching a pool from persistent to on demand
+     turns its persistent runners into ordinary `remove` items.
+   - **The dispatcher** runs after each queue refresh. For a queued job no online runner matches,
+     it picks an on-demand pool whose scopes serve the job's repository and whose labels (plus the
+     machine's built-in OS and architecture labels) cover the job's, then one of its machines with
+     a ready template, a free slot and no operation in progress. It mints a single-use
+     registration at the moment of use (GitHub `generate-jitconfig`; Forgejo `ephemeral: true`),
+     sends it over SSH stdin, and starts the runner detached in its own directory under
+     `<pool>/jobs/<name>`, removed when the runner exits. GitHub's JIT runner and forgejo-runner's
+     `one-job` take one job and deregister themselves.
+   - Every dispatch is recorded (pool, machine, runner, job, state). A job is dispatched at most
+     once; a runner that hasn't appeared after 10 minutes is deleted on the forge and the dispatch
+     marked failed. A sweep removes job directories whose runner process is gone. Each pool has a
+     slot limit per machine, a start rate limit, and a pause switch; dispatches and their results
+     go in the event journal.
+   - Linux and macOS first (detached processes over SSH); Windows on-demand pools are refused
+     until there's a Windows design.
+   - Webhooks: GitHub `workflow_job` on a separate listener that accepts only signed webhook POSTs
+     (HMAC), exposed through Tailscale Funnel or a public URL. A speed-up only: polling stays.
 
 ## Pending live verification
 

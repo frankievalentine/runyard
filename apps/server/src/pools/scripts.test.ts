@@ -2,7 +2,16 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { operationScript, parseProbe, probeScript, shPath, shQuote } from "./scripts.ts";
+import {
+  operationScript,
+  parseProbe,
+  parseSweep,
+  parseTemplateProbe,
+  probeScript,
+  shPath,
+  shQuote,
+  templateProbeScript,
+} from "./scripts.ts";
 
 /**
  * The real scripts, run by the local bash against a throwaway HOME. Only paths
@@ -246,5 +255,121 @@ describe("forgejo-runner scripts", () => {
       configured: true,
       agentName: "box-ci-01",
     });
+  });
+});
+
+describe("on-demand scripts", () => {
+  const tpl = "~/runyard-runners/jit/template-actions";
+  test("template install refuses paths outside a pool's template-* and unexpected downloads", async () => {
+    const base = {
+      RF_ROOT: tpl,
+      RF_KIND: "actions",
+      RF_ASSET_NAME: "r.tar.gz",
+      RF_VERSION: "2.329.0",
+    };
+    const outside = await bash(
+      operationScript("template-install", false, {
+        ...base,
+        RF_ROOT: "~/runyard-runners/jit/01",
+        RF_ASSET_URL: "https://github.com/actions/runner/releases/download/v2/r.tar.gz",
+      }),
+    );
+    expect(outside.code).toBe(2);
+    expect(outside.stderr).toContain("refusing template path");
+    const url = await bash(
+      operationScript("template-install", false, {
+        ...base,
+        RF_ASSET_URL: "https://example.com/r.tar.gz",
+      }),
+    );
+    expect(url.code).toBe(2);
+    expect(url.stderr).toContain("refusing unexpected download");
+  });
+
+  test("template remove deletes only a directory carrying Runyard's marker", async () => {
+    await mkdir(join(home, "runyard-runners/jit/template-actions"), { recursive: true });
+    await writeFile(join(home, "runyard-runners/jit/template-actions/run.sh"), "");
+    const refused = await bash(operationScript("template-remove", false, { RF_ROOT: tpl }));
+    expect(refused.code).toBe(3);
+    await writeFile(
+      join(home, "runyard-runners/jit/template-actions/.runyard-template"),
+      "actions 2.329.0\n",
+    );
+    expect((await bash(operationScript("template-remove", false, { RF_ROOT: tpl }))).code).toBe(0);
+    expect(await Bun.file(join(home, "runyard-runners/jit/template-actions/run.sh")).exists()).toBe(
+      false,
+    );
+  });
+
+  test("the template probe reads the marker's version", async () => {
+    await mkdir(join(home, "runyard-runners/jit/template-actions"), { recursive: true });
+    await writeFile(
+      join(home, "runyard-runners/jit/template-actions/.runyard-template"),
+      "actions 2.329.0\n",
+    );
+    const paths = [tpl, "~/runyard-runners/jit/template-forgejo"];
+    const res = await bash(templateProbeScript(paths));
+    expect([...parseTemplateProbe(res.stdout, paths).values()]).toEqual([
+      { path: tpl, present: true, version: "2.329.0" },
+      { path: "~/runyard-runners/jit/template-forgejo", present: false, version: null },
+    ]);
+  });
+
+  test("a one-job runner starts only from a template, in its own directory under the pool", async () => {
+    const env = {
+      RF_TEMPLATE: tpl,
+      RF_JOB_DIR: "~/runyard-runners/other/jobs/x",
+      RF_NAME: "x",
+      RF_KIND: "actions",
+      RF_JIT_CONFIG: "c",
+    };
+    const outside = await bash(operationScript("jit-start", false, env));
+    expect(outside.code).toBe(2);
+    expect(outside.stderr).toContain("refusing job directory");
+    const missing = await bash(
+      operationScript("jit-start", false, { ...env, RF_JOB_DIR: "~/runyard-runners/jit/jobs/x" }),
+    );
+    expect(missing.code).toBe(3);
+    expect(missing.stderr).toContain("no template");
+  });
+
+  test("starts a one-job runner detached, which removes its directory when done; the sweep reports it", async () => {
+    const dir = join(home, "runyard-runners/jit/template-actions");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, ".runyard-template"), "actions 2.329.0\n");
+    // A stand-in runner that proves it got the config from its environment, not its arguments.
+    await writeFile(
+      join(dir, "run.sh"),
+      '#!/bin/sh\necho "args=$# config=$ACTIONS_RUNNER_INPUT_JITCONFIG" > "$HOME/ran"\nsleep 1\n',
+    );
+    await chmod(join(dir, "run.sh"), 0o755);
+    const job = "~/runyard-runners/jit/jobs/mini-jit-1";
+    const res = await bash(
+      operationScript("jit-start", false, {
+        RF_TEMPLATE: tpl,
+        RF_JOB_DIR: job,
+        RF_NAME: "mini-jit-1",
+        RF_KIND: "actions",
+        RF_JIT_CONFIG: "SECRETCFG",
+      }),
+    );
+    expect(res.code).toBe(0);
+    expect(parseSweep((await bash(operationScript("jit-sweep", false, {}))).stdout).alive).toEqual([
+      "mini-jit-1",
+    ]);
+    for (let i = 0; i < 50 && !(await Bun.file(join(home, "ran")).exists()); i++)
+      await Bun.sleep(100);
+    expect(await Bun.file(join(home, "ran")).text()).toBe("args=0 config=SECRETCFG\n");
+    for (
+      let i = 0;
+      i < 50 && (await Bun.file(join(home, "runyard-runners/jit/jobs/mini-jit-1/.pid")).exists());
+      i++
+    )
+      await Bun.sleep(100);
+    expect(await Bun.file(join(home, "runyard-runners/jit/jobs/mini-jit-1/.pid")).exists()).toBe(
+      false,
+    );
+    // The template itself is untouched.
+    expect(await Bun.file(join(dir, ".runyard-template")).exists()).toBe(true);
   });
 });

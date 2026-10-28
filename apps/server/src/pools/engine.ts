@@ -1,12 +1,15 @@
 import {
   actionable,
   desiredRunners,
+  desiredTemplates,
   planFingerprint,
   planMachine,
   scopeKey,
   type DesiredRunner,
+  type DesiredTemplate,
   type ForgeKind,
   type ForgejoMode,
+  type LocalTemplate,
   type MachineConfig,
   type MachineView,
   type OsFamily,
@@ -36,13 +39,23 @@ import {
   runnerPlatform,
   setLabels,
 } from "./github.ts";
-import { operationScript, parseProbe, probeScript, type Operation } from "./scripts.ts";
+import {
+  operationScript,
+  parseProbe,
+  parseTemplateProbe,
+  probeScript,
+  templateProbeScript,
+  type Operation,
+} from "./scripts.ts";
 import {
   forgetRegistration,
+  forgetTemplate,
   listPools,
   listRegistrations,
+  listTemplates,
   publicOverrides,
   recordRegistration,
+  recordTemplate,
 } from "./store.ts";
 
 export const REVIEW_MS = 15 * 60_000;
@@ -100,6 +113,7 @@ type Context = {
   windows: boolean;
   architecture: string | null;
   desired: DesiredRunner[];
+  templates: DesiredTemplate[];
   input: PlanInput;
   remote: Map<string, Map<string, RemoteRunner>>;
 };
@@ -118,6 +132,25 @@ export class PoolEngine {
 
   constructor(private readonly deps: Deps) {
     this.now = deps.now ?? Date.now;
+  }
+
+  /** Whether a review's changes or a dispatch are running on the machine. */
+  isBusy(machineId: string): boolean {
+    return this.running.has(machineId);
+  }
+
+  /**
+   * Runs work that changes a machine (the dispatcher's starts and sweeps) with
+   * the machine to itself, as reviewed changes have it. Null if it's busy.
+   */
+  async withMachine<T>(machineId: string, fn: () => Promise<T>): Promise<T | null> {
+    if (this.running.has(machineId)) return null;
+    this.running.add(machineId);
+    try {
+      return await fn();
+    } finally {
+      this.running.delete(machineId);
+    }
   }
 
   operation(id: string): OperationView | undefined {
@@ -227,6 +260,9 @@ export class PoolEngine {
   }
 
   private async apply(item: PlanItem, ctx: Context, sudoPassword?: string): Promise<string> {
+    if (item.action === "installTemplate" || item.action === "removeTemplate") {
+      return this.applyTemplate(item, ctx, sudoPassword);
+    }
     if (item.runnerKind === "forgejo") return this.applyForgejo(item, ctx, sudoPassword);
     const http = this.client(item.scope);
     switch (item.action) {
@@ -298,6 +334,70 @@ export class PoolEngine {
     }
   }
 
+  /** Installs or removes an on-demand pool's runner template. Nothing is registered. */
+  private async applyTemplate(
+    item: PlanItem,
+    ctx: Context,
+    sudoPassword?: string,
+  ): Promise<string> {
+    if (item.action === "removeTemplate") {
+      const output = await this.runScript(ctx, "template-remove", { RF_ROOT: item.path });
+      forgetTemplate(this.deps.db, item.machineId, item.path);
+      return output;
+    }
+    let asset: { url: string; name: string; sha256: string | null; version: string };
+    if (item.runnerKind === "forgejo") {
+      const arch = /aarch64|arm64/i.test(ctx.architecture ?? "")
+        ? "arm64"
+        : /x86_64|amd64/i.test(ctx.architecture ?? "")
+          ? "amd64"
+          : null;
+      if (!arch)
+        throw new EngineError(
+          "forgejo-runner is published for amd64 and arm64 Linux; this machine's architecture isn't one of them.",
+        );
+      const binary = await latestForgejoRunner(
+        this.deps.fetch ?? ((r) => globalThis.fetch(r)),
+        arch,
+      );
+      asset = {
+        url: binary.url,
+        name: binary.name,
+        sha256: binary.sha256,
+        version: binary.name.split("-")[2] ?? "unknown",
+      };
+    } else {
+      const platform = runnerPlatform(ctx.os as "macos" | "linux" | "windows", ctx.architecture);
+      if (!platform)
+        throw new EngineError("The machine's architecture isn't known yet; check it again first.");
+      const found = await latestRunnerAsset(this.client(item.scope), platform);
+      asset = { ...found, version: /-(\d+\.\d+\.\d+)\./.exec(found.name)?.[1] ?? "unknown" };
+    }
+    const output = await this.runScript(ctx, "template-install", {
+      RF_ROOT: item.path,
+      RF_KIND: item.runnerKind,
+      RF_ASSET_URL: asset.url,
+      RF_ASSET_NAME: asset.name,
+      RF_CHECKSUM: asset.sha256 ?? undefined,
+      RF_VERSION: asset.version,
+      RF_SUDO_PASSWORD: sudoPassword,
+    });
+    const t = ctx.templates.find((x) => x.path === item.path && x.runnerKind === item.runnerKind);
+    if (t) {
+      recordTemplate(this.deps.db, {
+        key: t.key,
+        machineId: t.machineId,
+        poolId: t.poolId,
+        poolName: t.poolName,
+        scope: t.scopes[0]!,
+        runnerKind: t.runnerKind,
+        path: t.path,
+        serviceMode: item.serviceMode,
+      });
+    }
+    return output;
+  }
+
   /** Runs one operation script over SSH, with secrets redacted from what it returns. */
   private async runScript(
     ctx: Context,
@@ -334,6 +434,12 @@ export class PoolEngine {
       this.forgeKinds(),
     ).filter((d) => d.machineId === machineId);
     const registrations = listRegistrations(this.deps.db).filter((r) => r.machineId === machineId);
+    const templates = desiredTemplates(
+      listPools(this.deps.db),
+      new Map([[machineId, { name: machine.name, os: view.os }]]),
+      this.forgeKinds(),
+    ).filter((t) => t.machineId === machineId);
+    const templateRecords = listTemplates(this.deps.db).filter((t) => t.machineId === machineId);
 
     const targets = [
       ...desired.map((d) => ({ path: d.path, serviceMode: d.serviceMode })),
@@ -362,8 +468,36 @@ export class PoolEngine {
       }
     }
 
+    // Template directories, on Linux and macOS (the plan refuses on-demand pools elsewhere).
+    const templatePaths = [
+      ...new Set([...templates.map((t) => t.path), ...templateRecords.map((t) => t.path)]),
+    ];
+    let localTemplates = new Map<string, LocalTemplate>();
+    if (templatePaths.length && !windows && !machineError) {
+      try {
+        const { argv, stdin } = scriptCommand(
+          this.deps.programs,
+          machine,
+          false,
+          templateProbeScript(templatePaths),
+        );
+        const res = await this.deps.run(argv, { stdin, timeoutMs: PROBE_TIMEOUT_MS });
+        if (res.code !== 0)
+          throw new EngineError(
+            res.stderr.trim().split("\n").at(-1) || `ssh failed (exit ${res.code})`,
+          );
+        localTemplates = parseTemplateProbe(res.stdout, templatePaths);
+      } catch (error) {
+        machineError = error instanceof Error ? error.message : String(error);
+      }
+    }
+
     const scopes = new Map<string, Scope>();
-    for (const s of [...desired.map((d) => d.scope), ...registrations.map((r) => r.scope)])
+    for (const s of [
+      ...desired.map((d) => d.scope),
+      ...registrations.map((r) => r.scope),
+      ...templates.flatMap((t) => t.scopes),
+    ])
       scopes.set(scopeKey(s), s);
     const remote = new Map<string, Map<string, RemoteRunner>>();
     const githubErrors = new Map<string, string>();
@@ -391,6 +525,7 @@ export class PoolEngine {
       windows,
       architecture,
       desired,
+      templates,
       remote,
       input: {
         machineId,
@@ -401,6 +536,9 @@ export class PoolEngine {
         policies,
         machineError,
         githubErrors,
+        templates,
+        templateRecords,
+        localTemplates,
       },
     };
   }

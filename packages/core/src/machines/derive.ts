@@ -11,9 +11,10 @@ import {
 import type { GithubAppObservation } from "../github/model.ts";
 import type { ForgeKind, Scope } from "../model.ts";
 import { scopeKey } from "../scope.ts";
-import { desiredRunners, nameCollisions } from "../pools/desired.ts";
-import type { DesiredRunner, Pool } from "../pools/model.ts";
+import { desiredRunners, desiredTemplates, nameCollisions } from "../pools/desired.ts";
+import type { DesiredRunner, DesiredTemplate, Pool, TemplateRecord } from "../pools/model.ts";
 import type { Registration } from "../pools/plan.ts";
+import type { Dispatch } from "../pools/dispatch.ts";
 import { evaluateDiagnostics } from "./diagnostics.ts";
 import {
   canHostRunners,
@@ -132,6 +133,12 @@ export type PoolsView = {
   collisions: string[];
   /** Runners Runyard registered. */
   registrations: Registration[];
+  /** Runner templates on-demand pools call for. */
+  templates: DesiredTemplate[];
+  /** Templates Runyard installed. */
+  templateRecords: TemplateRecord[];
+  /** One-job runners Runyard started, newest first. */
+  dispatches: Dispatch[];
 };
 
 /** The whole dashboard view, from configuration and observations. No I/O. */
@@ -148,6 +155,8 @@ export function deriveFleet(input: {
   assignments?: RunnerAssignment[];
   pools?: Pool[];
   registrations?: Registration[];
+  templateRecords?: TemplateRecord[];
+  dispatches?: Dispatch[];
   now: number;
 }): FleetView {
   const { now, tailnet } = input;
@@ -221,6 +230,8 @@ export function deriveFleet(input: {
         ...(input.github ?? []).map((g): [string, ForgeKind] => [g.forgeId, "github"]),
         ...(input.forgejo ?? []).map((f): [string, ForgeKind] => [f.forgeId, "forgejo"]),
       ]),
+      input.templateRecords ?? [],
+      input.dispatches ?? [],
     ),
   };
 }
@@ -274,10 +285,20 @@ function poolsView(
   registrations: Registration[],
   machines: MachineView[],
   forgeKinds: ReadonlyMap<string, ForgeKind>,
+  templateRecords: TemplateRecord[],
+  dispatches: Dispatch[],
 ): PoolsView {
   const info = new Map(machines.map((m) => [m.id, { name: m.name, os: m.os }]));
   const desired = desiredRunners(pools, info, forgeKinds);
-  return { pools, desired, collisions: nameCollisions(desired), registrations };
+  return {
+    pools,
+    desired,
+    collisions: nameCollisions(desired),
+    registrations,
+    templates: desiredTemplates(pools, info, forgeKinds),
+    templateRecords,
+    dispatches,
+  };
 }
 
 /** What the monitoring state machine needs from a machine's view. */
