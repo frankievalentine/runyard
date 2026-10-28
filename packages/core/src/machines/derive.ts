@@ -12,7 +12,14 @@ import type { GithubAppObservation } from "../github/model.ts";
 import type { ForgeKind, Scope } from "../model.ts";
 import { scopeKey } from "../scope.ts";
 import { desiredRunners, desiredTemplates, nameCollisions } from "../pools/desired.ts";
-import type { DesiredRunner, DesiredTemplate, Pool, TemplateRecord } from "../pools/model.ts";
+import type {
+  DesiredRunner,
+  DesiredTemplate,
+  Migration,
+  Pool,
+  TemplateRecord,
+} from "../pools/model.ts";
+import { migrationViews, type MigrationView } from "../pools/migrate.ts";
 import type { Registration } from "../pools/plan.ts";
 import type { Dispatch } from "../pools/dispatch.ts";
 import { evaluateDiagnostics } from "./diagnostics.ts";
@@ -139,6 +146,8 @@ export type PoolsView = {
   templateRecords: TemplateRecord[];
   /** One-job runners Runyard started, newest first. */
   dispatches: Dispatch[];
+  /** Runners Runyard didn't install that are moving into a pool. */
+  migrations: MigrationView[];
 };
 
 /** The whole dashboard view, from configuration and observations. No I/O. */
@@ -157,6 +166,7 @@ export function deriveYard(input: {
   registrations?: Registration[];
   templateRecords?: TemplateRecord[];
   dispatches?: Dispatch[];
+  migrations?: Migration[];
   now: number;
 }): YardView {
   const { now, tailnet } = input;
@@ -200,6 +210,15 @@ export function deriveYard(input: {
   const candidates = peers.filter(
     (p) => p.nodeId !== tailnet.snapshot?.selfNodeId && !linked.has(p.nodeId),
   );
+  const forgeViews = forges(
+    input.github ?? [],
+    input.forgejo ?? [],
+    input.registrations ?? [],
+    input.assignments ?? [],
+    now,
+    input.boat ?? null,
+    input.dispatches ?? [],
+  );
   return {
     generatedAt: now,
     tailnet: {
@@ -214,15 +233,7 @@ export function deriveYard(input: {
       .map(peerView),
     ignored: candidates.filter((p) => input.ignoredNodeIds.has(p.nodeId)).map(peerView),
     alerts: machines.flatMap((m) => m.alerts),
-    ...forges(
-      input.github ?? [],
-      input.forgejo ?? [],
-      input.registrations ?? [],
-      input.assignments ?? [],
-      now,
-      input.boat ?? null,
-      input.dispatches ?? [],
-    ),
+    ...forgeViews,
     pools: poolsView(
       input.pools ?? [],
       input.registrations ?? [],
@@ -233,6 +244,8 @@ export function deriveYard(input: {
       ]),
       input.templateRecords ?? [],
       input.dispatches ?? [],
+      input.migrations ?? [],
+      forgeViews.runners,
     ),
   };
 }
@@ -293,6 +306,8 @@ function poolsView(
   forgeKinds: ReadonlyMap<string, ForgeKind>,
   templateRecords: TemplateRecord[],
   dispatches: Dispatch[],
+  migrations: Migration[],
+  runners: RunnerView[],
 ): PoolsView {
   const info = new Map(machines.map((m) => [m.id, { name: m.name, os: m.os }]));
   const desired = desiredRunners(pools, info, forgeKinds);
@@ -304,6 +319,7 @@ function poolsView(
     templates: desiredTemplates(pools, info, forgeKinds),
     templateRecords,
     dispatches,
+    migrations: migrationViews(migrations, pools, desired, runners),
   };
 }
 

@@ -19,7 +19,7 @@ import { WebhookReceiver } from "./webhooks/receiver.ts";
 import { setupChecks, type TailnetState } from "./setup/checks.ts";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { listAssignments } from "./machines/assignments.ts";
+import { listAssignments, listMigrations } from "./machines/assignments.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
 import { Dispatcher } from "./pools/dispatcher.ts";
 import { PoolEngine } from "./pools/engine.ts";
@@ -78,6 +78,7 @@ export async function testApp(
       assignments: listAssignments(db),
       templateRecords: listTemplates(db),
       dispatches: listDispatches(db, 100),
+      migrations: listMigrations(db),
     }),
   });
   const engine = new PoolEngine({

@@ -17,7 +17,7 @@ import { ManifestStates } from "./github/manifest.ts";
 import { GithubMonitor } from "./github/monitor.ts";
 import { ForgejoMonitor } from "./forgejo/monitor.ts";
 import { BoatMonitor } from "./boat/monitor.ts";
-import { listAssignments } from "./machines/assignments.ts";
+import { listAssignments, listMigrations } from "./machines/assignments.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
 import { Dispatcher } from "./pools/dispatcher.ts";
 import { PoolEngine } from "./pools/engine.ts";
@@ -81,6 +81,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
       assignments: listAssignments(db),
       templateRecords: listTemplates(db),
       dispatches: listDispatches(db, 100),
+      migrations: listMigrations(db),
     }),
   });
   monitor.start();

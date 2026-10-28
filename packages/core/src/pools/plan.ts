@@ -9,6 +9,7 @@ import {
   type TemplateRecord,
   type ForgejoMode,
   type LocalRunner,
+  type Migration,
   type RemoteRunner,
   type ServiceMode,
 } from "./model.ts";
@@ -27,7 +28,8 @@ export type PlanAction =
   | "groupPolicy"
   | "unsupportedPlatform"
   | "installTemplate"
-  | "removeTemplate";
+  | "removeTemplate"
+  | "retire";
 
 export type PlanItem = {
   action: PlanAction;
@@ -82,10 +84,20 @@ export type PlanInput = {
   templateRecords?: TemplateRecord[];
   /** Template probes by exact path. */
   localTemplates?: ReadonlyMap<string, LocalTemplate>;
+  /** Runners Runyard didn't install that are moving into a pool. */
+  migrations?: Migration[];
 };
 
 /** Labels GitHub adds by itself; reconciling never adds or removes them. */
 const BUILTIN = new Set(["self-hosted", "linux", "macos", "windows", "x64", "arm64", "arm"]);
+
+/** The old runner's labels that jobs could ask for and the replacement wouldn't have. */
+export function uncoveredLabels(old: string[], replacement: string[]): string[] {
+  const have = new Set(replacement.map((l) => l.toLowerCase()));
+  return [
+    ...new Set(old.map((l) => l.toLowerCase()).filter((l) => !BUILTIN.has(l) && !have.has(l))),
+  ].sort();
+}
 
 export function labelDrift(desired: string[], actual: string[]) {
   const want = new Set(desired.map((l) => l.toLowerCase()));
@@ -275,6 +287,100 @@ export function planMachine(input: PlanInput): PlanItem[] {
     });
   }
   items.push(...planTemplates(input));
+  items.push(...planRetirements(input));
+  return items;
+}
+
+/**
+ * Runners Runyard didn't install, retired once a runner from their new pool
+ * stands in for them: online, idle, labeled and running, on the same machine
+ * and scope (aarondfrancis/fleet's retire rule). Retiring only deregisters the
+ * old runner on the forge; its service and directory are left for a person.
+ */
+function planRetirements(input: PlanInput): PlanItem[] {
+  const items: PlanItem[] = [];
+  for (const m of input.migrations ?? []) {
+    if (m.machineId !== input.machineId) continue;
+    const sk = scopeKey(m.scope);
+    const replacements = input.desired.filter(
+      (d) => d.poolId === m.poolId && scopeKey(d.scope) === sk,
+    );
+    const first = replacements[0];
+    const item = (reason: string, blocked: boolean): PlanItem => ({
+      action: "retire",
+      machineId: m.machineId,
+      runnerName: m.runnerName,
+      scope: m.scope,
+      path: m.path ?? "",
+      reason,
+      blocked,
+      serviceMode: first?.serviceMode ?? "systemd",
+      runnerKind: first?.runnerKind ?? "actions",
+    });
+    const forgeError = input.githubErrors.get(sk);
+    if (forgeError) {
+      items.push(item(`The forge couldn't be read: ${forgeError}`, true));
+      continue;
+    }
+    const old = input.github.get(sk)?.get(m.runnerName.toLowerCase());
+    // Already gone from the forge: nothing left to retire.
+    if (!old) continue;
+    if (!first) {
+      items.push(
+        item(
+          `The pool has no runner for ${m.scope.target} on this machine. Add the machine or ${m.scope.target} to it.`,
+          true,
+        ),
+      );
+      continue;
+    }
+    const uncovered = uncoveredLabels(old.labels, first.labels);
+    if (uncovered.length) {
+      items.push(
+        item(
+          `Jobs asking for ${uncovered.join(", ")} would have no runner; add ${uncovered.length === 1 ? "it" : "them"} to pool ${first.poolName}.`,
+          true,
+        ),
+      );
+      continue;
+    }
+    if (old.busy) {
+      items.push(item("It's running a job; it can be retired once it's idle.", true));
+      continue;
+    }
+    if (input.machineError) {
+      items.push(item(`The replacement can't be checked: ${input.machineError}`, true));
+      continue;
+    }
+    const standIn = replacements.find((d) => {
+      const remote = input.github.get(sk)?.get(d.name.toLowerCase());
+      const local = input.local.get(d.path);
+      const drift = remote ? labelDrift(d.labels, remote.labels) : null;
+      return (
+        remote?.status === "online" &&
+        !remote.busy &&
+        drift?.missing.length === 0 &&
+        drift.unexpected.length === 0 &&
+        local?.configured === true &&
+        isActive(local.service)
+      );
+    });
+    if (!standIn) {
+      items.push(
+        item(
+          `Waiting for ${replacements.map((d) => d.name).join(" or ")} to be online, idle, labeled and running.`,
+          true,
+        ),
+      );
+      continue;
+    }
+    items.push(
+      item(
+        `Deregister it; ${standIn.name} takes its jobs. Its service and directory are left for you to remove.`,
+        false,
+      ),
+    );
+  }
   return items;
 }
 

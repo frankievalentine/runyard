@@ -4,6 +4,7 @@ import {
   desiredTemplates,
   planFingerprint,
   planMachine,
+  retireCleanup,
   scopeKey,
   type DesiredRunner,
   type DesiredTemplate,
@@ -28,9 +29,11 @@ import type { GithubHttp } from "../github/client.ts";
 import { orgRunners, repoRunners } from "../github/api.ts";
 import type { GithubMonitor } from "../github/monitor.ts";
 import { scriptCommand, type SshPrograms } from "../machines/ssh.ts";
+import { finishMigration, listMigrations } from "../machines/assignments.ts";
 import { getMachine } from "../machines/store.ts";
 import {
   defaultGroupAllowsPublic,
+  deleteRunner,
   latestRunnerAsset,
   registrationToken,
   registrationUrl,
@@ -175,7 +178,8 @@ export class PoolEngine {
       createdAt: now,
       expiresAt: now + REVIEW_MS,
       mayNeedSudo:
-        ctx.os === "linux" && actionable(items).some((i) => i.action !== "reconcileLabels"),
+        ctx.os === "linux" &&
+        actionable(items).some((i) => i.action !== "reconcileLabels" && i.action !== "retire"),
     };
     this.reviews.set(review.id, review);
     return review;
@@ -263,6 +267,7 @@ export class PoolEngine {
     if (item.action === "installTemplate" || item.action === "removeTemplate") {
       return this.applyTemplate(item, ctx, sudoPassword);
     }
+    if (item.action === "retire") return this.retire(item, ctx);
     if (item.runnerKind === "forgejo") return this.applyForgejo(item, ctx, sudoPassword);
     const http = this.client(item.scope);
     switch (item.action) {
@@ -332,6 +337,34 @@ export class PoolEngine {
       default:
         throw new EngineError(`${item.action} needs a person.`);
     }
+  }
+
+  /**
+   * Deregisters a runner Runyard didn't install, now that a pool runner stands
+   * in for it. Only the forge is changed: its service and directory on the
+   * machine are left, with the steps to remove them.
+   */
+  private async retire(item: PlanItem, ctx: Context): Promise<string> {
+    const forgejo = this.forgeKinds().get(item.scope.forgeId) === "forgejo";
+    const name = item.runnerName.toLowerCase();
+    // Busy is checked again at the last moment: a job may have started since.
+    let found: RemoteRunner | undefined;
+    if (forgejo) {
+      const api = this.forgejoApi(item.scope);
+      found = (await this.forgejoRunners(api, item.scope)).get(name);
+      if (found?.busy) throw new EngineError("It started a job; not retired.");
+      if (found) await api.deleteRunner(item.scope, found.id);
+    } else {
+      const http = this.client(item.scope);
+      found = (await this.remoteRunners(http, item.scope)).get(name);
+      if (found?.busy) throw new EngineError("It started a job; not retired.");
+      if (found) await deleteRunner(http, item.scope, found.id);
+    }
+    finishMigration(this.deps.db, item.scope, item.runnerName);
+    const done = found
+      ? `Deregistered ${item.runnerName} on ${forgejo ? "Forgejo" : "GitHub"}.`
+      : `${item.runnerName} was already gone.`;
+    return `${done}\n${retireCleanup(ctx.os, forgejo ? "forgejo" : "actions", item.path || null)}`;
   }
 
   /** Installs or removes an on-demand pool's runner template. Nothing is registered. */
@@ -440,6 +473,7 @@ export class PoolEngine {
       this.forgeKinds(),
     ).filter((t) => t.machineId === machineId);
     const templateRecords = listTemplates(this.deps.db).filter((t) => t.machineId === machineId);
+    const migrations = listMigrations(this.deps.db).filter((m) => m.machineId === machineId);
 
     const targets = [
       ...desired.map((d) => ({ path: d.path, serviceMode: d.serviceMode })),
@@ -497,6 +531,7 @@ export class PoolEngine {
       ...desired.map((d) => d.scope),
       ...registrations.map((r) => r.scope),
       ...templates.flatMap((t) => t.scopes),
+      ...migrations.map((m) => m.scope),
     ])
       scopes.set(scopeKey(s), s);
     const remote = new Map<string, Map<string, RemoteRunner>>();
@@ -539,6 +574,7 @@ export class PoolEngine {
         templates,
         templateRecords,
         localTemplates,
+        migrations,
       },
     };
   }

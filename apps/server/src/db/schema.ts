@@ -268,6 +268,32 @@ export const runnerAssignments = sqliteTable(
   (t) => [primaryKey({ columns: [t.forgeId, t.scopeKind, t.scopeTarget, t.runnerName] })],
 );
 
+/**
+ * Runners Runyard didn't install, moving into a pool: retired on the forge once
+ * a runner from the pool stands in for them. Keyed like the runner's assignment,
+ * which it needs and goes with.
+ */
+export const runnerMigrations = sqliteTable(
+  "runner_migrations",
+  {
+    forgeId: text().notNull(),
+    scopeKind: text({ enum: ["user", "org", "repo"] }).notNull(),
+    scopeTarget: text().notNull(),
+    runnerName: text().notNull(),
+    machineId: text()
+      .notNull()
+      .references(() => machines.id, { onDelete: "cascade" }),
+    poolId: text()
+      .notNull()
+      .references(() => pools.id, { onDelete: "cascade" }),
+    /** Shown in the cleanup steps only; never used to run anything. */
+    path: text(),
+    requestedBy: text().notNull(),
+    requestedAt: integer({ mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.forgeId, t.scopeKind, t.scopeTarget, t.runnerName] })],
+);
+
 /** Runner templates Runyard installed for on-demand pools, so it can remove them later. */
 export const runnerTemplates = sqliteTable("runner_templates", {
   key: text().primaryKey(),

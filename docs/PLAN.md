@@ -107,7 +107,16 @@ Further packages are extracted when a boundary is proven, not up front.
    - Review and re-verified execution.
    - Port the GitHub runner install and retire scripts for macOS, Linux and Windows.
    - Add the public repository guard.
-   - (Done. Legacy-runner migration, adopting hand-registered runners and Windows logon tasks are left for later.)
+   - (Done. Windows logon tasks are left for later.)
+   - **Moving runners Runyard didn't install into a pool** (done, against fakes): migrate rather
+     than adopt in place, so the safety rules stand. An admin places the runner on its machine,
+     then picks a persistent pool on that machine serving its scope (or creates one prefilled from
+     the runner). The pool installs its own runner there as usual; the machine's review then shows
+     a **retire** item for the old one, blocked until a pool runner on the same machine and scope
+     is online, idle, labeled and running, while the old runner is busy, or while it has labels
+     the pool lacks. Retiring deregisters it on the forge only (busy re-checked at the last
+     moment) and shows the steps to stop and remove its service by hand; Runyard runs nothing
+     outside `~/runyard-runners`. A directory, if given, only fills in those steps.
 5. **Forgejo**
    - Monitoring, then the `forgejo-runner` lifecycle (host and Docker modes).
    - Verify the runner and job listing endpoints against target Forgejo versions before designing
@@ -208,6 +217,8 @@ Built and tested only against fakes. Deferred until a real service or machine is
   the Default group, forgejo-runner `one-job` with an ephemeral registration, and runners
   surviving the SSH session (on systemd hosts with `KillUserProcesses=yes`, a one-job runner may
   be stopped at logout; lingering or a service would avoid it).
+- Retiring a runner Runyard didn't install: GitHub's `DELETE …/runners/{id}` on an online
+  runner, and what a deregistered runner's service does afterwards, are unverified.
 - GitHub webhooks: a real delivery through Funnel, `tailscale funnel status --json`'s shape
   as parsed, and `PATCH /app/hook/config` on a real app.
 - The read-only boat connection: built from boat's API docs. The per-VM `cost` object's fields

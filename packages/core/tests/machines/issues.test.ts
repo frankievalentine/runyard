@@ -69,6 +69,7 @@ const view = (machines: MachineView[], error: string | null = null): YardView =>
     templates: [],
     templateRecords: [],
     dispatches: [],
+    migrations: [],
   },
 });
 

@@ -1,11 +1,16 @@
-import { isValidScopeTarget } from "@runyard/core";
+import { isValidScopeTarget, scopeKey, type Scope } from "@runyard/core";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { requireAdmin, requireUser, type AppEnv } from "../auth/identity.ts";
 import type { Db } from "../db/index.ts";
 import { osFamilies, transports } from "../db/schema.ts";
-import { assignRunner } from "../machines/assignments.ts";
+import {
+  assignRunner,
+  cancelMigration,
+  listAssignments,
+  startMigration,
+} from "../machines/assignments.ts";
 import type { MachineMonitor } from "../machines/monitor.ts";
 import { validateTarget } from "../machines/ssh.ts";
 import {
@@ -18,6 +23,7 @@ import {
   unignorePeer,
   updateMachine,
 } from "../machines/store.ts";
+import { listPools, listRegistrations } from "../pools/store.ts";
 import { json } from "./validate.ts";
 
 const sshTarget = z
@@ -161,6 +167,83 @@ export function machineRoutes({ db, monitor }: { db: Db; monitor: MachineMonitor
             scope,
             runnerName,
             machineId,
+            user.username ?? user.tailscaleLogin ?? user.id,
+          );
+          monitor.tick();
+          return c.json({ ok: true });
+        },
+      )
+      // Moves an assigned runner into a pool (it's retired once a pool runner stands in); null cancels.
+      .put(
+        "/runners/migration",
+        requireAdmin(),
+        json(
+          z.object({
+            scope: z.object({
+              forgeId: z.string(),
+              kind: z.enum(["user", "org", "repo"]),
+              target: z.string(),
+            }),
+            runnerName: z.string().trim().min(1).max(255),
+            poolId: z.string().nullable(),
+            path: z
+              .string()
+              .trim()
+              .max(500)
+              // Shown in the cleanup steps only, but kept to a plain absolute path.
+              .refine(
+                (v) =>
+                  v === "" ||
+                  (/^(?:\/|~\/|[A-Za-z]:\\)/.test(v) &&
+                    !Array.from({ length: v.length }, (_, i) => v.charCodeAt(i)).some(
+                      (c) => c < 0x20,
+                    )),
+                "Give an absolute path, or leave it empty.",
+              )
+              .nullable()
+              .optional(),
+          }),
+        ),
+        (c) => {
+          const { scope, runnerName, poolId, path } = c.req.valid("json");
+          if (!isValidScopeTarget(scope.kind, scope.target))
+            return c.json({ error: "That isn't a valid scope." }, 400);
+          if (poolId === null) {
+            cancelMigration(db, scope, runnerName);
+            monitor.tick();
+            return c.json({ ok: true });
+          }
+          const key = `${scopeKey(scope)}:${runnerName.toLowerCase()}`;
+          const sameRunner = (s: Scope, name: string) =>
+            `${scopeKey(s)}:${name.toLowerCase()}` === key;
+          if (listRegistrations(db).some((r) => sameRunner(r.scope, r.runnerName)))
+            return c.json({ error: "Runyard already manages this runner." }, 400);
+          const assignment = listAssignments(db).find((a) => sameRunner(a.scope, a.runnerName));
+          if (!assignment)
+            return c.json({ error: "Choose the machine it runs on first, under Runs on." }, 400);
+          const pool = listPools(db).find((p) => p.id === poolId);
+          if (!pool) return c.json({ error: "No such pool." }, 404);
+          if (pool.mode !== "persistent")
+            return c.json(
+              {
+                error: "Choose a persistent pool: an on-demand pool keeps no runner to take over.",
+              },
+              400,
+            );
+          if (!pool.machines.some((m) => m.machineId === assignment.machineId))
+            return c.json({ error: `Pool ${pool.name} doesn't run on that machine.` }, 400);
+          if (!pool.scopes.some((s) => scopeKey(s) === scopeKey(scope)))
+            return c.json({ error: `Pool ${pool.name} doesn't serve ${scope.target}.` }, 400);
+          const user = c.get("identity").user!;
+          startMigration(
+            db,
+            {
+              scope,
+              runnerName,
+              machineId: assignment.machineId,
+              poolId,
+              path: path || null,
+            },
             user.username ?? user.tailscaleLogin ?? user.id,
           );
           monitor.tick();

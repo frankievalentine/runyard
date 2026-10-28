@@ -4,6 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { api, call } from "../../api.ts";
 import { CopyValue } from "../../components/CopyValue.tsx";
 import { Icon } from "../../components/icons.tsx";
+import { migrationFor, MoveIntoPool } from "../../components/Migration.tsx";
 import { Elapsed, JobTitle, Label } from "../../components/runners.tsx";
 import {
   Card,
@@ -37,6 +38,7 @@ function Runner() {
   const admin = session.user?.role === "admin";
   const machine = r?.machineId ? view.machines.find((m) => m.id === r.machineId) : undefined;
   const assigned = r ? view.assignedRunners.includes(r.key) : false;
+  const migration = r ? migrationFor(view, r) : undefined;
   if (!r) {
     return (
       <Card>
@@ -77,6 +79,7 @@ function Runner() {
                   {machine.name}
                 </Link>
                 {assigned ? " (assigned)" : ""}
+                {migration && ` · moving into pool ${migration.poolName}`}
               </>
             ) : (
               "Unassigned"
@@ -97,6 +100,9 @@ function Runner() {
         </p>
       )}
       {admin && !r.onDemand && (!r.machineId || assigned) && <RunsOn r={r} assigned={assigned} />}
+      {admin && !r.onDemand && assigned && r.machineId && (
+        <MoveIntoPool r={r} machineId={r.machineId} />
+      )}
       <div className="mt-8">
         <StatStrip cols={3}>
           <Stat
@@ -193,7 +199,9 @@ function Runner() {
                 ? `${r.onDemand} starts a fresh VM for each job; it isn't one of your machines.`
                 : machine
                   ? assigned
-                    ? "Shown on the machine only; Runyard doesn't manage this runner."
+                    ? migration
+                      ? `Runyard retires it once pool ${migration.poolName}'s runner here stands in.`
+                      : "Shown on the machine only; Runyard doesn't manage this runner."
                     : "Runyard manages this runner through its pool."
                   : "Runyard places runners on machines when it registers them. For one registered another way, choose its machine under Runs on."
             }

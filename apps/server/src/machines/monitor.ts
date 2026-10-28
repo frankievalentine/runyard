@@ -15,6 +15,7 @@ import {
   type RunnerAssignment,
   type TemplateRecord,
   type Dispatch,
+  type Migration,
   type Pool,
   type Registration,
   type MachineConfig,
@@ -61,6 +62,7 @@ type Deps = {
     assignments?: RunnerAssignment[];
     templateRecords?: TemplateRecord[];
     dispatches?: Dispatch[];
+    migrations?: Migration[];
   };
 };
 

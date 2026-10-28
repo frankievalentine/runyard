@@ -5,6 +5,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
+import { MigrationsIn } from "../../components/Migration.tsx";
 import { Icon } from "../../components/icons.tsx";
 import { PoolForm } from "../../components/PoolForm.tsx";
 import { Label } from "../../components/runners.tsx";
@@ -216,6 +217,14 @@ function PoolPage() {
               })}
             </LinkTable>
           )}
+        </Section>
+      )}
+      {view.pools.migrations.some((m) => m.poolId === pool.id) && (
+        <Section
+          title="Moving in"
+          count={view.pools.migrations.filter((m) => m.poolId === pool.id).length}
+        >
+          <MigrationsIn poolId={pool.id} />
         </Section>
       )}
       {admin && repos.length > 0 && (

@@ -91,6 +91,21 @@ export type DesiredRunner = {
   forgejoMode?: ForgejoMode;
 };
 
+/**
+ * A runner Runyard didn't install, moving into a pool: a runner from the pool
+ * on the same machine and scope replaces it, then it's retired on the forge.
+ */
+export type Migration = {
+  scope: Scope;
+  /** The old runner's name on the forge. */
+  runnerName: string;
+  /** The machine it's linked to; the replacement runs there too. */
+  machineId: string;
+  poolId: string;
+  /** Its directory, if given, for the cleanup steps shown after it's retired. Never used to run anything. */
+  path: string | null;
+};
+
 /** What the machine reports for a runner directory, from the read-only probe. */
 export type LocalRunner = {
   path: string;

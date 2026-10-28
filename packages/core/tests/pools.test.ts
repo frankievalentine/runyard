@@ -2,6 +2,7 @@ import { describe, expect, test } from "vite-plus/test";
 import {
   desiredRunners,
   labelDrift,
+  migrationViews,
   nameCollisions,
   planFingerprint,
   planMachine,
@@ -9,9 +10,11 @@ import {
   type DesiredRunner,
   type OsFamily,
   type LocalRunner,
+  type Migration,
   type PlanInput,
   type Pool,
   type RemoteRunner,
+  type RunnerView,
   type Scope,
 } from "../src/index.ts";
 
@@ -219,6 +222,123 @@ describe("planMachine", () => {
     const a = planMachine(input());
     expect(planFingerprint(a)).toBe(planFingerprint([...a].reverse()));
     expect(planFingerprint(a)).not.toBe(planFingerprint(planMachine(input({ machineError: "x" }))));
+  });
+});
+
+describe("moving a runner Runyard didn't install into a pool", () => {
+  const p = pool({ machines: [{ machineId: "m1", slots: 1 }] });
+  const [d] = desiredRunners([p], machines) as [DesiredRunner];
+  const migration: Migration = {
+    scope: org,
+    runnerName: "old-mac",
+    machineId: "m1",
+    poolId: "p1",
+    path: "/Users/me/actions-runner",
+  };
+  const old = (over: Partial<RemoteRunner> = {}): RemoteRunner => ({
+    id: 9,
+    name: "old-mac",
+    status: "online",
+    busy: false,
+    labels: ["self-hosted", "macOS", "xcode"],
+    ...over,
+  });
+  const standIn = (over: Partial<RemoteRunner> = {}): RemoteRunner => ({
+    id: 5,
+    name: d.name,
+    status: "online",
+    busy: false,
+    labels: ["self-hosted", "macOS", ...d.labels],
+    ...over,
+  });
+  const input = (
+    remotes: RemoteRunner[],
+    over: Partial<PlanInput> = {},
+    service = "active",
+  ): PlanInput => ({
+    machineId: "m1",
+    desired: [d],
+    registrations: [],
+    local: new Map([
+      [d.path, { path: d.path, configured: true, service, version: "2.329.0", agentName: d.name }],
+    ]),
+    github: new Map([[scopeKey(org), new Map(remotes.map((r) => [r.name.toLowerCase(), r]))]]),
+    policies: new Map([[scopeKey(org), { ok: true }]]),
+    machineError: null,
+    githubErrors: new Map(),
+    migrations: [migration],
+    ...over,
+  });
+  const retire = (i: PlanInput) => planMachine(i).filter((x) => x.action === "retire");
+
+  test("retires it once a pool runner is online, idle, labeled and running", () => {
+    const [item] = retire(input([old(), standIn()]));
+    expect(item).toMatchObject({ runnerName: "old-mac", blocked: false });
+    expect(item?.reason).toContain(d.name);
+  });
+
+  test("waits while the replacement isn't installed, online, idle, labeled or running", () => {
+    for (const i of [
+      input([old()]),
+      input([old(), standIn({ status: "offline" })]),
+      input([old(), standIn({ busy: true })]),
+      input([old(), standIn({ labels: ["self-hosted"] })]),
+      input([old(), standIn()], {}, "inactive"),
+    ])
+      expect(retire(i).map((x) => [x.blocked, x.reason.startsWith("Waiting for")])).toEqual([
+        [true, true],
+      ]);
+  });
+
+  test("never retires a busy runner, or one whose labels the pool lacks", () => {
+    expect(retire(input([old({ busy: true }), standIn()]))[0]?.blocked).toBe(true);
+    const [item] = retire(input([old({ labels: ["self-hosted", "xcode", "GPU"] }), standIn()]));
+    expect(item?.blocked).toBe(true);
+    expect(item?.reason).toContain("gpu");
+  });
+
+  test("blocks when the forge can't be read or the pool has no runner there", () => {
+    const unread = retire(
+      input([old(), standIn()], { githubErrors: new Map([[scopeKey(org), "timeout"]]) }),
+    );
+    expect(unread.map((x) => x.blocked)).toEqual([true]);
+    expect(retire(input([old()], { desired: [] }))[0]?.reason).toContain("has no runner");
+  });
+
+  test("a runner already gone from the forge needs nothing, and other machines' migrations wait", () => {
+    expect(retire(input([standIn()]))).toEqual([]);
+    expect(
+      retire(input([old(), standIn()], { migrations: [{ ...migration, machineId: "m2" }] })),
+    ).toEqual([]);
+  });
+
+  test("the dashboard's guide follows the same rules from the forge's last read", () => {
+    const view = (name: string, activity: RunnerView["activity"], labels: string[]) =>
+      ({
+        key: name,
+        name,
+        scope: org,
+        activity,
+        stale: false,
+        labels: ["self-hosted", ...labels],
+      }) as RunnerView;
+    const states = (runners: RunnerView[]) =>
+      migrationViews([migration], [p], [d], runners).map((v) => v.state);
+    expect(states([])).toEqual(["gone"]);
+    expect(states([view("old-mac", "idle", ["xcode"])])).toEqual(["waiting"]);
+    expect(states([view("old-mac", "idle", ["gpu"]), view(d.name, "idle", d.labels)])).toEqual([
+      "labels",
+    ]);
+    expect(states([view("old-mac", "busy", []), view(d.name, "idle", d.labels)])).toEqual(["busy"]);
+    expect(states([view("old-mac", "idle", []), view(d.name, "busy", d.labels)])).toEqual([
+      "waiting",
+    ]);
+    expect(states([view("old-mac", "idle", []), view(d.name, "idle", d.labels)])).toEqual([
+      "ready",
+    ]);
+    expect(migrationViews([migration], [p], [], [view("old-mac", "idle", [])])[0]?.state).toBe(
+      "noReplacement",
+    );
   });
 });
 
