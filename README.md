@@ -1,4 +1,4 @@
-# Runyard
+<h1><img src="docs/assets/runyard-mark.svg" width="44" height="44" alt="" align="absmiddle"> Runyard</h1>
 
 A self-hosted control service and web dashboard for self-hosted GitHub Actions and
 Forgejo Actions runners. Runyard runs on one always-on machine, reaches your other machines over

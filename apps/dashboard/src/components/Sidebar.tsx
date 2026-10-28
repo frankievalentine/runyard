@@ -15,6 +15,7 @@ import { formatDollars } from "../lib/format.ts";
 import { unassignedGroups } from "../lib/nav.ts";
 import { Elapsed } from "./runners.tsx";
 import { AccountMenu } from "./AccountMenu.tsx";
+import { Logomark } from "./Logomark.tsx";
 import { Icon } from "./icons.tsx";
 import { EmptyLine, StatusDot, TimeAgo } from "./ui.tsx";
 
@@ -70,9 +71,7 @@ export function Sidebar({
       className="flex h-full w-[256px] shrink-0 flex-col border-r border-line bg-sidebar"
     >
       <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-line px-3">
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-ink text-bg">
-          <Icon name="server" />
-        </span>
+        <Logomark size={28} small />
         <div className="min-w-0 leading-tight">
           <div className="text-[13px] font-semibold">Runyard</div>
           <div className="mt-0.5 truncate text-[11px] text-ink-2">{where}</div>

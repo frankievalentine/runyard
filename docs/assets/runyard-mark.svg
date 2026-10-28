@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Runyard">
+  <title>Runyard</title>
+  <defs><clipPath id="badge"><rect width="64" height="64" rx="14"/></clipPath></defs>
+  <g clip-path="url(#badge)">
+    <rect width="64" height="20" fill="#F7D1A6"/>
+    <rect y="20" width="64" height="12" fill="#F3B27A"/>
+    <rect y="32" width="64" height="10" fill="#EC9461"/>
+    <circle cx="44" cy="31" r="8" fill="#FDE7C2" opacity="0.95"/>
+    <g fill="#B46A4F" opacity="0.55">
+      <rect x="2" y="34" width="6" height="8"/><rect x="9" y="31" width="4" height="11"/><rect x="14" y="35" width="5" height="7"/>
+      <rect x="50" y="33" width="5" height="9"/><rect x="56" y="36" width="8" height="6"/>
+    </g>
+    <path d="M21 42 L24 22 L27 42 M21.9 36 H26.1 M22.7 30 H25.3 M23.4 25 H24.6 M21 42 L26.1 36 M27 42 L21.9 36 M21.9 36 L25.3 30 M26.1 36 L22.7 30" stroke="#8A4D3B" stroke-width="0.7" fill="none"/>
+    <path d="M8 43 V31 M5 32 H11 M37 43 V31 M34 32 H40 M58 43 V31 M55 32 H61 M8 33 C 20 35, 25 35, 37 33 M37 33 C 47 35, 50 35, 58 33" stroke="#7A4536" stroke-width="0.6" fill="none"/>
+    <rect y="42" width="64" height="22" fill="#6A4136"/>
+    <rect y="53" width="64" height="11" fill="#5A362E"/>
+    <path d="M0 50 H64 M0 59 H64" stroke="#3F2722" stroke-width="2.6" stroke-dasharray="0.8 1.6"/>
+    <path d="M0 49.3 H64 M0 50.7 H64 M0 58.3 H64 M0 59.7 H64" stroke="#C98A63" stroke-width="0.5"/>
+    <rect x="4" y="51" width="16" height="7" rx="0.8" fill="#A5482F"/>
+    <rect x="23" y="52" width="16" height="6" rx="3" fill="#8E3B26"/>
+    <rect x="42" y="51" width="18" height="7" rx="0.8" fill="#4E7A58"/>
+    <g>
+      <animateTransform attributeName="transform" type="translate" values="-20 0;106 0" dur="10s" repeatCount="indefinite"/>
+      <rect x="-40" y="42" width="19" height="7" rx="3.5" fill="#A4A7A9"/>
+      <rect x="-20" y="41" width="19" height="8" rx="0.8" fill="#3F6B4D"/>
+      <path d="M-16 41 V49 M-11 41 V49 M-6 41 V49" stroke="#335A40" stroke-width="0.6"/>
+      <rect x="0" y="37" width="7" height="12" rx="0.9" fill="#E8732A"/>
+      <rect x="6" y="41" width="12" height="8" rx="0.9" fill="#E8732A"/>
+      <rect x="1.5" y="38.5" width="4" height="2.6" rx="0.4" fill="#2B2420"/>
+      <rect x="0" y="46" width="18" height="1.2" fill="#F3B27A"/>
+      <circle cx="17.2" cy="43.5" r="0.8" fill="#FFF1C4"/>
+      <g fill="#2A1A17">
+        <circle cx="3" cy="49.4" r="1.1"/><circle cx="7" cy="49.4" r="1.1"/><circle cx="12" cy="49.4" r="1.1"/><circle cx="16" cy="49.4" r="1.1"/>
+        <circle cx="-17" cy="49.4" r="1.1"/><circle cx="-4" cy="49.4" r="1.1"/><circle cx="-37" cy="49.4" r="1.1"/><circle cx="-24" cy="49.4" r="1.1"/>
+      </g>
+    </g>
+  </g>
+</svg>
