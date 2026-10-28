@@ -188,6 +188,15 @@ class Checks {
   }
 
   powerMac() {
+    const autoLogin = this.get("auto_login_user");
+    this.add(
+      "login-auto",
+      "power",
+      "Automatic login",
+      "info",
+      autoLogin ? `As ${autoLogin}` : "Off",
+      "Runners on a Mac are LaunchAgents, which run only while their user is logged in. After a restart, automatic login brings them back.",
+    );
     const restart = this.get("ac_autorestart");
     this.add(
       "power-recovery",

@@ -132,3 +132,47 @@ test("boat.dev VMs left running need a look", () => {
     detail: expect.stringContaining("scratch: $1.87 so far"),
   });
 });
+
+test("a Mac in a pool needs automatic login for the runners' user", () => {
+  const login = (value: string) =>
+    machine({
+      diagnostics: {
+        asOf: 0,
+        stale: false,
+        checks: [
+          {
+            id: "login-auto",
+            group: "power",
+            title: "Automatic login",
+            status: "info",
+            value,
+            detail: "d",
+          },
+        ],
+      },
+    });
+  const inPool = (m: MachineView): YardView => {
+    const v = view([m]);
+    v.pools.pools = [
+      {
+        id: "p1",
+        name: "mac",
+        labels: [],
+        machines: [{ machineId: "m1", slots: 1 }],
+        scopes: [],
+        forgejoMode: { kind: "host" },
+        mode: "persistent",
+        paused: false,
+      },
+    ];
+    return v;
+  };
+  const macIssue = (v: YardView) => deriveIssues(v).find((i) => i.id === "m1:mac-login");
+  expect(macIssue(inPool(login("Off")))?.detail).toContain("automatic login is off");
+  expect(macIssue(inPool(login("As admin")))?.detail).toContain(
+    "is for admin, but the runners run as ci",
+  );
+  expect(macIssue(inPool(login("As ci")))).toBeUndefined();
+  // Not in a pool: nothing runs there, so nothing to warn about.
+  expect(macIssue(view([login("Off")]))).toBeUndefined();
+});

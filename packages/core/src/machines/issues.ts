@@ -1,3 +1,4 @@
+import { sshUser } from "./access.ts";
 import type { YardView } from "./derive.ts";
 
 export type Issue = {
@@ -44,6 +45,8 @@ export function deriveIssues(view: YardView): Issue[] {
     }
     const d = m.diagnostics;
     if (!d || d.stale || c.state !== "connected") continue;
+    const macRunners = macRunnerIssue(view, m.id);
+    if (macRunners) issues.push(macRunners);
     const diskAlert = m.alerts.some((a) => a.kind === "lowDisk");
     for (const check of d.checks) {
       if (check.status !== "warn" || (diskAlert && check.id === "disk-space")) continue;
@@ -67,4 +70,36 @@ export function deriveIssues(view: YardView): Issue[] {
     });
   }
   return issues;
+}
+
+/**
+ * A Mac in a pool whose runners stop at logout: they're LaunchAgents, so
+ * after a restart they wait for their user to log in unless automatic login
+ * is on for that user.
+ */
+function macRunnerIssue(view: YardView, machineId: string): Issue | null {
+  const m = view.machines.find((x) => x.id === machineId);
+  if (!m || m.os !== "macos") return null;
+  if (!view.pools.pools.some((p) => p.machines.some((x) => x.machineId === machineId))) return null;
+  const check = m.diagnostics?.checks.find((c) => c.id === "login-auto");
+  if (!check) return null;
+  const runAs = sshUser(m.sshTarget);
+  const autoUser = check.value.startsWith("As ") ? check.value.slice(3) : null;
+  const fix =
+    "Turn on automatic login for it in System Settings ▸ Users & Groups (not available while FileVault is on).";
+  if (!autoUser)
+    return {
+      id: `${m.id}:mac-login`,
+      title: `${m.name}: runners stop while logged out`,
+      detail: `Its runners are LaunchAgents, which run only while ${runAs ?? "their user"} is logged in, and automatic login is off. ${fix}`,
+      machineId: m.id,
+    };
+  if (runAs && autoUser !== runAs)
+    return {
+      id: `${m.id}:mac-login`,
+      title: `${m.name}: runners stop while logged out`,
+      detail: `Automatic login is for ${autoUser}, but the runners run as ${runAs}. ${fix}`,
+      machineId: m.id,
+    };
+  return null;
 }

@@ -207,7 +207,7 @@ What a machine needs to host runners, by kind:
   command as the account the runners should use. Runners on macOS are LaunchAgents, which run
   only while that account is logged in: turn on automatic login for it (**Users & Groups**;
   unavailable while FileVault is on) and stop the Mac sleeping (`sudo pmset -a sleep 0`, and
-  keep a laptop on power).
+  keep a laptop on power). Runyard flags a Mac in a pool when automatic login is off or is for another account, and when it sleeps.
 - **Windows.** Turn on OpenSSH Server (the setup command prints how), then run the Windows setup
   command as the runners' account; for an administrator account, from an administrator
   PowerShell. Runners run as Windows services.

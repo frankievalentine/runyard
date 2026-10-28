@@ -40,6 +40,8 @@ case "$os" in
     done
     fact battery_sleep "$(printf '%s\n' "$power" | awk '/^[^[:space:]]/ {battery=($0 ~ /^Battery Power:/)} battery && $1=="sleep" {print $2; exit}')"
     fact console_user "$(stat -f '%Su' /dev/console 2>/dev/null)"
+    # The login window's settings are readable without root; unset means automatic login is off.
+    fact auto_login_user "$(defaults read /Library/Preferences/com.apple.loginwindow autoLoginUser 2>/dev/null)"
     ;;
   Linux)
     if [ -n "$ts" ]; then fact tailscale_install cli-daemon; fi
