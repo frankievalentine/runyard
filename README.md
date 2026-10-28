@@ -1,8 +1,14 @@
-<h1><img src="docs/assets/runyard-mark.svg" width="44" height="44" alt="" align="absmiddle"> Runyard</h1>
+<p align="center">
+  <img src="docs/assets/runyard-mark.svg" width="96" height="96" alt="Runyard logomark: an orange locomotive pulling its train across an evening rail yard">
+</p>
+<h1 align="center">Runyard</h1>
+<p align="center">CI runners for GitHub and Forgejo, on your machines and boat.dev.</p>
 
-A self-hosted control service and web dashboard for self-hosted GitHub Actions and
-Forgejo Actions runners. Runyard runs on one always-on machine, reaches your other machines over
-SSH, and serves its dashboard to any browser on your tailnet.
+Runyard is a control service and web dashboard for CI runners. It runs on one always-on machine,
+watches your other machines over SSH and Tailscale, installs GitHub and Forgejo runners on them
+after you review the changes, and starts one-job runners when work is queued. Jobs that run on
+boat.dev's on-demand VMs show up alongside, with each VM's cost and any left running. The
+dashboard is served to any browser on your tailnet.
 
 Early development. See [docs/PLAN.md](docs/PLAN.md) for the design and roadmap.
 
