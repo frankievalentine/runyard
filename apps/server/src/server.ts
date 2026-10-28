@@ -12,6 +12,8 @@ import { runCommand } from "./command.ts";
 import { dataDir } from "./config.ts";
 import type { DashboardAssets } from "./dashboard.ts";
 import { openDatabase } from "./db/index.ts";
+import { MachineMonitor } from "./machines/monitor.ts";
+import { installedPrograms } from "./machines/ssh.ts";
 import { loadSecretKey, SecretStore } from "./secrets.ts";
 import { TailnetListener } from "./tailnet.ts";
 import { TailscaleCli, WhoisCache } from "./tailscale.ts";
@@ -37,12 +39,20 @@ export async function start(dashboard?: DashboardAssets) {
     const address = getConnInfo(c).remote.address?.replace(/^::ffff:/, "");
     return address ? whois.login(address) : null;
   };
+  const monitor = new MachineMonitor({
+    db,
+    run: runCommand,
+    programs: installedPrograms(),
+    tailscale,
+  });
+  monitor.start();
   const shared = {
     db,
     setup,
     limiter: new FailureLimiter(10, 15 * 60 * 1000),
     challenges: new Challenges(),
     tailnetLogin,
+    monitor,
   };
   const deps = (listener: AppDeps["listener"]): AppDeps => ({ ...shared, listener });
 
@@ -67,5 +77,5 @@ export async function start(dashboard?: DashboardAssets) {
   }
   if (adminCount(db) === 0) setup.issue();
 
-  return { server, tailnet, db, secrets };
+  return { server, tailnet, db, secrets, monitor };
 }

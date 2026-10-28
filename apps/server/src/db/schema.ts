@@ -71,3 +71,63 @@ export const passkeys = sqliteTable(
   },
   (t) => [index("passkeys_user_id").on(t.userId)],
 );
+
+export const transports = ["openssh", "tailscale"] as const;
+export const osFamilies = ["macos", "linux", "windows", "other"] as const;
+
+/** Machines added to Runyard. Only these get SSH health checks. */
+export const machines = sqliteTable(
+  "machines",
+  {
+    id: text().primaryKey(),
+    name: text().notNull(),
+    description: text().notNull().default(""),
+    sshTarget: text().notNull(),
+    transport: text({ enum: transports }).notNull(),
+    /** The OS the machine must report; null accepts any. */
+    expectedOs: text({ enum: osFamilies }),
+    /** Set when added from the tailnet; links the machine to its peer. */
+    tailscaleNodeId: text().unique(),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [check("machines_transport", sql`${t.transport} IN ('openssh', 'tailscale')`)],
+);
+
+/** Tailnet peers hidden from Other machines. */
+export const ignoredPeers = sqliteTable("ignored_peers", {
+  nodeId: text().primaryKey(),
+  name: text().notNull(),
+  ignoredAt: integer({ mode: "timestamp_ms" }).notNull(),
+});
+
+/**
+ * Monitoring baselines (core's MachineState as JSON), so a restart neither
+ * repeats nor misses transitions. `target` resets them when the SSH target changes.
+ */
+export const machineStates = sqliteTable("machine_states", {
+  machineId: text()
+    .primaryKey()
+    .references(() => machines.id, { onDelete: "cascade" }),
+  target: text().notNull(),
+  state: text().notNull(),
+  updatedAt: integer({ mode: "timestamp_ms" }).notNull(),
+});
+
+/** Observed machine events, kept for 30 days and at most 5,000 rows. */
+export const machineEvents = sqliteTable(
+  "machine_events",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    machineId: text()
+      .notNull()
+      .references(() => machines.id, { onDelete: "cascade" }),
+    machineName: text().notNull(),
+    kind: text().notNull(),
+    detail: text().notNull(),
+    at: integer({ mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [
+    index("machine_events_machine").on(t.machineId, t.id),
+    index("machine_events_at").on(t.at),
+  ],
+);

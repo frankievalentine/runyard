@@ -14,12 +14,14 @@ const { port: free } = port;
 await port.stop();
 
 const child = Bun.spawn([binary], {
-  // The tailnet listener stays off: CI never calls the real Tailscale CLI.
+  // CI never calls the real Tailscale CLI: the listener is off and the CLI path
+  // points nowhere, which also proves Runyard keeps serving without Tailscale.
   env: {
     ...process.env,
     RUNYARD_DATA_DIR: dataDir,
     RUNYARD_PORT: String(free),
     RUNYARD_TAILNET: "off",
+    RUNYARD_TAILSCALE: join(dataDir, "no-tailscale"),
   },
   stdout: "inherit",
   stderr: "inherit",

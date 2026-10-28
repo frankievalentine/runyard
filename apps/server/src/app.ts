@@ -13,7 +13,9 @@ import type { SetupCode } from "./auth/setup.ts";
 import { UserError } from "./auth/users.ts";
 import { serveDashboard, type DashboardAssets } from "./dashboard.ts";
 import type { Db } from "./db/index.ts";
+import type { MachineMonitor } from "./machines/monitor.ts";
 import { authRoutes } from "./routes/auth.ts";
+import { machineRoutes } from "./routes/machines.ts";
 import { passkeyRoutes } from "./routes/passkeys.ts";
 import { userRoutes } from "./routes/users.ts";
 
@@ -24,6 +26,7 @@ export type AppDeps = {
   limiter: FailureLimiter;
   challenges: Challenges;
   tailnetLogin: TailnetLogin;
+  monitor: MachineMonitor;
 };
 
 export function createApi(deps: AppDeps) {
@@ -34,7 +37,8 @@ export function createApi(deps: AppDeps) {
     .get("/health", (c) => c.json({ ok: true, version: pkg.version }))
     .route("/", authRoutes(deps))
     .route("/passkeys", passkeyRoutes(deps))
-    .route("/users", userRoutes(deps.db));
+    .route("/users", userRoutes(deps.db))
+    .route("/", machineRoutes(deps));
 }
 
 /** Imported by the dashboard for the typed `hc` client. */

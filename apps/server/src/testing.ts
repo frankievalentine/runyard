@@ -5,6 +5,8 @@ import { FailureLimiter } from "./auth/rate-limit.ts";
 import { SetupCode } from "./auth/setup.ts";
 import type { DashboardAssets } from "./dashboard.ts";
 import { openDatabase } from "./db/index.ts";
+import { FakeMachines } from "./machines/fake.ts";
+import { MachineMonitor } from "./machines/monitor.ts";
 
 /** An app on an in-memory database. `codes` collects every setup code announced. */
 export function testApp(
@@ -13,8 +15,19 @@ export function testApp(
   const codes: string[] = [];
   const setup = new SetupCode((code) => codes.push(code));
   if (options.issueSetupCode ?? true) setup.issue();
+  const db = openDatabase(":memory:");
+  const fake = new FakeMachines();
+  const clock = { now: 1_000_000 };
+  const monitor = new MachineMonitor({
+    db,
+    run: fake.run,
+    programs: fake.programs,
+    tailscale: fake.tailscale,
+    now: () => clock.now,
+  });
   const deps: AppDeps = {
-    db: openDatabase(":memory:"),
+    db,
+    monitor,
     listener: options.listener ?? "tcp",
     setup,
     limiter: new FailureLimiter(10, 15 * 60 * 1000),
@@ -23,7 +36,7 @@ export function testApp(
     tailnetLogin: async (c) => c.req.header("X-Test-Tailnet-Login")?.toLowerCase() ?? null,
   };
   const app = createApp(deps, options.dashboard);
-  return { app, deps, codes, setup };
+  return { app, deps, codes, setup, fake, clock, monitor };
 }
 
 /** A same-origin JSON request as the dashboard would send it, with an optional cookie and extra headers. */

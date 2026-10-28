@@ -1,3 +1,4 @@
+import { parseTailnetStatus, type TailnetSnapshot } from "@runyard/core";
 import type { CommandRunner } from "./command.ts";
 
 export type TailscaleSelf = {
@@ -23,6 +24,18 @@ export class TailscaleCli {
     if (res.code !== 0)
       return new Error(`tailscale status failed: ${res.stderr.trim() || `exit ${res.code}`}`);
     return parseSelf(res.stdout);
+  }
+
+  /** Every peer on the tailnet, or an Error saying why it can't be read. */
+  async status(): Promise<TailnetSnapshot | Error> {
+    const res = await this.run([this.binary, "status", "--json"], { timeoutMs: 10_000 });
+    if (res.code === 124)
+      return new Error(
+        "The Tailscale CLI didn't respond within 10 seconds. Check that Tailscale is running.",
+      );
+    if (res.code !== 0)
+      return new Error(res.stderr.trim() || `tailscale status failed (exit ${res.code}).`);
+    return parseTailnetStatus(res.stdout);
   }
 
   /** The Tailscale login behind a tailnet address; null for tagged devices or unknown addresses. */
