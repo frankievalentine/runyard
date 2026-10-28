@@ -224,6 +224,30 @@ github.runs.set("acme-demo/app", [
   },
 ]);
 github.runs.set("acme-demo/web", [
+  // boat runs these on a VM per job; its runner isn't in the runner list.
+  {
+    id: 903,
+    status: "in_progress",
+    jobs: [
+      {
+        id: 9005,
+        name: "lint",
+        status: "in_progress",
+        labels: ["boat"],
+        runner_id: 7001,
+        runner_name: "boat-ci-web-9005",
+        created_at: ago(4),
+        started_at: ago(3),
+      },
+      {
+        id: 9006,
+        name: "integration",
+        status: "queued",
+        labels: ["boat-large"],
+        created_at: ago(1),
+      },
+    ],
+  },
   {
     id: 902,
     status: "in_progress",

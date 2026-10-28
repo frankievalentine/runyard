@@ -150,6 +150,15 @@ enter the password in the review, used for that run only. NixOS needs
 Runyard refuses to register runners for a public personal repository until an admin types its
 name, and for an organization whose Default runner group allows public repositories.
 
+### On-demand runners (boat)
+
+Runyard shows jobs that ask for [boat](https://docs.boat.dev/ci.md)'s labels (`boat`,
+`boat-small`, `boat-large`, `boat-xlarge`, matched exactly) in Queued jobs as "Starts on boat",
+since boat starts a VM per job and no runner exists beforehand. Running boat jobs appear under
+**On boat** in the sidebar. Runyard doesn't talk to boat: it reads what GitHub reports. A
+running self-hosted or boat job whose runner isn't in GitHub's runner list still shows, known
+from the job itself.
+
 ### Forgejo
 
 Connect a Forgejo instance (15 or later) under **Account menu ▸ Forgejo** with an access token

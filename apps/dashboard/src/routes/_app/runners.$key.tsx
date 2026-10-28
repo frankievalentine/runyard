@@ -54,8 +54,14 @@ function Runner() {
         }
         subtitle={
           <>
-            Not linked to a machine · <CopyValue value={r.scopeLabel} label={scopeKind} />
+            {r.onDemand
+              ? `A one-job runner on ${r.onDemand}`
+              : r.machineId
+                ? "Linked to a machine"
+                : "Not linked to a machine"}{" "}
+            · <CopyValue value={r.scopeLabel} label={scopeKind} />
             {r.os && ` · ${r.os}`}
+            {!r.listed && " · known from its running job; GitHub's runner list doesn't include it"}
           </>
         }
       />

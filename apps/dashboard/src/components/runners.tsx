@@ -16,13 +16,17 @@ export function Elapsed({ since }: { since: number }) {
   return <>{formatElapsed(now - since)}</>;
 }
 
-/** Marks Forgejo runners and jobs; GitHub is the unmarked default. */
-export function ForgeBadge() {
+/** A small tag: Forgejo (GitHub is the unmarked default), or an on-demand service such as boat. */
+export function Badge({ children }: { children: ReactNode }) {
   return (
     <span className="shrink-0 rounded-[4px] border border-line px-1 text-[10.5px] font-medium text-ink-2">
-      Forgejo
+      {children}
     </span>
   );
+}
+
+export function ForgeBadge() {
+  return <Badge>Forgejo</Badge>;
 }
 
 /** A runner label as a small monospace chip, click to copy. */
@@ -84,6 +88,7 @@ export function RunnerLine({ r }: { r: RunnerView }) {
             {r.job?.workflowName ?? r.job?.name ?? r.name}
           </span>
           {r.forge === "forgejo" && <ForgeBadge />}
+          {r.onDemand && <Badge>{r.onDemand}</Badge>}
         </div>
         <div className="truncate font-mono text-[12px] text-ink-2">{detail}</div>
       </div>
@@ -165,7 +170,10 @@ function QueuedJob({
       <div
         className={`flex shrink-0 gap-2 ${compact ? "flex-wrap items-center" : "flex-col items-end"}`}
       >
-        {eligible.length === 0 ? (
+        {job.onDemand ? (
+          // The service starts a VM for the job; no runner exists until then.
+          <Pill tone="info">Starts on {job.onDemand}</Pill>
+        ) : eligible.length === 0 ? (
           <Pill tone="warn">No matching runner online</Pill>
         ) : idle > 0 ? (
           <Pill tone="ok">{plural(idle, "idle runner")} match</Pill>
@@ -188,6 +196,7 @@ export function JobTitle({ job }: { job: JobView }) {
           {job.name}
         </span>
         {job.forge === "forgejo" && <ForgeBadge />}
+        {job.onDemand && <Badge>{job.onDemand}</Badge>}
         {job.htmlUrl && (
           <GitHubLink url={job.htmlUrl} label={`Open ${job.name} on GitHub`}>
             <Icon name="external" size={12} />

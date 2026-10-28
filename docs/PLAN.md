@@ -160,7 +160,9 @@ Built and tested only against fakes. Deferred until a real service or machine is
 - The Docker compose file with a real `TS_AUTHKEY`. Locally, the image builds and serves, the
   entrypoint fixes SSH key modes, and Runyard reads an unauthenticated sidecar's state through
   the shared socket; joining a tailnet and `tailscale cert` there are untested.
-- `install.ps1` on Windows. `install.sh` has run on macOS and in a Debian container, and the
+- `install.ps1` on Windows.
+- boat's `runs-on: boat` jobs: labels come from boat's docs; whether boat's runners appear in
+  GitHub's runner list, and how their names look, is unknown. Runyard shows them either way. `install.sh` has run on macOS and in a Debian container, and the
   Linux binaries run there.
 
 ## Reference

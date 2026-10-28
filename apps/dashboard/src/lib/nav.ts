@@ -31,8 +31,14 @@ export function flattenNav(view: FleetView, otherOpen: boolean, runnersOpen = fa
     { path: "/queue" },
     ...view.machines.map((m) => ({ path: "/machines/$id", params: { id: m.id } })),
     ...(runnersOpen
-      ? view.runners.map((r) => ({ path: "/runners/$key", params: { key: r.key } }))
+      ? view.runners
+          .filter((r) => !r.onDemand)
+          .map((r) => ({ path: "/runners/$key", params: { key: r.key } }))
       : []),
+    // On-demand runners are always listed, after the rest.
+    ...view.runners
+      .filter((r) => r.onDemand)
+      .map((r) => ({ path: "/runners/$key", params: { key: r.key } })),
     ...(otherOpen
       ? view.discovered.map((p) => ({ path: "/peers/$nodeId", params: { nodeId: p.nodeId } }))
       : []),

@@ -1,4 +1,5 @@
 import { scopeKey } from "../scope.ts";
+import { onDemandService } from "./on-demand.ts";
 import type { ForgeKind, Scope } from "../model.ts";
 import {
   GITHUB_STALE_AFTER_MS,
@@ -22,6 +23,8 @@ export type JobView = {
   startedAt: number | null;
   htmlUrl: string | null;
   headBranch: string | null;
+  /** The on-demand service whose labels it asks for, such as boat. */
+  onDemand: string | null;
 };
 
 export type RunnerView = {
@@ -47,6 +50,13 @@ export type RunnerView = {
   job: JobView | null;
   /** Linked by runner management; null until then. */
   machineId: string | null;
+  /** The on-demand service it belongs to, by its labels. */
+  onDemand: string | null;
+  /**
+   * False when the forge's runner list doesn't include it and it's known only
+   * from the job it runs (an on-demand service's runner, for example).
+   */
+  listed: boolean;
 };
 
 export type QueuedJobView = JobView & {
@@ -122,7 +132,40 @@ export function deriveGithub(
       for (const job of jobs?.value.jobs ?? []) {
         if (job.status === "in_progress" && job.runnerId !== null)
           running.set(`${job.repo}:${job.runnerId}`, job);
-        else if (job.status === "queued" && isSelfHosted(job)) queued.push({ job });
+        else if (job.status === "queued" && (isSelfHosted(job) || onDemandService(job.labels)))
+          queued.push({ job });
+      }
+      const matched = new Set<GhJob>();
+      // Without a runner list, every running job's runner counts as unlisted.
+      for (const { scope, runner } of inst.runners?.value ?? []) {
+        const job = jobs ? findJob(running, scope, runner.id, inst.repos) : undefined;
+        if (job) matched.add(job);
+      }
+      for (const job of running.values()) {
+        if (matched.has(job) || !(isSelfHosted(job) || onDemandService(job.labels))) continue;
+        const scope: Scope = { forgeId: app.forgeId, kind: "repo", target: job.repo };
+        const onDemand = onDemandService(job.labels);
+        runners.push({
+          key: `${scopeKey(scope)}:unlisted:${job.runnerId}`,
+          id: job.runnerId!,
+          name: job.runnerName ?? `runner ${job.runnerId}`,
+          forge: "github",
+          forgeId: app.forgeId,
+          scope,
+          scopeLabel: job.repo,
+          status: "online",
+          labels: job.labels,
+          os: "",
+          version: null,
+          ephemeral: onDemand !== null,
+          activity: "busy",
+          asOf: jobs!.at,
+          stale: false,
+          job: jobView(job),
+          machineId: null,
+          onDemand,
+          listed: false,
+        });
       }
       if (!inst.runners) continue;
       const stale = now - inst.runners.at > GITHUB_STALE_AFTER_MS;
@@ -153,6 +196,8 @@ export function deriveGithub(
           stale,
           job: activity === "busy" && job ? jobView(job) : null,
           machineId: links.get(`${scopeKey(scope)}:${runner.name.toLowerCase()}`) ?? null,
+          onDemand: onDemandService(runner.labels),
+          listed: true,
         });
       }
     }
@@ -255,5 +300,6 @@ function jobView(job: GhJob): JobView {
     startedAt: job.startedAt,
     htmlUrl: job.htmlUrl,
     headBranch: job.headBranch,
+    onDemand: onDemandService(job.labels),
   };
 }

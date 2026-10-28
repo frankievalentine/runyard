@@ -55,6 +55,11 @@ test("flattens the sidebar in display order, other machines only when open", () 
     runners: [{ key: "gh:org:acme:1" }],
   } as unknown as FleetView;
   expect(flattenNav(withRunner, false, true).map(navKey)).toContain("/runners/$key:gh:org:acme:1");
+  const onDemand = {
+    ...view,
+    runners: [{ key: "boat-1", onDemand: "boat" }],
+  } as unknown as FleetView;
+  expect(flattenNav(onDemand, false, false).map(navKey)).toContain("/runners/$key:boat-1");
   expect(flattenNav(withRunner, false, false).map(navKey)).not.toContain(
     "/runners/$key:gh:org:acme:1",
   );

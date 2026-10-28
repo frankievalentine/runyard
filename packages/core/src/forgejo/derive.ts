@@ -63,6 +63,8 @@ export function deriveForgejo(
             stale,
             job: null,
             machineId: links.get(`${scopeKey(s.scope)}:${r.name.toLowerCase()}`) ?? null,
+            onDemand: null,
+            listed: true,
           });
         }
       }
@@ -77,6 +79,7 @@ export function deriveForgejo(
           repo: j.repo,
           name: j.name,
           workflowName: null,
+          onDemand: null,
           labels: j.runsOn,
           createdAt: jobs!.at,
           startedAt: null,

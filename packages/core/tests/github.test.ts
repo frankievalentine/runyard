@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
 import {
   deriveGithub,
+  onDemandService,
   type GhJob,
   type GhRunner,
   type GithubAppObservation,
@@ -165,4 +166,115 @@ test("links runners Runyard registered to their machines", () => {
     ["mini-02", "m1"],
     ["old", null],
   ]);
+});
+
+describe("on-demand runners and runners GitHub doesn't list", () => {
+  const withJobs = (jobs: GhJob[]) =>
+    install({ jobs: { at: 1000, value: { truncated: false, reposScanned: ["acme/app"], jobs } } });
+
+  test("boat jobs are queued work that starts on demand, matched by exact label", () => {
+    expect(onDemandService(["boat-large"])).toBe("boat");
+    expect(onDemandService(["boats"])).toBeNull();
+    const view = deriveGithub(
+      [
+        app([
+          withJobs([
+            job({ id: 201, labels: ["boat"] }),
+            job({ id: 202, labels: ["ubuntu-latest"] }),
+          ]),
+        ]),
+      ],
+      1000,
+    );
+    expect(view.queue.jobs.map((j) => [j.id, j.onDemand, j.eligible])).toEqual([[201, "boat", []]]);
+  });
+
+  test("a running job on a runner GitHub doesn't list still shows, as an unlisted busy runner", () => {
+    const view = deriveGithub(
+      [
+        app([
+          withJobs([
+            job({
+              id: 301,
+              status: "in_progress",
+              labels: ["boat"],
+              runnerId: 9001,
+              runnerName: "boat-ci-x1",
+              startedAt: 900,
+            }),
+            job({
+              id: 302,
+              status: "in_progress",
+              labels: ["self-hosted", "gpu"],
+              runnerId: 9002,
+              runnerName: "elsewhere",
+            }),
+            // GitHub's own runners aren't this fleet's.
+            job({
+              id: 303,
+              status: "in_progress",
+              labels: ["ubuntu-latest"],
+              runnerId: 9003,
+              runnerName: "GitHub Actions 3",
+            }),
+            // Runs on a listed runner, so it isn't duplicated.
+            job({ id: 304, status: "in_progress", runnerId: 1, runnerName: "mini-01" }),
+          ]),
+        ]),
+      ],
+      1000,
+    );
+    const unlisted = view.runners.filter((r) => !r.listed);
+    expect(
+      unlisted.map((r) => [r.name, r.onDemand, r.activity, r.ephemeral, r.job?.id, r.scope.kind]),
+    ).toEqual([
+      ["boat-ci-x1", "boat", "busy", true, 301, "repo"],
+      ["elsewhere", null, "busy", false, 302, "repo"],
+    ]);
+    expect(view.runners.find((r) => r.name === "mini-01")).toMatchObject({
+      listed: true,
+      job: { id: 304 },
+    });
+    expect(view.summary.busy).toBe(3);
+  });
+
+  test("a listed runner with boat labels is marked as boat's", () => {
+    const listed = install({
+      runners: {
+        at: 1000,
+        value: [
+          {
+            scope: { forgeId: "gh", kind: "repo", target: "acme/app" },
+            runner: runner({
+              id: 9001,
+              name: "boat-ci-x1",
+              labels: ["boat"],
+              ephemeral: true,
+              busy: true,
+            }),
+          },
+        ],
+      },
+      jobs: {
+        at: 1000,
+        value: {
+          truncated: false,
+          reposScanned: ["acme/app"],
+          jobs: [
+            job({
+              id: 301,
+              status: "in_progress",
+              labels: ["boat"],
+              runnerId: 9001,
+              runnerName: "boat-ci-x1",
+            }),
+          ],
+        },
+      },
+    });
+    const view = deriveGithub([app([listed])], 1000);
+    expect(view.runners.map((r) => [r.name, r.onDemand, r.listed, r.job?.id])).toEqual([
+      ["boat-ci-x1", "boat", true, 301],
+    ]);
+  });
 });

@@ -43,7 +43,12 @@ export function Sidebar({
   const searching = query.trim() !== "";
   const showOther = searching || otherOpen;
   const showRunners = searching || runnersOpen;
-  const runners = filtered.runners.filter((r) => !r.machineId);
+  const runners = filtered.runners.filter((r) => !r.machineId && !r.onDemand);
+  // One-job runners from on-demand services, grouped by service; they exist only while working.
+  const onDemand = new Map<string, RunnerView[]>();
+  for (const r of filtered.runners) {
+    if (r.onDemand) onDemand.set(r.onDemand, [...(onDemand.get(r.onDemand) ?? []), r]);
+  }
   const byMachine = new Map<string, RunnerView[]>();
   for (const r of filtered.runners) {
     if (r.machineId) byMachine.set(r.machineId, [...(byMachine.get(r.machineId) ?? []), r]);
@@ -221,6 +226,19 @@ export function Sidebar({
               ))}
           </>
         )}
+        {[...onDemand].map(([service, list]) => (
+          <div key={service}>
+            <Heading title={`On ${service}`} count={list.length} />
+            {list.map((r) => (
+              <RunnerRow
+                key={r.key}
+                r={r}
+                showScope
+                selected={is({ path: "/runners/$key", params: { key: r.key } })}
+              />
+            ))}
+          </div>
+        ))}
         {(view.pools.pools.length > 0 || admin) && (
           <Heading
             title="Pools"
