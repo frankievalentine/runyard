@@ -11,7 +11,8 @@
   "type": "module",
   "scripts": {
     "ready": "vp check && vp run -r test && vp run -r build",
-    "dev": "vp run -r --parallel dev"
+    "dev": "vp run -r --parallel dev",
+    "ci": "vp run ready && vp run @runyard/cli#smoke"
   },
   "devDependencies": {
     "vite": "catalog:",

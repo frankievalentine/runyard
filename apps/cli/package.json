@@ -5,7 +5,8 @@
   "description": "Builds the single runyard binary: the control service with the dashboard embedded",
   "type": "module",
   "scripts": {
-    "build": "bun scripts/build.ts"
+    "build": "bun scripts/build.ts",
+    "smoke": "bun scripts/smoke.ts"
   },
   "dependencies": {
     "@runyard/dashboard": "workspace:*",

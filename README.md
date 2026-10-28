@@ -14,6 +14,7 @@ Requires [Vite+](https://viteplus.dev) (`vp`) and Bun.
 vp install
 vp run dev        # server on 127.0.0.1:7420 and the dashboard dev server with /api proxied to it
 vp run ready      # format, lint and type checks, then every package's tests and builds
+vp run ci         # ready, then a smoke test of the compiled binary (CI runs locally for now)
 ```
 
 `vp run -r build` also produces `apps/cli/dist/runyard`, a single binary with the dashboard
