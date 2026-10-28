@@ -17,9 +17,11 @@ import { importKey } from "./crypto.ts";
 import { SecretStore } from "./secrets.ts";
 import { WebhookReceiver } from "./webhooks/receiver.ts";
 import { setupChecks, type TailnetState } from "./setup/checks.ts";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { listAssignments, listMigrations } from "./machines/assignments.ts";
+import { runyardSshPaths } from "./machines/keys.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
 import { Dispatcher } from "./pools/dispatcher.ts";
 import { PoolEngine } from "./pools/engine.ts";
@@ -33,6 +35,8 @@ export async function testApp(
   const setup = new SetupCode((code) => codes.push(code));
   if (options.issueSetupCode ?? true) setup.issue();
   const db = openDatabase(":memory:");
+  const dataDir = await mkdtemp(join(tmpdir(), "runyard-test-data-"));
+  const ssh = runyardSshPaths(dataDir);
   const fake = new FakeMachines();
   const clock = { now: 1_000_000 };
   const secrets = await SecretStore.open(
@@ -142,10 +146,11 @@ export async function testApp(
         run: fake.run,
         programs: fake.programs,
         tailnet: () => tailnet.state,
-        dataDir: tmpdir(),
+        dataDir,
         env: {},
         home: join(tmpdir(), "runyard-no-home"),
       }),
+    ssh,
   };
   const app = createApp(deps, options.dashboard);
   return {

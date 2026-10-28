@@ -1,3 +1,4 @@
+import { FIXTURE_FINGERPRINT, FIXTURE_KEY } from "../machines/key-fixture.ts";
 import { describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -51,6 +52,8 @@ describe("setup checks", () => {
     const home = await mkdtemp(join(tmpdir(), "runyard-home-"));
     await mkdir(join(home, ".ssh"));
     await writeFile(join(home, ".ssh", "id_ed25519"), "key");
+    await mkdir(join(home, "ssh"));
+    await writeFile(join(home, "ssh", "id_ed25519.pub"), `${FIXTURE_KEY}\n`);
     const checks = await setupChecks({
       run: okSsh,
       programs: { ssh: "/usr/bin/ssh", tailscale: "tailscale" },
@@ -60,7 +63,7 @@ describe("setup checks", () => {
       home,
     });
     expect(checks.map((c) => c.state)).toEqual(["ok", "ok", "ok", "ok", "ok", "ok"]);
-    expect(byId(checks).sshKey?.detail).toBe("~/.ssh/id_ed25519");
+    expect(byId(checks).sshKey?.detail).toContain(FIXTURE_FINGERPRINT);
   });
 });
 

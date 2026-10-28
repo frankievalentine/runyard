@@ -31,3 +31,10 @@ export const checksQuery = queryOptions({
   queryKey: ["setup-checks"],
   queryFn: () => call(api.setup.checks.$get()),
 });
+
+/** Runyard's own SSH public key, for machines to authorize (admins only). */
+export const sshKeyQuery = queryOptions({
+  queryKey: ["ssh-key"],
+  queryFn: () => call(api.setup["ssh-key"].$get()),
+  staleTime: Infinity,
+});

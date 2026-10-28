@@ -36,7 +36,27 @@ const WINDOWS_COMMAND =
   "$source = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded)); " +
   '& ([ScriptBlock]::Create($source))"';
 
-export type SshPrograms = { ssh: string; tailscale: string };
+export type SshPrograms = {
+  ssh: string;
+  tailscale: string;
+  /** Runyard's own key, offered before the user's own keys. */
+  identity?: string;
+  /** Runyard's known_hosts, checked along with the user's. */
+  knownHosts?: string;
+};
+
+/** OpenSSH options for Runyard's own key and known hosts, when it has them. */
+export function runyardOptions(programs: SshPrograms): string[] {
+  const out: string[] = [];
+  if (programs.identity) out.push("-i", programs.identity);
+  if (programs.knownHosts)
+    out.push(
+      "-o",
+      // Quoted: the data directory may contain spaces. The user's own files stay in the list.
+      `UserKnownHostsFile="${programs.knownHosts}" ~/.ssh/known_hosts ~/.ssh/known_hosts2`,
+    );
+  return out;
+}
 
 /** The system's OpenSSH by absolute path where it exists, so PATH can't substitute another binary. */
 export function installedPrograms(env: NodeJS.ProcessEnv = process.env): SshPrograms {
@@ -86,6 +106,7 @@ export function scriptCommand(
       : [
           programs.ssh,
           ...OPENSSH_OPTIONS,
+          ...runyardOptions(programs),
           "-o",
           `ConnectTimeout=${CONNECT_TIMEOUT_SECS}`,
           "--",

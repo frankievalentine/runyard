@@ -2,6 +2,7 @@ import { statfs } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { CommandRunner } from "../command.ts";
+import { runyardPublicKey, runyardSshPaths } from "../machines/keys.ts";
 import type { SshPrograms } from "../machines/ssh.ts";
 
 export type CheckState = "ok" | "warn" | "bad" | "off";
@@ -63,21 +64,33 @@ async function ssh({ run, programs, platform = process.platform }: CheckDeps): P
   };
 }
 
-async function sshKey({ env = process.env, home = homedir() }: CheckDeps): Promise<SetupCheck> {
+async function sshKey({
+  dataDir,
+  env = process.env,
+  home = homedir(),
+}: CheckDeps): Promise<SetupCheck> {
   const title = "SSH key";
-  for (const name of KEY_FILES) {
-    if (await Bun.file(join(home, ".ssh", name)).exists()) {
-      return { id: "sshKey", title, state: "ok", detail: `~/.ssh/${name}`, fix: null };
-    }
-  }
-  if (env.SSH_AUTH_SOCK)
-    return { id: "sshKey", title, state: "ok", detail: "An SSH agent is running.", fix: null };
+  const key = await runyardPublicKey(runyardSshPaths(dataDir));
+  if (key)
+    return {
+      id: "sshKey",
+      title,
+      state: "ok",
+      detail: `Runyard's own key, ${key.fingerprint}. Machines authorize it when you set them up.`,
+      fix: null,
+    };
+  let own: string | null = null;
+  for (const name of KEY_FILES)
+    if (await Bun.file(join(home, ".ssh", name)).exists()) own = `~/.ssh/${name}`;
+  if (!own && env.SSH_AUTH_SOCK) own = "an SSH agent";
   return {
     id: "sshKey",
     title,
     state: "warn",
-    detail: "No key in ~/.ssh and no SSH agent.",
-    fix: "Run `ssh-keygen -t ed25519` and add ~/.ssh/id_ed25519.pub to each machine's authorized_keys, or use Tailscale SSH for machines on your tailnet.",
+    detail: own
+      ? `Runyard couldn't create its own key, so it uses ${own} only.`
+      : "Runyard couldn't create its own key, and there's no key in ~/.ssh or SSH agent.",
+    fix: "Install OpenSSH's ssh-keygen (it ships with the OpenSSH client, or set RUNYARD_SSH_KEYGEN), then restart Runyard. Machines on your tailnet can use Tailscale SSH instead.",
   };
 }
 

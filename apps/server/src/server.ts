@@ -22,6 +22,7 @@ import { MachineMonitor } from "./machines/monitor.ts";
 import { Dispatcher } from "./pools/dispatcher.ts";
 import { PoolEngine } from "./pools/engine.ts";
 import { listDispatches, listPools, listRegistrations, listTemplates } from "./pools/store.ts";
+import { ensureRunyardKey, runyardSshPaths, sshKeygenProgram } from "./machines/keys.ts";
 import { installedPrograms, type SshPrograms } from "./machines/ssh.ts";
 import { loadSecretKey, SecretStore } from "./secrets.ts";
 import { setupChecks, type TailnetState } from "./setup/checks.ts";
@@ -49,6 +50,15 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   await mkdir(dir, { recursive: true, mode: 0o700 });
   const db = openDatabase(join(dir, "runyard.db"));
   const secrets = await SecretStore.open(db, await loadSecretKey(process.env, dir));
+  const sshPaths = runyardSshPaths(dir);
+  // Made even for the demo, whose fake machines never use it, so its dashboard has a key to show.
+  const keyError = await ensureRunyardKey(runCommand, sshKeygenProgram(), sshPaths);
+  if (keyError) console.error(keyError);
+  const programs: SshPrograms = overrides.programs ?? {
+    ...installedPrograms(),
+    ...(keyError ? {} : { identity: sshPaths.identity }),
+    knownHosts: sshPaths.knownHosts,
+  };
 
   const setup = new SetupCode((code) => {
     console.log(
@@ -70,7 +80,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   monitor = new MachineMonitor({
     db,
     run,
-    programs: overrides.programs ?? installedPrograms(),
+    programs,
     tailscale,
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),
@@ -85,7 +95,6 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     }),
   });
   monitor.start();
-  const programs = overrides.programs ?? installedPrograms();
   const engine = new PoolEngine({
     db,
     run,
@@ -164,6 +173,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     tailnetState,
     webhooks: { port: webhookPort, receiver, funnel: (port: number) => tailscale.funnelFor(port) },
     setupChecks: () => setupChecks({ run, programs, tailnet: tailnetState, dataDir: dir }),
+    ssh: sshPaths,
   };
   const deps = (listener: AppDeps["listener"]): AppDeps => ({ ...shared, listener });
 

@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
 import { MachineFields } from "../../components/MachineFields.tsx";
+import { SshKeyCard } from "../../components/SshKey.tsx";
 import {
   Card,
   EmptyLine,
@@ -54,6 +55,9 @@ function AddMachines() {
       </Section>
       <Section title="By SSH target">
         <AddBySsh />
+      </Section>
+      <Section title="Runyard's SSH key">
+        <SshKeyCard />
       </Section>
       {yard.ignored.length > 0 && (
         <Section title="Ignored">
