@@ -84,7 +84,7 @@ const files = (await Bun.file(join(dist, "index.html")).exists())
   : [];
 const dashboard = files.length ? new Map(files.map((f) => [`/${f}`, join(dist, f)])) : undefined;
 
-const { db } = await start(dashboard, { run: fake.run, programs: fake.programs });
+const { db, monitor } = await start(dashboard, { run: fake.run, programs: fake.programs });
 if (listMachines(db).length === 0) {
   createMachine(db, {
     name: "Studio mini",
@@ -114,4 +114,6 @@ if (listMachines(db).length === 0) {
     transport: "openssh",
   });
 }
+// Check right away instead of waiting for the next minute-long round.
+await monitor.checkNow();
 console.log("Demo fleet: every answer is fake; nothing real is contacted.");
