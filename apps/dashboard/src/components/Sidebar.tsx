@@ -9,12 +9,18 @@ import {
   osLabel,
   runnerStatus,
 } from "../lib/status.ts";
+import { formatDollars } from "../lib/format.ts";
+import { unassignedGroups } from "../lib/nav.ts";
 import { Elapsed } from "./runners.tsx";
 import { AccountMenu } from "./AccountMenu.tsx";
 import { Icon } from "./icons.tsx";
 import { EmptyLine, StatusDot, TimeAgo } from "./ui.tsx";
 
-/** fleet's sidebar: overview, filter, machines, other machines and ignored. `filtered` is `view` narrowed by the query. */
+/**
+ * fleet's sidebar: overview, filter, then machines (with their runners), pools,
+ * on-demand runners, unassigned runners, tailnet devices and ignored.
+ * `filtered` is `view` narrowed by the query.
+ */
 export function Sidebar({
   view,
   filtered,
@@ -43,12 +49,10 @@ export function Sidebar({
   const searching = query.trim() !== "";
   const showOther = searching || otherOpen;
   const showRunners = searching || runnersOpen;
-  const runners = filtered.runners.filter((r) => !r.machineId && !r.onDemand);
-  // One-job runners from on-demand services, grouped by service; they exist only while working.
-  const onDemand = new Map<string, RunnerView[]>();
-  for (const r of filtered.runners) {
-    if (r.onDemand) onDemand.set(r.onDemand, [...(onDemand.get(r.onDemand) ?? []), r]);
-  }
+  const unassigned = unassignedGroups(filtered.runners);
+  // boat.dev's one-job runners exist only while working; they nest under its row.
+  const boatRunners = filtered.runners.filter((r) => r.onDemand === "boat.dev");
+  const boatCost = boatRunners.reduce((sum, r) => sum + (view.boatVms[r.key]?.dollars ?? 0), 0);
   const byMachine = new Map<string, RunnerView[]>();
   for (const r of filtered.runners) {
     if (r.machineId) byMachine.set(r.machineId, [...(byMachine.get(r.machineId) ?? []), r]);
@@ -183,62 +187,6 @@ export function Sidebar({
             </div>
           );
         })}
-        {filtered.discovered.length > 0 && (
-          <>
-            <Heading
-              title="Other machines"
-              count={filtered.discovered.length}
-              open={showOther}
-              onToggle={() => setOtherOpen(!otherOpen)}
-            />
-            {showOther &&
-              filtered.discovered.map((p) => {
-                const item = { path: "/peers/$nodeId", params: { nodeId: p.nodeId } };
-                return (
-                  <Row
-                    key={p.nodeId}
-                    item={item}
-                    selected={is(item)}
-                    icon={<StatusDot tone={p.online ? "ok" : "muted"} hollow />}
-                    label={p.name}
-                    title={`${p.name}\n${p.address}`}
-                    trailing={p.online ? osLabel[p.os] : "Offline"}
-                  />
-                );
-              })}
-          </>
-        )}
-        {runners.length > 0 && (
-          <>
-            <Heading
-              title="Not linked to a machine"
-              count={runners.length}
-              open={showRunners}
-              onToggle={() => setRunnersOpen(!runnersOpen)}
-            />
-            {showRunners &&
-              runners.map((r) => (
-                <RunnerRow
-                  key={r.key}
-                  r={r}
-                  selected={is({ path: "/runners/$key", params: { key: r.key } })}
-                />
-              ))}
-          </>
-        )}
-        {[...onDemand].map(([service, list]) => (
-          <div key={service}>
-            <Heading title={`On ${service}`} count={list.length} />
-            {list.map((r) => (
-              <RunnerRow
-                key={r.key}
-                r={r}
-                showScope
-                selected={is({ path: "/runners/$key", params: { key: r.key } })}
-              />
-            ))}
-          </div>
-        ))}
         {(view.pools.pools.length > 0 || admin) && (
           <Heading
             title="Pools"
@@ -276,6 +224,90 @@ export function Sidebar({
             />
           );
         })}
+        {(view.boat || boatRunners.length > 0) && (
+          <>
+            <Heading title="On demand" count={boatRunners.length} />
+            <Row
+              item={{ path: "/boat" }}
+              selected={is({ path: "/boat" })}
+              icon={<Icon name="runner" />}
+              label="boat.dev"
+              title="boat.dev: jobs with runs-on: boat"
+              trailing={
+                boatRunners.length
+                  ? `${boatRunners.length} running${boatCost ? ` · ${formatDollars(boatCost)}` : ""}`
+                  : view.boat
+                    ? "Idle"
+                    : ""
+              }
+            />
+            {boatRunners.map((r) => (
+              <RunnerRow
+                key={r.key}
+                r={r}
+                nested
+                showScope
+                selected={is({ path: "/runners/$key", params: { key: r.key } })}
+              />
+            ))}
+          </>
+        )}
+        {unassigned.length > 0 && (
+          <>
+            <Heading
+              title="Unassigned runners"
+              count={unassigned.reduce((n, g) => n + g.runners.length, 0)}
+              open={showRunners}
+              onToggle={() => setRunnersOpen(!runnersOpen)}
+            />
+            {showRunners &&
+              unassigned.map((g) => (
+                <div key={g.key}>
+                  <div
+                    className="truncate px-2 pt-1.5 pb-0.5 text-[11px] text-ink-3"
+                    title={g.label}
+                  >
+                    {g.label}
+                  </div>
+                  {g.runners.map((r) => (
+                    <RunnerRow
+                      key={r.key}
+                      r={r}
+                      nested
+                      // Per-repository runners share a name; the repository tells them apart.
+                      showScope={g.runners.filter((o) => o.name === r.name).length > 1}
+                      selected={is({ path: "/runners/$key", params: { key: r.key } })}
+                    />
+                  ))}
+                </div>
+              ))}
+          </>
+        )}
+        {filtered.discovered.length > 0 && (
+          <>
+            <Heading
+              title="Tailnet devices"
+              count={filtered.discovered.length}
+              open={showOther}
+              onToggle={() => setOtherOpen(!otherOpen)}
+            />
+            {showOther &&
+              filtered.discovered.map((p) => {
+                const item = { path: "/peers/$nodeId", params: { nodeId: p.nodeId } };
+                return (
+                  <Row
+                    key={p.nodeId}
+                    item={item}
+                    selected={is(item)}
+                    icon={<StatusDot tone={p.online ? "ok" : "muted"} hollow />}
+                    label={p.name}
+                    title={`${p.name}\n${p.address}\nOn your tailnet, not added to Runyard`}
+                    trailing={p.online ? osLabel[p.os] : "Offline"}
+                  />
+                );
+              })}
+          </>
+        )}
         {filtered.ignored.length > 0 && (
           <Row
             item={{ path: "/ignored" }}

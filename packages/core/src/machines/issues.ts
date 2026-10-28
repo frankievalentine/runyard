@@ -6,6 +6,8 @@ export type Issue = {
   detail: string;
   /** The machine the issue opens, if any. */
   machineId: string | null;
+  /** A page the issue opens instead of a machine. */
+  page?: "boat";
 };
 
 /**
@@ -52,6 +54,17 @@ export function deriveIssues(view: FleetView): Issue[] {
         machineId: m.id,
       });
     }
+  }
+  const leftover = view.boat?.leftover ?? [];
+  if (leftover.length) {
+    const dollars = leftover.reduce((sum, v) => sum + (v.dollars ?? 0), 0);
+    issues.push({
+      id: "boat:leftover",
+      title: `${leftover.length} boat.dev VM${leftover.length === 1 ? "" : "s"} running outside CI`,
+      detail: `${leftover.map((v) => v.name).join(", ")}${dollars > 0 ? `: $${dollars.toFixed(2)} so far this month` : ""}. Still billing; stop ${leftover.length === 1 ? "it" : "them"} if no longer needed.`,
+      machineId: null,
+      page: "boat",
+    });
   }
   return issues;
 }

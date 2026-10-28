@@ -13,20 +13,22 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
-import { Route as AppAccountRouteImport } from './routes/_app/account'
-import { Route as AppGettingStartedRouteImport } from './routes/_app/getting-started'
+import { Route as AppBoatRouteImport } from './routes/_app/boat'
 import { Route as AppIgnoredRouteImport } from './routes/_app/ignored'
 import { Route as AppQueueRouteImport } from './routes/_app/queue'
-import { Route as AppUsersRouteImport } from './routes/_app/users'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppMachinesIdRouteImport } from './routes/_app/machines.$id'
 import { Route as AppMachinesAddRouteImport } from './routes/_app/machines.add'
 import { Route as AppPeersNodeIdRouteImport } from './routes/_app/peers.$nodeId'
 import { Route as AppPoolsIdRouteImport } from './routes/_app/pools.$id'
 import { Route as AppPoolsNewRouteImport } from './routes/_app/pools.new'
 import { Route as AppRunnersKeyRouteImport } from './routes/_app/runners.$key'
-import { Route as AppSettingsBoatRouteImport } from './routes/_app/settings.boat'
+import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings.index'
+import { Route as AppSettingsAccountRouteImport } from './routes/_app/settings.account'
+import { Route as AppSettingsConnectionsRouteImport } from './routes/_app/settings.connections'
 import { Route as AppSettingsForgejoRouteImport } from './routes/_app/settings.forgejo'
 import { Route as AppSettingsGithubRouteImport } from './routes/_app/settings.github'
+import { Route as AppSettingsUsersRouteImport } from './routes/_app/settings.users'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -47,14 +49,9 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAccountRoute = AppAccountRouteImport.update({
-  id: '/account',
-  path: '/account',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGettingStartedRoute = AppGettingStartedRouteImport.update({
-  id: '/getting-started',
-  path: '/getting-started',
+const AppBoatRoute = AppBoatRouteImport.update({
+  id: '/boat',
+  path: '/boat',
   getParentRoute: () => AppRoute,
 } as any)
 const AppIgnoredRoute = AppIgnoredRouteImport.update({
@@ -67,9 +64,9 @@ const AppQueueRoute = AppQueueRouteImport.update({
   path: '/queue',
   getParentRoute: () => AppRoute,
 } as any)
-const AppUsersRoute = AppUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMachinesIdRoute = AppMachinesIdRouteImport.update({
@@ -102,49 +99,64 @@ const AppRunnersKeyRoute = AppRunnersKeyRouteImport.update({
   path: '/runners/$key',
   getParentRoute: () => AppRoute,
 } as any)
-const AppSettingsBoatRoute = AppSettingsBoatRouteImport.update({
-  id: '/settings/boat',
-  path: '/settings/boat',
-  getParentRoute: () => AppRoute,
+const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsAccountRoute = AppSettingsAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsConnectionsRoute = AppSettingsConnectionsRouteImport.update({
+  id: '/connections',
+  path: '/connections',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsForgejoRoute = AppSettingsForgejoRouteImport.update({
-  id: '/settings/forgejo',
-  path: '/settings/forgejo',
-  getParentRoute: () => AppRoute,
+  id: '/forgejo',
+  path: '/forgejo',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsGithubRoute = AppSettingsGithubRouteImport.update({
-  id: '/settings/github',
-  path: '/settings/github',
-  getParentRoute: () => AppRoute,
+  id: '/github',
+  path: '/github',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsUsersRoute = AppSettingsUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
-  '/account': typeof AppAccountRoute
-  '/getting-started': typeof AppGettingStartedRoute
+  '/boat': typeof AppBoatRoute
   '/ignored': typeof AppIgnoredRoute
   '/queue': typeof AppQueueRoute
-  '/users': typeof AppUsersRoute
+  '/settings': typeof AppSettingsRouteWithChildren
   '/machines/$id': typeof AppMachinesIdRoute
   '/machines/add': typeof AppMachinesAddRoute
   '/peers/$nodeId': typeof AppPeersNodeIdRoute
   '/pools/$id': typeof AppPoolsIdRoute
   '/pools/new': typeof AppPoolsNewRoute
   '/runners/$key': typeof AppRunnersKeyRoute
-  '/settings/boat': typeof AppSettingsBoatRoute
+  '/settings/account': typeof AppSettingsAccountRoute
+  '/settings/connections': typeof AppSettingsConnectionsRoute
   '/settings/forgejo': typeof AppSettingsForgejoRoute
   '/settings/github': typeof AppSettingsGithubRoute
+  '/settings/users': typeof AppSettingsUsersRoute
+  '/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
-  '/account': typeof AppAccountRoute
-  '/getting-started': typeof AppGettingStartedRoute
+  '/boat': typeof AppBoatRoute
   '/ignored': typeof AppIgnoredRoute
   '/queue': typeof AppQueueRoute
-  '/users': typeof AppUsersRoute
   '/': typeof AppIndexRoute
   '/machines/$id': typeof AppMachinesIdRoute
   '/machines/add': typeof AppMachinesAddRoute
@@ -152,20 +164,22 @@ export interface FileRoutesByTo {
   '/pools/$id': typeof AppPoolsIdRoute
   '/pools/new': typeof AppPoolsNewRoute
   '/runners/$key': typeof AppRunnersKeyRoute
-  '/settings/boat': typeof AppSettingsBoatRoute
+  '/settings/account': typeof AppSettingsAccountRoute
+  '/settings/connections': typeof AppSettingsConnectionsRoute
   '/settings/forgejo': typeof AppSettingsForgejoRoute
   '/settings/github': typeof AppSettingsGithubRoute
+  '/settings/users': typeof AppSettingsUsersRoute
+  '/settings': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
-  '/_app/account': typeof AppAccountRoute
-  '/_app/getting-started': typeof AppGettingStartedRoute
+  '/_app/boat': typeof AppBoatRoute
   '/_app/ignored': typeof AppIgnoredRoute
   '/_app/queue': typeof AppQueueRoute
-  '/_app/users': typeof AppUsersRoute
+  '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/': typeof AppIndexRoute
   '/_app/machines/$id': typeof AppMachinesIdRoute
   '/_app/machines/add': typeof AppMachinesAddRoute
@@ -173,9 +187,12 @@ export interface FileRoutesById {
   '/_app/pools/$id': typeof AppPoolsIdRoute
   '/_app/pools/new': typeof AppPoolsNewRoute
   '/_app/runners/$key': typeof AppRunnersKeyRoute
-  '/_app/settings/boat': typeof AppSettingsBoatRoute
+  '/_app/settings/account': typeof AppSettingsAccountRoute
+  '/_app/settings/connections': typeof AppSettingsConnectionsRoute
   '/_app/settings/forgejo': typeof AppSettingsForgejoRoute
   '/_app/settings/github': typeof AppSettingsGithubRoute
+  '/_app/settings/users': typeof AppSettingsUsersRoute
+  '/_app/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -183,29 +200,29 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup'
-    | '/account'
-    | '/getting-started'
+    | '/boat'
     | '/ignored'
     | '/queue'
-    | '/users'
+    | '/settings'
     | '/machines/$id'
     | '/machines/add'
     | '/peers/$nodeId'
     | '/pools/$id'
     | '/pools/new'
     | '/runners/$key'
-    | '/settings/boat'
+    | '/settings/account'
+    | '/settings/connections'
     | '/settings/forgejo'
     | '/settings/github'
+    | '/settings/users'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/setup'
-    | '/account'
-    | '/getting-started'
+    | '/boat'
     | '/ignored'
     | '/queue'
-    | '/users'
     | '/'
     | '/machines/$id'
     | '/machines/add'
@@ -213,19 +230,21 @@ export interface FileRouteTypes {
     | '/pools/$id'
     | '/pools/new'
     | '/runners/$key'
-    | '/settings/boat'
+    | '/settings/account'
+    | '/settings/connections'
     | '/settings/forgejo'
     | '/settings/github'
+    | '/settings/users'
+    | '/settings'
   id:
     | '__root__'
     | '/_app'
     | '/login'
     | '/setup'
-    | '/_app/account'
-    | '/_app/getting-started'
+    | '/_app/boat'
     | '/_app/ignored'
     | '/_app/queue'
-    | '/_app/users'
+    | '/_app/settings'
     | '/_app/'
     | '/_app/machines/$id'
     | '/_app/machines/add'
@@ -233,9 +252,12 @@ export interface FileRouteTypes {
     | '/_app/pools/$id'
     | '/_app/pools/new'
     | '/_app/runners/$key'
-    | '/_app/settings/boat'
+    | '/_app/settings/account'
+    | '/_app/settings/connections'
     | '/_app/settings/forgejo'
     | '/_app/settings/github'
+    | '/_app/settings/users'
+    | '/_app/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -274,18 +296,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/account': {
-      id: '/_app/account'
-      path: '/account'
-      fullPath: '/account'
-      preLoaderRoute: typeof AppAccountRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/getting-started': {
-      id: '/_app/getting-started'
-      path: '/getting-started'
-      fullPath: '/getting-started'
-      preLoaderRoute: typeof AppGettingStartedRouteImport
+    '/_app/boat': {
+      id: '/_app/boat'
+      path: '/boat'
+      fullPath: '/boat'
+      preLoaderRoute: typeof AppBoatRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/ignored': {
@@ -302,11 +317,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppQueueRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/users': {
-      id: '/_app/users'
-      path: '/users'
-      fullPath: '/users'
-      preLoaderRoute: typeof AppUsersRouteImport
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/machines/$id': {
@@ -351,36 +366,78 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRunnersKeyRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/settings/boat': {
-      id: '/_app/settings/boat'
-      path: '/settings/boat'
-      fullPath: '/settings/boat'
-      preLoaderRoute: typeof AppSettingsBoatRouteImport
-      parentRoute: typeof AppRoute
+    '/_app/settings/': {
+      id: '/_app/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/account': {
+      id: '/_app/settings/account'
+      path: '/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof AppSettingsAccountRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/connections': {
+      id: '/_app/settings/connections'
+      path: '/connections'
+      fullPath: '/settings/connections'
+      preLoaderRoute: typeof AppSettingsConnectionsRouteImport
+      parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/forgejo': {
       id: '/_app/settings/forgejo'
-      path: '/settings/forgejo'
+      path: '/forgejo'
       fullPath: '/settings/forgejo'
       preLoaderRoute: typeof AppSettingsForgejoRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/github': {
       id: '/_app/settings/github'
-      path: '/settings/github'
+      path: '/github'
       fullPath: '/settings/github'
       preLoaderRoute: typeof AppSettingsGithubRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/users': {
+      id: '/_app/settings/users'
+      path: '/users'
+      fullPath: '/settings/users'
+      preLoaderRoute: typeof AppSettingsUsersRouteImport
+      parentRoute: typeof AppSettingsRoute
     }
   }
 }
 
+interface AppSettingsRouteChildren {
+  AppSettingsAccountRoute: typeof AppSettingsAccountRoute
+  AppSettingsConnectionsRoute: typeof AppSettingsConnectionsRoute
+  AppSettingsForgejoRoute: typeof AppSettingsForgejoRoute
+  AppSettingsGithubRoute: typeof AppSettingsGithubRoute
+  AppSettingsUsersRoute: typeof AppSettingsUsersRoute
+  AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+}
+
+const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsAccountRoute: AppSettingsAccountRoute,
+  AppSettingsConnectionsRoute: AppSettingsConnectionsRoute,
+  AppSettingsForgejoRoute: AppSettingsForgejoRoute,
+  AppSettingsGithubRoute: AppSettingsGithubRoute,
+  AppSettingsUsersRoute: AppSettingsUsersRoute,
+  AppSettingsIndexRoute: AppSettingsIndexRoute,
+}
+
+const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
+  AppSettingsRouteChildren,
+)
+
 interface AppRouteChildren {
-  AppAccountRoute: typeof AppAccountRoute
-  AppGettingStartedRoute: typeof AppGettingStartedRoute
+  AppBoatRoute: typeof AppBoatRoute
   AppIgnoredRoute: typeof AppIgnoredRoute
   AppQueueRoute: typeof AppQueueRoute
-  AppUsersRoute: typeof AppUsersRoute
+  AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppMachinesIdRoute: typeof AppMachinesIdRoute
   AppMachinesAddRoute: typeof AppMachinesAddRoute
@@ -388,17 +445,13 @@ interface AppRouteChildren {
   AppPoolsIdRoute: typeof AppPoolsIdRoute
   AppPoolsNewRoute: typeof AppPoolsNewRoute
   AppRunnersKeyRoute: typeof AppRunnersKeyRoute
-  AppSettingsBoatRoute: typeof AppSettingsBoatRoute
-  AppSettingsForgejoRoute: typeof AppSettingsForgejoRoute
-  AppSettingsGithubRoute: typeof AppSettingsGithubRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAccountRoute: AppAccountRoute,
-  AppGettingStartedRoute: AppGettingStartedRoute,
+  AppBoatRoute: AppBoatRoute,
   AppIgnoredRoute: AppIgnoredRoute,
   AppQueueRoute: AppQueueRoute,
-  AppUsersRoute: AppUsersRoute,
+  AppSettingsRoute: AppSettingsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppMachinesIdRoute: AppMachinesIdRoute,
   AppMachinesAddRoute: AppMachinesAddRoute,
@@ -406,9 +459,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppPoolsIdRoute: AppPoolsIdRoute,
   AppPoolsNewRoute: AppPoolsNewRoute,
   AppRunnersKeyRoute: AppRunnersKeyRoute,
-  AppSettingsBoatRoute: AppSettingsBoatRoute,
-  AppSettingsForgejoRoute: AppSettingsForgejoRoute,
-  AppSettingsGithubRoute: AppSettingsGithubRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

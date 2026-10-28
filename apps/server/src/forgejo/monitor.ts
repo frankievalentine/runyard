@@ -30,6 +30,7 @@ export class ForgejoMonitor {
   private conns = new Map<string, ConnState>();
   private timers: ReturnType<typeof setInterval>[] = [];
   private refreshing: Promise<void> | undefined;
+  private queued: Promise<void> | undefined;
   private readonly now: () => number;
 
   constructor(
@@ -87,8 +88,16 @@ export class ForgejoMonitor {
     return state?.observation.publicRepos ?? null;
   }
 
+  /** Never overlapping; a call during a refresh gets one shared follow-up, as in GithubMonitor. */
   refreshAll(): Promise<void> {
-    this.refreshing ??= this.refresh().finally(() => {
+    if (this.refreshing) {
+      this.queued ??= this.refreshing.then(() => {
+        this.queued = undefined;
+        return this.refreshAll();
+      });
+      return this.queued;
+    }
+    this.refreshing = this.refresh().finally(() => {
       this.refreshing = undefined;
     });
     return this.refreshing;

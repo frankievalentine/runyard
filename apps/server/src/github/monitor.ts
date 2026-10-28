@@ -88,14 +88,24 @@ export class GithubMonitor {
   }
 
   private refreshing: Promise<void> | undefined;
+  private queued: Promise<void> | undefined;
 
   /**
    * Re-reads apps from storage, then every installation and its repositories,
-   * then runners and jobs. Overlapping calls share the refresh in flight, so
-   * one app never gets two clients (and two token caches).
+   * then runners and jobs. Refreshes never overlap, so one app never gets two
+   * clients (and two token caches). A call during a refresh gets one follow-up
+   * refresh, shared with other such calls: the one in flight may have read
+   * storage before the caller's change.
    */
   refreshAll(): Promise<void> {
-    this.refreshing ??= this.refresh().finally(() => {
+    if (this.refreshing) {
+      this.queued ??= this.refreshing.then(() => {
+        this.queued = undefined;
+        return this.refreshAll();
+      });
+      return this.queued;
+    }
+    this.refreshing = this.refresh().finally(() => {
       this.refreshing = undefined;
     });
     return this.refreshing;

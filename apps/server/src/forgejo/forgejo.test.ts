@@ -5,6 +5,7 @@ import { createMachine } from "../machines/store.ts";
 import type { OperationView, Review } from "../pools/engine.ts";
 import { FakeRunnerHost } from "../pools/fake-host.ts";
 import { listRegistrations } from "../pools/store.ts";
+import { saveConnection } from "./store.ts";
 import { body, send, sessionCookie, testApp } from "../testing.ts";
 
 const PASSWORD = "correct horse battery";
@@ -207,4 +208,30 @@ describe("Forgejo runners", () => {
     const review = await s.call<Review>("POST", `/api/machines/${s.machine.id}/review`);
     expect(review.items.map((i) => [i.action, i.blocked])).toEqual([["unsupportedPlatform", true]]);
   });
+});
+
+test("a refresh asked for during another sees changes saved in between", async () => {
+  const t = await testApp();
+  await saveConnection(
+    t.deps.db,
+    t.deps.secrets,
+    "https://forgejo.test",
+    "frankie",
+    t.fakeForgejo.token,
+  );
+  // Held until released, so the first refresh is mid-fetch when the second is asked for.
+  let release!: () => void;
+  t.fakeForgejo.gate = new Promise<void>((resolve) => (release = resolve));
+  const first = t.forgejo.refreshAll();
+  await saveConnection(
+    t.deps.db,
+    t.deps.secrets,
+    "https://forgejo.test",
+    "other",
+    t.fakeForgejo.token,
+  );
+  const second = t.forgejo.refreshAll();
+  release();
+  await Promise.all([first, second]);
+  expect(t.forgejo.observations().map((c) => c.login)).toEqual(["frankie", "other"]);
 });

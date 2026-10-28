@@ -35,7 +35,7 @@ const obs = (sandboxes: BoatSandbox[], over: Partial<BoatObservation> = {}): Boa
   ...over,
 });
 const boatRunner = (jobId: number) =>
-  ({ key: `k${jobId}`, onDemand: "boat", job: { id: jobId } }) as unknown as RunnerView;
+  ({ key: `k${jobId}`, onDemand: "boat.dev", job: { id: jobId } }) as unknown as RunnerView;
 
 describe("boat", () => {
   test("reads the job ID from boat's CI VM names", () => {

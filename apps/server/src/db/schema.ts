@@ -1,5 +1,13 @@
 import { sql } from "drizzle-orm";
-import { blob, check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  blob,
+  check,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+} from "drizzle-orm/sqlite-core";
 
 /** Encrypted credentials (forge tokens, GitHub App keys). See secrets.ts. */
 export const secrets = sqliteTable("secrets", {
@@ -233,3 +241,23 @@ export const forgejoConnections = sqliteTable("forgejo_connections", {
   login: text().notNull(),
   createdAt: integer({ mode: "timestamp_ms" }).notNull(),
 });
+
+/**
+ * Runners Runyard didn't register, placed on a machine by an admin. Display
+ * only: Runyard still doesn't manage them. Names are stored lowercase.
+ */
+export const runnerAssignments = sqliteTable(
+  "runner_assignments",
+  {
+    forgeId: text().notNull(),
+    scopeKind: text({ enum: ["user", "org", "repo"] }).notNull(),
+    scopeTarget: text().notNull(),
+    runnerName: text().notNull(),
+    machineId: text()
+      .notNull()
+      .references(() => machines.id, { onDelete: "cascade" }),
+    assignedBy: text().notNull(),
+    assignedAt: integer({ mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.forgeId, t.scopeKind, t.scopeTarget, t.runnerName] })],
+);

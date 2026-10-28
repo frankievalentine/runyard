@@ -123,7 +123,7 @@ Further packages are extracted when a boundary is proven, not up front.
    - Setup checks on the control machine (`/api/setup/status`): ssh and a key, the Tailscale CLI,
      login, HTTPS certificates and the tailnet URL, the secret key's source (warn to back up a
      generated key file), and a writable data directory.
-   - A Getting started checklist derived from current state (no saved wizard progress): checks,
+   - A setup checklist on the overview, derived from current state (no saved wizard progress): checks,
      then connect a forge, add a machine, create a pool, review changes. Each step links to the
      page that does it. The tailnet URL is printed at startup and shown on the setup screen.
    - `runyard service install|uninstall|status`, running Runyard as the user (it needs their

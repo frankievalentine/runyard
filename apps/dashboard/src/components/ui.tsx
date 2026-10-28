@@ -367,3 +367,28 @@ export function Legend({ color, children }: { color: string; children: ReactNode
     </span>
   );
 }
+
+/** A page's heading inside a layout that already has the page title, such as Settings. */
+export function SubHeader({
+  title,
+  subtitle,
+  back,
+  actions,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  /** A link back to the parent tab, such as Connections. */
+  back?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <header className="mt-6 flex flex-wrap items-start gap-3">
+      <div className="min-w-0 flex-1">
+        {back && <div className="mb-1 text-[12.5px]">{back}</div>}
+        <h2 className="text-[15px] font-semibold">{title}</h2>
+        {subtitle && <div className="mt-1 max-w-2xl text-[13px] text-ink-2">{subtitle}</div>}
+      </div>
+      {actions && <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>}
+    </header>
+  );
+}

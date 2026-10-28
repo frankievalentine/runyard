@@ -106,3 +106,40 @@ test("the fleet view merges both forges' runners, queue and counts", () => {
   expect(fleet.queue.jobs).toHaveLength(1);
   expect(fleet.queue.complete).toBe(true);
 });
+
+test("an admin's assignment places a runner on a machine; a registration wins", () => {
+  const base = {
+    machines: [],
+    observations: new Map(),
+    tailnet: { at: null, snapshot: null, error: null },
+    ignoredNodeIds: new Set<string>(),
+    states: new Map(),
+    forgejo: [conn()],
+    now: 1000,
+  };
+  const scope = { forgeId: "fj", kind: "user" as const, target: "Frankie" };
+  const fleet = deriveFleet({
+    ...base,
+    assignments: [{ scope, runnerName: "BOX-CI-01", machineId: "m1" }],
+  });
+  const box = fleet.runners.find((r) => r.name === "box-ci-01")!;
+  expect(box.machineId).toBe("m1");
+  expect(fleet.assignedRunners).toEqual([box.key]);
+  const registered = deriveFleet({
+    ...base,
+    assignments: [{ scope, runnerName: "box-ci-01", machineId: "m1" }],
+    registrations: [
+      {
+        key: "k",
+        machineId: "m2",
+        runnerName: "box-ci-01",
+        scope,
+        path: "~/r",
+        serviceMode: "systemd",
+        runnerKind: "forgejo",
+      },
+    ],
+  });
+  expect(registered.runners.find((r) => r.name === "box-ci-01")?.machineId).toBe("m2");
+  expect(registered.assignedRunners).toEqual([]);
+});

@@ -72,8 +72,9 @@ export function RunnerLine({ r }: { r: RunnerView }) {
   const navigate = useNavigate();
   const status = runnerStatus(r);
   const vm = useFleet().boatVms[r.key];
+  // The job's own name leads; workflow names (often just "CI") go underneath.
   const detail = r.job
-    ? `${r.job.repo} · ${r.name}`
+    ? [r.job.workflowName, r.job.repo, r.name].filter(Boolean).join(" · ")
     : r.activity === "busy"
       ? "Job details unavailable"
       : r.labels.filter((l) => !isBuiltinLabel(l)).join(", ") || r.scopeLabel;
@@ -86,9 +87,7 @@ export function RunnerLine({ r }: { r: RunnerView }) {
       <StatusDot tone={status.tone} hollow={status.hollow} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate font-medium">
-            {r.job?.workflowName ?? r.job?.name ?? r.name}
-          </span>
+          <span className="truncate font-medium">{r.job?.name ?? r.name}</span>
           {r.forge === "forgejo" && <ForgeBadge />}
           {r.onDemand && <Badge>{r.onDemand}</Badge>}
         </div>
@@ -97,7 +96,7 @@ export function RunnerLine({ r }: { r: RunnerView }) {
       {vm?.dollars != null && (
         <span
           className="shrink-0 text-[12px] text-ink-2 tabular"
-          title={`${vm.type} boat VM, cost so far at list price`}
+          title={`${vm.type} boat.dev VM, cost so far at list price`}
         >
           {formatDollars(vm.dollars)}
         </span>
@@ -125,14 +124,18 @@ export function forgesConnected(view: FleetView): boolean {
 
 export function QueueList({
   view,
+  jobs: only,
   limit,
   compact,
 }: {
   view: FleetView;
+  /** A subset of the queue, such as boat.dev's jobs. */
+  jobs?: QueuedJobView[];
   limit?: number;
   compact?: boolean;
 }) {
-  const jobs = limit ? view.queue.jobs.slice(0, limit) : view.queue.jobs;
+  const all = only ?? view.queue.jobs;
+  const jobs = limit ? all.slice(0, limit) : all;
   return (
     <Card className="overflow-hidden">
       {jobs.length === 0 ? (
@@ -145,8 +148,8 @@ export function QueueList({
       ) : (
         jobs.map((job) => <QueuedJob key={job.id} job={job} view={view} compact={compact} />)
       )}
-      {limit && view.queue.jobs.length > limit && (
-        <EmptyLine>and {view.queue.jobs.length - limit} more in Queued jobs</EmptyLine>
+      {limit && all.length > limit && (
+        <EmptyLine>and {all.length - limit} more in Queued jobs</EmptyLine>
       )}
     </Card>
   );
@@ -162,7 +165,7 @@ function QueuedJob({
   compact?: boolean;
 }) {
   const eligible = view.runners.filter((r) => job.eligible.includes(r.key));
-  const limits = job.onDemand === "boat" ? view.boat?.limits : null;
+  const limits = job.onDemand === "boat.dev" ? view.boat?.limits : null;
   const idle = eligible.filter((r) => r.activity === "idle").length;
   return (
     <div
@@ -180,9 +183,9 @@ function QueuedJob({
         className={`flex shrink-0 gap-2 ${compact ? "flex-wrap items-center" : "flex-col items-end"}`}
       >
         {limits?.atConcurrencyLimit ? (
-          <Pill tone="warn">Waiting: boat is at {limits.maxActiveSandboxes} VMs</Pill>
+          <Pill tone="warn">Waiting: boat.dev is at {limits.maxActiveSandboxes} VMs</Pill>
         ) : limits?.atStartLimit ? (
-          <Pill tone="warn">Waiting for boat's start limit</Pill>
+          <Pill tone="warn">Waiting for boat.dev's start limit</Pill>
         ) : job.onDemand ? (
           // The service starts a VM for the job; no runner exists until then.
           <Pill tone="info">Starts on {job.onDemand}</Pill>

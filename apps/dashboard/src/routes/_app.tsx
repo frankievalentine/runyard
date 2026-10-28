@@ -186,6 +186,7 @@ function Main({ view, pathname, demo }: { view: FleetView; pathname: string; dem
           <ErrorText error={check.error} />
         </div>
       )}
+      <UpdateBar />
       {demo && <DemoBanner />}
       <div ref={scrollRef} className="scroll min-h-0 flex-1">
         <div className="mx-auto w-full max-w-[1200px] px-6 py-8 xl:px-8">
@@ -193,6 +194,25 @@ function Main({ view, pathname, demo }: { view: FleetView; pathname: string; dem
         </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * Shows once the server is serving a newer dashboard than this tab loaded, such
+ * as after an upgrade or restart: the open tab keeps running its old code.
+ */
+function UpdateBar() {
+  const build = useQuery(healthQuery).data?.build ?? null;
+  const [loaded, setLoaded] = useState<string | null>(null);
+  if (build && loaded === null) setLoaded(build);
+  if (!build || !loaded || build === loaded) return null;
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-accent/30 bg-accent/10 px-5 py-2 text-[12.5px]">
+      <span className="min-w-0 flex-1">Runyard was updated. Reload to use the new version.</span>
+      <Button small variant="primary" onClick={() => window.location.reload()}>
+        Reload
+      </Button>
+    </div>
   );
 }
 
@@ -231,7 +251,7 @@ function breadcrumbs(pathname: string, view: FleetView): { label: string; to?: s
   if (peer) {
     return [
       fleet,
-      { label: "Other machines" },
+      { label: "Tailnet devices" },
       { label: view.discovered.find((p) => p.nodeId === peer)?.name ?? "Machine" },
     ];
   }
@@ -245,14 +265,24 @@ function breadcrumbs(pathname: string, view: FleetView): { label: string; to?: s
   }
   const pages: Record<string, string> = {
     "/queue": "Queued jobs",
-    "/settings/github": "GitHub",
-    "/settings/forgejo": "Forgejo",
-    "/settings/boat": "boat",
-    "/getting-started": "Getting started",
+    "/boat": "boat.dev",
     "/": "Yard overview",
     "/ignored": "Ignored machines",
-    "/users": "Users",
-    "/account": "Account",
   };
+  const settings: Record<string, { label: string; parent?: string }> = {
+    "/settings/account": { label: "Account" },
+    "/settings/connections": { label: "Connections" },
+    "/settings/users": { label: "Users" },
+    "/settings/github": { label: "GitHub", parent: "Connections" },
+    "/settings/forgejo": { label: "Forgejo", parent: "Connections" },
+  };
+  const s = settings[pathname];
+  if (s) {
+    return [
+      { label: "Settings", to: "/settings/account" },
+      ...(s.parent ? [{ label: s.parent, to: "/settings/connections" }] : []),
+      { label: s.label },
+    ];
+  }
   return [fleet, { label: pages[pathname] ?? "" }];
 }

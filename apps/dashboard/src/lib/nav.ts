@@ -1,4 +1,4 @@
-import type { FleetView } from "@runyard/core";
+import type { FleetView, RunnerView } from "@runyard/core";
 
 /** A sidebar destination, in display order, for keyboard navigation. */
 export type NavItem = { path: string; params?: Record<string, string> };
@@ -24,21 +24,40 @@ export function filterFleet(view: FleetView, query: string): FleetView {
   };
 }
 
-/** Everything the sidebar shows, top to bottom. */
+/** Runners not on a machine Runyard knows (and not on-demand), grouped by the account they serve. */
+export function unassignedGroups(
+  runners: RunnerView[],
+): { key: string; label: string; runners: RunnerView[] }[] {
+  const groups = new Map<string, { key: string; label: string; runners: RunnerView[] }>();
+  for (const r of runners) {
+    if (r.machineId || r.onDemand) continue;
+    const account = r.scope.kind === "repo" ? r.scope.target.split("/")[0]! : r.scope.target;
+    const key = `${r.forgeId}:${account.toLowerCase()}`;
+    const group = groups.get(key) ?? {
+      key,
+      label: `${account} · ${r.forge === "forgejo" ? "Forgejo" : "GitHub"}`,
+      runners: [],
+    };
+    group.runners.push(r);
+    groups.set(key, group);
+  }
+  return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** Everything the sidebar shows, top to bottom, for keyboard navigation. */
 export function flattenNav(view: FleetView, otherOpen: boolean, runnersOpen = false): NavItem[] {
+  const runner = (r: RunnerView) => ({ path: "/runners/$key", params: { key: r.key } });
+  const boat = view.runners.filter((r) => r.onDemand === "boat.dev");
   return [
     { path: "/" },
     { path: "/queue" },
-    ...view.machines.map((m) => ({ path: "/machines/$id", params: { id: m.id } })),
-    ...(runnersOpen
-      ? view.runners
-          .filter((r) => !r.onDemand)
-          .map((r) => ({ path: "/runners/$key", params: { key: r.key } }))
-      : []),
-    // On-demand runners are always listed, after the rest.
-    ...view.runners
-      .filter((r) => r.onDemand)
-      .map((r) => ({ path: "/runners/$key", params: { key: r.key } })),
+    ...view.machines.flatMap((m) => [
+      { path: "/machines/$id", params: { id: m.id } },
+      ...view.runners.filter((r) => r.machineId === m.id).map(runner),
+    ]),
+    ...view.pools.pools.map((p) => ({ path: "/pools/$id", params: { id: p.id } })),
+    ...(view.boat || boat.length ? [{ path: "/boat" }, ...boat.map(runner)] : []),
+    ...(runnersOpen ? unassignedGroups(view.runners).flatMap((g) => g.runners.map(runner)) : []),
     ...(otherOpen
       ? view.discovered.map((p) => ({ path: "/peers/$nodeId", params: { nodeId: p.nodeId } }))
       : []),

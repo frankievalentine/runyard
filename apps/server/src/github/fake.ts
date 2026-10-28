@@ -56,11 +56,19 @@ export class FakeGithub {
   manifestOwner = { login: "frankie", type: "User" };
   readonly fetch: Fetch;
 
-  constructor() {
-    const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
-    // GitHub hands out PKCS#1 keys ("BEGIN RSA PRIVATE KEY").
-    this.privateKey = keys.privateKey.export({ type: "pkcs1", format: "pem" }).toString();
-    this.publicKey = keys.publicKey.export({ type: "spki", format: "pem" }).toString();
+  /** `privateKey` reuses an app key from an earlier run, as the demo does across restarts. */
+  constructor(privateKey?: string) {
+    if (privateKey) {
+      this.privateKey = privateKey;
+      this.publicKey = createPublicKey(privateKey)
+        .export({ type: "spki", format: "pem" })
+        .toString();
+    } else {
+      const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+      // GitHub hands out PKCS#1 keys ("BEGIN RSA PRIVATE KEY").
+      this.privateKey = keys.privateKey.export({ type: "pkcs1", format: "pem" }).toString();
+      this.publicKey = keys.publicKey.export({ type: "spki", format: "pem" }).toString();
+    }
     const app = this.routes();
     this.fetch = async (request) => app.fetch(request);
   }

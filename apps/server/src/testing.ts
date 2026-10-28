@@ -18,6 +18,7 @@ import { SecretStore } from "./secrets.ts";
 import { setupChecks, type TailnetState } from "./setup/checks.ts";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { listAssignments } from "./machines/assignments.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
 import { PoolEngine } from "./pools/engine.ts";
 import { listPools, listRegistrations } from "./pools/store.ts";
@@ -69,7 +70,11 @@ export async function testApp(
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),
     boat: () => boat.observation(),
-    pools: () => ({ pools: listPools(db), registrations: listRegistrations(db) }),
+    pools: () => ({
+      pools: listPools(db),
+      registrations: listRegistrations(db),
+      assignments: listAssignments(db),
+    }),
   });
   const engine = new PoolEngine({
     db,

@@ -25,3 +25,9 @@ export const passkeysQuery = queryOptions({
   queryKey: ["passkeys"],
   queryFn: () => call(api.passkeys.$get()),
 });
+
+/** The control machine's setup checks (admins only). */
+export const checksQuery = queryOptions({
+  queryKey: ["setup-checks"],
+  queryFn: () => call(api.setup.checks.$get()),
+});

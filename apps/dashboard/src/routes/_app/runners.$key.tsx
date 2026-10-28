@@ -1,4 +1,7 @@
+import type { RunnerView } from "@runyard/core";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { api, call } from "../../api.ts";
 import { CopyValue } from "../../components/CopyValue.tsx";
 import { Icon } from "../../components/icons.tsx";
 import { Elapsed, JobTitle, Label } from "../../components/runners.tsx";
@@ -11,8 +14,10 @@ import {
   Section,
   Stat,
   StatStrip,
+  ErrorText,
 } from "../../components/ui.tsx";
-import { useFleet } from "../../lib/fleet.ts";
+import { fleetQuery, useFleet } from "../../lib/fleet.ts";
+import { sessionQuery } from "../../lib/queries.ts";
 import { formatDollars, timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
 import { runnerStatus } from "../../lib/status.ts";
@@ -28,6 +33,10 @@ function Runner() {
   const now = useNow();
   const r = view.runners.find((x) => x.key === key);
   const vm = r ? view.boatVms[r.key] : undefined;
+  const { data: session } = useSuspenseQuery(sessionQuery);
+  const admin = session.user?.role === "admin";
+  const machine = r?.machineId ? view.machines.find((m) => m.id === r.machineId) : undefined;
+  const assigned = r ? view.assignedRunners.includes(r.key) : false;
   if (!r) {
     return (
       <Card>
@@ -55,12 +64,24 @@ function Runner() {
         }
         subtitle={
           <>
-            {r.onDemand
-              ? `A one-job runner on ${r.onDemand}`
-              : r.machineId
-                ? "Linked to a machine"
-                : "Not linked to a machine"}{" "}
-            · <CopyValue value={r.scopeLabel} label={scopeKind} />
+            {r.onDemand ? (
+              `A one-job runner on ${r.onDemand}`
+            ) : machine ? (
+              <>
+                On{" "}
+                <Link
+                  to="/machines/$id"
+                  params={{ id: machine.id }}
+                  className="text-accent hover:underline"
+                >
+                  {machine.name}
+                </Link>
+                {assigned ? " (assigned)" : ""}
+              </>
+            ) : (
+              "Unassigned"
+            )}{" "}
+            · <CopyValue value={r.scopeLabel} label={scopeKind} showIcon={false} />
             {r.os && ` · ${r.os}`}
             {!r.listed && " · known from its running job; GitHub's runner list doesn't include it"}
           </>
@@ -68,13 +89,14 @@ function Runner() {
       />
       {vm && (
         <p className="mt-3 text-[12.5px] text-ink-2">
-          Running on boat VM <span className="font-mono text-ink">{vm.id}</span> · {vm.type}
+          Running on boat.dev VM <span className="font-mono text-ink">{vm.id}</span> · {vm.type}
           {vm.size && ` (${vm.size})`} ·{" "}
           {vm.dollars === null
             ? "cost unknown"
             : `${formatDollars(vm.dollars)} so far at list price`}
         </p>
       )}
+      {admin && !r.onDemand && (!r.machineId || assigned) && <RunsOn r={r} assigned={assigned} />}
       <div className="mt-8">
         <StatStrip cols={3}>
           <Stat
@@ -158,8 +180,23 @@ function Runner() {
           />
           <KeyValuePanel
             title="On a machine"
-            rows={[]}
-            footer="Runyard links runners to machines when it registers them. Runners registered by hand show here unlinked."
+            rows={
+              machine
+                ? [
+                    ["Machine", machine.name],
+                    ["How", assigned ? "Assigned by an admin" : "Registered by Runyard"],
+                  ]
+                : []
+            }
+            footer={
+              r.onDemand
+                ? `${r.onDemand} starts a fresh VM for each job; it isn't one of your machines.`
+                : machine
+                  ? assigned
+                    ? "Shown on the machine only; Runyard doesn't manage this runner."
+                    : "Runyard manages this runner through its pool."
+                  : "Runyard places runners on machines when it registers them. For one registered another way, choose its machine under Runs on."
+            }
           />
         </div>
       </Section>
@@ -173,5 +210,55 @@ function Runner() {
         </Section>
       )}
     </div>
+  );
+}
+
+/**
+ * Places a runner Runyard didn't register on the machine it runs on, so it
+ * shows there. Display only: Runyard still won't change it.
+ */
+function RunsOn({ r, assigned }: { r: RunnerView; assigned: boolean }) {
+  const view = useFleet();
+  const queryClient = useQueryClient();
+  const save = useMutation({
+    mutationFn: (machineId: string | null) =>
+      call(
+        api.runners.assignment.$put({
+          json: {
+            scope: {
+              forgeId: r.scope.forgeId,
+              kind: r.scope.kind as "user" | "org" | "repo",
+              target: r.scope.target,
+            },
+            runnerName: r.name,
+            machineId,
+          },
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: fleetQuery.queryKey }),
+  });
+  return (
+    <Card className="mt-6 flex flex-wrap items-center gap-3 px-4 py-3 text-[13px]">
+      <label className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <span className="font-medium">Runs on</span>
+        <select
+          className="input !w-auto"
+          value={assigned ? (r.machineId ?? "") : ""}
+          disabled={save.isPending}
+          onChange={(e) => save.mutate(e.target.value || null)}
+        >
+          <option value="">Not assigned</option>
+          {view.machines.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <span className="text-[12px] text-ink-2">
+        Runyard didn't register this runner, so it shows it on the machine without managing it.
+      </span>
+      {save.error && <ErrorText error={save.error} />}
+    </Card>
   );
 }

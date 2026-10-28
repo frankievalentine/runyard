@@ -1,7 +1,8 @@
 import { deriveIssues, type Alert, type FleetView, type MachineView } from "@runyard/core";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { eventsQuery } from "../lib/fleet.ts";
+import { useState } from "react";
+import { EVENTS_PAGE, eventsQuery, useFleet } from "../lib/fleet.ts";
 import { formatBytes, formatClock, formatPercent, formatUptime, timeAgo } from "../lib/format.ts";
 import { diskUsedFraction, memoryUsedFraction, primaryDisk } from "../lib/health.ts";
 import { useNow } from "../lib/now.ts";
@@ -12,7 +13,9 @@ import {
   machineTooltip,
   osLine,
 } from "../lib/status.ts";
+import { Button } from "./form.tsx";
 import { Icon } from "./icons.tsx";
+import { RunnerCells } from "./runners.tsx";
 import {
   calloutSurface,
   Card,
@@ -102,7 +105,7 @@ export function Attention({ view }: { view: FleetView }) {
                   {issue.detail}
                 </div>
               </div>
-              {issue.machineId && (
+              {(issue.machineId || issue.page) && (
                 <span className="text-ink-3">
                   <Icon name="chevron" size={11} />
                 </span>
@@ -111,11 +114,15 @@ export function Attention({ view }: { view: FleetView }) {
           );
           const className = "flex min-h-[40px] w-full items-center gap-3 px-4 py-3 text-left";
           const machineId = issue.machineId;
-          return machineId ? (
+          return machineId || issue.page ? (
             <button
               key={issue.id}
               type="button"
-              onClick={() => void navigate({ to: "/machines/$id", params: { id: machineId } })}
+              onClick={() =>
+                void (machineId
+                  ? navigate({ to: "/machines/$id", params: { id: machineId } })
+                  : navigate({ to: "/boat" }))
+              }
               className={`${className} hover:bg-warn/5`}
             >
               {content}
@@ -133,6 +140,7 @@ export function Attention({ view }: { view: FleetView }) {
 
 const COLUMNS = [
   { label: "Machine" },
+  { label: "Runners", className: "w-32 px-3" },
   { label: "Diagnostics" },
   { label: "CPU", className: "w-28 px-3" },
   { label: "Memory", className: "w-28 px-3" },
@@ -140,10 +148,11 @@ const COLUMNS = [
   { label: "Uptime", className: "hidden px-3 min-[1300px]:table-cell" },
 ];
 
-/** Ported from fleet's MachineTable; the Runners column joins it with runner data. */
+/** Ported from fleet's MachineTable, with its Runners column. */
 export function MachineTable({ machines }: { machines: MachineView[] }) {
   const navigate = useNavigate();
   const now = useNow();
+  const { runners } = useFleet();
   if (!machines.length) {
     return (
       <Card>
@@ -184,8 +193,22 @@ export function MachineTable({ machines }: { machines: MachineView[] }) {
               </>
             }
           >
+            <td className="px-3 py-2.5">
+              {(() => {
+                const own = runners.filter((r) => r.machineId === m.id);
+                return own.length ? (
+                  <RunnerCells runners={own} />
+                ) : (
+                  <span className="text-[12px] text-ink-3">None</span>
+                );
+              })()}
+            </td>
             <td className={`px-3 py-2.5 text-[12px] ${warnings ? "text-warn" : "text-ink-2"}`}>
-              {diagnosticSummary(m)}
+              {m.connection.state === "error" ? (
+                <span className="text-bad">SSH failed</span>
+              ) : (
+                diagnosticSummary(m)
+              )}
             </td>
             <MetricCell
               value={h?.cpuPercent == null ? "—" : formatPercent(h.cpuPercent)}
@@ -233,20 +256,52 @@ function MetricCell({
   );
 }
 
-/** Observed history, newest first. */
-export function EventTimeline({ machineId }: { machineId?: string }) {
-  const events = useQuery(eventsQuery(machineId));
+/** Observed history, newest first, a page at a time. */
+export function EventTimeline({
+  machineId,
+  title = "History",
+}: {
+  machineId?: string;
+  title?: string;
+}) {
+  // The `before` cursor of each page back from the newest; empty on the first page.
+  const [cursors, setCursors] = useState<number[]>([]);
+  const events = useQuery(eventsQuery(machineId, cursors.at(-1)));
   const navigate = useNavigate();
   const now = useNow();
+  const page = events.data?.slice(0, EVENTS_PAGE) ?? [];
+  const older = (events.data?.length ?? 0) > EVENTS_PAGE;
   return (
-    <Section title="History" count={events.data?.length}>
+    <Section
+      title={title}
+      action={
+        (cursors.length > 0 || older) && (
+          <div className="flex items-center gap-1.5">
+            <Button
+              small
+              disabled={cursors.length === 0}
+              onClick={() => setCursors(cursors.slice(0, -1))}
+            >
+              Newer
+            </Button>
+            <Button
+              small
+              disabled={!older}
+              onClick={() => setCursors([...cursors, page.at(-1)!.id])}
+            >
+              Older
+            </Button>
+          </div>
+        )
+      }
+    >
       <Card className="overflow-hidden">
         {events.error && <ErrorText className="px-4 py-3" error={events.error} />}
         {events.data?.length === 0 && (
           <EmptyLine>No events yet. Runyard records them while it runs.</EmptyLine>
         )}
         <ul className="divide-y divide-line">
-          {events.data?.map((e) => {
+          {page.map((e) => {
             const style = eventStyle[e.kind as keyof typeof eventStyle] ?? {
               label: e.kind,
               tone: "muted" as const,

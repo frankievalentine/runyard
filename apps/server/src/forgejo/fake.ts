@@ -37,11 +37,16 @@ export class FakeForgejo {
   issued: { scope: string; name: string; token: string }[] = [];
   deleted: { scope: string; id: number }[] = [];
   private nextId = 1;
+  /** While set, every request waits for it: lets a test hold a refresh mid-fetch. */
+  gate: Promise<void> | null = null;
   readonly fetch: Fetch;
 
   constructor() {
     const app = this.routes();
-    this.fetch = async (request) => app.fetch(request);
+    this.fetch = async (request) => {
+      if (this.gate) await this.gate;
+      return app.fetch(request);
+    };
   }
 
   private routes() {

@@ -1,19 +1,18 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
 import type { ForgejoConnectionView } from "@runyard/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
-import { Icon } from "../../components/icons.tsx";
 import {
   Card,
   EmptyLine,
   ErrorText,
-  PageHeader,
   Pill,
   Section,
   StatusDot,
+  SubHeader,
 } from "../../components/ui.tsx";
 import { fleetQuery, useFleet } from "../../lib/fleet.ts";
 import { plural, timeAgo } from "../../lib/format.ts";
@@ -32,8 +31,12 @@ function ForgejoSettings() {
   const { forgejo } = useFleet();
   return (
     <div>
-      <PageHeader
-        icon={<Icon name="external" size={16} />}
+      <SubHeader
+        back={
+          <Link to="/settings/connections" className="text-accent hover:underline">
+            ← Connections
+          </Link>
+        }
         title="Forgejo"
         subtitle="Runyard reads and registers runners on a Forgejo instance with one user's access token: that user's own runners and those of the organizations they own."
       />

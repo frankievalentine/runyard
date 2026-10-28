@@ -173,7 +173,7 @@ describe("on-demand runners and runners GitHub doesn't list", () => {
     install({ jobs: { at: 1000, value: { truncated: false, reposScanned: ["acme/app"], jobs } } });
 
   test("boat jobs are queued work that starts on demand, matched by exact label", () => {
-    expect(onDemandService(["boat-large"])).toBe("boat");
+    expect(onDemandService(["boat-large"])).toBe("boat.dev");
     expect(onDemandService(["boats"])).toBeNull();
     const view = deriveGithub(
       [
@@ -186,7 +186,9 @@ describe("on-demand runners and runners GitHub doesn't list", () => {
       ],
       1000,
     );
-    expect(view.queue.jobs.map((j) => [j.id, j.onDemand, j.eligible])).toEqual([[201, "boat", []]]);
+    expect(view.queue.jobs.map((j) => [j.id, j.onDemand, j.eligible])).toEqual([
+      [201, "boat.dev", []],
+    ]);
   });
 
   test("a running job on a runner GitHub doesn't list still shows, as an unlisted busy runner", () => {
@@ -228,7 +230,7 @@ describe("on-demand runners and runners GitHub doesn't list", () => {
     expect(
       unlisted.map((r) => [r.name, r.onDemand, r.activity, r.ephemeral, r.job?.id, r.scope.kind]),
     ).toEqual([
-      ["boat-ci-x1", "boat", "busy", true, 301, "repo"],
+      ["boat-ci-x1", "boat.dev", "busy", true, 301, "repo"],
       ["elsewhere", null, "busy", false, 302, "repo"],
     ]);
     expect(view.runners.find((r) => r.name === "mini-01")).toMatchObject({
@@ -274,7 +276,7 @@ describe("on-demand runners and runners GitHub doesn't list", () => {
     });
     const view = deriveGithub([app([listed])], 1000);
     expect(view.runners.map((r) => [r.name, r.onDemand, r.listed, r.job?.id])).toEqual([
-      ["boat-ci-x1", "boat", true, 301],
+      ["boat-ci-x1", "boat.dev", true, 301],
     ]);
   });
 });

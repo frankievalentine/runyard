@@ -150,24 +150,29 @@ enter the password in the review, used for that run only. NixOS needs
 Runyard refuses to register runners for a public personal repository until an admin types its
 name, and for an organization whose Default runner group allows public repositories.
 
-### On-demand runners (boat)
+Runners Runyard didn't register show under **Unassigned runners**, grouped by account. On a
+runner's page an admin can choose the machine it **Runs on**, so it shows with that machine.
+That's display only: Runyard doesn't manage it.
 
-Runyard shows jobs that ask for [boat](https://docs.boat.dev/ci.md)'s labels (`boat`,
-`boat-small`, `boat-large`, `boat-xlarge`, matched exactly) in Queued jobs as "Starts on boat",
-since boat starts a VM per job and no runner exists beforehand. Running boat jobs appear under
-**On boat** in the sidebar. Runyard doesn't talk to boat: it reads what GitHub reports. A
-running self-hosted or boat job whose runner isn't in GitHub's runner list still shows, known
-from the job itself.
+### On-demand runners (boat.dev)
 
-Optionally, connect boat under **Account menu ▸ boat** with a key limited to `sandbox.read`
-and `account.read`. Runyard then shows each boat job's VM size and cost so far, your plan's
-VM and start limits (queued boat jobs say when they're waiting on them), and VMs billing outside
-a running CI job, with a warning on the overview. Costs are this UTC month at list price, as
-boat reports them. Runyard only reads; it never starts, stops or changes a VM.
+Runyard shows jobs that ask for [boat.dev](https://docs.boat.dev/ci.md)'s labels (`boat`,
+`boat-small`, `boat-large`, `boat-xlarge`, matched exactly) in Queued jobs as "Starts on
+boat.dev", since boat.dev starts a VM per job and no runner exists beforehand. The sidebar's
+**boat.dev** row (once boat.dev is connected or a boat job has been seen) opens a page with its
+running and queued jobs. Without a key, Runyard reads only what GitHub reports. A running
+self-hosted or boat job whose runner isn't in GitHub's runner list still shows, known from the
+job itself.
+
+Optionally, connect boat.dev on that page with a key limited to `sandbox.read` and
+`account.read`. Runyard then shows each boat job's VM size and cost so far, your plan's VM and
+start limits (queued boat jobs say when they're waiting on them), and VMs billing outside a
+running CI job, listed under Needs attention. Costs are this UTC month at list price, as
+boat.dev reports them. Runyard only reads; it never starts, stops or changes a VM.
 
 ### Forgejo
 
-Connect a Forgejo instance (15 or later) under **Account menu ▸ Forgejo** with an access token
+Connect a Forgejo instance (15 or later) under **Settings ▸ Connections ▸ Forgejo** with an access token
 whose user, organization and repository scopes are set to read and write. Runyard stores it
 encrypted and watches that user's own runners and those of every organization they belong to.
 A pool can serve the account or an organization; its runners serve every repository the account

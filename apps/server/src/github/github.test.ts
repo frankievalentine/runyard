@@ -206,11 +206,13 @@ describe("GitHub monitoring", () => {
     ];
     await createApp(t);
     await t.github.refreshAll();
+    const reads = () =>
+      gh.requests.filter((r) => r.startsWith("GET /orgs/acme/actions/runners")).length;
+    const before = reads();
     await t.github.pollRunners();
+    // However many refreshes ran, one installation token served them all.
     expect(gh.requests.filter((r) => r.includes("access_tokens"))).toHaveLength(1);
-    expect(gh.requests.filter((r) => r.startsWith("GET /orgs/acme/actions/runners"))).toHaveLength(
-      2,
-    );
+    expect(reads()).toBe(before + 1);
   });
 
   test("a revoked installation is reported, not thrown", async () => {

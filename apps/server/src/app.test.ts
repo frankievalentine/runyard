@@ -53,3 +53,22 @@ describe("dashboard", () => {
     expect(await api.json()).toEqual({ error: "Not found." });
   });
 });
+
+test("health names the dashboard build, which changes with its files", async () => {
+  const { dashboardBuild } = await import("./app.ts");
+  const a = dashboardBuild(
+    new Map([
+      ["/index.html", "x"],
+      ["/assets/index-abc.js", "y"],
+    ]),
+  );
+  const b = dashboardBuild(
+    new Map([
+      ["/index.html", "x"],
+      ["/assets/index-def.js", "y"],
+    ]),
+  );
+  expect(a).toMatch(/^[0-9a-f]{12}$/);
+  expect(a).not.toBe(b);
+  expect(dashboardBuild()).toBeNull();
+});

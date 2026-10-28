@@ -12,6 +12,7 @@ import {
   type BoatObservation,
   type ForgejoConnectionObservation,
   type GithubAppObservation,
+  type RunnerAssignment,
   type Pool,
   type Registration,
   type MachineConfig,
@@ -52,7 +53,7 @@ type Deps = {
   forgejo?: () => ForgejoConnectionObservation[];
   boat?: () => BoatObservation | null;
   /** Pools and the runners Runyard registered, joined into the fleet view. */
-  pools?: () => { pools: Pool[]; registrations: Registration[] };
+  pools?: () => { pools: Pool[]; registrations: Registration[]; assignments?: RunnerAssignment[] };
 };
 
 /**

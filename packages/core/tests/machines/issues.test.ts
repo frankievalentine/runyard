@@ -65,6 +65,7 @@ const view = (machines: MachineView[], error: string | null = null): FleetView =
   summary: { runners: 0, busy: 0, idle: 0, offline: 0, unknown: 0 },
   boat: null,
   boatVms: {},
+  assignedRunners: [],
   pools: { pools: [], desired: [], collisions: [], registrations: [] },
 });
 
@@ -105,4 +106,25 @@ test("an active disk alert replaces the disk warning; stale diagnostics aren't c
   ]);
   const stale = machine({ diagnostics: { ...machine({}).diagnostics!, stale: true } });
   expect(deriveIssues(view([stale]))).toEqual([]);
+});
+
+test("boat.dev VMs left running need a look", () => {
+  const vm = {
+    id: "bx_1",
+    name: "scratch",
+    type: "large",
+    size: null,
+    createdAt: 0,
+    dollars: 1.874,
+    jobId: null,
+  };
+  const withBoat = {
+    ...view([]),
+    boat: { at: 1, stale: false, error: null, limits: null, running: [vm], leftover: [vm] },
+  } as unknown as FleetView;
+  expect(deriveIssues(withBoat).find((i) => i.id === "boat:leftover")).toMatchObject({
+    title: "1 boat.dev VM running outside CI",
+    page: "boat",
+    detail: expect.stringContaining("scratch: $1.87 so far"),
+  });
 });

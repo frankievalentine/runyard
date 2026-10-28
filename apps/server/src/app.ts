@@ -43,12 +43,24 @@ export type AppDeps = {
 } & Omit<GithubDeps, "db" | "listener"> &
   Omit<SetupDeps, "db">;
 
-export function createApi(deps: AppDeps) {
+/**
+ * Identifies the dashboard build being served: its file names carry content
+ * hashes, so a new build has a new ID. Null in development, where Vite serves it.
+ */
+export function dashboardBuild(dashboard?: DashboardAssets): string | null {
+  if (!dashboard) return null;
+  const names = [...dashboard.keys()].sort().join("\n");
+  return new Bun.CryptoHasher("sha256").update(names).digest("hex").slice(0, 12);
+}
+
+export function createApi(deps: AppDeps, build: string | null = null) {
   return new Hono<AppEnv>()
     .basePath("/api")
     .use(sameOriginWrites())
     .use(identify(deps.db, deps.listener, deps.tailnetLogin))
-    .get("/health", (c) => c.json({ ok: true, version: pkg.version, demo: deps.demo ?? false }))
+    .get("/health", (c) =>
+      c.json({ ok: true, version: pkg.version, build, demo: deps.demo ?? false }),
+    )
     .route("/", authRoutes(deps))
     .route("/passkeys", passkeyRoutes(deps))
     .route("/users", userRoutes(deps.db))
@@ -65,7 +77,7 @@ export type AppType = ReturnType<typeof createApi>;
 
 /** In development the dashboard comes from Vite's dev server, so `dashboard` is omitted. */
 export function createApp(deps: AppDeps, dashboard?: DashboardAssets) {
-  const app = new Hono().route("/", createApi(deps));
+  const app = new Hono().route("/", createApi(deps, dashboardBuild(dashboard)));
   app.onError((error, c) => {
     if (error instanceof UserError) return c.json({ error: error.message }, 400);
     console.error(error);

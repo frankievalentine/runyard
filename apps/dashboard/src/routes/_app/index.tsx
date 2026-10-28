@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { FleetView } from "@runyard/core";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   ActiveAlerts,
   Attention,
@@ -17,24 +17,38 @@ import {
   Stat,
   StatStrip,
 } from "../../components/ui.tsx";
-import { Icon } from "../../components/icons.tsx";
+import { SetupChecklist } from "../../components/SetupChecklist.tsx";
 import { useFleet } from "../../lib/fleet.ts";
-import { formatDollars, plural } from "../../lib/format.ts";
+import { plural } from "../../lib/format.ts";
 import { sessionQuery } from "../../lib/queries.ts";
-import { setupSteps } from "../../lib/setup.ts";
 
 export const Route = createFileRoute("/_app/")({
   component: Overview,
 });
 
-/** fleet's overview: runner counts, Working now and Queued appear once GitHub is connected. */
+/** fleet's overview: counts, setup until done, what needs a look, work in progress, machines and recent activity. */
 function Overview() {
   const view = useFleet();
   const { data: session } = useSuspenseQuery(sessionQuery);
+  const admin = session.user?.role === "admin";
   const machines = view.machines;
   const connected = forgesConnected(view);
   if (machines.length === 0 && !connected) {
-    return <Welcome admin={session.user?.role === "admin"} discovered={view.discovered.length} />;
+    return (
+      <div className="mx-auto max-w-2xl pt-4">
+        <PageHeader
+          title="Welcome to Runyard"
+          subtitle="Runyard watches the machines that run your CI over SSH and your tailnet, and installs runners on them only after you review the changes."
+        />
+        {admin ? (
+          <SetupChecklist />
+        ) : (
+          <Card className="mt-6">
+            <EmptyLine>An admin hasn't added any machines yet.</EmptyLine>
+          </Card>
+        )}
+      </div>
+    );
   }
   const working = view.runners.filter((r) => r.activity === "busy");
   return (
@@ -47,26 +61,7 @@ function Overview() {
         {connected ? <RunnerStrip view={view} /> : <MachineStrip view={view} />}
       </div>
 
-      {session.user?.role === "admin" && <SetupProgress view={view} />}
-
-      {view.boat && view.boat.leftover.length > 0 && (
-        <Card className="mt-6 flex flex-wrap items-center gap-3 border-warn/30 bg-warn/5 px-4 py-3 text-[13px]">
-          <div className="min-w-0 flex-1">
-            <span className="font-medium">
-              {plural(view.boat.leftover.length, "boat VM")} running outside CI
-            </span>
-            {(() => {
-              const total = view.boat.leftover.reduce((sum, v) => sum + (v.dollars ?? 0), 0);
-              return total > 0 ? (
-                <span className="text-ink-2"> · {formatDollars(total)} so far this month</span>
-              ) : null;
-            })()}
-          </div>
-          <Link to="/settings/boat" className="font-medium text-accent hover:underline">
-            See them
-          </Link>
-        </Card>
-      )}
+      {admin && <SetupChecklist />}
 
       {view.alerts.length > 0 && (
         <Section title="Active alerts" count={view.alerts.length}>
@@ -106,7 +101,7 @@ function Overview() {
         <MachineTable machines={machines} />
       </Section>
 
-      <EventTimeline />
+      <EventTimeline title="Recent activity" />
     </div>
   );
 }
@@ -182,85 +177,5 @@ function MachineStrip({ view }: { view: FleetView }) {
         sub="offline or low disk"
       />
     </StatStrip>
-  );
-}
-
-/** A reminder while setup steps remain; gone once runners are installed. */
-function SetupProgress({ view }: { view: FleetView }) {
-  const steps = setupSteps(view);
-  const next = steps.find((s) => !s.done);
-  if (!next) return null;
-  return (
-    <Card className="mt-6 flex flex-wrap items-center gap-3 px-4 py-3 text-[13px]">
-      <div className="min-w-0 flex-1">
-        <span className="font-medium">
-          Getting started: {steps.filter((s) => s.done).length} of {steps.length} done.
-        </span>{" "}
-        <span className="text-ink-2">Next: {next.title.toLowerCase()}.</span>
-      </div>
-      <Link to="/getting-started" className="font-medium text-accent hover:underline">
-        Continue
-      </Link>
-    </Card>
-  );
-}
-
-/** First run: what to do before there's anything to show. */
-function Welcome({ admin, discovered }: { admin: boolean; discovered: number }) {
-  return (
-    <div className="mx-auto max-w-xl pt-8">
-      <div className="flex size-10 items-center justify-center rounded-lg border border-line bg-card text-ink-2">
-        <Icon name="server" size={20} />
-      </div>
-      <h1 className="mt-4 text-[20px] font-semibold tracking-tight">Welcome to Runyard</h1>
-      <p className="mt-2 text-[13px] text-ink-2">
-        Runyard watches the machines that run your CI over SSH and your tailnet, and installs
-        runners on them only after you review the changes.
-      </p>
-      <Card className="mt-6 px-4 py-4 text-[13px]">
-        {admin ? (
-          <>
-            <div className="font-medium">Add your first machine</div>
-            <p className="mt-1 text-ink-2">
-              {discovered > 0
-                ? `${plural(discovered, "desktop or server", "desktops and servers")} on your tailnet can be added in one click.`
-                : "Pick a device from your tailnet or enter any SSH target."}
-            </p>
-            <Link
-              to="/machines/add"
-              className="mt-3 inline-flex h-[28px] items-center rounded-[6px] bg-accent px-2.5 text-[12.5px] font-medium text-white hover:brightness-110"
-            >
-              Add machines
-            </Link>
-            <div className="mt-5 border-t border-line pt-4 font-medium">Connect a forge</div>
-            <p className="mt-1 text-ink-2">
-              Runyard's GitHub App, or a Forgejo access token, reads your runners and queued jobs.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Link
-                to="/settings/github"
-                className="inline-flex h-[28px] items-center rounded-[6px] border border-line bg-card px-2.5 text-[12.5px] font-medium hover:bg-hover"
-              >
-                Set up GitHub
-              </Link>
-              <Link
-                to="/settings/forgejo"
-                className="inline-flex h-[28px] items-center rounded-[6px] border border-line bg-card px-2.5 text-[12.5px] font-medium hover:bg-hover"
-              >
-                Connect Forgejo
-              </Link>
-            </div>
-            <p className="mt-5 border-t border-line pt-4 text-ink-2">
-              <Link to="/getting-started" className="font-medium text-accent hover:underline">
-                Getting started
-              </Link>{" "}
-              checks this machine's SSH, Tailscale and secret key, and walks through the rest.
-            </p>
-          </>
-        ) : (
-          <p className="text-ink-2">An admin hasn't added any machines yet.</p>
-        )}
-      </Card>
-    </div>
   );
 }

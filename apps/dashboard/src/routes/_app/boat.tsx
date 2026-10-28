@@ -1,12 +1,12 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
 import type { BoatVm } from "@runyard/core";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
 import { Icon } from "../../components/icons.tsx";
-import { Elapsed } from "../../components/runners.tsx";
+import { Elapsed, QueueList, RunnerLine } from "../../components/runners.tsx";
 import {
   Card,
   EmptyLine,
@@ -22,81 +22,105 @@ import { formatDollars, timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
 import { healthQuery, sessionQuery } from "../../lib/queries.ts";
 
-export const Route = createFileRoute("/_app/settings/boat")({
-  beforeLoad: async ({ context }) => {
-    const session = await context.queryClient.ensureQueryData(sessionQuery);
-    if (session.user?.role !== "admin") throw redirect({ to: "/" });
-  },
-  component: BoatSettings,
+export const Route = createFileRoute("/_app/boat")({
+  component: BoatPage,
 });
 
-function BoatSettings() {
-  const { boat } = useFleet();
+/** boat.dev: its CI jobs from GitHub's data, and with a read-only key, VMs, cost and limits. */
+function BoatPage() {
+  const view = useFleet();
+  const { data: session } = useSuspenseQuery(sessionQuery);
+  const admin = session.user?.role === "admin";
   const now = useNow();
+  const { boat } = view;
+  const running = view.runners.filter((r) => r.onDemand === "boat.dev");
+  const queued = view.queue.jobs.filter((j) => j.onDemand === "boat.dev");
   return (
     <div>
       <PageHeader
-        icon={<Icon name="external" size={16} />}
-        title="boat"
-        subtitle="Optional. With a read-only API key, Runyard shows boat's VMs, what each costs so far, and your plan's limits. It never starts, stops or changes a VM."
-        actions={boat && <Disconnect />}
+        icon={<Icon name="runner" size={16} />}
+        title="boat.dev"
+        subtitle="Jobs with runs-on: boat run on a fresh boat.dev VM each. Runyard shows them from GitHub's data; a read-only key adds each VM's cost, your plan's limits, and VMs left running."
+        actions={admin && boat && <Disconnect />}
       />
-      {!boat ? (
-        <Section title="Connect boat">
-          <Connect />
+      {boat?.error && <ErrorText className="mt-4" error={boat.error} />}
+      {boat && (
+        <div className="mt-8">
+          <StatStrip cols={3}>
+            <Stat
+              label="VMs running"
+              value={boat.limits ? `${boat.limits.activeSandboxes}` : "?"}
+              tone={boat.limits?.atConcurrencyLimit ? "warn" : undefined}
+              sub={
+                boat.limits
+                  ? `of ${boat.limits.maxActiveSandboxes} on plan ${boat.limits.plan}`
+                  : "limits not read"
+              }
+            />
+            <Stat
+              label="Starts this minute"
+              value={
+                boat.limits?.startsThisMinute ? `${boat.limits.startsThisMinute.used}` : "Unlimited"
+              }
+              tone={boat.limits?.atStartLimit ? "warn" : undefined}
+              sub={boat.limits?.startsThisMinute ? `of ${boat.limits.startsThisMinute.limit}` : ""}
+            />
+            <Stat
+              label="Read"
+              value={boat.at ? timeAgo(boat.at, now) : "Not yet"}
+              tone={boat.stale ? "muted" : "ok"}
+              hollow={boat.stale}
+              sub={boat.stale ? "stale" : "every 20 seconds"}
+            />
+          </StatStrip>
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-x-6 min-[1100px]:grid-cols-2">
+        <Section title="Running" count={running.length}>
+          <Card className="overflow-hidden">
+            {running.length === 0 ? (
+              <EmptyLine>No boat.dev jobs are running.</EmptyLine>
+            ) : (
+              running.map((r) => <RunnerLine key={r.key} r={r} />)
+            )}
+          </Card>
         </Section>
-      ) : (
+        <Section title="Queued" count={queued.length}>
+          {queued.length === 0 ? (
+            <Card>
+              <EmptyLine>No boat.dev jobs are waiting.</EmptyLine>
+            </Card>
+          ) : (
+            <QueueList view={view} jobs={queued} compact />
+          )}
+        </Section>
+      </div>
+      {boat ? (
         <>
-          {boat.error && <ErrorText className="mt-4" error={boat.error} />}
-          <div className="mt-8">
-            <StatStrip cols={3}>
-              <Stat
-                label="VMs running"
-                value={boat.limits ? `${boat.limits.activeSandboxes}` : "?"}
-                tone={boat.limits?.atConcurrencyLimit ? "warn" : undefined}
-                sub={
-                  boat.limits
-                    ? `of ${boat.limits.maxActiveSandboxes} on plan ${boat.limits.plan}`
-                    : "limits not read"
-                }
-              />
-              <Stat
-                label="Starts this minute"
-                value={
-                  boat.limits?.startsThisMinute
-                    ? `${boat.limits.startsThisMinute.used}`
-                    : "Unlimited"
-                }
-                tone={boat.limits?.atStartLimit ? "warn" : undefined}
-                sub={
-                  boat.limits?.startsThisMinute ? `of ${boat.limits.startsThisMinute.limit}` : ""
-                }
-              />
-              <Stat
-                label="Read"
-                value={boat.at ? timeAgo(boat.at, now) : "Not yet"}
-                tone={boat.stale ? "muted" : "ok"}
-                hollow={boat.stale}
-                sub={boat.stale ? "stale" : "every 20 seconds"}
-              />
-            </StatStrip>
-          </div>
           <Section title="Left running" count={boat.leftover.length}>
             <p className="mb-3 max-w-2xl text-[12.5px] text-ink-2">
               VMs billing outside a running CI job: ones you started yourself, and CI VMs whose job
               GitHub hasn't reported running for 15 minutes. Stop them with <code>boat stop</code>{" "}
-              or in boat's dashboard.
+              or in boat.dev's dashboard.
             </p>
             <VmList vms={boat.leftover} empty="Nothing is running outside CI." />
           </Section>
           <Section title="All running VMs" count={boat.running.length}>
-            <VmList vms={boat.running} empty="No boat VMs are running." />
+            <VmList vms={boat.running} empty="No boat.dev VMs are running." />
           </Section>
           <p className="mt-4 text-[12px] text-ink-3">
-            Costs are this UTC month at list price, as boat reports them, and don't include plan
+            Costs are this UTC month at list price, as boat.dev reports them, and don't include plan
             discounts or trial credit.
           </p>
         </>
+      ) : admin ? (
+        <Section title="Connect boat.dev">
+          <Connect />
+        </Section>
+      ) : (
+        <p className="mt-6 text-[12.5px] text-ink-2">
+          An admin can connect boat.dev for costs and limits.
+        </p>
       )}
     </div>
   );
@@ -174,7 +198,7 @@ function Connect() {
         </div>
         {demo && (
           <p className="text-[12px] text-ink-3">
-            Not available with demo data: this would contact boat.
+            Not available with demo data: this would contact boat.dev.
           </p>
         )}
       </form>
@@ -200,8 +224,8 @@ function Disconnect() {
             Disconnect boat?
           </AlertDialog.Title>
           <AlertDialog.Description className="mt-1.5 text-[13px] text-ink-2">
-            Runyard forgets the API key. boat jobs still show from GitHub's data, without costs.
-            Revoke the key in boat if it's no longer needed.
+            Runyard forgets the API key. boat.dev jobs still show from GitHub's data, without costs.
+            Revoke the key in boat.dev if it's no longer needed.
           </AlertDialog.Description>
           {remove.error && <ErrorText className="mt-2" error={remove.error} />}
           <div className="mt-5 flex justify-end gap-2">

@@ -3,12 +3,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
-import { Card, ErrorText, PageHeader, Section } from "../../components/ui.tsx";
-import { Icon } from "../../components/icons.tsx";
+import { Card, ErrorText, Section, SubHeader } from "../../components/ui.tsx";
 import { addPasskey, passkeysAvailable } from "../../lib/passkeys.ts";
 import { passkeysQuery, sessionQuery } from "../../lib/queries.ts";
 
-export const Route = createFileRoute("/_app/account")({
+export const Route = createFileRoute("/_app/settings/account")({
   component: Account,
 });
 
@@ -18,8 +17,7 @@ function Account() {
   if (!user) return null;
   return (
     <>
-      <PageHeader
-        icon={<Icon name="settings" size={18} />}
+      <SubHeader
         title={user.username ?? user.tailscaleLogin ?? "Account"}
         subtitle={user.role === "admin" ? "Admin" : "Viewer"}
       />

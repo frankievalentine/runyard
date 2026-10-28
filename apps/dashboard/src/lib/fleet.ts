@@ -1,5 +1,10 @@
 import type { FleetView } from "@runyard/core";
-import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  queryOptions,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { useEffect } from "react";
 import { api, call } from "../api.ts";
 import { sessionQuery } from "./queries.ts";
@@ -37,12 +42,23 @@ export function useFleet(): FleetView {
   return useSuspenseQuery(fleetQuery).data;
 }
 
-export function eventsQuery(machineId?: string) {
+/** Events per history page. */
+export const EVENTS_PAGE = 10;
+
+/** One page of history, newest first, before an event ID. One extra event says whether there's an older page. */
+export function eventsQuery(machineId?: string, before?: number) {
   return queryOptions({
-    queryKey: ["events", machineId ?? "all"],
+    queryKey: ["events", machineId ?? "all", before ?? "latest"],
     queryFn: () =>
       call(
-        api.events.$get({ query: { limit: "50", ...(machineId ? { machine: machineId } : {}) } }),
+        api.events.$get({
+          query: {
+            limit: String(EVENTS_PAGE + 1),
+            ...(machineId ? { machine: machineId } : {}),
+            ...(before ? { before: String(before) } : {}),
+          },
+        }),
       ),
+    placeholderData: keepPreviousData,
   });
 }

@@ -57,7 +57,9 @@ export function boatJobId(name: string): number | null {
 export function deriveBoat(obs: BoatObservation, runners: RunnerView[], now: number): BoatView {
   const at = obs.sandboxes?.at ?? null;
   const stale = at === null || now - at > BOAT_STALE_AFTER_MS;
-  const jobs = new Set(runners.filter((r) => r.onDemand === "boat" && r.job).map((r) => r.job!.id));
+  const jobs = new Set(
+    runners.filter((r) => r.onDemand === "boat.dev" && r.job).map((r) => r.job!.id),
+  );
   const running = (obs.sandboxes?.value ?? [])
     .filter((s) => BOAT_ACTIVE_STATES.includes(s.state))
     .map(vm)
@@ -88,7 +90,7 @@ export function boatVmsByRunner(view: BoatView, runners: RunnerView[]): Map<stri
   const byJob = new Map(view.running.filter((v) => v.jobId !== null).map((v) => [v.jobId!, v]));
   const out = new Map<string, BoatVm>();
   for (const r of runners) {
-    const v = r.onDemand === "boat" && r.job ? byJob.get(r.job.id) : undefined;
+    const v = r.onDemand === "boat.dev" && r.job ? byJob.get(r.job.id) : undefined;
     if (v) out.set(r.key, v);
   }
   return out;

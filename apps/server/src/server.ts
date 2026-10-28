@@ -17,6 +17,7 @@ import { ManifestStates } from "./github/manifest.ts";
 import { GithubMonitor } from "./github/monitor.ts";
 import { ForgejoMonitor } from "./forgejo/monitor.ts";
 import { BoatMonitor } from "./boat/monitor.ts";
+import { listAssignments } from "./machines/assignments.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
 import { PoolEngine } from "./pools/engine.ts";
 import { listPools, listRegistrations } from "./pools/store.ts";
@@ -72,7 +73,11 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),
     boat: () => boat.observation(),
-    pools: () => ({ pools: listPools(db), registrations: listRegistrations(db) }),
+    pools: () => ({
+      pools: listPools(db),
+      registrations: listRegistrations(db),
+      assignments: listAssignments(db),
+    }),
   });
   monitor.start();
   const programs = overrides.programs ?? installedPrograms();

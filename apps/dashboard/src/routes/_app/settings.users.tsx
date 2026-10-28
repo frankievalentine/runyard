@@ -5,11 +5,10 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
-import { Card, ErrorText, PageHeader, Section } from "../../components/ui.tsx";
-import { Icon } from "../../components/icons.tsx";
+import { Card, ErrorText, Section, SubHeader } from "../../components/ui.tsx";
 import { sessionQuery, usersQuery, type UserView } from "../../lib/queries.ts";
 
-export const Route = createFileRoute("/_app/users")({
+export const Route = createFileRoute("/_app/settings/users")({
   beforeLoad: async ({ context }) => {
     const session = await context.queryClient.ensureQueryData(sessionQuery);
     if (session.user?.role !== "admin") throw redirect({ to: "/" });
@@ -23,8 +22,7 @@ function Users() {
   const users = useQuery(usersQuery);
   return (
     <>
-      <PageHeader
-        icon={<Icon name="users" size={18} />}
+      <SubHeader
         title="Users"
         subtitle="Viewers can see everything. Admins can also manage machines and users."
       />

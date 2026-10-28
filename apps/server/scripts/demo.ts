@@ -4,7 +4,7 @@
  * and screenshots: `bun apps/server/scripts/demo.ts`, then open the URL and
  * enter the setup code it prints. Data lives in a fresh temporary directory.
  */
-import { mkdtemp } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Glob } from "bun";
@@ -20,7 +20,8 @@ import type { FakeGithub as FakeGithubType } from "../src/github/fake.ts";
 import { start } from "../src/server.ts";
 
 const GIB = 1_073_741_824;
-process.env.RUNYARD_DATA_DIR ??= await mkdtemp(join(tmpdir(), "runyard-demo-"));
+const demoDir = (process.env.RUNYARD_DATA_DIR ??= await mkdtemp(join(tmpdir(), "runyard-demo-")));
+await mkdir(demoDir, { recursive: true, mode: 0o700 });
 process.env.RUNYARD_TAILNET = "off";
 process.env.RUNYARD_DEMO = "1";
 
@@ -143,8 +144,21 @@ const dashboard = files.length ? new Map(files.map((f) => [`/${f}`, join(dist, f
 
 // A fictional GitHub with one app per account, as private apps require: an
 // organization with a busy fleet, and a personal account's per-repo runners.
-const github = new FakeGithub();
-const personal = new FakeGithub();
+// The fakes' app keys persist beside the demo's data, so a restart's first
+// refresh already signs with the key Runyard has stored.
+const keysFile = join(demoDir, "demo-github-keys.json");
+const savedKeys = (await Bun.file(keysFile).exists())
+  ? ((await Bun.file(keysFile).json()) as { github: string; personal: string })
+  : null;
+const github = new FakeGithub(savedKeys?.github);
+const personal = new FakeGithub(savedKeys?.personal);
+if (!savedKeys) {
+  await Bun.write(
+    keysFile,
+    JSON.stringify({ github: github.privateKey, personal: personal.privateKey }),
+  );
+  await chmod(keysFile, 0o600);
+}
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 github.installations = [
   {

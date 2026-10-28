@@ -5,7 +5,7 @@
  */
 export const ON_DEMAND_SERVICES: readonly { name: string; labels: readonly string[] }[] = [
   // https://docs.boat.dev/ci.md
-  { name: "boat", labels: ["boat", "boat-small", "boat-large", "boat-xlarge"] },
+  { name: "boat.dev", labels: ["boat", "boat-small", "boat-large", "boat-xlarge"] },
 ];
 
 /** The service a job's or runner's labels ask for, if any. */

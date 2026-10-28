@@ -9,7 +9,7 @@ import { Icon } from "./icons.tsx";
 const item =
   "flex h-7 w-full items-center gap-2 rounded-[4px] px-2 text-left outline-none data-[highlighted]:bg-selected";
 
-/** Takes the place of fleet's Settings gear: account, users, theme and sign-out. */
+/** fleet's Settings gear: Settings, the theme and sign-out. */
 export function AccountMenu() {
   const { data: session } = useSuspenseQuery(sessionQuery);
   const theme = useTheme();
@@ -44,37 +44,9 @@ export function AccountMenu() {
               </div>
             </div>
             <Menu.Separator className="my-1 h-px bg-line" />
-            <Menu.Item className={item} onClick={() => void navigate({ to: "/account" })}>
-              Account
+            <Menu.Item className={item} onClick={() => void navigate({ to: "/settings/account" })}>
+              Settings
             </Menu.Item>
-            {user.role === "admin" && (
-              <>
-                <Menu.Item
-                  className={item}
-                  onClick={() => void navigate({ to: "/getting-started" })}
-                >
-                  Getting started
-                </Menu.Item>
-                <Menu.Item
-                  className={item}
-                  onClick={() => void navigate({ to: "/settings/github" })}
-                >
-                  GitHub
-                </Menu.Item>
-                <Menu.Item
-                  className={item}
-                  onClick={() => void navigate({ to: "/settings/forgejo" })}
-                >
-                  Forgejo
-                </Menu.Item>
-                <Menu.Item className={item} onClick={() => void navigate({ to: "/settings/boat" })}>
-                  boat
-                </Menu.Item>
-                <Menu.Item className={item} onClick={() => void navigate({ to: "/users" })}>
-                  Users
-                </Menu.Item>
-              </>
-            )}
             <Menu.Separator className="my-1 h-px bg-line" />
             <Menu.Group>
               <Menu.GroupLabel className="px-2 py-1 text-[11px] font-medium tracking-wide text-ink-3 uppercase">

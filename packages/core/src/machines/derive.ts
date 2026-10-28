@@ -9,7 +9,7 @@ import {
   type RunnerView,
 } from "../github/derive.ts";
 import type { GithubAppObservation } from "../github/model.ts";
-import type { ForgeKind } from "../model.ts";
+import type { ForgeKind, Scope } from "../model.ts";
 import { scopeKey } from "../scope.ts";
 import { desiredRunners, nameCollisions } from "../pools/desired.ts";
 import type { DesiredRunner, Pool } from "../pools/model.ts";
@@ -97,6 +97,9 @@ export type MachineView = {
   maintenanceUntil: number | null;
 };
 
+/** A runner Runyard didn't register, placed on a machine by an admin. Display only. */
+export type RunnerAssignment = { scope: Scope; runnerName: string; machineId: string };
+
 export type FleetView = {
   generatedAt: number;
   tailnet: { name: string | null; at: number | null; stale: boolean; error: string | null };
@@ -116,6 +119,8 @@ export type FleetView = {
   boat: BoatView | null;
   /** The boat VM running each boat runner's job, by runner key. */
   boatVms: Record<string, BoatVm>;
+  /** Runners on a machine by an admin's assignment rather than a Runyard registration, by key. */
+  assignedRunners: string[];
   pools: PoolsView;
 };
 
@@ -140,6 +145,7 @@ export function deriveFleet(input: {
   forgejo?: ForgejoConnectionObservation[];
   /** Present once a boat API key is saved. */
   boat?: BoatObservation | null;
+  assignments?: RunnerAssignment[];
   pools?: Pool[];
   registrations?: Registration[];
   now: number;
@@ -203,6 +209,7 @@ export function deriveFleet(input: {
       input.github ?? [],
       input.forgejo ?? [],
       input.registrations ?? [],
+      input.assignments ?? [],
       now,
       input.boat ?? null,
     ),
@@ -223,12 +230,19 @@ function forges(
   github: GithubAppObservation[],
   forgejo: ForgejoConnectionObservation[],
   registrations: Registration[],
+  assignments: RunnerAssignment[],
   now: number,
   boatObs: BoatObservation | null,
 ) {
-  const links = new Map(
-    registrations.map((r) => [`${scopeKey(r.scope)}:${r.runnerName.toLowerCase()}`, r.machineId]),
+  const link = (scope: Scope, name: string) => `${scopeKey(scope)}:${name.toLowerCase()}`;
+  const registered = new Map(registrations.map((r) => [link(r.scope, r.runnerName), r.machineId]));
+  // A Runyard registration wins over an admin's assignment of the same runner.
+  const assigned = new Map(
+    assignments
+      .map((a): [string, string] => [link(a.scope, a.runnerName), a.machineId])
+      .filter(([k]) => !registered.has(k)),
   );
+  const links = new Map([...assigned, ...registered]);
   const gh = deriveGithub(github, now, links);
   const fj = deriveForgejo(forgejo, now, links);
   const runners = [...gh.runners, ...fj.runners].sort(
@@ -239,6 +253,7 @@ function forges(
   const at = [gh.queue.at, fj.queue.at].filter((t): t is number => t !== null);
   const boat = boatObs ? deriveBoat(boatObs, runners, now) : null;
   return {
+    assignedRunners: runners.filter((r) => assigned.has(link(r.scope, r.name))).map((r) => r.key),
     boat,
     boatVms: boat ? Object.fromEntries(boatVmsByRunner(boat, runners)) : {},
     github: gh,
