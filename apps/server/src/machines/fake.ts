@@ -11,6 +11,10 @@ type Answer = string | CommandResult | ((stdin: string) => string | CommandResul
 export class FakeMachines {
   status: object | string = { BackendState: "Running", Peer: {} };
   machines = new Map<string, Answer>();
+  /** Host keys each host offers to ssh-keyscan, as `type base64` lines. */
+  hostKeys = new Map<string, string[]>();
+  /** What `ssh -G` reports for targets that a ~/.ssh/config would rename. */
+  resolved = new Map<string, { hostname: string; port?: number; user?: string }>();
   calls: string[][] = [];
 
   /** What `tailscale funnel status --json` prints: nothing served, unless a test or the demo sets it. */
@@ -27,6 +31,24 @@ export class FakeMachines {
         stderr: "",
       };
     }
+    if (argv[0] === "ssh-keyscan") {
+      const host = argv.at(-1)!;
+      const keys = this.hostKeys.get(host) ?? [];
+      return keys.length
+        ? { code: 0, stdout: keys.map((k) => `${host} ${k}\n`).join(""), stderr: "" }
+        : { code: 1, stdout: "", stderr: `${host}: Connection refused` };
+    }
+    if (argv[0] === "ssh" && argv[1] === "-G") {
+      const target = argv.at(-1)!;
+      const at = target.lastIndexOf("@");
+      const r = this.resolved.get(target);
+      const lines = [
+        `user ${r?.user ?? (at > 0 ? target.slice(0, at) : "runyard")}`,
+        `hostname ${r?.hostname ?? target.slice(at + 1)}`,
+        `port ${r?.port ?? 22}`,
+      ];
+      return { code: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+    }
     const target = argv[0] === "tailscale" ? argv[2] : argv[argv.indexOf("--") + 1];
     const answer = target === undefined ? undefined : this.machines.get(target);
     if (answer === undefined)
@@ -36,7 +58,7 @@ export class FakeMachines {
   };
 
   readonly tailscale = new TailscaleCli(this.run, "tailscale");
-  readonly programs = { ssh: "ssh", tailscale: "tailscale" };
+  readonly programs = { ssh: "ssh", tailscale: "tailscale", keyscan: "ssh-keyscan" };
 }
 
 /** A complete macOS report with the given free disk space, for tests. */

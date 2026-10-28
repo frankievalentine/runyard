@@ -43,6 +43,8 @@ export type SshPrograms = {
   identity?: string;
   /** Runyard's known_hosts, checked along with the user's. */
   knownHosts?: string;
+  /** Reads host keys without signing in. */
+  keyscan?: string;
 };
 
 /** OpenSSH options for Runyard's own key and known hosts, when it has them. */
@@ -61,7 +63,10 @@ export function runyardOptions(programs: SshPrograms): string[] {
 /** The system's OpenSSH by absolute path where it exists, so PATH can't substitute another binary. */
 export function installedPrograms(env: NodeJS.ProcessEnv = process.env): SshPrograms {
   const ssh = env.RUNYARD_SSH ?? (existsSync("/usr/bin/ssh") ? "/usr/bin/ssh" : "ssh");
-  return { ssh, tailscale: env.RUNYARD_TAILSCALE ?? "tailscale" };
+  const keyscan =
+    env.RUNYARD_SSH_KEYSCAN ??
+    (existsSync("/usr/bin/ssh-keyscan") ? "/usr/bin/ssh-keyscan" : "ssh-keyscan");
+  return { ssh, tailscale: env.RUNYARD_TAILSCALE ?? "tailscale", keyscan };
 }
 
 /**

@@ -30,6 +30,7 @@ import type { TailscaleCli } from "../tailscale.ts";
 import { inspect, SshError, type SshPrograms } from "./ssh.ts";
 import {
   appendEvents,
+  getMachine,
   ignoredNodeIds,
   listMachines,
   loadStates,
@@ -274,6 +275,13 @@ export class MachineMonitor {
         },
       });
     }
+  }
+
+  /** The SSH host keys Tailscale publishes for a machine's peer, as `type base64` lines. */
+  tailnetHostKeys(machineId: string): string[] {
+    const machine = getMachine(this.deps.db, machineId);
+    if (!machine) return [];
+    return findPeer(machine, this.tailnet.snapshot?.peers ?? [])?.sshHostKeys ?? [];
   }
 
   /** The OS to talk to: configured, else what Tailscale reports, else what the machine reported last. */
