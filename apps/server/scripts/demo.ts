@@ -74,8 +74,35 @@ const linux = (freeGiB: number) =>
     "RFM\tdiag:tailscale_startup\tenabled",
     "RFM\tdiag:target_sleep\tmasked",
     "RFM\tdiag:idle_action\tignore",
+    ...readiness({
+      tools: ["git", "curl", "tar", "unzip", "jq", "cc", "make", "python3"],
+      docker: "27.3.1",
+    }),
     "RFM\tdiag:complete\t1",
   ].join("\n");
+
+/**
+ * A demo machine's readiness facts, as machine-readiness.sh reports them:
+ * which tools it has, Docker, Xcode and a GPU, and its clock (now).
+ */
+function readiness(has: { tools: string[]; docker?: string; xcode?: string; gpu?: string }) {
+  const fact = (k: string, v: string) => `RFM\tdiag:${k}\t${v}`;
+  return [
+    ...has.tools.map((t) => fact(`tool_${t}`, `/usr/bin/${t}`)),
+    ...(has.tools.includes("git") ? [fact("tool_git_version", "git version 2.47.1")] : []),
+    ...(has.docker ? [fact("docker_cli", "present"), fact("docker_server", has.docker)] : []),
+    ...(has.xcode
+      ? [
+          fact("xcode_clt", "/Applications/Xcode.app/Contents/Developer"),
+          fact("xcode_version", has.xcode),
+        ]
+      : []),
+    ...(has.gpu ? [fact("nvidia_gpu", has.gpu)] : []),
+    fact("epoch", String(Math.floor(Date.now() / 1000))),
+    fact("reach_0", "github.com 200"),
+    fact("readiness_complete", "1"),
+  ];
+}
 
 /**
  * Each demo machine answers health checks and runs runner scripts on a fake
@@ -163,7 +190,31 @@ fake.machines.set(
     () =>
       macReport(180)
         .replace("RFM\tcpu\t23.50", `RFM\tcpu\t${(10 + Math.random() * 20).toFixed(2)}`)
-        .replace("RFM\tdiag:complete", "RFM\tdiag:architecture\tarm64\nRFM\tdiag:complete"),
+        .replace(
+          "RFM\tdiag:complete",
+          [
+            "RFM\tdiag:architecture\tarm64",
+            "RFM\tdiag:auto_login_user\tci",
+            ...readiness({
+              tools: [
+                "git",
+                "curl",
+                "tar",
+                "unzip",
+                "zip",
+                "xz",
+                "zstd",
+                "jq",
+                "gpg",
+                "cc",
+                "make",
+                "python3",
+              ],
+              xcode: "Xcode 16.2",
+            }),
+            "RFM\tdiag:complete",
+          ].join("\n"),
+        ),
     githubFor,
     "macOS",
     "ci@studio-mini.demo.ts.net",

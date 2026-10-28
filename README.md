@@ -212,6 +212,23 @@ What a machine needs to host runners, by kind:
   command as the runners' account; for an administrator account, from an administrator
   PowerShell. Runners run as Windows services.
 
+### Runner readiness
+
+Each check also reads whether a machine has what CI jobs commonly need, shown under **Runner
+readiness** on its page:
+
+- **Required:** git, curl and tar (plus the Command Line Tools on a Mac, and Node.js where a
+  Forgejo pool runs jobs on the machine itself), a clock within a minute of Runyard's, and the
+  forges reachable over HTTPS.
+- **Its pools' labels:** `docker` needs a Docker this account can use, `xcode` or `xcode-16`
+  needs that Xcode, and `gpu`, `cuda` or `nvidia` need an NVIDIA GPU with `nvidia-smi`. Other
+  labels aren't checked.
+- **Recommended:** unzip, zip, xz, zstd, jq, gpg, a C compiler and make, Python 3, and Docker.
+
+Each missing item says how to install it. A machine in a pool that's missing something required
+or promised shows under **Needs attention** and on the pool's page, and the pool form suggests
+labels every chosen machine can carry. The check only reads; nothing is installed.
+
 ### Alerts and history
 
 A machine alerts when it's offline on the tailnet for three minutes, or when disk space is below

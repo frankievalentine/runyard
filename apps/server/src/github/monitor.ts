@@ -148,6 +148,14 @@ export class GithubMonitor {
     return null;
   }
 
+  /** Every app's web and API hosts, which machines' runners need to reach. */
+  hosts(): string[] {
+    return [...this.apps.values()].flatMap((app) => [
+      new URL(app.config.htmlUrl ?? "https://github.com").host,
+      new URL(app.config.apiBase).host,
+    ]);
+  }
+
   /** GitHub's web address for the app's account; runners register against it. */
   webBaseFor(forgeId: string): string {
     const html = this.apps.get(forgeId)?.config.htmlUrl;

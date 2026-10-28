@@ -202,6 +202,24 @@ Getting Runyard into a machine is guided, built against fakes:
   terminal, otherwise a password the person sets. Checked end to end in a Debian container.
   Without it, Linux reviews still ask for the sudo password.
 
+## Runner readiness
+
+Planned in four parts, decided with the user; part 1 is done, against fakes and a bare Debian
+container:
+
+1. **Readiness and label checks (done):** `machine-readiness.sh`/`.ps1` run with the
+   diagnostics and report tools, Docker usable by the account, Xcode, an NVIDIA GPU, the clock
+   and an HTTPS request to each forge host; `evaluateReadiness` in `packages/core` sorts them
+   into required, label and recommended items. Pool machines missing a required or promised
+   item show under Needs attention and on the pool page; the pool form suggests labels.
+2. **Baseline install:** tool profiles per pool (Essentials, Build tools, Docker) installed as a
+   reviewed plan item with the package manager; Docker from distribution packages; blocked with
+   the command on Macs without Homebrew, and on Windows.
+3. **Cleanup:** an optional per-pool job-completed hook for persistent GitHub runners (workspace,
+   optionally Docker prune), off by default.
+4. **Test job:** a per-runner label, a workflow file the user adds, and a dispatch of it on that
+   runner with the result shown; needs Actions read and write on the GitHub App. Forgejo later.
+
 ## Link previews
 
 The dashboard serves `og.png` and a 10 s `og.mp4` loop (rendered from `docs/assets/og/og.html`

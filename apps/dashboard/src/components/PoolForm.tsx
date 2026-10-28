@@ -74,6 +74,16 @@ export function PoolForm({
     .split(",")
     .map((l) => l.trim())
     .filter(Boolean);
+  // Labels every chosen machine can honestly carry, from its last check, not yet in the list.
+  const chosen = view.machines.filter((m) => (slots[m.id] ?? 0) > 0);
+  const suggestedLabels =
+    chosen.length && chosen.every((m) => m.readiness)
+      ? (chosen[0]!.readiness?.capabilities ?? []).filter(
+          (c) =>
+            chosen.every((m) => m.readiness?.capabilities.includes(c)) &&
+            !labelList.some((l) => l.toLowerCase() === c),
+        )
+      : [];
   const effectiveName = nameTouched ? name.trim() : slug(labelList[0] ?? "") || name.trim();
   const draft: PoolDraft & { mode: PoolMode } = {
     name: effectiveName,
@@ -314,6 +324,21 @@ export function PoolForm({
               required
             />
           </div>
+          {suggestedLabels.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] text-ink-2">
+              <span>{chosen.length === 1 ? "This machine has" : "Every chosen machine has"}:</span>
+              {suggestedLabels.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  className="rounded-md border border-line bg-card px-2 py-0.5 font-mono text-[12px] text-ink hover:bg-hover"
+                  onClick={() => setLabels(labelList.length ? `${labels.trim()}, ${l}` : l)}
+                >
+                  + {l}
+                </button>
+              ))}
+            </div>
+          )}
         </Step>
 
         <div className="border-t border-line bg-sunken/40 px-5 py-4">

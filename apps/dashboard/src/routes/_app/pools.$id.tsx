@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
 import { MigrationsIn } from "../../components/Migration.tsx";
+import { PoolReadiness } from "../../components/Readiness.tsx";
 import { Icon } from "../../components/icons.tsx";
 import { PoolForm } from "../../components/PoolForm.tsx";
 import { Label } from "../../components/runners.tsx";
@@ -157,6 +158,7 @@ function PoolPage() {
           .
         </Callout>
       )}
+      <PoolReadiness poolLabels={pool.labels} machineIds={pool.machines.map((x) => x.machineId)} />
       {onDemand && (
         <>
           <Section title="Machines" count={pool.machines.length}>

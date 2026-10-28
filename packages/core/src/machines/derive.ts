@@ -23,6 +23,7 @@ import { migrationViews, type MigrationView } from "../pools/migrate.ts";
 import type { Registration } from "../pools/plan.ts";
 import type { Dispatch } from "../pools/dispatch.ts";
 import { evaluateDiagnostics } from "./diagnostics.ts";
+import { evaluateReadiness, type Readiness, type ReadinessNeeds } from "./readiness.ts";
 import {
   canHostRunners,
   osFromTailnet,
@@ -102,6 +103,8 @@ export type MachineView = {
   connection: Connection;
   health: HealthView | null;
   diagnostics: { asOf: number; stale: boolean; checks: Diagnostic[] } | null;
+  /** Whether it has what its pools' jobs need, from the last check. */
+  readiness: Readiness | null;
   alerts: Alert[];
   maintenanceUntil: number | null;
 };
@@ -175,6 +178,10 @@ export function deriveYard(input: {
   const tailnetFresh = tailnet.at !== null && now - tailnet.at <= TAILNET_STALE_AFTER_MS;
   const linked = new Set<string>();
 
+  const forgeKinds = new Map<string, ForgeKind>([
+    ...(input.github ?? []).map((g): [string, ForgeKind] => [g.forgeId, "github"]),
+    ...(input.forgejo ?? []).map((f): [string, ForgeKind] => [f.forgeId, "forgejo"]),
+  ]);
   const machines = input.machines
     .map((config): MachineView => {
       const peer = findPeer(config, peers);
@@ -199,6 +206,13 @@ export function deriveYard(input: {
                 checks: evaluateDiagnostics(observation.report.value),
               }
             : null,
+        readiness: observation?.report
+          ? evaluateReadiness(
+              observation.report.value,
+              observation.report.at,
+              readinessNeeds(input.pools ?? [], config.id, forgeKinds),
+            )
+          : null,
         alerts: [],
         maintenanceUntil: input.states.get(config.id)?.maintenanceUntil ?? null,
       };
@@ -239,10 +253,7 @@ export function deriveYard(input: {
       input.pools ?? [],
       input.registrations ?? [],
       machines,
-      new Map<string, ForgeKind>([
-        ...(input.github ?? []).map((g): [string, ForgeKind] => [g.forgeId, "github"]),
-        ...(input.forgejo ?? []).map((f): [string, ForgeKind] => [f.forgeId, "forgejo"]),
-      ]),
+      forgeKinds,
       input.templateRecords ?? [],
       input.dispatches ?? [],
       input.migrations ?? [],
@@ -410,4 +421,21 @@ export function connection(
     };
   if (error) return { state: "error", detail: error.value, ...problem };
   return { state: "pending" };
+}
+
+/** What the pools a machine is in ask of it: their labels, and Node for Forgejo host mode. */
+function readinessNeeds(
+  pools: Pool[],
+  machineId: string,
+  forgeKinds: ReadonlyMap<string, ForgeKind>,
+): ReadinessNeeds {
+  const mine = pools.filter((p) => p.machines.some((m) => m.machineId === machineId));
+  return {
+    labels: mine.flatMap((p) => p.labels),
+    forgejoHost: mine.some(
+      (p) =>
+        p.forgejoMode.kind === "host" &&
+        p.scopes.some((s) => forgeKinds.get(s.forgeId) === "forgejo"),
+    ),
+  };
 }

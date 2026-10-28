@@ -1,4 +1,4 @@
-# From aarondfrancis/fleet (crates/fleet/scripts/machine-diagnostics.sh), unchanged.
+# From aarondfrancis/fleet (crates/fleet/scripts/machine-diagnostics.sh), with Runyard's additions.
 # Read-only host configuration. Run in a subshell so runner probing is unaffected.
 export LC_ALL=C
 fact() { printf 'RFM\tdiag:%s\t%s\n' "$1" "$(printf '%s' "$2" | tr '\t\r\n' '   ' | cut -c 1-1000)"; }

@@ -41,6 +41,7 @@ const machine = (over: Partial<MachineView>): MachineView => ({
       },
     ],
   },
+  readiness: null,
   alerts: [],
   maintenanceUntil: null,
   ...over,

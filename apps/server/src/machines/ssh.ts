@@ -4,6 +4,8 @@ import windowsDiagnostics from "../../scripts/machine-diagnostics.ps1" with { ty
 import posixDiagnostics from "../../scripts/machine-diagnostics.sh" with { type: "text" };
 import windowsHealth from "../../scripts/machine-health.ps1" with { type: "text" };
 import posixHealth from "../../scripts/machine-health.sh" with { type: "text" };
+import windowsReadiness from "../../scripts/machine-readiness.ps1" with { type: "text" };
+import posixReadiness from "../../scripts/machine-readiness.sh" with { type: "text" };
 import type { CommandRunner } from "../command.ts";
 
 /**
@@ -87,11 +89,19 @@ export function validateTarget(target: string): string | null {
   return null;
 }
 
-/** The read-only health and diagnostics script for a machine's OS. Diagnostics run isolated from health. */
-export function inspectionScript(windows: boolean): string {
+/** A forge host as the readiness check may name it in a script: a plain hostname, with a port at most. */
+const FORGE_HOST = /^[A-Za-z0-9.-]+(:\d{1,5})?$/;
+
+/**
+ * The read-only health, diagnostics and readiness script for a machine's OS.
+ * Diagnostics and readiness run isolated from health; readiness tries an
+ * HTTPS request to each forge host.
+ */
+export function inspectionScript(windows: boolean, forgeHosts: readonly string[] = []): string {
+  const hosts = [...new Set(forgeHosts.filter((h) => FORGE_HOST.test(h)))];
   return windows
-    ? `${windowsHealth}\n& {\n${windowsDiagnostics}\n}\n`
-    : `${posixHealth}\n(\n${posixDiagnostics}\n)\n`;
+    ? `${windowsHealth}\n& {\n${windowsDiagnostics}\n$RunyardForgeHosts = @(${hosts.map((h) => `'${h}'`).join(", ")})\n${windowsReadiness}\n}\n`
+    : `${posixHealth}\n(\n${posixDiagnostics}\nRUNYARD_FORGE_HOSTS='${hosts.join(" ")}'\n${posixReadiness}\n)\n`;
 }
 
 export function scriptCommand(
@@ -127,9 +137,15 @@ export async function inspect(
   programs: SshPrograms,
   machine: { sshTarget: string; transport: SshTransport },
   os: OsFamily | null,
+  forgeHosts: readonly string[] = [],
 ): Promise<string> {
   const windows = os === "windows";
-  const { argv, stdin } = scriptCommand(programs, machine, windows, inspectionScript(windows));
+  const { argv, stdin } = scriptCommand(
+    programs,
+    machine,
+    windows,
+    inspectionScript(windows, forgeHosts),
+  );
   const res = await run(argv, { stdin, timeoutMs: SSH_TIMEOUT_MS });
   if (res.code === 0) return res.stdout;
   throw sshFailure(res.code, res.stderr, machine.transport);

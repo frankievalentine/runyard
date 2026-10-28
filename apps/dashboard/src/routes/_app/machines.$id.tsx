@@ -11,6 +11,7 @@ import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-q
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api, call } from "../../api.ts";
+import { RunnerReadiness } from "../../components/Readiness.tsx";
 import { AccessPanel } from "../../components/AccessPanel.tsx";
 import { CopyValue } from "../../components/CopyValue.tsx";
 import { Button, TextField } from "../../components/form.tsx";
@@ -132,6 +133,7 @@ function Machine() {
       <MachineRunners m={m} />
       <MachineChanges m={m} admin={admin} />
       <Monitoring m={m} admin={admin} />
+      <RunnerReadiness m={m} />
       <Diagnostics m={m} />
       <Details m={m} />
       {m.health && m.health.warnings.length > 0 && (

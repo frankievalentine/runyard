@@ -56,6 +56,8 @@ type Deps = {
   github?: () => GithubAppObservation[];
   forgejo?: () => ForgejoConnectionObservation[];
   boat?: () => BoatObservation | null;
+  /** The forges' hosts, which the readiness check tries to reach from each machine. */
+  forgeHosts?: () => string[];
   /** Pools and the runners Runyard registered, joined into the yard view. */
   pools?: () => {
     pools: Pool[];
@@ -258,7 +260,13 @@ export class MachineMonitor {
     const previous = this.observations.get(machine.id) ?? { report: null, error: null };
     const os = this.expectedOs(machine, previous);
     try {
-      const output = await inspect(this.deps.run, this.deps.programs, machine, os);
+      const output = await inspect(
+        this.deps.run,
+        this.deps.programs,
+        machine,
+        os,
+        this.deps.forgeHosts?.() ?? [],
+      );
       const report = parseReport(output, machine.expectedOs ?? os ?? "other");
       this.observations.set(machine.id, {
         report: { at: this.now(), value: report },

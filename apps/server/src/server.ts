@@ -87,6 +87,10 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),
     boat: () => boat.observation(),
+    forgeHosts: () => [
+      ...github.hosts(),
+      ...forgejo.observations().map((c) => new URL(c.baseUrl).host),
+    ],
     pools: () => ({
       pools: listPools(db),
       registrations: listRegistrations(db),

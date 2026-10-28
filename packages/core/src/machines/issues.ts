@@ -1,4 +1,5 @@
 import { sshUser } from "./access.ts";
+import { readinessProblems } from "./readiness.ts";
 import type { YardView } from "./derive.ts";
 
 export type Issue = {
@@ -47,6 +48,17 @@ export function deriveIssues(view: YardView): Issue[] {
     if (!d || d.stale || c.state !== "connected") continue;
     const macRunners = macRunnerIssue(view, m.id);
     if (macRunners) issues.push(macRunners);
+    const missing = readinessProblems(m.readiness);
+    if (
+      missing.length &&
+      view.pools.pools.some((p) => p.machines.some((x) => x.machineId === m.id))
+    )
+      issues.push({
+        id: `${m.id}:readiness`,
+        title: `${m.name}: not ready for its pools' jobs`,
+        detail: `${missing.map((i) => `${i.title}: ${i.value}`).join("; ")}. See Runner readiness on its page.`,
+        machineId: m.id,
+      });
     const diskAlert = m.alerts.some((a) => a.kind === "lowDisk");
     for (const check of d.checks) {
       if (check.status !== "warn" || (diskAlert && check.id === "disk-space")) continue;
