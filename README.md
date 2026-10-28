@@ -134,6 +134,10 @@ the GitHub organizations or repositories it serves. Create one under **Pools ▸
 organization gets one runner per slot; a personal account's repositories each get their own,
 because GitHub can't share a personal account's runner across repositories.
 
+**Pools ▸ +** opens with suggestions Runyard can justify from what it sees: queued jobs no
+runner has the labels for, and connected machines not yet in a pool. Picking one fills in the
+form; either way, the form shows the runners the pool calls for before you save it.
+
 Saving a pool changes nothing on machines. On a machine's page, **Review changes** reads the
 machine over SSH and GitHub and shows the plan; **Run** reads both again and does nothing if
 anything changed since the review. Reviews expire after 15 minutes and work once. Runyard keeps

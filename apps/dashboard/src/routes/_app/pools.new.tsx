@@ -1,7 +1,10 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useState } from "react";
 import { Icon } from "../../components/icons.tsx";
 import { PoolForm } from "../../components/PoolForm.tsx";
-import { PageHeader } from "../../components/ui.tsx";
+import { Card, PageHeader, Section } from "../../components/ui.tsx";
+import { useFleet } from "../../lib/fleet.ts";
+import { suggestPools, type PoolSuggestion } from "../../lib/pool-suggestions.ts";
 import { sessionQuery } from "../../lib/queries.ts";
 
 export const Route = createFileRoute("/_app/pools/new")({
@@ -13,16 +16,53 @@ export const Route = createFileRoute("/_app/pools/new")({
 });
 
 function NewPool() {
+  const view = useFleet();
+  // Computed once, so suggestions don't reshuffle while the form is being filled in.
+  const [suggestions] = useState(() => suggestPools(view));
+  const [picked, setPicked] = useState<PoolSuggestion | null>(null);
   return (
     <div>
       <PageHeader
         icon={<Icon name="plan" size={18} />}
         title="New pool"
-        subtitle="Runners with the same labels on the machines you choose, serving the organizations or repositories you choose."
+        subtitle="A pool is a set of runners with the same labels, on machines you choose, for the accounts or repositories you choose."
       />
-      <div className="mt-8">
-        <PoolForm />
-      </div>
+      {suggestions.length > 0 && (
+        <Section title="Suggested">
+          <div className="grid max-w-3xl grid-cols-1 gap-2 min-[800px]:grid-cols-2">
+            {suggestions.map((s) => {
+              const active = picked?.id === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setPicked(active ? null : s)}
+                  className={`flex flex-col gap-1 rounded-lg border px-4 py-3 text-left text-[13px] ${active ? "border-accent bg-accent/5" : "border-line bg-card hover:bg-hover"}`}
+                >
+                  <span className="font-medium">{s.title}</span>
+                  <span className="text-[12px] text-ink-2">{s.detail}</span>
+                  <span className="mt-1 text-[12px] font-medium text-accent">
+                    {active ? "Using this · click to clear" : "Use this"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </Section>
+      )}
+      <Section
+        title={
+          picked ? "Check and adjust" : suggestions.length ? "Or start from scratch" : "Set it up"
+        }
+      >
+        {/* A new key starts the form over from the picked suggestion. */}
+        <PoolForm key={picked?.id ?? "blank"} initial={picked?.draft} />
+      </Section>
+      {view.machines.length === 0 && (
+        <Card className="mt-4 max-w-3xl px-4 py-3 text-[12.5px] text-ink-2">
+          Pools run on your machines; add one under Machines ▸ + first.
+        </Card>
+      )}
     </div>
   );
 }

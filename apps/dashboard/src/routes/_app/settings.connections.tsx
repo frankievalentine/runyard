@@ -17,6 +17,9 @@ export const Route = createFileRoute("/_app/settings/connections")({
 
 const manage =
   "inline-flex h-[28px] items-center rounded-[6px] border border-line bg-card px-2.5 text-[12.5px] font-medium hover:bg-hover";
+/** While no forge is connected, connecting one is the page's main action. */
+const primary =
+  "inline-flex h-[28px] items-center rounded-[6px] bg-accent px-2.5 text-[12.5px] font-medium text-white hover:brightness-110";
 
 function Connections() {
   const view = useFleet();
@@ -24,11 +27,16 @@ function Connections() {
   const installs = apps.reduce((n, a) => n + a.installations.length, 0);
   const conns = view.forgejo.connections;
   const boat = view.boat;
+  const noForge = apps.length === 0 && conns.length === 0;
   return (
     <>
       <SubHeader
         title="Connections"
-        subtitle="The forges whose runners and jobs Runyard reads, and boat.dev for on-demand CI VMs."
+        subtitle={
+          noForge
+            ? "Connect GitHub, Forgejo or both: one forge is enough to start. boat.dev is optional."
+            : "The forges whose runners and jobs Runyard reads, and boat.dev for on-demand CI VMs."
+        }
       />
       <div className="mt-4 grid grid-cols-1 gap-3 min-[900px]:grid-cols-3">
         <Service
@@ -43,7 +51,7 @@ function Connections() {
               : `${apps.map((a) => a.owner).join(", ")} · ${plural(installs, "installation")}`
           }
           action={
-            <Link to="/settings/github" className={manage}>
+            <Link to="/settings/github" className={noForge ? primary : manage}>
               {apps.length ? "Manage" : "Set up"}
             </Link>
           }
@@ -60,7 +68,7 @@ function Connections() {
               : conns.map((c) => `${c.login} on ${new URL(c.baseUrl).host}`).join(", ")
           }
           action={
-            <Link to="/settings/forgejo" className={manage}>
+            <Link to="/settings/forgejo" className={noForge ? primary : manage}>
               {conns.length ? "Manage" : "Connect"}
             </Link>
           }
@@ -68,10 +76,10 @@ function Connections() {
         <Service
           name="boat.dev"
           state={!boat ? "off" : boat.error ? "bad" : "ok"}
-          status={!boat ? "Not set up" : boat.error ? "Error" : "Connected"}
+          status={!boat ? "Optional" : boat.error ? "Error" : "Connected"}
           detail={
             !boat
-              ? "Optional: a read-only key adds live cost, VM limits and VMs left running for runs-on: boat jobs."
+              ? "A read-only key adds live cost, VM limits and VMs left running for runs-on: boat jobs."
               : boat.limits
                 ? `Plan ${boat.limits.plan} · ${boat.limits.activeSandboxes} of ${boat.limits.maxActiveSandboxes} VMs running`
                 : "Connected; limits not read yet."

@@ -60,3 +60,15 @@ test("WhoisCache asks once per address until the entry expires", async () => {
   await cache.login("100.64.0.2", 1000);
   expect(lookups).toBe(2);
 });
+
+test("a missing Tailscale CLI reads as not installed, not as a spawn error", async () => {
+  const cli = new TailscaleCli(async () => ({
+    code: 127,
+    stdout: "",
+    stderr: "ENOENT: no such file or directory",
+  }));
+  const self = await cli.self();
+  const status = await cli.status();
+  expect(self instanceof Error && self.message).toContain("Tailscale isn't installed here");
+  expect(status instanceof Error && status.message).not.toContain("ENOENT");
+});

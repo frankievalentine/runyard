@@ -453,32 +453,49 @@ function Heading({
 
 function Footer({ view, demo }: { view: FleetView; demo: boolean }) {
   const apps = view.github.apps;
-  const githubError = apps.some((a) => a.error || a.installations.some((i) => i.runnersError));
-  const checked = apps
-    .flatMap((a) => a.installations.map((i) => i.runnersAt))
+  const conns = view.forgejo.connections;
+  const forgeError =
+    apps.some((a) => a.error || a.installations.some((i) => i.runnersError)) ||
+    // Forgejo refuses organization runners unless the user owns the organization, so
+    // only a connection that fails outright counts here.
+    conns.some((c) => c.error);
+  const checked = [
+    ...apps.flatMap((a) => a.installations.map((i) => i.runnersAt)),
+    ...conns.flatMap((c) => c.scopes.map((s) => s.runnersAt)),
+  ]
     .filter((t): t is number => t !== null)
     .sort((a, b) => a - b)[0];
-  const problem = Boolean(view.tailnet.error) || githubError || view.alerts.length > 0;
-  // fleet's footer: the state of the data sources, most pressing first.
+  const problem = Boolean(view.tailnet.error) || forgeError || view.alerts.length > 0;
+  // fleet's footer: the state of the data sources, most pressing first. Details are on
+  // the overview's Needs attention and Settings ▸ Connections.
   const text = demo ? (
     "Demo · fictional machines"
+  ) : forgeError ? (
+    "A forge can't be read · Settings ▸ Connections"
   ) : view.tailnet.error ? (
-    `Tailscale unavailable: ${view.tailnet.error}`
-  ) : githubError ? (
-    "GitHub can't be read · Settings ▸ GitHub"
+    "Tailscale unavailable"
   ) : checked ? (
     <>
-      GitHub checked <TimeAgo at={checked} />
+      Runners checked <TimeAgo at={checked} />
     </>
-  ) : apps.length ? (
-    "Waiting for GitHub"
+  ) : apps.length || conns.length ? (
+    "Waiting for the forges"
   ) : (
-    "No GitHub App · Settings ▸ GitHub"
+    "No forge connected · Settings ▸ Connections"
   );
   return (
     <div className="flex h-9 shrink-0 items-center gap-2 border-t border-line px-3 text-[11px] text-ink-2">
       <StatusDot tone={problem ? "warn" : "ok"} size={6} />
-      <span className="min-w-0 flex-1 truncate" title={typeof text === "string" ? text : undefined}>
+      <span
+        className="min-w-0 flex-1 truncate"
+        title={
+          !demo && !forgeError && view.tailnet.error
+            ? view.tailnet.error
+            : typeof text === "string"
+              ? text
+              : undefined
+        }
+      >
         {text}
       </span>
       <AccountMenu />

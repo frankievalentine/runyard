@@ -21,6 +21,7 @@ export class TailscaleCli {
     const res = await this.run([this.binary, "status", "--json", "--peers=false"], {
       timeoutMs: 10_000,
     });
+    if (res.code === 127) return notInstalled();
     if (res.code !== 0)
       return new Error(`tailscale status failed: ${res.stderr.trim() || `exit ${res.code}`}`);
     return parseSelf(res.stdout);
@@ -33,6 +34,7 @@ export class TailscaleCli {
       return new Error(
         "The Tailscale CLI didn't respond within 10 seconds. Check that Tailscale is running.",
       );
+    if (res.code === 127) return notInstalled();
     if (res.code !== 0)
       return new Error(res.stderr.trim() || `tailscale status failed (exit ${res.code}).`);
     return parseTailnetStatus(res.stdout);
@@ -57,6 +59,13 @@ export class TailscaleCli {
       return new Error(`tailscale cert failed: ${res.stderr.trim() || `exit ${res.code}`}`);
     return undefined;
   }
+}
+
+/** The CLI couldn't be started at all: Tailscale is optional, so say so plainly. */
+function notInstalled(): Error {
+  return new Error(
+    "Tailscale isn't installed here (or RUNYARD_TAILSCALE points somewhere else). It's optional: it adds tailnet discovery, Tailscale SSH and the tailnet address.",
+  );
 }
 
 /** The CLI can print plain-text warnings instead of JSON; those parse to undefined. */

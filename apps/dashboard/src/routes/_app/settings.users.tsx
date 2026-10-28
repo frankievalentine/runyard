@@ -21,12 +21,12 @@ type Role = UserView["role"];
 function Users() {
   const users = useQuery(usersQuery);
   return (
-    <>
+    <div className="max-w-2xl">
       <SubHeader
         title="Users"
         subtitle="Viewers can see everything. Admins can also manage machines and users."
       />
-      <Section title="People">
+      <Section title="People" count={users.data?.length}>
         {users.error && <ErrorText error={users.error} />}
         <Card className="overflow-hidden">
           {users.data?.map((user) => (
@@ -35,7 +35,7 @@ function Users() {
         </Card>
       </Section>
       <AddUser />
-    </>
+    </div>
   );
 }
 
@@ -198,7 +198,7 @@ function AddUser() {
 
   return (
     <Section title="Add a user">
-      <Card className="max-w-md px-4 py-4">
+      <Card className="px-4 py-4">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <TextField
             label="Tailscale login"
