@@ -90,7 +90,11 @@ export class Dispatcher {
       );
       if (out === null) continue;
       try {
-        for (const name of parseSweep(out).exited) exited.add(name);
+        // Anything not still running has ended: the sweep removed its directory, or the
+        // runner removed it itself (perhaps while Runyard was down).
+        const alive = new Set(parseSweep(out).alive);
+        for (const d of active)
+          if (d.machineId === machineId && !alive.has(d.runnerName)) exited.add(d.runnerName);
       } catch {
         // An incomplete sweep says nothing; the next round tries again.
       }

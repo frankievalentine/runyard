@@ -7,7 +7,7 @@ const empty = {
   github: { apps: [] },
   forgejo: { connections: [] },
   runners: [],
-  pools: { pools: [], desired: [], registrations: [], collisions: [] },
+  pools: { pools: [], desired: [], registrations: [], collisions: [], templateRecords: [] },
 } as unknown as YardView;
 
 test("a fresh install has nothing done", () => {
@@ -28,6 +28,7 @@ test("steps follow what exists", () => {
       ],
       registrations: [],
       collisions: [],
+      templateRecords: [],
     },
     runners: [{ name: "box-ci-01", scope }],
   } as unknown as YardView;
@@ -42,5 +43,16 @@ test("an app without installations isn't connected yet", () => {
   expect(setupSteps(view)[0]).toMatchObject({
     done: false,
     detail: expect.stringContaining("Install the GitHub App"),
+  });
+});
+
+test("installed runner software for an on-demand pool completes the last step", () => {
+  const view = {
+    ...empty,
+    pools: { ...empty.pools, templateRecords: [{ key: "t" }] },
+  } as unknown as YardView;
+  expect(setupSteps(view)[3]).toMatchObject({
+    done: true,
+    detail: "Runner software installed for on-demand pools.",
   });
 });

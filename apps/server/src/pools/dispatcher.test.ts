@@ -156,3 +156,15 @@ describe("on-demand pools", () => {
     expect(review.items.map((i) => i.action).sort()).toEqual(["installTemplate", "remove"]);
   });
 });
+
+test("a runner whose directory is gone counts as finished, even one Runyard never saw exit", async () => {
+  const s = await setup({ account: "acme", type: "Organization", repos: ["acme/app"] });
+  await onDemand(s);
+  await queue(s, 601);
+  await round(s);
+  const name = s.fakeGithub.jitConfigs[0]!.name;
+  // It ended and removed its own directory while Runyard wasn't looking.
+  s.host.jobs.delete(name);
+  await round(s);
+  expect(listDispatches(s.deps.db)[0]?.state).toBe("done");
+});

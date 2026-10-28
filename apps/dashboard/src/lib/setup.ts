@@ -15,6 +15,8 @@ export function setupSteps(view: YardView): SetupStep[] {
   const reachable = view.machines.filter((m) => m.connection.state === "connected");
   const pools = view.pools.pools;
   const runners = view.pools.desired.filter((d) => runnerFor(view, d));
+  // An on-demand pool's runners exist only per job; its installed software is the step done.
+  const templates = view.pools.templateRecords.length;
   return [
     {
       id: "forge",
@@ -49,10 +51,12 @@ export function setupSteps(view: YardView): SetupStep[] {
     {
       id: "runners",
       title: "Install runners",
-      done: runners.length > 0,
+      done: runners.length > 0 || templates > 0,
       detail: runners.length
         ? `${runners.length} of ${view.pools.desired.length} runners registered.`
-        : "Review a machine's changes, then run them.",
+        : templates
+          ? "Runner software installed for on-demand pools."
+          : "Review a machine's changes, then run them.",
     },
   ];
 }
