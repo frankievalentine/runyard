@@ -247,6 +247,7 @@ address each request came to. To do later:
 ## Pending live verification
 
 Built and tested only against fakes. Deferred until a real service or machine is available:
+[docs/LIVE-TESTING.md](LIVE-TESTING.md) walks through all of it in order, on a test tailnet.
 
 - The GitHub App: manifest flow, installation, runner and job reads, and a real runner install.
 - Forgejo, on a real instance and Linux machine:
