@@ -12,7 +12,14 @@ import { Button, TextField } from "./form.tsx";
 import { Elapsed } from "./runners.tsx";
 import { Card, EmptyLine, ErrorText, LinkRow, LinkTable, Pill, Section, StatusDot } from "./ui.tsx";
 
-type Review = { id: string; items: PlanItem[]; expiresAt: number; mayNeedSudo: boolean };
+type Review = {
+  id: string;
+  items: PlanItem[];
+  expiresAt: number;
+  mayNeedSudo: boolean;
+  /** The access token's name, when an agent prepared it. */
+  preparedBy?: string;
+};
 type Operation = {
   id: string;
   status: "running" | "succeeded" | "failed";
@@ -105,9 +112,28 @@ export function MachineRunners({ m }: { m: MachineView }) {
 }
 
 /** aarondfrancis/fleet's Changes: review re-reads the machine and GitHub; execute reads them again before doing anything. */
-export function MachineChanges({ m, admin }: { m: MachineView; admin: boolean }) {
+export function MachineChanges({
+  m,
+  admin,
+  reviewId,
+}: {
+  m: MachineView;
+  admin: boolean;
+  /** A review prepared elsewhere, shown until this page reviews again or runs it. */
+  reviewId?: string;
+}) {
   const now = useNow();
-  const [review, setReview] = useState<Review | null>(null);
+  const [ownReview, setReview] = useState<Review | null>(null);
+  const [handedDone, setHandedDone] = useState(false);
+  const handed = useQuery({
+    queryKey: ["review", reviewId],
+    queryFn: async () =>
+      (await call(api.reviews[":id"].$get({ param: { id: reviewId! } }))) as unknown as Review,
+    enabled: Boolean(reviewId) && admin,
+    retry: false,
+    staleTime: Infinity,
+  });
+  const review = ownReview ?? (handedDone ? null : (handed.data ?? null));
   const [operationId, setOperationId] = useState<string | null>(null);
   const [sudo, setSudo] = useState("");
   const prepare = useMutation({
@@ -115,6 +141,7 @@ export function MachineChanges({ m, admin }: { m: MachineView; admin: boolean })
       (await call(api.machines[":id"].review.$post({ param: { id: m.id } }))) as unknown as Review,
     onSuccess: (r) => {
       setReview(r);
+      setHandedDone(true);
       setOperationId(null);
     },
   });
@@ -129,6 +156,7 @@ export function MachineChanges({ m, admin }: { m: MachineView; admin: boolean })
     onSuccess: (op) => {
       setOperationId(op.id);
       setReview(null);
+      setHandedDone(true);
       setSudo("");
     },
   });
@@ -172,6 +200,16 @@ export function MachineChanges({ m, admin }: { m: MachineView; admin: boolean })
           </EmptyLine>
         )}
         {prepare.error && <ErrorText className="px-4 py-3" error={prepare.error} />}
+        {reviewId && !handedDone && handed.error && (
+          <ErrorText className="px-4 py-3" error={handed.error} />
+        )}
+        {review?.preparedBy && (
+          <div className="border-b border-line bg-accent/5 px-4 py-2.5 text-[12.5px]">
+            Prepared by an agent, with the access token{" "}
+            <span className="font-medium">{review.preparedBy}</span>. Check it before you run it;
+            agents can't run changes themselves.
+          </div>
+        )}
         {review && review.items.length === 0 && (
           <EmptyLine>Everything matches its pools. Nothing to do.</EmptyLine>
         )}

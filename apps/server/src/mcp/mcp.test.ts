@@ -117,7 +117,11 @@ describe("the MCP server", () => {
     expect(saved.isError).toBe(false);
     const review = (await call(s.app, prepare, "prepare_review", { machine: "Mini" })).json();
     expect(review.changes.map((c: { action: string }) => c.action)).toEqual(["install"]);
-    expect(review.link).toMatch(/\/machines\/m_[a-z0-9]+\?review=/);
+    expect(review.link).toMatch(/\/machines\/m_[a-z0-9]+\?review=[0-9a-f-]+#changes$/);
+    // A person opens it in the dashboard, which shows who prepared it.
+    const reviewId = new URL(review.link).searchParams.get("review");
+    const opened = await s.call<{ preparedBy: string }>("GET", `/api/reviews/${reviewId}`);
+    expect(opened.preparedBy).toBe("Claude Code");
     // Nothing ran: the review waits for a person.
     expect(s.host.received.filter((r) => r.op === "install")).toEqual([]);
     const events = listEvents(s.deps.db, { machineId: s.machine.id, limit: 10 });

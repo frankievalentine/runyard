@@ -55,12 +55,16 @@ import {
 } from "../../lib/status.ts";
 
 export const Route = createFileRoute("/_app/machines/$id")({
+  /** `review`: one prepared elsewhere (an agent's, through the MCP server), to open for running. */
+  validateSearch: (search: Record<string, unknown>): { review?: string } =>
+    typeof search.review === "string" ? { review: search.review } : {},
   component: Machine,
 });
 
 /** aarondfrancis/fleet's MachineDetail; runners, changes and runner checks join it with runner management. */
 function Machine() {
   const { id } = Route.useParams();
+  const { review: reviewId } = Route.useSearch();
   const view = useYard();
   const { data: session } = useSuspenseQuery(sessionQuery);
   const [editing, setEditing] = useState(false);
@@ -131,7 +135,7 @@ function Machine() {
         <ConnectionNotice m={m} />
       )}
       <MachineRunners m={m} />
-      <MachineChanges m={m} admin={admin} />
+      <MachineChanges m={m} admin={admin} reviewId={reviewId} />
       <Monitoring m={m} admin={admin} />
       <RunnerReadiness m={m} />
       <Diagnostics m={m} />

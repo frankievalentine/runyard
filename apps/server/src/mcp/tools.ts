@@ -442,7 +442,7 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
           `Prepared a review of ${review.items.length} change${review.items.length === 1 ? "" : "s"}`,
         );
         return ok({
-          link: `${caller.origin}/machines/${m.id}?review=${review.id}`,
+          link: `${caller.origin}/machines/${m.id}?review=${review.id}#changes`,
           expiresAt: new Date(review.expiresAt).toISOString(),
           changes: review.items.map((i) => ({
             action: i.action,

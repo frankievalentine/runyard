@@ -163,6 +163,13 @@ export function poolRoutes({ db, engine, monitor, github, forgejo }: PoolDeps) {
       .post("/machines/:id/review", requireAdmin(), (c) =>
         errors(async () => c.json(await engine.review(c.req.param("id")))),
       )
+      // Opens a review prepared elsewhere (an agent's, through the MCP server) for a person to run.
+      .get("/reviews/:id", requireAdmin(), (c) => {
+        const review = engine.pendingReview(c.req.param("id"));
+        return review
+          ? c.json(review)
+          : c.json({ error: "That review expired or was already run. Review again." }, 404);
+      })
       .post(
         "/reviews/:id/execute",
         requireAdmin(),

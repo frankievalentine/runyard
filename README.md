@@ -27,6 +27,7 @@ queued. Jobs that run on boat.dev's on-demand VMs show up alongside, with each V
 - [Machines](#machines)
 - [Runners and pools](#runners-and-pools)
 - [Forges and services](#forges-and-services): GitHub, Forgejo, boat.dev, webhooks
+- [AI agents (MCP)](#ai-agents-mcp)
 - [Running Runyard](#running-runyard): as a service, Docker, Tailscale, users
 - [Security](#security)
 - [Configuration](#configuration)
@@ -353,6 +354,30 @@ but signed deliveries. Under **Settings ▸ Connections ▸ GitHub ▸ Webhooks*
 A delivery only makes Runyard re-read jobs and runners through the API; nothing in a payload is
 acted on.
 
+## AI agents (MCP)
+
+Runyard serves an [MCP](https://modelcontextprotocol.io) server at `/api/mcp` (Streamable HTTP),
+so an agent such as Claude Code can ask about your CI and prepare changes for you. Create a token
+under **Settings ▸ Account ▸ Access tokens**, then, for Claude Code:
+
+```sh
+claude mcp add --transport http runyard https://<runyard>/api/mcp \
+  --header "Authorization: Bearer <token>"
+```
+
+- **Read only** tokens can call `yard_summary`, `list_machines`, `get_machine` (health,
+  readiness, the steps to connect it with commands, recent history), `list_runners`,
+  `list_queued_jobs` (with why each one waits), `list_pools` and `list_test_jobs`.
+- **Read and prepare** tokens (admins only) can also `add_machine`, `save_pool`,
+  `prepare_review`, `machine_setup_command` and `start_test_job`.
+
+No tool runs a review or deletes anything. `prepare_review` returns the plan and a link to the
+machine's page with that review open, marked with the token that prepared it, for you to check
+and **Run**. Everything a token prepares is recorded in the machine's history as yours, via that
+token. A token never has more access than its user, is shown once and stored hashed, can expire,
+and works only on `/api/mcp`. Use the dashboard's HTTPS address, so the token travels encrypted;
+the machine setup command needs it too.
+
 ## Running Runyard
 
 ### As a service
@@ -431,6 +456,8 @@ they were added from.
   [Configuration](#configuration)).
 - **Webhooks are only a nudge:** signatures are checked, and a delivery only triggers a re-read
   through the API.
+- **Agents prepare, people run:** MCP access tokens can read and prepare changes, never run a
+  review; only a dashboard session can.
 
 ## Configuration
 

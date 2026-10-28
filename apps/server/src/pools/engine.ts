@@ -159,6 +159,12 @@ export class PoolEngine {
     }
   }
 
+  /** A review still waiting to run, such as one an agent prepared; undefined once used or expired. */
+  pendingReview(id: string): Review | undefined {
+    const review = this.reviews.get(id);
+    return review && review.expiresAt > this.now() ? review : undefined;
+  }
+
   operation(id: string): OperationView | undefined {
     return this.operations.get(id);
   }

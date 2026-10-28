@@ -220,6 +220,16 @@ container:
 4. **Test job (done, against fakes; the workflow passes actionlint):** a per-runner label, a workflow file the user adds, and a dispatch of it on that
    runner with the result shown; needs Actions read and write on the GitHub App. Forgejo later.
 
+## AI agents (MCP)
+
+Done, against fakes and the official MCP client: `/api/mcp`, Streamable HTTP, stateless, with the
+SDK's web-standard transport (`@modelcontextprotocol/sdk` 1.29, pinned while the SDK splits into
+v2 packages). Personal access tokens (`read` or `prepare`, hashed, expiring) authenticate it and
+nothing else. Read tools mirror the dashboard; prepare tools save settings and prepare reviews,
+recorded as `agentPrepared` events; running a review stays with a dashboard session.
+`waitingReasons` in `packages/core` explains queued jobs for both the MCP tool and the Queued
+jobs page.
+
 ## Link previews
 
 The dashboard serves `og.png` and a 10 s `og.mp4` loop (rendered from `docs/assets/og/og.html`
