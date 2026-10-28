@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { formatBytes, formatUptime, plural, timeAgo } from "./format.ts";
+import { formatBytes, formatElapsed, formatUptime, plural, timeAgo } from "./format.ts";
 
 test("timeAgo", () => {
   expect(timeAgo(null, 0)).toBe("never");
@@ -22,4 +22,10 @@ test("formatUptime and plural", () => {
   expect(formatUptime(3_660)).toBe("1h 1m");
   expect(plural(1, "machine")).toBe("1 machine");
   expect(plural(2, "machine")).toBe("2 machines");
+});
+
+test("formatElapsed is a steady timer", () => {
+  expect(formatElapsed(42_000)).toBe("0:42");
+  expect(formatElapsed(725_000)).toBe("12:05");
+  expect(formatElapsed(3_729_000)).toBe("1:02:09");
 });

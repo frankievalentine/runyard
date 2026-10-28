@@ -15,10 +15,13 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppIgnoredRouteImport } from './routes/_app/ignored'
+import { Route as AppQueueRouteImport } from './routes/_app/queue'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as AppMachinesIdRouteImport } from './routes/_app/machines.$id'
 import { Route as AppMachinesAddRouteImport } from './routes/_app/machines.add'
 import { Route as AppPeersNodeIdRouteImport } from './routes/_app/peers.$nodeId'
+import { Route as AppRunnersKeyRouteImport } from './routes/_app/runners.$key'
+import { Route as AppSettingsGithubRouteImport } from './routes/_app/settings.github'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -49,6 +52,11 @@ const AppIgnoredRoute = AppIgnoredRouteImport.update({
   path: '/ignored',
   getParentRoute: () => AppRoute,
 } as any)
+const AppQueueRoute = AppQueueRouteImport.update({
+  id: '/queue',
+  path: '/queue',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppUsersRoute = AppUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -69,6 +77,16 @@ const AppPeersNodeIdRoute = AppPeersNodeIdRouteImport.update({
   path: '/peers/$nodeId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRunnersKeyRoute = AppRunnersKeyRouteImport.update({
+  id: '/runners/$key',
+  path: '/runners/$key',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsGithubRoute = AppSettingsGithubRouteImport.update({
+  id: '/settings/github',
+  path: '/settings/github',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -76,21 +94,27 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/account': typeof AppAccountRoute
   '/ignored': typeof AppIgnoredRoute
+  '/queue': typeof AppQueueRoute
   '/users': typeof AppUsersRoute
   '/machines/$id': typeof AppMachinesIdRoute
   '/machines/add': typeof AppMachinesAddRoute
   '/peers/$nodeId': typeof AppPeersNodeIdRoute
+  '/runners/$key': typeof AppRunnersKeyRoute
+  '/settings/github': typeof AppSettingsGithubRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/account': typeof AppAccountRoute
   '/ignored': typeof AppIgnoredRoute
+  '/queue': typeof AppQueueRoute
   '/users': typeof AppUsersRoute
   '/': typeof AppIndexRoute
   '/machines/$id': typeof AppMachinesIdRoute
   '/machines/add': typeof AppMachinesAddRoute
   '/peers/$nodeId': typeof AppPeersNodeIdRoute
+  '/runners/$key': typeof AppRunnersKeyRoute
+  '/settings/github': typeof AppSettingsGithubRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -99,11 +123,14 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_app/account': typeof AppAccountRoute
   '/_app/ignored': typeof AppIgnoredRoute
+  '/_app/queue': typeof AppQueueRoute
   '/_app/users': typeof AppUsersRoute
   '/_app/': typeof AppIndexRoute
   '/_app/machines/$id': typeof AppMachinesIdRoute
   '/_app/machines/add': typeof AppMachinesAddRoute
   '/_app/peers/$nodeId': typeof AppPeersNodeIdRoute
+  '/_app/runners/$key': typeof AppRunnersKeyRoute
+  '/_app/settings/github': typeof AppSettingsGithubRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -113,21 +140,27 @@ export interface FileRouteTypes {
     | '/setup'
     | '/account'
     | '/ignored'
+    | '/queue'
     | '/users'
     | '/machines/$id'
     | '/machines/add'
     | '/peers/$nodeId'
+    | '/runners/$key'
+    | '/settings/github'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/setup'
     | '/account'
     | '/ignored'
+    | '/queue'
     | '/users'
     | '/'
     | '/machines/$id'
     | '/machines/add'
     | '/peers/$nodeId'
+    | '/runners/$key'
+    | '/settings/github'
   id:
     | '__root__'
     | '/_app'
@@ -135,11 +168,14 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_app/account'
     | '/_app/ignored'
+    | '/_app/queue'
     | '/_app/users'
     | '/_app/'
     | '/_app/machines/$id'
     | '/_app/machines/add'
     | '/_app/peers/$nodeId'
+    | '/_app/runners/$key'
+    | '/_app/settings/github'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -192,6 +228,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIgnoredRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/queue': {
+      id: '/_app/queue'
+      path: '/queue'
+      fullPath: '/queue'
+      preLoaderRoute: typeof AppQueueRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/users': {
       id: '/_app/users'
       path: '/users'
@@ -220,27 +263,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPeersNodeIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/runners/$key': {
+      id: '/_app/runners/$key'
+      path: '/runners/$key'
+      fullPath: '/runners/$key'
+      preLoaderRoute: typeof AppRunnersKeyRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/github': {
+      id: '/_app/settings/github'
+      path: '/settings/github'
+      fullPath: '/settings/github'
+      preLoaderRoute: typeof AppSettingsGithubRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
   AppIgnoredRoute: typeof AppIgnoredRoute
+  AppQueueRoute: typeof AppQueueRoute
   AppUsersRoute: typeof AppUsersRoute
   AppIndexRoute: typeof AppIndexRoute
   AppMachinesIdRoute: typeof AppMachinesIdRoute
   AppMachinesAddRoute: typeof AppMachinesAddRoute
   AppPeersNodeIdRoute: typeof AppPeersNodeIdRoute
+  AppRunnersKeyRoute: typeof AppRunnersKeyRoute
+  AppSettingsGithubRoute: typeof AppSettingsGithubRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
   AppIgnoredRoute: AppIgnoredRoute,
+  AppQueueRoute: AppQueueRoute,
   AppUsersRoute: AppUsersRoute,
   AppIndexRoute: AppIndexRoute,
   AppMachinesIdRoute: AppMachinesIdRoute,
   AppMachinesAddRoute: AppMachinesAddRoute,
   AppPeersNodeIdRoute: AppPeersNodeIdRoute,
+  AppRunnersKeyRoute: AppRunnersKeyRoute,
+  AppSettingsGithubRoute: AppSettingsGithubRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

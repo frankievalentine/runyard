@@ -1,5 +1,15 @@
 /** Ported from fleet's dashboard; timestamps are epoch milliseconds. */
 
+/** Elapsed time as a steady timer: `0:42`, `12:05`, `1:02:09`. */
+export function formatElapsed(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+
 /** Wall-clock time without seconds: `3:07 PM`. */
 export function formatClock(at: number): string {
   return new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });

@@ -30,14 +30,24 @@ export const Route = createFileRoute("/_app")({
   component: Layout,
 });
 
-const OTHER_OPEN_KEY = "runyard.otherMachinesOpen";
-
-function readOtherOpen(): boolean {
-  try {
-    return localStorage.getItem(OTHER_OPEN_KEY) === "1";
-  } catch {
-    return false;
-  }
+/** Which collapsible sidebar groups are open, remembered per browser. */
+function useOpenGroup(key: string): [boolean, (open: boolean) => void] {
+  const [open, setOpenState] = useState(() => {
+    try {
+      return localStorage.getItem(key) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const setOpen = (next: boolean) => {
+    setOpenState(next);
+    try {
+      localStorage.setItem(key, next ? "1" : "0");
+    } catch {
+      // Non-essential.
+    }
+  };
+  return [open, setOpen];
 }
 
 /** fleet's window: sidebar, a header with breadcrumbs and Check now, and the page. */
@@ -51,20 +61,14 @@ function Layout() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [query, setQuery] = useState("");
-  const [otherOpen, setOtherOpenState] = useState(readOtherOpen);
-  const setOtherOpen = (open: boolean) => {
-    setOtherOpenState(open);
-    try {
-      localStorage.setItem(OTHER_OPEN_KEY, open ? "1" : "0");
-    } catch {
-      // Non-essential.
-    }
-  };
+  const [otherOpen, setOtherOpen] = useOpenGroup("runyard.otherMachinesOpen");
+  const [runnersOpen, setRunnersOpen] = useOpenGroup("runyard.runnersOpen");
 
   const filtered = useMemo(() => filterFleet(view, query), [view, query]);
   const nav = useMemo(
-    () => flattenNav(filtered, query.trim() !== "" || otherOpen),
-    [filtered, query, otherOpen],
+    () =>
+      flattenNav(filtered, query.trim() !== "" || otherOpen, query.trim() !== "" || runnersOpen),
+    [filtered, query, otherOpen, runnersOpen],
   );
   const selected = selectedKey(pathname);
 
@@ -112,6 +116,8 @@ function Layout() {
           setQuery={setQuery}
           otherOpen={otherOpen}
           setOtherOpen={setOtherOpen}
+          runnersOpen={runnersOpen}
+          setRunnersOpen={setRunnersOpen}
           selected={selected}
           admin={admin}
           demo={demo}
@@ -208,11 +214,13 @@ function selectedKey(pathname: string): string {
   if (machine && machine[1] !== "add") return `/machines/$id:${machine[1]}`;
   const peer = /^\/peers\/([^/]+)$/.exec(pathname);
   if (peer) return `/peers/$nodeId:${peer[1]}`;
+  const runner = /^\/runners\/([^/]+)$/.exec(pathname);
+  if (runner) return `/runners/$key:${decodeURIComponent(runner[1]!)}`;
   return pathname === "/ignored" ? "/ignored" : pathname === "/" ? "/" : pathname;
 }
 
 function breadcrumbs(pathname: string, view: FleetView): { label: string; to?: string }[] {
-  const fleet = { label: "Fleet", to: "/" };
+  const fleet = { label: "Yard", to: "/" };
   const machine = /^\/machines\/([^/]+)$/.exec(pathname)?.[1];
   if (machine === "add") return [fleet, { label: "Add machines" }];
   if (machine)
@@ -225,8 +233,15 @@ function breadcrumbs(pathname: string, view: FleetView): { label: string; to?: s
       { label: view.discovered.find((p) => p.nodeId === peer)?.name ?? "Machine" },
     ];
   }
+  const runner = /^\/runners\/([^/]+)$/.exec(pathname)?.[1];
+  if (runner) {
+    const key = decodeURIComponent(runner);
+    return [fleet, { label: view.github.runners.find((r) => r.key === key)?.name ?? "Runner" }];
+  }
   const pages: Record<string, string> = {
-    "/": "Fleet overview",
+    "/queue": "Queued jobs",
+    "/settings/github": "GitHub",
+    "/": "Yard overview",
     "/ignored": "Ignored machines",
     "/users": "Users",
     "/account": "Account",

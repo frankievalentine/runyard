@@ -1,4 +1,10 @@
-import type { Connection, DiagnosticStatus, EventKind, MachineView } from "@runyard/core";
+import type {
+  Connection,
+  DiagnosticStatus,
+  EventKind,
+  MachineView,
+  RunnerView,
+} from "@runyard/core";
 
 /** Status color families shared by dots, pills and stats. */
 export type Tone = "busy" | "ok" | "warn" | "bad" | "muted" | "info";
@@ -100,4 +106,27 @@ export function osLine(m: MachineView): string | null {
   const version = m.health?.osVersion;
   if (version) return m.os === "macos" && /^\d/.test(version) ? `macOS ${version}` : version;
   return m.os ? osLabel[m.os] : null;
+}
+
+/** Ported from fleet's runnerStatus: a hollow dot means old or unknown data. */
+export function runnerStatus(r: RunnerView): StatusLabel {
+  switch (r.activity) {
+    case "busy":
+      return { tone: "busy", label: "Working" };
+    case "idle":
+      return { tone: "ok", label: "Idle" };
+    case "offline":
+      return { tone: "bad", label: "Offline" };
+    case "unknown":
+      return r.status === "online"
+        ? { tone: "ok", label: "Idle", hollow: true }
+        : { tone: "muted", label: "Unknown", hollow: true };
+  }
+}
+
+/** GitHub's default labels, which every runner of a kind has. */
+export function isBuiltinLabel(label: string): boolean {
+  return ["self-hosted", "linux", "macos", "windows", "x64", "arm64", "arm"].includes(
+    label.toLowerCase(),
+  );
 }

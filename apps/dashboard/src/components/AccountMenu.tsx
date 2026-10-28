@@ -48,9 +48,17 @@ export function AccountMenu() {
               Account
             </Menu.Item>
             {user.role === "admin" && (
-              <Menu.Item className={item} onClick={() => void navigate({ to: "/users" })}>
-                Users
-              </Menu.Item>
+              <>
+                <Menu.Item
+                  className={item}
+                  onClick={() => void navigate({ to: "/settings/github" })}
+                >
+                  GitHub
+                </Menu.Item>
+                <Menu.Item className={item} onClick={() => void navigate({ to: "/users" })}>
+                  Users
+                </Menu.Item>
+              </>
             )}
             <Menu.Separator className="my-1 h-px bg-line" />
             <Menu.Group>

@@ -2,7 +2,14 @@ import type { FleetView } from "@runyard/core";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { navKey, type NavItem } from "../lib/nav.ts";
-import { machineStatus, machineSummary, machineTooltip, osLabel } from "../lib/status.ts";
+import {
+  machineStatus,
+  machineSummary,
+  machineTooltip,
+  osLabel,
+  runnerStatus,
+} from "../lib/status.ts";
+import { Elapsed } from "./runners.tsx";
 import { AccountMenu } from "./AccountMenu.tsx";
 import { Icon } from "./icons.tsx";
 import { EmptyLine, StatusDot, TimeAgo } from "./ui.tsx";
@@ -15,6 +22,8 @@ export function Sidebar({
   setQuery,
   otherOpen,
   setOtherOpen,
+  runnersOpen,
+  setRunnersOpen,
   selected,
   admin,
   demo,
@@ -25,17 +34,21 @@ export function Sidebar({
   setQuery: (q: string) => void;
   otherOpen: boolean;
   setOtherOpen: (open: boolean) => void;
+  runnersOpen: boolean;
+  setRunnersOpen: (open: boolean) => void;
   selected: string;
   admin: boolean;
   demo: boolean;
 }) {
   const searching = query.trim() !== "";
   const showOther = searching || otherOpen;
+  const showRunners = searching || runnersOpen;
+  const runners = filtered.github.runners;
   const is = (item: NavItem) => navKey(item) === selected;
 
   return (
     <aside
-      aria-label="Fleet navigation"
+      aria-label="Yard navigation"
       className="flex h-full w-[256px] shrink-0 flex-col border-r border-line bg-sidebar"
     >
       <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-line px-3">
@@ -54,8 +67,15 @@ export function Sidebar({
           item={{ path: "/" }}
           selected={is({ path: "/" })}
           icon={<Icon name="grid" size={16} />}
-          label="Fleet overview"
+          label="Yard overview"
           trailing={view.machines.length}
+        />
+        <Row
+          item={{ path: "/queue" }}
+          selected={is({ path: "/queue" })}
+          icon={<Icon name="queue" size={16} />}
+          label="Queued jobs"
+          trailing={view.github.queue.jobs.length}
         />
       </nav>
       <div className="relative px-2 pb-2">
@@ -146,6 +166,42 @@ export function Sidebar({
                     label={p.name}
                     title={`${p.name}\n${p.address}`}
                     trailing={p.online ? osLabel[p.os] : "Offline"}
+                  />
+                );
+              })}
+          </>
+        )}
+        {runners.length > 0 && (
+          <>
+            <Heading
+              title="Not linked to a machine"
+              count={runners.length}
+              open={showRunners}
+              onToggle={() => setRunnersOpen(!runnersOpen)}
+            />
+            {showRunners &&
+              runners.map((r) => {
+                const status = runnerStatus(r);
+                const item = { path: "/runners/$key", params: { key: r.key } };
+                return (
+                  <Row
+                    key={r.key}
+                    item={item}
+                    selected={is(item)}
+                    label={r.name}
+                    title={`${r.name} · ${r.scopeLabel}: ${status.label}`}
+                    trailing={
+                      <span
+                        className={`flex items-center gap-1.5 ${status.tone === "busy" ? "text-accent" : ""}`}
+                      >
+                        {r.job?.startedAt ? (
+                          <Elapsed since={r.job.startedAt} />
+                        ) : (
+                          <span className="sr-only">{status.label}</span>
+                        )}
+                        <StatusDot tone={status.tone} hollow={status.hollow} size={6} />
+                      </span>
+                    }
                   />
                 );
               })}
@@ -251,17 +307,28 @@ function Heading({
 }
 
 function Footer({ view, demo }: { view: FleetView; demo: boolean }) {
-  const problem = Boolean(view.tailnet.error) || view.alerts.length > 0;
+  const apps = view.github.apps;
+  const githubError = apps.some((a) => a.error || a.installations.some((i) => i.runnersError));
+  const checked = apps
+    .flatMap((a) => a.installations.map((i) => i.runnersAt))
+    .filter((t): t is number => t !== null)
+    .sort((a, b) => a - b)[0];
+  const problem = Boolean(view.tailnet.error) || githubError || view.alerts.length > 0;
+  // fleet's footer: the state of the data sources, most pressing first.
   const text = demo ? (
     "Demo · fictional machines"
   ) : view.tailnet.error ? (
     `Tailscale unavailable: ${view.tailnet.error}`
-  ) : view.tailnet.at ? (
+  ) : githubError ? (
+    "GitHub can't be read · Settings ▸ GitHub"
+  ) : checked ? (
     <>
-      Tailnet checked <TimeAgo at={view.tailnet.at} />
+      GitHub checked <TimeAgo at={checked} />
     </>
+  ) : apps.length ? (
+    "Waiting for GitHub"
   ) : (
-    "Checking Tailscale…"
+    "No GitHub App · Settings ▸ GitHub"
   );
   return (
     <div className="flex h-9 shrink-0 items-center gap-2 border-t border-line px-3 text-[11px] text-ink-2">

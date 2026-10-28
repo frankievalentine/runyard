@@ -30,6 +30,8 @@ export type GithubDeps = {
   /** github.com and its API; GitHub Enterprise Server would differ. */
   webBase?: string;
   apiBase?: string;
+  /** Demo data: never send anyone to the real GitHub to create an app. */
+  demo?: boolean;
 };
 
 /** GitHub App setup through the manifest flow, and app management. */
@@ -50,6 +52,8 @@ export function githubRoutes(deps: GithubDeps) {
         }),
       ),
       (c) => {
+        if (deps.demo)
+          return c.json({ error: "Creating a GitHub App isn't available with demo data." }, 409);
         const { org } = c.req.valid("json");
         const { origin } = requestOrigin(c, deps.listener);
         const state = deps.states.issue();
