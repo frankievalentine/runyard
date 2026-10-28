@@ -37,6 +37,7 @@ const ACTION: Record<PlanItem["action"], string> = {
   removeTemplate: "Remove runner software",
   retire: "Retire",
   installTools: "Install tools",
+  configureCleanup: "Set cleanup",
 };
 
 /** The machine's runners: the ones GitHub lists for it, and the ones its pools still call for. ported from aarondfrancis/fleet's RunnerTable. */

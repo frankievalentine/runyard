@@ -35,6 +35,7 @@ const pool = (over: Partial<Pool> = {}): Pool => ({
   mode: "persistent",
   paused: false,
   toolProfiles: [],
+  cleanup: "off",
   ...over,
 });
 const machines = new Map<string, { name: string; os: OsFamily | null }>([
@@ -473,4 +474,24 @@ describe("installing a pool's tools", () => {
       planFingerprint(planMachine(input(["essentials", "build"]))),
     );
   });
+});
+
+test("cleanup applies to GitHub runners, and waits on Windows", () => {
+  const p = pool({ cleanup: "workspace", machines: [{ machineId: "m2", slots: 1 }] });
+  const [d] = desiredRunners([p], machines) as [DesiredRunner];
+  expect(d.cleanup).toBe("workspace");
+  const items = planMachine({
+    machineId: "m2",
+    desired: [d],
+    registrations: [],
+    local: new Map(),
+    github: new Map(),
+    policies: new Map([[scopeKey(org), { ok: true }]]),
+    machineError: null,
+    githubErrors: new Map(),
+  });
+  expect(items.map((i) => [i.action, i.blocked])).toEqual([
+    ["install", false],
+    ["unsupportedPlatform", true],
+  ]);
 });

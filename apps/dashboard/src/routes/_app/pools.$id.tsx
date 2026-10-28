@@ -133,6 +133,12 @@ function PoolPage() {
           ))}
         </div>
       )}
+      {pool.cleanup !== "off" && (
+        <p className="mt-3 text-[12.5px] text-ink-2">
+          Its GitHub runners clear their workspace
+          {pool.cleanup === "docker" ? " and prune unused Docker data" : ""} after each job.
+        </p>
+      )}
       {pool.toolProfiles.length > 0 && (
         <p className="mt-3 text-[12.5px] text-ink-2">
           Installs {pool.toolProfiles.map((p) => TOOL_PROFILES[p].title).join(", ")} where missing,

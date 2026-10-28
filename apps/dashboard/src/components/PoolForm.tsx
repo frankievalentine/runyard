@@ -9,6 +9,7 @@ import {
   type PoolMode,
   type Scope,
   type ToolProfile,
+  type CleanupMode,
 } from "@runyard/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -70,6 +71,7 @@ export function PoolForm({
   );
   const [poolMode, setPoolMode] = useState<PoolMode>(start?.mode ?? "persistent");
   const [toolProfiles, setToolProfiles] = useState<ToolProfile[]>(start?.toolProfiles ?? []);
+  const [cleanup, setCleanup] = useState<CleanupMode>(start?.cleanup ?? "off");
   const onDemand = poolMode === "onDemand";
   const options = availableScopes(view);
   const servesForgejo = scopes.some((s) => isForgejo(view, s));
@@ -88,7 +90,7 @@ export function PoolForm({
         )
       : [];
   const effectiveName = nameTouched ? name.trim() : slug(labelList[0] ?? "") || name.trim();
-  const draft: PoolDraft & { mode: PoolMode; toolProfiles: ToolProfile[] } = {
+  const draft: PoolDraft & { mode: PoolMode; toolProfiles: ToolProfile[]; cleanup: CleanupMode } = {
     name: effectiveName,
     labels: labelList,
     machines: Object.entries(slots)
@@ -98,6 +100,8 @@ export function PoolForm({
     forgejoMode: mode === "docker" ? { kind: "docker", image: image.trim() } : { kind: "host" },
     mode: poolMode,
     toolProfiles,
+    // One-job runners start fresh each time; only persistent runners keep a workspace.
+    cleanup: poolMode === "persistent" ? cleanup : "off",
   };
 
   const preview = useMemo(() => {
@@ -303,6 +307,46 @@ export function PoolForm({
                   required
                 />
               )}
+            </fieldset>
+          )}
+          {!onDemand && (
+            <fieldset className="mt-5 flex flex-col gap-2">
+              <legend className="text-[12px] font-medium text-ink-2">After each job</legend>
+              <p className="text-[12px] text-ink-2">
+                Persistent runners keep their workspace and Docker data between jobs, which keeps
+                builds warm but lets one job affect the next. GitHub runners on Linux and macOS;
+                changing it restarts each runner while it's idle.
+              </p>
+              <div className="grid grid-cols-1 gap-2 min-[700px]:grid-cols-3">
+                {(
+                  [
+                    ["off", "Keep everything", "Nothing is cleared between jobs."],
+                    ["workspace", "Clear the workspace", "The job's checkout and build output."],
+                    [
+                      "docker",
+                      "Workspace and Docker",
+                      "Also stopped containers, dangling images, unused networks and anonymous volumes, for every account on the machine.",
+                    ],
+                  ] as const
+                ).map(([value, title, detail]) => (
+                  <label
+                    key={value}
+                    className={`flex cursor-pointer gap-2 rounded-md border px-3 py-2 text-[12.5px] ${cleanup === value ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
+                  >
+                    <input
+                      type="radio"
+                      name="cleanup"
+                      className="mt-0.5"
+                      checked={cleanup === value}
+                      onChange={() => setCleanup(value)}
+                    />
+                    <span>
+                      <span className="font-medium">{title}</span>
+                      <span className="block text-[12px] text-ink-2">{detail}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
             </fieldset>
           )}
           <fieldset className="mt-5 flex flex-col gap-2">

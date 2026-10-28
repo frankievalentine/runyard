@@ -1,0 +1,1 @@
+ALTER TABLE `pools` ADD `cleanup` text DEFAULT 'off' NOT NULL;

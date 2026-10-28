@@ -21,7 +21,12 @@ export type Pool = {
   paused: boolean;
   /** Tools its machines' reviews install where they're missing. */
   toolProfiles: ToolProfile[];
+  /** Persistent GitHub runners only: what each runner clears after every job. */
+  cleanup: CleanupMode;
 };
+
+/** After each job: nothing, the job's workspace, or the workspace and unused Docker data. */
+export type CleanupMode = "off" | "workspace" | "docker";
 
 export type PoolMode = "persistent" | "onDemand";
 
@@ -92,6 +97,8 @@ export type DesiredRunner = {
   runnerKind: RunnerKind;
   /** Forgejo only: how each label runs jobs. */
   forgejoMode?: ForgejoMode;
+  /** GitHub runners only: what it clears after every job. */
+  cleanup?: CleanupMode;
 };
 
 /**
@@ -118,6 +125,8 @@ export type LocalRunner = {
   version: string | null;
   /** The runner name in the directory's `.runner`, when configured. */
   agentName: string | null;
+  /** The cleanup Runyard set up in it, if any. */
+  cleanup?: CleanupMode | null;
 };
 
 /** What GitHub reports for a runner with the desired name in the desired scope. */

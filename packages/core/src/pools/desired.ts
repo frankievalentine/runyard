@@ -72,7 +72,9 @@ export function desiredRunners(
             labels: [...new Set([...pool.labels, "runyard", `runyard-pool-${pool.name}`])],
             serviceMode: mode,
             runnerKind: kind,
-            ...(kind === "forgejo" ? { forgejoMode: pool.forgejoMode } : {}),
+            ...(kind === "forgejo"
+              ? { forgejoMode: pool.forgejoMode }
+              : { cleanup: pool.cleanup ?? "off" }),
           });
         }
       }

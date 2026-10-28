@@ -71,6 +71,7 @@ const poolSchema = z.object({
     .array(z.enum(["essentials", "build", "docker"]))
     .max(3)
     .default([]),
+  cleanup: z.enum(["off", "workspace", "docker"]).default("off"),
 });
 
 export type PoolDeps = {

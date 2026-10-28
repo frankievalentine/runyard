@@ -259,6 +259,18 @@ changed since the review. Runners live under `~/runyard-runners` (`C:\runyard-ru
 Windows), as a LaunchAgent on macOS (it starts after the user logs in), a systemd service on
 Linux, or a Windows service.
 
+### Cleanup after each job
+
+Persistent runners keep their workspace and Docker data between jobs, which keeps builds warm
+but lets one job affect the next. A persistent pool's **After each job** setting can clear the
+job's workspace, or the workspace and unused Docker data (stopped containers, dangling images,
+unused networks and anonymous volumes). Runyard sets it up through GitHub's job-completed hook:
+the review writes `runyard-job-completed.sh` into each runner's directory, points the runner's
+`.env` at it and restarts the runner, only while it's idle. The hook deletes only inside the
+job's workspace under that runner's `_work` directory and never fails a job. It's for GitHub
+runners on Linux and macOS; forgejo-runner has no job-completed hook, and on-demand runners
+start clean anyway.
+
 ### On-demand pools
 
 A pool is **persistent** (each slot is a registered runner waiting for jobs) or **on demand**.

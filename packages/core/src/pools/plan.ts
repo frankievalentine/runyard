@@ -11,6 +11,7 @@ import {
   type LocalTemplate,
   type TemplateRecord,
   type ForgejoMode,
+  type CleanupMode,
   type LocalRunner,
   type Migration,
   type RemoteRunner,
@@ -33,7 +34,8 @@ export type PlanAction =
   | "installTemplate"
   | "removeTemplate"
   | "retire"
-  | "installTools";
+  | "installTools"
+  | "configureCleanup";
 
 export type PlanItem = {
   action: PlanAction;
@@ -53,6 +55,8 @@ export type PlanItem = {
   forgejoMode?: ForgejoMode;
   /** For installTools: the tools it installs (or, blocked, the ones a person must). */
   tools?: ToolId[];
+  /** For configureCleanup: what the runner should clear after each job. */
+  cleanup?: CleanupMode;
 };
 
 /** A runner Runyard registered earlier, kept so it can be found and removed when no longer wanted. */
@@ -155,6 +159,27 @@ export function planMachine(input: PlanInput): PlanItem[] {
       blocked,
       ...(labels ? { labels } : {}),
     });
+    const cleanupItem = (mode: CleanupMode, blocked: boolean): PlanItem => {
+      if (d.serviceMode === "windows-service" && mode !== "off")
+        return {
+          ...item(
+            "unsupportedPlatform",
+            "Cleanup after each job runs on Linux and macOS runners for now.",
+            true,
+          ),
+          cleanup: mode,
+        };
+      return {
+        ...item(
+          "configureCleanup",
+          mode === "off"
+            ? "Remove Runyard's cleanup hook and restart the runner."
+            : `After each job, clear its workspace${mode === "docker" ? " and prune unused Docker data" : ""}; restarts the runner to take effect.`,
+          blocked,
+        ),
+        cleanup: mode,
+      };
+    };
 
     if (d.runnerKind === "forgejo" && d.serviceMode !== "systemd") {
       items.push(item("unsupportedPlatform", "forgejo-runner is only published for Linux.", true));
@@ -197,6 +222,8 @@ export function planMachine(input: PlanInput): PlanItem[] {
           d.labels,
         ),
       );
+      // A new runner starts without Runyard's hook; set it up right after the install.
+      if (d.cleanup && d.cleanup !== "off") items.push(cleanupItem(d.cleanup, false));
       continue;
     }
     if (!remote && configured) {
@@ -238,6 +265,18 @@ export function planMachine(input: PlanInput): PlanItem[] {
         unexpected.length && `remove ${unexpected.join(", ")}`,
       ];
       items.push(item("reconcileLabels", changes.filter(Boolean).join("; "), false, d.labels));
+    }
+    const wantCleanup = d.cleanup ?? "off";
+    if (d.runnerKind === "actions" && (local.cleanup ?? "off") !== wantCleanup) {
+      items.push(
+        remote.busy
+          ? {
+              ...cleanupItem(wantCleanup, true),
+              reason:
+                "It's running a job; changing its cleanup restarts it, so this waits until it's idle.",
+            }
+          : cleanupItem(wantCleanup, false),
+      );
     }
     if (!isActive(local.service)) {
       if (remote.busy)
@@ -544,6 +583,7 @@ export function planFingerprint(items: PlanItem[]): string {
         i.blocked,
         i.labels ?? null,
         i.tools ?? null,
+        i.cleanup ?? null,
       ])
       .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
   );

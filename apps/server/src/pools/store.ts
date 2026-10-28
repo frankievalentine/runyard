@@ -1,4 +1,5 @@
 import type {
+  CleanupMode,
   Dispatch,
   ForgejoMode,
   Pool,
@@ -29,6 +30,7 @@ export type PoolInput = {
   forgejoMode: ForgejoMode;
   mode: PoolMode;
   toolProfiles: ToolProfile[];
+  cleanup: CleanupMode;
 };
 
 export function listPools(db: Db): Pool[] {
@@ -52,6 +54,7 @@ export function listPools(db: Db): Pool[] {
       toolProfiles: (JSON.parse(p.toolProfiles) as string[]).filter(
         (t): t is ToolProfile => t in TOOL_PROFILES,
       ),
+      cleanup: p.cleanup,
       machines: machines
         .filter((m) => m.poolId === p.id)
         .map(({ machineId, slots }) => ({ machineId, slots })),
@@ -76,6 +79,7 @@ export function savePool(
       forgejoImage: input.forgejoMode.kind === "docker" ? input.forgejoMode.image : null,
       mode: input.mode,
       toolProfiles: JSON.stringify(input.toolProfiles),
+      cleanup: input.cleanup,
     };
     if (exists) tx.update(pools).set(row).where(eq(pools.id, id)).run();
     else

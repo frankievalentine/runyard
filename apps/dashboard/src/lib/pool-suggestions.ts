@@ -6,6 +6,7 @@ import type {
   QueuedJobView,
   Scope,
   ToolProfile,
+  CleanupMode,
 } from "@runyard/core";
 import { availableScopes, sameScope } from "./pools.ts";
 import { isBuiltinLabel, osLabel } from "./status.ts";
@@ -19,6 +20,7 @@ export type PoolDraft = {
   forgejoMode: ForgejoMode;
   mode?: PoolMode;
   toolProfiles?: ToolProfile[];
+  cleanup?: CleanupMode;
 };
 
 export type PoolSuggestion = {

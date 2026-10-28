@@ -86,6 +86,7 @@ describe("probe", () => {
       service: "uninstalled",
       version: "2.329.0",
       agentName: "mini-mac-01",
+      cleanup: null,
     });
     expect(local.get("~/runyard-runners/mac/02")).toMatchObject({
       configured: false,

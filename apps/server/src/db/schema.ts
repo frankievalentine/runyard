@@ -177,6 +177,10 @@ export const pools = sqliteTable("pools", {
   paused: integer({ mode: "boolean" }).notNull().default(false),
   /** JSON array of tool profiles its machines' reviews install where missing. */
   toolProfiles: text().notNull().default("[]"),
+  /** Persistent GitHub runners: `off`, `workspace`, or `docker` (workspace and unused Docker data). */
+  cleanup: text({ enum: ["off", "workspace", "docker"] })
+    .notNull()
+    .default("off"),
   createdAt: integer({ mode: "timestamp_ms" }).notNull(),
 });
 

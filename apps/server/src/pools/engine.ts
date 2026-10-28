@@ -318,6 +318,18 @@ export class PoolEngine {
           RF_SERVICE_MODE: item.serviceMode,
           RF_SUDO_PASSWORD: sudoPassword,
         });
+      case "configureCleanup": {
+        // Busy is checked again at the last moment: the change restarts the runner.
+        const fresh = await this.remoteRunners(http, item.scope);
+        if (fresh.get(item.runnerName.toLowerCase())?.busy)
+          throw new EngineError("It started a job; cleanup not changed.");
+        return this.runScript(ctx, "cleanup-configure", {
+          RF_ROOT: item.path,
+          RF_CLEANUP: item.cleanup ?? "off",
+          RF_SERVICE_MODE: item.serviceMode,
+          RF_SUDO_PASSWORD: sudoPassword,
+        });
+      }
       case "reconcileLabels": {
         const remote = ctx.remote.get(scopeKey(item.scope))?.get(item.runnerName.toLowerCase());
         if (!remote) throw new EngineError("GitHub no longer lists this runner.");

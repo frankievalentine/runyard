@@ -1,4 +1,4 @@
-import type { LocalRunner, LocalTemplate, ServiceMode } from "@runyard/core";
+import type { CleanupMode, LocalRunner, LocalTemplate, ServiceMode } from "@runyard/core";
 import nixosHelper from "../../scripts/runner-nixos-service.py" with { type: "text" };
 import installPs1 from "../../scripts/runner-install.ps1" with { type: "text" };
 import installSh from "../../scripts/runner-install.sh" with { type: "text" };
@@ -16,6 +16,7 @@ import jitSweep from "../../scripts/jit-sweep.sh" with { type: "text" };
 import templateInstall from "../../scripts/template-install.sh" with { type: "text" };
 import templateRemove from "../../scripts/template-remove.sh" with { type: "text" };
 import toolsInstall from "../../scripts/tools-install.sh" with { type: "text" };
+import cleanupConfigure from "../../scripts/cleanup-configure.sh" with { type: "text" };
 
 export type Operation =
   | "install"
@@ -29,7 +30,8 @@ export type Operation =
   | "template-remove"
   | "jit-start"
   | "jit-sweep"
-  | "tools-install";
+  | "tools-install"
+  | "cleanup-configure";
 
 /** Values that are paths on the machine: a leading `~/` becomes the remote home directory. */
 const PATHS = new Set(["RF_ROOT", "RF_TEMPLATE", "RF_JOB_DIR"]);
@@ -67,6 +69,10 @@ const SCRIPTS: Record<Operation, { posix: string; windows: string }> = {
   "jit-start": { posix: jitStart, windows: "throw 'on-demand runners need Linux or macOS'" },
   "jit-sweep": { posix: jitSweep, windows: "throw 'on-demand runners need Linux or macOS'" },
   "tools-install": { posix: toolsInstall, windows: "throw 'tool profiles need Linux or macOS'" },
+  "cleanup-configure": {
+    posix: cleanupConfigure,
+    windows: "throw 'cleanup after each job needs Linux or macOS'",
+  },
 };
 
 /**
@@ -160,9 +166,10 @@ $rows += [pscustomobject]@{ index = ${i}; configured = $configured; service = $s
   if [ -z "$label" ]; then service=uninstalled
   else service="$(systemctl is-active "$label" 2>/dev/null || true)"; [ -n "$service" ] || service=unknown; fi`;
     return `path=${shPath(t.path)}
-configured=false; service=missing; version=''; agent=''
+configured=false; service=missing; version=''; agent=''; cleanup=''
 if [ -f "$path/.runner" ]; then
   configured=true
+  cleanup="$(cat "$path/.runyard-cleanup" 2>/dev/null || true)"
   ${service}
   # actions/runner records agentName; forgejo-runner records name.
   agent="$(tr -d '[:space:]' < "$path/.runner" | sed -n 's/.*"agentName":"\\([^"]*\\)".*/\\1/p')"
@@ -173,12 +180,18 @@ if [ -f "$path/.runner" ]; then
     version="$("$path/forgejo-runner" --version 2>/dev/null | awk '{print $NF; exit}')"
   fi
 fi
-printf 'RF1\\t%s\\t%s\\t%s\\t%s\\t%s\\n' ${i} "$configured" "$service" "$version" "$agent"`;
+printf 'RF1\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' ${i} "$configured" "$service" "$version" "$agent" "$cleanup"`;
   });
   return ["set -u", ...blocks, "printf 'RF_PROBE_END\\n'"].join("\n");
 }
 
 export class ProbeError extends Error {}
+
+/** The mode recorded in a runner's `.runyard-cleanup`; anything unexpected reads as none. */
+function cleanupMode(value: string | undefined): CleanupMode | null {
+  const v = value?.trim();
+  return v === "workspace" || v === "docker" ? v : null;
+}
 
 /** Decodes probe output back onto the requested paths, rejecting incomplete answers. */
 export function parseProbe(
@@ -195,6 +208,7 @@ export function parseProbe(
     service: string;
     version: string | null;
     agent: string | null;
+    cleanup?: CleanupMode | null;
   }[] = [];
   if (windows) {
     const json = output.slice(0, output.lastIndexOf("RF_PROBE_END")).trim();
@@ -212,7 +226,7 @@ export function parseProbe(
   } else {
     for (const line of output.split(/\r?\n/)) {
       if (!line.startsWith("RF1\t")) continue;
-      const [, index, configured, service, version, agent] = line.split("\t");
+      const [, index, configured, service, version, agent, cleanup] = line.split("\t");
       if (index === undefined || configured === undefined || service === undefined) {
         throw new ProbeError(`Malformed runner check row: ${line}`);
       }
@@ -222,6 +236,7 @@ export function parseProbe(
         service,
         version: version?.trim() || null,
         agent: agent?.trim() || null,
+        cleanup: cleanupMode(cleanup),
       });
     }
   }
@@ -236,6 +251,7 @@ export function parseProbe(
       service: row.service,
       version: row.version,
       agentName: row.agent,
+      cleanup: row.cleanup ?? null,
     });
   }
   if (result.size !== targets.length)

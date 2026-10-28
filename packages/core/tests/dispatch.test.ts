@@ -30,6 +30,7 @@ const pool = (over: Partial<Pool> = {}): Pool => ({
   mode: "onDemand",
   paused: false,
   toolProfiles: [],
+  cleanup: "off",
   ...over,
 });
 const info = new Map<string, { name: string; os: OsFamily | null }>([

@@ -215,8 +215,8 @@ container:
 2. **Baseline install (done, against fakes and a Debian container):** tool profiles per pool (Essentials, Build tools, Docker) installed as a
    reviewed plan item with the package manager; Docker from distribution packages; blocked with
    the command on Macs without Homebrew, and on Windows.
-3. **Cleanup:** an optional per-pool job-completed hook for persistent GitHub runners (workspace,
-   optionally Docker prune), off by default.
+3. **Cleanup (done, against fakes and a Debian container):** an optional per-pool job-completed hook for persistent GitHub runners (workspace,
+   optionally Docker prune), off by default. forgejo-runner documents no job-completed hook, so GitHub runners only.
 4. **Test job:** a per-runner label, a workflow file the user adds, and a dispatch of it on that
    runner with the result shown; needs Actions read and write on the GitHub App. Forgejo later.
 

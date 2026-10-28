@@ -165,6 +165,7 @@ test("a Mac in a pool needs automatic login for the runners' user", () => {
         mode: "persistent",
         paused: false,
         toolProfiles: [],
+        cleanup: "off",
       },
     ];
     return v;

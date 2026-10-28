@@ -1,6 +1,7 @@
 import type { CommandResult } from "../command.ts";
 
 type Dir = {
+  cleanup?: string;
   configured: boolean;
   service: "active" | "inactive" | "uninstalled";
   name: string | null;
@@ -26,7 +27,8 @@ export class FakeRunnerHost {
       | "template-remove"
       | "jit-start"
       | "sweep"
-      | "tools-install";
+      | "tools-install"
+      | "cleanup-configure";
     env: Record<string, string>;
   }[] = [];
   /** Installed templates by path, with their version. */
@@ -58,13 +60,19 @@ export class FakeRunnerHost {
       const rows = paths.map((path, i) => {
         const d = this.dirs.get(path);
         const service = d?.configured ? d.service : "missing";
-        return `RF1\t${i}\t${d?.configured ? "true" : "false"}\t${service}\t${d?.configured ? "2.329.0" : ""}\t${d?.name ?? ""}`;
+        return `RF1\t${i}\t${d?.configured ? "true" : "false"}\t${service}\t${d?.configured ? "2.329.0" : ""}\t${d?.name ?? ""}\t${d?.cleanup ?? ""}`;
       });
       return `${rows.join("\n")}\nRF_PROBE_END\n`;
     }
     const env = Object.fromEntries(
       [...stdin.matchAll(/^export (RF_[A-Z_]+)=(.+)$/gm)].map((m) => [m[1]!, unquote(m[2]!)]),
     );
+    if ("RF_CLEANUP" in env) {
+      this.received.push({ op: "cleanup-configure", env });
+      const dir = this.dirs.get(env.RF_ROOT!);
+      if (dir) dir.cleanup = env.RF_CLEANUP === "off" ? "" : env.RF_CLEANUP;
+      return `cleanup ${env.RF_CLEANUP}`;
+    }
     if ("RF_TOOLS" in env) {
       this.received.push({ op: "tools-install", env });
       return `Installed: ${env.RF_TOOLS}`;

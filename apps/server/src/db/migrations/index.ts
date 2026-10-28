@@ -9,6 +9,7 @@ import runnerAssignments from "./0007_runner_assignments.sql" with { type: "text
 import onDemand from "./0008_on_demand.sql" with { type: "text" };
 import runnerMigrations from "./0009_runner_migrations.sql" with { type: "text" };
 import toolProfiles from "./0010_tool_profiles.sql" with { type: "text" };
+import poolCleanup from "./0011_pool_cleanup.sql" with { type: "text" };
 
 /**
  * Every migration drizzle-kit generated, oldest first. Add new files here;
@@ -26,6 +27,7 @@ export const migrations: readonly Migration[] = [
   { name: "0008_on_demand", sql: onDemand },
   { name: "0009_runner_migrations", sql: runnerMigrations },
   { name: "0010_tool_profiles", sql: toolProfiles },
+  { name: "0011_pool_cleanup", sql: poolCleanup },
 ];
 
 export type Migration = { name: string; sql: string };
