@@ -1,23 +1,24 @@
-import { chmod, lstat, mkdir, unlink } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { getConnInfo } from "hono/bun";
 import { createApp, type AppDeps } from "./app.ts";
+import type { TailnetLogin } from "./auth/identity.ts";
 import { Challenges } from "./auth/passkeys.ts";
 import { FailureLimiter } from "./auth/rate-limit.ts";
 import { pruneSessions } from "./auth/sessions.ts";
 import { SetupCode } from "./auth/setup.ts";
 import { adminCount } from "./auth/users.ts";
+import { runCommand } from "./command.ts";
 import { dataDir } from "./config.ts";
 import type { DashboardAssets } from "./dashboard.ts";
 import { openDatabase } from "./db/index.ts";
 import { loadSecretKey, SecretStore } from "./secrets.ts";
-
-/** macOS limits Unix socket paths to 104 bytes including the terminator. */
-const MAX_SOCKET_PATH = 103;
+import { TailnetListener } from "./tailnet.ts";
+import { TailscaleCli, WhoisCache } from "./tailscale.ts";
 
 /**
- * Opens storage, then serves on TCP (loopback by default) and on a Unix socket
- * in the data directory for `tailscale serve unix:<path>`. Only the socket
- * trusts Tailscale identity headers.
+ * Opens storage, then serves on loopback TCP and, when Tailscale is available,
+ * on HTTPS at this machine's tailnet addresses with its `*.ts.net` certificate.
  */
 export async function start(dashboard?: DashboardAssets) {
   const dir = dataDir();
@@ -30,58 +31,41 @@ export async function start(dashboard?: DashboardAssets) {
       `\nNo admin yet. Open the dashboard and enter this setup code to create one:\n\n    ${code}\n`,
     );
   });
-  const limiter = new FailureLimiter(10, 15 * 60 * 1000);
-  const challenges = new Challenges();
-  const deps = (listener: AppDeps["listener"]): AppDeps => ({
+  const tailscale = new TailscaleCli(runCommand);
+  const whois = new WhoisCache((ip) => tailscale.whois(ip));
+  const tailnetLogin: TailnetLogin = async (c) => {
+    const address = getConnInfo(c).remote.address?.replace(/^::ffff:/, "");
+    return address ? whois.login(address) : null;
+  };
+  const shared = {
     db,
-    listener,
     setup,
-    limiter,
-    challenges,
-  });
+    limiter: new FailureLimiter(10, 15 * 60 * 1000),
+    challenges: new Challenges(),
+    tailnetLogin,
+  };
+  const deps = (listener: AppDeps["listener"]): AppDeps => ({ ...shared, listener });
 
   pruneSessions(db);
   setInterval(() => pruneSessions(db), 60 * 60 * 1000).unref();
-
-  // Checked before either listener starts, so a bad socket path never leaves TCP half up.
-  const socketPath = process.env.RUNYARD_SOCKET ?? join(dir, "runyard.sock");
-  if (socketPath !== "off") await clearStaleSocket(socketPath);
 
   const hostname = process.env.RUNYARD_HOST ?? "127.0.0.1";
   const port = Number(process.env.RUNYARD_PORT ?? 7420);
   const server = Bun.serve({ hostname, port, fetch: createApp(deps("tcp"), dashboard).fetch });
   console.log(`runyard listening on ${server.url.href} (data in ${dir})`);
 
-  let socket: ReturnType<typeof Bun.serve> | undefined;
-  if (socketPath !== "off") {
-    socket = Bun.serve({ unix: socketPath, fetch: createApp(deps("socket"), dashboard).fetch });
-    await chmod(socketPath, 0o600);
-    console.log(`runyard listening on unix:${socketPath} (for tailscale serve)`);
+  let tailnet: TailnetListener | undefined;
+  if (process.env.RUNYARD_TAILNET !== "off") {
+    tailnet = new TailnetListener({
+      tailscale,
+      dataDir: dir,
+      port: Number(process.env.RUNYARD_TAILNET_PORT ?? 7443),
+      fetch: createApp(deps("tailnet"), dashboard).fetch,
+      log: (message) => console.log(message),
+    });
+    await tailnet.start();
   }
   if (adminCount(db) === 0) setup.issue();
 
-  return { server, socket, db, secrets };
-}
-
-/** Removes a socket file left by a crashed run, but never one another Runyard is serving. */
-async function clearStaleSocket(path: string) {
-  if (path.length > MAX_SOCKET_PATH) {
-    throw new Error(
-      `The socket path ${path} is too long. Set RUNYARD_SOCKET to a shorter path, or "off".`,
-    );
-  }
-  // lstat, not Bun.file().exists(): a socket isn't a regular file.
-  if (
-    !(await lstat(path).then(
-      () => true,
-      () => false,
-    ))
-  )
-    return;
-  const inUse = await Bun.connect({ unix: path, socket: { data() {} } }).then(
-    (s) => (s.end(), true),
-    () => false,
-  );
-  if (inUse) throw new Error(`Another Runyard is already listening on ${path}.`);
-  await unlink(path);
+  return { server, tailnet, db, secrets };
 }

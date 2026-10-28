@@ -205,7 +205,7 @@ function AddUser() {
             value={tailscaleLogin}
             onChange={(e) => setTailscaleLogin(e.target.value)}
             placeholder="name@example.com"
-            description="Signs them in automatically through tailscale serve."
+            description="Signs them in automatically on the tailnet address."
           />
           <TextField
             label="Username"

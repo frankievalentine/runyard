@@ -4,13 +4,20 @@ import type { Db } from "../db/index.ts";
 import { ABSOLUTE_MS, resolveSession } from "./sessions.ts";
 import { findByTailscaleLogin, type User } from "./users.ts";
 
-/** Which listener a request arrived on. Only the private Unix socket is reached through `tailscale serve`. */
-export type Listener = "tcp" | "socket";
+/**
+ * Which listener a request arrived on: loopback TCP (password sign-in, local
+ * use, reverse proxies) or HTTPS on the tailnet, where every connection's
+ * address is authenticated by WireGuard and resolved with `tailscale whois`.
+ */
+export type Listener = "tcp" | "tailnet";
+
+/** The Tailscale login behind a request's connection, or null. Only called on the tailnet listener. */
+export type TailnetLogin = (c: Context) => Promise<string | null>;
 
 export type Identity = {
   user: User | undefined;
   via: "tailscale" | "session" | null;
-  /** The Tailscale login `tailscale serve` vouched for, even when it matches no user. */
+  /** The Tailscale login of the connecting device, even when it matches no user. */
   tailscaleLogin: string | null;
   sessionToken: string | null;
 };
@@ -20,15 +27,17 @@ export type AppEnv = { Variables: { identity: Identity } };
 export const SESSION_COOKIE = "runyard_session";
 
 /**
- * Resolves who is asking. Tailscale identity headers are trusted only on the
- * socket, which only this user and root can connect to; on TCP anyone could
- * send them, so they're ignored there. A Tailscale identity takes precedence
- * over a session cookie.
+ * Resolves who is asking. On the tailnet the connecting device's owner comes
+ * from Tailscale itself; no request header is trusted for identity anywhere.
+ * A Tailscale identity takes precedence over a session cookie.
  */
-export function identify(db: Db, listener: Listener): MiddlewareHandler<AppEnv> {
+export function identify(
+  db: Db,
+  listener: Listener,
+  tailnetLogin: TailnetLogin,
+): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
-    const tailscaleLogin =
-      listener === "socket" ? c.req.header("Tailscale-User-Login")?.toLowerCase() || null : null;
+    const tailscaleLogin = listener === "tailnet" ? await tailnetLogin(c) : null;
     const tailscaleUser = tailscaleLogin ? findByTailscaleLogin(db, tailscaleLogin) : undefined;
     const sessionToken = getCookie(c, SESSION_COOKIE) ?? null;
     if (tailscaleUser) {
@@ -42,7 +51,7 @@ export function identify(db: Db, listener: Listener): MiddlewareHandler<AppEnv> 
 }
 
 /** Rejects cross-site writes: browsers send `Origin` and `Sec-Fetch-Site` on every POST, PATCH and DELETE. */
-export function sameOriginWrites(listener: Listener): MiddlewareHandler<AppEnv> {
+export function sameOriginWrites(): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     if (!["GET", "HEAD", "OPTIONS"].includes(c.req.method)) {
       const site = c.req.header("Sec-Fetch-Site");
@@ -50,10 +59,7 @@ export function sameOriginWrites(listener: Listener): MiddlewareHandler<AppEnv> 
         return c.json({ error: "Cross-site request refused." }, 403);
       const origin = c.req.header("Origin");
       if (origin) {
-        const hosts = [c.req.header("Host")];
-        // Behind `tailscale serve` the public host may arrive as X-Forwarded-Host.
-        if (listener === "socket") hosts.push(c.req.header("X-Forwarded-Host"));
-        if (!URL.canParse(origin) || !hosts.includes(new URL(origin).host)) {
+        if (!URL.canParse(origin) || new URL(origin).host !== c.req.header("Host")) {
           return c.json({ error: "Cross-origin request refused." }, 403);
         }
       }
@@ -95,8 +101,8 @@ export function clearSessionCookie(c: Context) {
 /**
  * The dashboard's origin and WebAuthn relying-party ID as the browser sees
  * them. `RUNYARD_ORIGIN` pins them (needed behind a TLS-terminating proxy on
- * TCP, whose forwarded headers can't be trusted); otherwise the socket trusts
- * its proxy's forwarded headers and TCP uses the request itself.
+ * TCP, whose forwarded headers can't be trusted); otherwise they come from the
+ * request itself.
  */
 export function requestOrigin(
   c: Context,
@@ -105,10 +111,8 @@ export function requestOrigin(
 ) {
   let origin: string;
   if (configured) origin = new URL(configured).origin;
-  else if (listener === "socket") {
-    const proto = c.req.header("X-Forwarded-Proto") ?? "http";
-    origin = `${proto}://${c.req.header("X-Forwarded-Host") ?? c.req.header("Host")}`;
-  } else {
+  else if (listener === "tailnet") origin = `https://${c.req.header("Host")}`;
+  else {
     const url = new URL(c.req.url);
     origin = `${url.protocol}//${c.req.header("Host") ?? url.host}`;
   }
@@ -117,10 +121,9 @@ export function requestOrigin(
 
 /**
  * `Secure` only over HTTPS, so sign-in still works over plain HTTP on an
- * already-encrypted network such as WireGuard. The socket's proxy is trusted
- * to report the scheme.
+ * already-encrypted network such as WireGuard. The tailnet listener is always HTTPS.
  */
 function isHttps(c: Context, listener: Listener) {
-  if (listener === "socket") return c.req.header("X-Forwarded-Proto") === "https";
+  if (listener === "tailnet") return true;
   return new URL(c.req.url).protocol === "https:";
 }

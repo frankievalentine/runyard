@@ -155,7 +155,7 @@ function Passkeys() {
             </form>
           ) : (
             <p className="text-[12.5px] text-ink-2">
-              Passkeys need HTTPS or localhost. Open Runyard through tailscale serve to add one.
+              Passkeys need HTTPS or localhost. Open Runyard at its tailnet address to add one.
             </p>
           )}
         </div>

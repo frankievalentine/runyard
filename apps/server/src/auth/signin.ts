@@ -6,7 +6,7 @@ import { adminCount, toView, type User } from "./users.ts";
 
 export type Via = "tailscale" | "session";
 
-/** Tailscale-linked users on the socket need no cookie; everyone else gets a fresh session. */
+/** Tailscale-linked users on the tailnet need no cookie; everyone else gets a fresh session. */
 export function signIn(db: Db, listener: Listener, c: Context<AppEnv>, user: User): Via {
   const identity = c.get("identity");
   if (identity.tailscaleLogin && identity.tailscaleLogin === user.tailscaleLogin)

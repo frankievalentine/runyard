@@ -14,7 +14,13 @@ const { port: free } = port;
 await port.stop();
 
 const child = Bun.spawn([binary], {
-  env: { ...process.env, RUNYARD_DATA_DIR: dataDir, RUNYARD_PORT: String(free) },
+  // The tailnet listener stays off: CI never calls the real Tailscale CLI.
+  env: {
+    ...process.env,
+    RUNYARD_DATA_DIR: dataDir,
+    RUNYARD_PORT: String(free),
+    RUNYARD_TAILNET: "off",
+  },
   stdout: "inherit",
   stderr: "inherit",
 });

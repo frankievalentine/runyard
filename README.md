@@ -35,25 +35,23 @@ until an admin exists, so only someone who can read Runyard's output can claim t
 
 ## Access over Tailscale
 
-Runyard listens on loopback TCP and on a private Unix socket. Expose the socket on your tailnet
-with HTTPS:
+When Tailscale is running on the same machine, Runyard also serves HTTPS on the machine's tailnet
+addresses, at `https://<machine>.<tailnet>.ts.net:7443`, with a certificate from `tailscale cert`
+that it renews on its own. No `tailscale serve` setup is needed, and any Tailscale install works:
+the Mac App Store or standalone app, `tailscaled` on Linux, or Windows.
 
-```sh
-tailscale serve --bg unix:"$HOME/Library/Application Support/Runyard/runyard.sock"   # macOS
-tailscale serve --bg unix:"$HOME/.local/share/runyard/runyard.sock"                  # Linux
-```
+The tailnet needs **MagicDNS** and **HTTPS Certificates** turned on (Tailscale admin console, DNS
+page). Until they are, or while Tailscale is down, Runyard serves on loopback only and says why in
+its output.
 
-The sandboxed Mac App Store build of Tailscale may not be able to reach a socket in your Library
-folder; the standalone or Homebrew `tailscaled` can. This hasn't been verified yet.
-
-Requests through the socket carry Tailscale's identity, so users whose Tailscale login is added in
-**Users** are signed in automatically. Tailscale identity is trusted only on the socket; on TCP,
-users sign in with a username and password.
+On the tailnet, Runyard identifies each connection's device with `tailscale whois`, so users whose
+Tailscale login is added in **Users** are signed in automatically. No request header is trusted
+for identity. On loopback TCP, users sign in with a username and password.
 
 ## Passkeys
 
 Signed-in users can add passkeys under **Account** and then sign in without a password. Passkeys
-need HTTPS or `localhost`, so they're available through `tailscale serve` but not over plain HTTP.
+need HTTPS or `localhost`, so they're available on the tailnet address but not over plain HTTP.
 A passkey works only on the address it was added from.
 
 ## Configuration
@@ -65,7 +63,9 @@ A passkey works only on the address it was added from.
 | `RUNYARD_DATA_DIR`        | Database and generated key location. Defaults to `~/Library/Application Support/Runyard` on macOS and `$XDG_DATA_HOME/runyard` (`~/.local/share/runyard`) elsewhere. Created with mode `700`; an existing directory keeps its permissions. |
 | `RUNYARD_SECRET_KEY`      | Base64 32-byte key (`openssl rand -base64 32`) that encrypts stored credentials.                                                                                                                                                           |
 | `RUNYARD_SECRET_KEY_FILE` | File holding that key. Used when `RUNYARD_SECRET_KEY` is unset; defaults to `secret.key` in the data directory, generated with mode `600` on first start.                                                                                  |
-| `RUNYARD_SOCKET`          | Unix socket for `tailscale serve` (default `runyard.sock` in the data directory, mode `600`); `off` disables it.                                                                                                                           |
+| `RUNYARD_TAILNET`         | `off` disables the tailnet HTTPS listener.                                                                                                                                                                                                 |
+| `RUNYARD_TAILNET_PORT`    | Tailnet HTTPS port (default `7443`). macOS lets any user bind `443`; Linux needs extra privileges for it.                                                                                                                                  |
+| `RUNYARD_TAILSCALE`       | Path to the `tailscale` CLI, if it isn't on `PATH`.                                                                                                                                                                                        |
 | `RUNYARD_ORIGIN`          | The dashboard's public URL, such as `https://runyard.example.com`. Only needed behind a TLS-terminating reverse proxy on TCP, so passkeys verify against the address the browser uses.                                                     |
 
 A key file in the data directory only protects a copy of the database taken on its own, such as a

@@ -77,9 +77,9 @@ describe("setup", () => {
     expect(again.status).toBe(409);
   });
 
-  test("over the socket, links the admin to the Tailscale login without a password", async () => {
-    const { app, codes } = testApp({ listener: "socket" });
-    const ts = { "Tailscale-User-Login": "Frankie@example.com" };
+  test("on the tailnet, links the admin to the Tailscale login without a password", async () => {
+    const { app, codes } = testApp({ listener: "tailnet" });
+    const ts = { "X-Test-Tailnet-Login": "Frankie@example.com" };
     const res = await send(app, "POST", "/api/setup", { code: codes[0] }, ts);
     expect(res.status).toBe(200);
     expect(res.headers.getSetCookie()).toEqual([]);
@@ -88,6 +88,19 @@ describe("setup", () => {
       user: { tailscaleLogin: "frankie@example.com", role: "admin" },
       via: "tailscale",
     });
+  });
+
+  test("never trusts a Tailscale-User-Login header, even on the tailnet", async () => {
+    const { app, codes } = testApp({ listener: "tailnet" });
+    const res = await send(
+      app,
+      "POST",
+      "/api/setup",
+      { code: codes[0] },
+      { "Tailscale-User-Login": "forged@example.com" },
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Choose a username and password." });
   });
 
   test("ignores Tailscale headers on TCP", async () => {
@@ -142,10 +155,10 @@ describe("sign-in", () => {
     expect(res.status).toBe(429);
   });
 
-  test("an unknown Tailscale login on the socket is reported but not signed in", async () => {
-    const { app } = testApp({ listener: "socket" });
+  test("an unknown Tailscale login on the tailnet is reported but not signed in", async () => {
+    const { app } = testApp({ listener: "tailnet" });
     const res = await send(app, "GET", "/api/session", undefined, {
-      "Tailscale-User-Login": "stranger@example.com",
+      "X-Test-Tailnet-Login": "stranger@example.com",
     });
     expect(await res.json()).toMatchObject({ user: null, tailscaleLogin: "stranger@example.com" });
   });
@@ -247,20 +260,21 @@ describe("cross-site protection", () => {
     ).toBe(200);
   });
 
-  test("on the socket, accepts the forwarded public host", async () => {
-    const { app, codes } = testApp({ listener: "socket" });
-    const res = await send(
-      app,
-      "POST",
-      "/api/setup",
-      { code: codes[0], username: "admin", password: PASSWORD },
-      {
-        Host: "localhost",
-        "X-Forwarded-Host": "runyard.tail1234.ts.net",
-        Origin: "https://runyard.tail1234.ts.net",
-      },
-    );
-    expect(res.status).toBe(200);
+  test("on the tailnet, accepts the machine's own origin and refuses forwarded hosts", async () => {
+    const { app, codes } = testApp({ listener: "tailnet" });
+    const body = { code: codes[0], username: "admin", password: PASSWORD };
+    const forwarded = await send(app, "POST", "/api/setup", body, {
+      Host: "localhost",
+      "X-Forwarded-Host": "runyard.tail1234.ts.net",
+      Origin: "https://runyard.tail1234.ts.net",
+    });
+    expect(forwarded.status).toBe(403);
+    const direct = await send(app, "POST", "/api/setup", body, {
+      Host: "runyard.tail1234.ts.net:7443",
+      Origin: "https://runyard.tail1234.ts.net:7443",
+    });
+    expect(direct.status).toBe(200);
+    expect(direct.headers.getSetCookie()[0]).toContain("Secure");
   });
 });
 

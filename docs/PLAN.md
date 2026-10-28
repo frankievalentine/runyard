@@ -14,25 +14,27 @@ inventory.
   repositories its runners serve in the dashboard.
 - **Forgejo.** Instance, organization, user and repository scoped `forgejo-runner` registrations.
 - **Accessible anywhere.** A web dashboard served by the control service, exposed over Tailscale.
+- **Any OS.** The control service runs on macOS, Linux and Windows, so users start on whatever
+  machine they have.
 - **Easy setup.** One binary or one compose file, a first-run wizard, and configuration in the UI
   instead of TOML.
 
 ## Decisions
 
-| Area             | Decision                                                                                           | Notes                                                                                                            |
-| ---------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Form factor      | Control service + web dashboard                                                                    | The service polls, holds credentials and runs changes; any browser views it.                                     |
-| Language         | TypeScript on Bun                                                                                  | One language across the stack. Machine scripts (sh/PowerShell) are ported from fleet.                            |
-| Toolchain        | Vite+ (`vp`) with Bun workspaces                                                                   | `vp check` for format, lint and types; `vp run -r` for workspace tasks.                                          |
-| Server           | Hono                                                                                               | Typed RPC client (`hc`) shared with the dashboard; no codegen.                                                   |
-| Storage          | SQLite (`bun:sqlite`) + Drizzle                                                                    | One file. Forge credentials encrypted at rest with a key from env or a key file.                                 |
-| Dashboard auth   | Required                                                                                           | Tailscale identity headers (via `tailscale serve`) with a user allowlist; otherwise a local admin with passkeys. |
-| GitHub auth      | GitHub App, created through the manifest flow                                                      | The installation's repository picker is the multi-repo selection for personal accounts.                          |
-| Events           | Polling by default, webhooks opt-in                                                                | A tailnet-only service isn't reachable by GitHub; webhooks need Funnel or a public URL.                          |
-| Machines         | Agentless SSH                                                                                      | Nothing installed on machines besides the runners themselves.                                                    |
-| Network          | Any SSH-reachable machine; Tailscale optional                                                      | Tailscale (or Headscale) adds discovery, Tailscale SSH and `tailscale serve`.                                    |
-| Distribution     | `bun build --compile` binary (primary) and a Docker image + compose with a Tailscale sidecar       | The binary uses the host's SSH keys and Tailscale directly.                                                      |
-| Runner execution | GitHub runners as native services; Forgejo runners in host mode by default, Docker mode per runner |                                                                                                                  |
+| Area             | Decision                                                                                           | Notes                                                                                                                                                                                                                                          |
+| ---------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Form factor      | Control service + web dashboard                                                                    | The service polls, holds credentials and runs changes; any browser views it.                                                                                                                                                                   |
+| Language         | TypeScript on Bun                                                                                  | One language across the stack. Machine scripts (sh/PowerShell) are ported from fleet.                                                                                                                                                          |
+| Toolchain        | Vite+ (`vp`) with Bun workspaces                                                                   | `vp check` for format, lint and types; `vp run -r` for workspace tasks.                                                                                                                                                                        |
+| Server           | Hono                                                                                               | Typed RPC client (`hc`) shared with the dashboard; no codegen.                                                                                                                                                                                 |
+| Storage          | SQLite (`bun:sqlite`) + Drizzle                                                                    | One file. Forge credentials encrypted at rest with a key from env or a key file.                                                                                                                                                               |
+| Dashboard auth   | Required                                                                                           | On the tailnet, Runyard serves HTTPS itself (`tailscale cert`) and identifies each connection with `tailscale whois`; a user allowlist maps logins to roles. Elsewhere, passwords and passkeys. A first-run setup code claims a fresh install. |
+| GitHub auth      | GitHub App, created through the manifest flow                                                      | The installation's repository picker is the multi-repo selection for personal accounts.                                                                                                                                                        |
+| Events           | Polling by default, webhooks opt-in                                                                | A tailnet-only service isn't reachable by GitHub; webhooks need Funnel or a public URL.                                                                                                                                                        |
+| Machines         | Agentless SSH                                                                                      | Nothing installed on machines besides the runners themselves.                                                                                                                                                                                  |
+| Network          | Any SSH-reachable machine; Tailscale optional                                                      | Tailscale (or Headscale) adds discovery, Tailscale SSH and the tailnet HTTPS listener. Any Tailscale variant works, including the sandboxed macOS apps: Runyard only calls the `tailscale` CLI.                                                |
+| Distribution     | `bun build --compile` binary (primary) and a Docker image + compose with a Tailscale sidecar       | The binary uses the host's SSH keys and Tailscale directly.                                                                                                                                                                                    |
+| Runner execution | GitHub runners as native services; Forgejo runners in host mode by default, Docker mode per runner |                                                                                                                                                                                                                                                |
 
 ## Domain model
 
@@ -85,7 +87,7 @@ Further packages are extracted when a boundary is proven, not up front.
 
 1. **Foundation**
    - SQLite and Drizzle schema, encrypted secrets, and configuration.
-   - Dashboard authentication.
+   - Dashboard authentication. (Done.)
    - The production build: the server serves the dashboard from the compiled binary.
    - CI.
    - Choose the dashboard's routing, data-fetching and styling libraries.
@@ -110,7 +112,7 @@ Further packages are extracted when a boundary is proven, not up front.
 6. **Setup**
    - A first-run wizard (dependency checks, App creation, first machine and pool).
    - The Docker image and compose file with a Tailscale sidecar.
-   - `tailscale serve` integration.
+   - Showing the tailnet address and Tailscale setup status in the wizard.
 7. **Webhooks and JIT**
    - Opt-in webhooks (Funnel or a public URL, HMAC verified).
    - A dispatcher that mints just-in-time runner configs for queued jobs and runs single-job

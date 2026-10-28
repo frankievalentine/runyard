@@ -19,6 +19,8 @@ export function testApp(
     setup,
     limiter: new FailureLimiter(10, 15 * 60 * 1000),
     challenges: new Challenges(),
+    // Tests name the connecting device's login with a header; production asks `tailscale whois`.
+    tailnetLogin: async (c) => c.req.header("X-Test-Tailnet-Login")?.toLowerCase() ?? null,
   };
   const app = createApp(deps, options.dashboard);
   return { app, deps, codes, setup };
