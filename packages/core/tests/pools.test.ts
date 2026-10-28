@@ -51,7 +51,12 @@ describe("desiredRunners", () => {
       ["studio-mini-mac-01", "~/runyard-runners/mac/01", "launchagent"],
       ["studio-mini-mac-02", "~/runyard-runners/mac/02", "launchagent"],
     ]);
-    expect(runners[0]?.labels).toEqual(["xcode", "runyard", "runyard-pool-mac"]);
+    expect(runners[0]?.labels).toEqual([
+      "xcode",
+      "runyard",
+      "runyard-pool-mac",
+      "runyard-runner-studio-mini-mac-01",
+    ]);
   });
 
   test("personal repositories fan out to one runner per slot per repository", () => {
@@ -187,7 +192,9 @@ describe("planMachine", () => {
       }),
     );
     expect(items.map((i) => i.action)).toEqual(["reconcileLabels", "inspectOffline"]);
-    expect(items[0]?.reason).toBe("add runyard, runyard-pool-mac, xcode; remove old");
+    expect(items[0]?.reason).toBe(
+      "add runyard, runyard-pool-mac, runyard-runner-studio-mini-mac-01, xcode; remove old",
+    );
   });
 
   test("refuses to register into a public repository or a group that admits public ones", () => {

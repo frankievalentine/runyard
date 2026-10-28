@@ -259,6 +259,17 @@ changed since the review. Runners live under `~/runyard-runners` (`C:\runyard-ru
 Windows), as a LaunchAgent on macOS (it starts after the user logs in), a systemd service on
 Linux, or a Windows service.
 
+### Testing a runner
+
+A GitHub runner Runyard installed has **Test this runner** on its page: pick a repository it
+serves and Runyard starts a short workflow on exactly that runner, through the label only it
+carries (`runyard-runner-<name>`), then shows whether it passed, with a link to the run. The
+check prints the runner's tools, compiles and runs a small C program, and optionally runs a
+container. The workflow lives in your repository: the first time, Runyard shows the file to add
+at `.github/workflows/runyard-runner-check.yml` (it never writes to your repositories). Starting
+it needs the GitHub App's **Actions: Read and write** permission; apps created before that need
+it changed in the app's settings on GitHub and the change accepted on each installation.
+
 ### Cleanup after each job
 
 Persistent runners keep their workspace and Docker data between jobs, which keeps builds warm
@@ -306,7 +317,7 @@ Under **Settings ▸ Connections ▸ GitHub**, Runyard creates a GitHub App for 
 GitHub's manifest flow: you confirm it on GitHub, then install it on your personal account or an
 organization and choose its repositories. The app's credentials are stored encrypted. Runyard
 reads runners and queued jobs for the installation's repositories, and registers runners with
-tokens it mints at the moment of use.
+tokens it mints at the moment of use. It also asks for Actions read and write, to start a runner's test job.
 
 ### Forgejo
 

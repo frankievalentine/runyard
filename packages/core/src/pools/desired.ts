@@ -21,6 +21,11 @@ export function slug(value: string, max = 40): string {
   );
 }
 
+/** A runner's own label, which only it carries. */
+export function runnerLabel(name: string): string {
+  return `runyard-runner-${name.toLowerCase()}`;
+}
+
 /** The directory every Runyard runner lives under; the install script refuses anything else. */
 export function runnerRoot(os: OsFamily): string {
   return os === "windows" ? "C:\\runyard-runners" : "~/runyard-runners";
@@ -60,6 +65,7 @@ export function desiredRunners(
               : perRepo
                 ? [pool.name, slug(scope.target.replace("/", "-")), n]
                 : [pool.name, n];
+          const name = `${slug(machine.name, 30)}-${pool.name}-${n}`.slice(0, MAX_RUNNER_NAME);
           out.push({
             key: `${pool.id}:${machineId}:${scopeKey(scope)}:${slot}`,
             poolId: pool.id,
@@ -67,9 +73,17 @@ export function desiredRunners(
             machineId,
             scope,
             slot,
-            name: `${slug(machine.name, 30)}-${pool.name}-${n}`.slice(0, MAX_RUNNER_NAME),
+            name,
             path: [runnerRoot(machine.os), ...dir].join(sep),
-            labels: [...new Set([...pool.labels, "runyard", `runyard-pool-${pool.name}`])],
+            labels: [
+              ...new Set([
+                ...pool.labels,
+                "runyard",
+                `runyard-pool-${pool.name}`,
+                // GitHub runners also carry their own, so a test job can target exactly one.
+                ...(kind === "actions" ? [runnerLabel(name)] : []),
+              ]),
+            ],
             serviceMode: mode,
             runnerKind: kind,
             ...(kind === "forgejo"

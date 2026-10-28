@@ -42,7 +42,7 @@ describe("GitHub App setup", () => {
       default_permissions: {
         administration: "write",
         organization_self_hosted_runners: "write",
-        actions: "read",
+        actions: "write",
       },
       hook_attributes: { active: false },
     });

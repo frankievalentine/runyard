@@ -5,6 +5,7 @@ import { api, call } from "../../api.ts";
 import { CopyValue } from "../../components/CopyValue.tsx";
 import { Icon } from "../../components/icons.tsx";
 import { migrationFor, MoveIntoPool } from "../../components/Migration.tsx";
+import { TestThisRunner } from "../../components/TestJob.tsx";
 import { Elapsed, JobTitle, Label } from "../../components/runners.tsx";
 import {
   Card,
@@ -39,6 +40,8 @@ function Runner() {
   const machine = r?.machineId ? view.machines.find((m) => m.id === r.machineId) : undefined;
   const assigned = r ? view.assignedRunners.includes(r.key) : false;
   const migration = r ? migrationFor(view, r) : undefined;
+  // Runyard's own persistent runners: linked to a machine by a registration, not an admin.
+  const registered = Boolean(r?.machineId) && !assigned && !r?.onDemand && !r?.ephemeral;
   if (!r) {
     return (
       <Card>
@@ -208,6 +211,7 @@ function Runner() {
           />
         </div>
       </Section>
+      {admin && registered && r.forge === "github" && <TestThisRunner r={r} />}
       {r.labels.length > 0 && (
         <Section title="Labels" count={r.labels.length}>
           <Card className="flex flex-wrap gap-1.5 px-4 py-3">

@@ -5,9 +5,10 @@ import type { ManifestConversion } from "./store.ts";
 /**
  * The permissions Runyard asks for. Runner registration (runner management)
  * needs write; asking now saves re-approving every installation later.
+ * Actions write starts a runner's test job (workflow_dispatch).
  */
 export const APP_PERMISSIONS = {
-  actions: "read",
+  actions: "write",
   administration: "write",
   metadata: "read",
   organization_self_hosted_runners: "write",

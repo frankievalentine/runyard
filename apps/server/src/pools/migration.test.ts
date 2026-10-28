@@ -4,7 +4,15 @@ import { listAssignments, listMigrations } from "../machines/assignments.ts";
 import type { OperationView, Review } from "./engine.ts";
 import { finish, pool, setup, type Setup } from "./test-helpers.ts";
 
-const POOL_LABELS = ["self-hosted", "macOS", "ARM64", "xcode", "runyard", "runyard-pool-mac"];
+const POOL_LABELS = [
+  "self-hosted",
+  "macOS",
+  "ARM64",
+  "xcode",
+  "runyard",
+  "runyard-pool-mac",
+  "runyard-runner-mini-mac-01",
+];
 
 /** A pool runner installed and online, next to a runner someone registered by hand. */
 async function withHandRunner(oldLabels = ["self-hosted", "macOS", "xcode"]) {

@@ -50,6 +50,22 @@ export class FakeGithub {
   runs = new Map<string, { id: number; status: "queued" | "in_progress"; jobs: Job[] }[]>();
   tokens = new Map<string, number>();
   requests: string[] = [];
+  /** Test workflows present, as `owner/repo`; dispatches made; and the runs they started. */
+  testWorkflows = new Set<string>();
+  dispatches: { repo: string; ref: string; inputs: Record<string, string> }[] = [];
+  workflowRuns = new Map<
+    string,
+    {
+      id: number;
+      status: string;
+      conclusion: string | null;
+      display_title: string;
+      created_at: string;
+      html_url: string;
+    }[]
+  >();
+  /** Answers dispatches with 403, as an app without Actions write. */
+  dispatchForbidden = false;
   /** Repositories GitHub reports as public. */
   publicRepos = new Set<string>();
   /** Organizations whose Default runner group admits public repositories. */
@@ -249,7 +265,39 @@ export class FakeGithub {
         full_name: full,
         private: !isPublic,
         visibility: isPublic ? "public" : "private",
+        default_branch: "main",
       });
+    });
+    app.get("/repos/:owner/:repo/actions/workflows/:file", (c) => {
+      if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
+      const repo = `${c.req.param("owner")}/${c.req.param("repo")}`;
+      return this.testWorkflows.has(repo)
+        ? this.page(c, { id: 1, path: `.github/workflows/${c.req.param("file")}` })
+        : c.json({ message: "Not Found" }, 404);
+    });
+    app.post("/repos/:owner/:repo/actions/workflows/:file/dispatches", async (c) => {
+      if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
+      if (this.dispatchForbidden)
+        return c.json({ message: "Resource not accessible by integration" }, 403);
+      const repo = `${c.req.param("owner")}/${c.req.param("repo")}`;
+      const body = (await c.req.json()) as { ref: string; inputs: Record<string, string> };
+      this.dispatches.push({ repo, ...body });
+      const runs = this.workflowRuns.get(repo) ?? [];
+      runs.unshift({
+        id: 9000 + runs.length,
+        status: "queued",
+        conclusion: null,
+        display_title: `Runyard runner check on ${body.inputs.runner}`,
+        created_at: new Date().toISOString(),
+        html_url: `https://github.com/${repo}/actions/runs/${9000 + runs.length}`,
+      });
+      this.workflowRuns.set(repo, runs);
+      return c.body(null, 204);
+    });
+    app.get("/repos/:owner/:repo/actions/workflows/:file/runs", (c) => {
+      if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
+      const runs = this.workflowRuns.get(`${c.req.param("owner")}/${c.req.param("repo")}`) ?? [];
+      return this.page(c, { total_count: runs.length, workflow_runs: runs });
     });
     app.get("/repos/:owner/:repo/actions/runs", (c) => {
       if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);

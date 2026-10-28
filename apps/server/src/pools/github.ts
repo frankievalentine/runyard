@@ -141,3 +141,54 @@ export async function jitConfig(
 export async function deleteRunner(http: GithubHttp, scope: Scope, runnerId: number) {
   await http.send("DELETE", `${runnersPath(scope)}/${runnerId}`);
 }
+
+/** The workflow a runner's test job runs, at this path in a repository the user picks. */
+export const TEST_WORKFLOW = "runyard-runner-check.yml";
+
+const repoPath = (repo: string) => `/repos/${repo.split("/").map(encodeURIComponent).join("/")}`;
+
+/** Whether the repository has the test workflow; false on 404. */
+export async function hasTestWorkflow(http: GithubHttp, repo: string): Promise<boolean> {
+  try {
+    await http.get(`${repoPath(repo)}/actions/workflows/${TEST_WORKFLOW}`);
+    return true;
+  } catch (error) {
+    if (error instanceof GithubError && error.status === 404) return false;
+    throw error;
+  }
+}
+
+export async function defaultBranch(http: GithubHttp, repo: string): Promise<string> {
+  const { body } = await http.get(repoPath(repo));
+  return (body as { default_branch?: string }).default_branch ?? "main";
+}
+
+/** Starts the test workflow for one runner, by its own label. */
+export async function dispatchTestWorkflow(
+  http: GithubHttp,
+  repo: string,
+  ref: string,
+  inputs: { runner: string; docker: boolean },
+) {
+  await http.send("POST", `${repoPath(repo)}/actions/workflows/${TEST_WORKFLOW}/dispatches`, {
+    ref,
+    inputs: { runner: inputs.runner, docker: String(inputs.docker) },
+  });
+}
+
+export type WorkflowRun = {
+  id: number;
+  status: string;
+  conclusion: string | null;
+  html_url: string;
+  display_title: string;
+  created_at: string;
+};
+
+/** The test workflow's recent manual runs, newest first. */
+export async function testWorkflowRuns(http: GithubHttp, repo: string): Promise<WorkflowRun[]> {
+  const { body } = await http.get(
+    `${repoPath(repo)}/actions/workflows/${TEST_WORKFLOW}/runs?event=workflow_dispatch&per_page=20`,
+  );
+  return (body as { workflow_runs?: WorkflowRun[] }).workflow_runs ?? [];
+}

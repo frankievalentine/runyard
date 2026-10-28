@@ -31,7 +31,7 @@ describe("pool engine", () => {
       RF_ROOT: "~/runyard-runners/mac/01",
       RF_NAME: "mini-mac-01",
       RF_URL: "https://github.com/acme",
-      RF_LABELS: "xcode,runyard,runyard-pool-mac",
+      RF_LABELS: "xcode,runyard,runyard-pool-mac,runyard-runner-mini-mac-01",
       RF_TOKEN: token,
       RF_SERVICE_MODE: "launchagent",
       RF_ASSET_NAME: "actions-runner-osx-arm64-2.329.0.tar.gz",
@@ -60,7 +60,15 @@ describe("pool engine", () => {
         os: "macOS",
         status: "online",
         busy: false,
-        labels: ["self-hosted", "macOS", "ARM64", "xcode", "runyard", "runyard-pool-mac"],
+        labels: [
+          "self-hosted",
+          "macOS",
+          "ARM64",
+          "xcode",
+          "runyard",
+          "runyard-pool-mac",
+          "runyard-runner-mini-mac-01",
+        ],
       },
     ]);
     await s.github.pollRunners();

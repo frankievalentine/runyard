@@ -2,7 +2,15 @@ import { describe, expect, test } from "bun:test";
 import type { OperationView, Review } from "./engine.ts";
 import { finish, setup, type Setup } from "./test-helpers.ts";
 
-const LABELS = ["self-hosted", "macOS", "ARM64", "xcode", "runyard", "runyard-pool-mac"];
+const LABELS = [
+  "self-hosted",
+  "macOS",
+  "ARM64",
+  "xcode",
+  "runyard",
+  "runyard-pool-mac",
+  "runyard-runner-mini-mac-01",
+];
 
 async function poolWith(s: Setup, cleanup: string, id?: string) {
   const body = {

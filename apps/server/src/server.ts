@@ -25,6 +25,7 @@ import { listDispatches, listPools, listRegistrations, listTemplates } from "./p
 import { ensureRunyardKey, runyardSshPaths, sshKeygenProgram } from "./machines/keys.ts";
 import { HostKeys } from "./machines/host-keys.ts";
 import { MachineSetupCodes } from "./machines/setup-codes.ts";
+import { TestJobs } from "./pools/test-jobs.ts";
 import { installedPrograms, type SshPrograms } from "./machines/ssh.ts";
 import { loadSecretKey, SecretStore } from "./secrets.ts";
 import { setupChecks, type TailnetState } from "./setup/checks.ts";
@@ -182,6 +183,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     ssh: sshPaths,
     hostKeys: new HostKeys({ run, programs, file: sshPaths.knownHosts }),
     machineSetup: new MachineSetupCodes(),
+    testJobs: new TestJobs({ github }),
   };
   const deps = (listener: AppDeps["listener"]): AppDeps => ({ ...shared, listener });
 

@@ -217,7 +217,7 @@ container:
    the command on Macs without Homebrew, and on Windows.
 3. **Cleanup (done, against fakes and a Debian container):** an optional per-pool job-completed hook for persistent GitHub runners (workspace,
    optionally Docker prune), off by default. forgejo-runner documents no job-completed hook, so GitHub runners only.
-4. **Test job:** a per-runner label, a workflow file the user adds, and a dispatch of it on that
+4. **Test job (done, against fakes; the workflow passes actionlint):** a per-runner label, a workflow file the user adds, and a dispatch of it on that
    runner with the result shown; needs Actions read and write on the GitHub App. Forgejo later.
 
 ## Link previews
@@ -267,6 +267,10 @@ Built and tested only against fakes. Deferred until a real service or machine is
   parses but hasn't run), `ssh -G` and `ssh-keyscan` output on real hosts, OpenSSH accepting the
   quoted `UserKnownHostsFile` list with a data directory path containing spaces, and whether
   Tailscale's published host keys are the OpenSSH server's.
+- Runner readiness and its follow-ups on real machines: Xcode and Homebrew detection on a Mac,
+  the Windows readiness script, tool installs with dnf, zypper and pacman, Docker from
+  `moby-engine`, the cleanup hook firing at the end of a real job, and a test job dispatched on
+  GitHub (the `runs-on` expression with an input, and finding the run by its title).
 - GitHub webhooks: a real delivery through Funnel, `tailscale funnel status --json`'s shape
   as parsed, and `PATCH /app/hook/config` on a real app.
 - The read-only boat connection: built from boat's API docs. The per-VM `cost` object's fields
