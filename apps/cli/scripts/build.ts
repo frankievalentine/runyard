@@ -34,7 +34,7 @@ await Bun.write(
     'import { start } from "@runyard/server/server";',
     ...imports,
     "",
-    "start(new Map<string, string>([",
+    "await start(new Map<string, string>([",
     ...entries,
     "]));",
     "",

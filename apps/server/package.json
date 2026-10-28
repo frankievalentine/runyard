@@ -15,10 +15,12 @@
   },
   "dependencies": {
     "@runyard/core": "workspace:*",
+    "drizzle-orm": "^0.45",
     "hono": "^4"
   },
   "devDependencies": {
     "@types/bun": "^1.4.4",
+    "drizzle-kit": "^0.31",
     "typescript": "^7.0.2"
   }
 }
