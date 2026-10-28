@@ -167,6 +167,20 @@ Further packages are extracted when a boundary is proven, not up front.
      subscribe to `workflow_job` with the hook inactive; existing ones need Active and the event
      ticked in GitHub, which the API can't change.)
 
+## Link previews
+
+The dashboard serves `og.png` and a 10 s `og.mp4` loop (rendered from `docs/assets/og/og.html`
+by `docs/assets/og/render.sh`) with Open Graph tags, `og:video` included, made absolute for the
+address each request came to. To do later:
+
+- Previews appear only where the fetcher can reach the install. Slack and Discord fetch from
+  their own servers, which can't reach a tailnet address, so a tailnet link shows none; iMessage
+  fetches on the sender's device, so it can. A public project page (docs site or landing page)
+  would carry the same tags where every service can read them.
+- The GitHub repository's social preview is an image uploaded in its settings (no video, no
+  API): upload `docs/assets/og/og.png` once the repository is public.
+- Confirm a real unfurl of `og:video` (Discord is the likeliest to play it).
+
 ## Pending live verification
 
 Built and tested only against fakes. Deferred until a real service or machine is available:

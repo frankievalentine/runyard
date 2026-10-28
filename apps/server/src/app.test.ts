@@ -17,7 +17,10 @@ describe("dashboard", () => {
   beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), "runyard-dashboard-"));
     await mkdir(join(dir, "assets"));
-    await writeFile(join(dir, "index.html"), "<!doctype html><title>Runyard</title>");
+    await writeFile(
+      join(dir, "index.html"),
+      '<!doctype html><title>Runyard</title><meta property="og:video" content="__RUNYARD_ORIGIN__/og.mp4">',
+    );
     await writeFile(join(dir, "assets", "index-abc.js"), "console.log(1)");
     app = (
       await testApp({
@@ -38,6 +41,19 @@ describe("dashboard", () => {
       expect(res.headers.get("cache-control")).toBe("no-cache");
       expect(await res.text()).toContain("<title>Runyard</title>");
     }
+  });
+
+  test("link previews point at the address the request came to, never at a forged host", async () => {
+    const ok = await app.request("http://127.0.0.1:7420/", {
+      headers: { Host: "runyard.tail1.ts.net:7420" },
+    });
+    expect(await ok.text()).toContain('content="http://runyard.tail1.ts.net:7420/og.mp4"');
+    const forged = await app.request("http://127.0.0.1:7420/", {
+      headers: { Host: 'x"><script>alert(1)</script>' },
+    });
+    const html = await forged.text();
+    expect(html).toContain('content="/og.mp4"');
+    expect(html).not.toContain("<script>");
   });
 
   test("caches hashed assets forever", async () => {

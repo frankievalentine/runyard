@@ -1,0 +1,135 @@
+<!doctype html>
+<!--
+  The 1200x630 social preview, from which og.png and og.mp4 are rendered
+  (see scripts/render-og.sh). The train's crossing is one seamless 10 s loop.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Runyard social preview</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #f7d1a6;
+      }
+      svg {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <svg
+      id="scene"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 120 63"
+      width="1200"
+      height="630"
+      role="img"
+      aria-label="Runyard: an orange locomotive pulling its train across an evening rail yard"
+    >
+      <rect width="120" height="26" fill="#F7D1A6" />
+      <rect y="26" width="120" height="12" fill="#F3B27A" />
+      <rect y="38" width="120" height="8" fill="#EC9461" />
+      <circle cx="94" cy="38" r="11" fill="#FDE7C2" opacity="0.95" />
+      <g fill="#B46A4F" opacity="0.55">
+        <rect x="2" y="38" width="7" height="8" />
+        <rect x="10" y="35" width="4" height="11" />
+        <rect x="15" y="39" width="6" height="7" />
+        <rect x="24" y="37" width="5" height="9" />
+        <rect x="30" y="40" width="8" height="6" />
+        <rect x="48" y="36" width="5" height="10" />
+        <rect x="54" y="39" width="7" height="7" />
+        <rect x="62" y="34" width="4" height="12" />
+        <rect x="78" y="38" width="6" height="8" />
+        <rect x="106" y="37" width="5" height="9" />
+        <rect x="112" y="40" width="8" height="6" />
+      </g>
+      <path
+        d="M41 46 L44 25 L47 46 M41.9 40 H46.1 M42.7 33 H45.3 M43.4 28 H44.6 M41 46 L46.1 40 M47 46 L41.9 40 M41.9 40 L45.3 33 M46.1 40 L42.7 33"
+        stroke="#8A4D3B"
+        stroke-width="0.6"
+        fill="none"
+      />
+      <path
+        d="M71 46 L73.5 30 L76 46 M71.8 41 H75.2 M72.5 36 H74.5 M71 46 L75.2 41 M76 46 L71.8 41"
+        stroke="#8A4D3B"
+        stroke-width="0.5"
+        fill="none"
+      />
+      <path
+        d="M8 47 V36 M5 37 H11 M30 47 V36 M27 37 H33 M58 47 V36 M55 37 H61 M86 47 V36 M83 37 H89 M112 47 V36 M109 37 H115 M8 38 C 18 40, 20 40, 30 38 M30 38 C 42 40, 46 40, 58 38 M58 38 C 70 40, 74 40, 86 38 M86 38 C 98 40, 100 40, 112 38"
+        stroke="#7A4536"
+        stroke-width="0.4"
+        fill="none"
+      />
+      <rect y="46" width="120" height="17" fill="#6A4136" />
+      <rect y="56" width="120" height="7" fill="#5A362E" />
+      <path
+        d="M0 52 H120 M0 60.5 H120"
+        stroke="#3F2722"
+        stroke-width="2.4"
+        stroke-dasharray="0.8 1.6"
+      />
+      <path
+        d="M0 51.3 H120 M0 52.7 H120 M0 59.8 H120 M0 61.2 H120"
+        stroke="#C98A63"
+        stroke-width="0.4"
+      />
+      <rect x="4" y="54.6" width="16" height="5.6" rx="0.8" fill="#A5482F" />
+      <rect x="23" y="55.4" width="16" height="4.8" rx="2.4" fill="#8E3B26" />
+      <rect x="42" y="54.6" width="18" height="5.6" rx="0.8" fill="#4E7A58" />
+      <rect x="63" y="54.6" width="14" height="5.6" rx="0.8" fill="#C77B3A" />
+      <rect x="80" y="55.4" width="17" height="4.8" rx="2.4" fill="#A4A7A9" />
+      <rect x="100" y="54.6" width="18" height="5.6" rx="0.8" fill="#A5482F" />
+      <text
+        x="6"
+        y="14"
+        font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="9.5"
+        font-weight="700"
+        letter-spacing="-0.3"
+        fill="#3A2019"
+      >
+        Runyard
+      </text>
+      <text
+        x="6.3"
+        y="20.5"
+        font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="2.9"
+        font-weight="500"
+        fill="#5A3125"
+      >
+        Self-hosted CI runners for GitHub and Forgejo, on your own machines.
+      </text>
+      <g>
+        <animateTransform
+          attributeName="transform"
+          type="translate"
+          values="-20 2;162 2"
+          dur="10s"
+          repeatCount="indefinite"
+        />
+        <rect x="-40" y="42" width="19" height="7" rx="3.5" fill="#A4A7A9" />
+        <rect x="-20" y="41" width="19" height="8" rx="0.8" fill="#3F6B4D" />
+        <path d="M-16 41 V49 M-11 41 V49 M-6 41 V49" stroke="#335A40" stroke-width="0.6" />
+        <rect x="0" y="37" width="7" height="12" rx="0.9" fill="#E8732A" />
+        <rect x="6" y="41" width="12" height="8" rx="0.9" fill="#E8732A" />
+        <rect x="1.5" y="38.5" width="4" height="2.6" rx="0.4" fill="#2B2420" />
+        <rect x="0" y="46" width="18" height="1.2" fill="#F3B27A" />
+        <circle cx="17.2" cy="43.5" r="0.8" fill="#FFF1C4" />
+        <g fill="#2A1A17">
+          <circle cx="3" cy="49.4" r="1.1" />
+          <circle cx="7" cy="49.4" r="1.1" />
+          <circle cx="12" cy="49.4" r="1.1" />
+          <circle cx="16" cy="49.4" r="1.1" />
+          <circle cx="-17" cy="49.4" r="1.1" />
+          <circle cx="-4" cy="49.4" r="1.1" />
+          <circle cx="-37" cy="49.4" r="1.1" />
+          <circle cx="-24" cy="49.4" r="1.1" />
+        </g>
+      </g>
+    </svg>
+  </body>
+</html>

@@ -96,6 +96,6 @@ export function createApp(deps: AppDeps, dashboard?: DashboardAssets) {
     console.error(error);
     return c.json({ error: "Something went wrong. Check Runyard's log." }, 500);
   });
-  if (dashboard) app.get("*", serveDashboard(dashboard));
+  if (dashboard) app.get("*", serveDashboard(dashboard, deps.listener));
   return app;
 }
