@@ -48,6 +48,26 @@ On the tailnet, Runyard identifies each connection's device with `tailscale whoi
 Tailscale login is added in **Users** are signed in automatically. No request header is trusted
 for identity. On loopback TCP, users sign in with a username and password.
 
+## Machines
+
+Add machines under **Machines ▸ Add**: pick one of your tailnet's desktops and servers, or enter
+any SSH target (`user@host` or a `Host` alias from `~/.ssh/config`). Only machines you add are
+checked. Every minute Runyard reads CPU, memory, load, disks, uptime and selected power and
+Tailscale settings over SSH, read-only, with at most four sessions at a time. Nothing is installed
+on the machines.
+
+SSH runs as the user Runyard runs as, with that user's keys and configuration, plus fleet's
+hardening: batch mode, host keys must already be trusted (connect once with `ssh` to accept one),
+and no agent or port forwarding. Machines that publish Tailscale SSH are reached with
+`tailscale ssh`. Windows machines need their OS set to Windows, so Runyard talks PowerShell.
+
+Alerts follow fleet's rules: offline for three minutes on the tailnet, or disk space below 10% on
+readings a minute apart (clearing at 12%). Reboots and SSH failures are recorded too. History is
+kept for 30 days, up to 5,000 events. **Maintenance for 1 hour** pauses a machine's alerts.
+
+To try the dashboard without touching real machines, `vp run -r build` then
+`bun apps/server/scripts/demo.ts` runs Runyard against a fictional fleet.
+
 ## Passkeys
 
 Signed-in users can add passkeys under **Account** and then sign in without a password. Passkeys
@@ -66,6 +86,7 @@ A passkey works only on the address it was added from.
 | `RUNYARD_TAILNET`         | `off` disables the tailnet HTTPS listener.                                                                                                                                                                                                 |
 | `RUNYARD_TAILNET_PORT`    | Tailnet HTTPS port (default `7443`). macOS lets any user bind `443`; Linux needs extra privileges for it.                                                                                                                                  |
 | `RUNYARD_TAILSCALE`       | Path to the `tailscale` CLI, if it isn't on `PATH`.                                                                                                                                                                                        |
+| `RUNYARD_SSH`             | Path to `ssh` (default `/usr/bin/ssh` where it exists, else `ssh` on `PATH`).                                                                                                                                                              |
 | `RUNYARD_ORIGIN`          | The dashboard's public URL, such as `https://runyard.example.com`. Only needed behind a TLS-terminating reverse proxy on TCP, so passkeys verify against the address the browser uses.                                                     |
 
 A key file in the data directory only protects a copy of the database taken on its own, such as a

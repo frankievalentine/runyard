@@ -11,7 +11,8 @@
   "scripts": {
     "dev": "bun --watch src/main.ts",
     "start": "bun src/main.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "demo": "bun scripts/demo.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.9.1",

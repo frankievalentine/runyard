@@ -15,6 +15,8 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
+import { Route as AppMachinesIdRouteImport } from './routes/_app/machines.$id'
+import { Route as AppMachinesAddRouteImport } from './routes/_app/machines.add'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -45,6 +47,16 @@ const AppUsersRoute = AppUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMachinesIdRoute = AppMachinesIdRouteImport.update({
+  id: '/machines/$id',
+  path: '/machines/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMachinesAddRoute = AppMachinesAddRouteImport.update({
+  id: '/machines/add',
+  path: '/machines/add',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -52,6 +64,8 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/account': typeof AppAccountRoute
   '/users': typeof AppUsersRoute
+  '/machines/$id': typeof AppMachinesIdRoute
+  '/machines/add': typeof AppMachinesAddRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -59,6 +73,8 @@ export interface FileRoutesByTo {
   '/account': typeof AppAccountRoute
   '/users': typeof AppUsersRoute
   '/': typeof AppIndexRoute
+  '/machines/$id': typeof AppMachinesIdRoute
+  '/machines/add': typeof AppMachinesAddRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,12 +84,28 @@ export interface FileRoutesById {
   '/_app/account': typeof AppAccountRoute
   '/_app/users': typeof AppUsersRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/machines/$id': typeof AppMachinesIdRoute
+  '/_app/machines/add': typeof AppMachinesAddRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/setup' | '/account' | '/users'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/setup'
+    | '/account'
+    | '/users'
+    | '/machines/$id'
+    | '/machines/add'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/setup' | '/account' | '/users' | '/'
+  to:
+    | '/login'
+    | '/setup'
+    | '/account'
+    | '/users'
+    | '/'
+    | '/machines/$id'
+    | '/machines/add'
   id:
     | '__root__'
     | '/_app'
@@ -82,6 +114,8 @@ export interface FileRouteTypes {
     | '/_app/account'
     | '/_app/users'
     | '/_app/'
+    | '/_app/machines/$id'
+    | '/_app/machines/add'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -134,6 +168,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/machines/$id': {
+      id: '/_app/machines/$id'
+      path: '/machines/$id'
+      fullPath: '/machines/$id'
+      preLoaderRoute: typeof AppMachinesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/machines/add': {
+      id: '/_app/machines/add'
+      path: '/machines/add'
+      fullPath: '/machines/add'
+      preLoaderRoute: typeof AppMachinesAddRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -141,12 +189,16 @@ interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
   AppUsersRoute: typeof AppUsersRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppMachinesIdRoute: typeof AppMachinesIdRoute
+  AppMachinesAddRoute: typeof AppMachinesAddRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
   AppUsersRoute: AppUsersRoute,
   AppIndexRoute: AppIndexRoute,
+  AppMachinesIdRoute: AppMachinesIdRoute,
+  AppMachinesAddRoute: AppMachinesAddRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

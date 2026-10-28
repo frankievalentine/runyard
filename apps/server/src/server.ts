@@ -8,12 +8,12 @@ import { FailureLimiter } from "./auth/rate-limit.ts";
 import { pruneSessions } from "./auth/sessions.ts";
 import { SetupCode } from "./auth/setup.ts";
 import { adminCount } from "./auth/users.ts";
-import { runCommand } from "./command.ts";
+import { runCommand, type CommandRunner } from "./command.ts";
 import { dataDir } from "./config.ts";
 import type { DashboardAssets } from "./dashboard.ts";
 import { openDatabase } from "./db/index.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
-import { installedPrograms } from "./machines/ssh.ts";
+import { installedPrograms, type SshPrograms } from "./machines/ssh.ts";
 import { loadSecretKey, SecretStore } from "./secrets.ts";
 import { TailnetListener } from "./tailnet.ts";
 import { TailscaleCli, WhoisCache } from "./tailscale.ts";
@@ -22,7 +22,11 @@ import { TailscaleCli, WhoisCache } from "./tailscale.ts";
  * Opens storage, then serves on loopback TCP and, when Tailscale is available,
  * on HTTPS at this machine's tailnet addresses with its `*.ts.net` certificate.
  */
-export async function start(dashboard?: DashboardAssets) {
+/** Replaces the programs Runyard runs; the demo harness uses it to fake a whole fleet. */
+export type StartOverrides = { run?: CommandRunner; programs?: SshPrograms };
+
+export async function start(dashboard?: DashboardAssets, overrides: StartOverrides = {}) {
+  const run = overrides.run ?? runCommand;
   const dir = dataDir();
   await mkdir(dir, { recursive: true, mode: 0o700 });
   const db = openDatabase(join(dir, "runyard.db"));
@@ -33,7 +37,7 @@ export async function start(dashboard?: DashboardAssets) {
       `\nNo admin yet. Open the dashboard and enter this setup code to create one:\n\n    ${code}\n`,
     );
   });
-  const tailscale = new TailscaleCli(runCommand);
+  const tailscale = new TailscaleCli(run);
   const whois = new WhoisCache((ip) => tailscale.whois(ip));
   const tailnetLogin: TailnetLogin = async (c) => {
     const address = getConnInfo(c).remote.address?.replace(/^::ffff:/, "");
@@ -41,8 +45,8 @@ export async function start(dashboard?: DashboardAssets) {
   };
   const monitor = new MachineMonitor({
     db,
-    run: runCommand,
-    programs: installedPrograms(),
+    run,
+    programs: overrides.programs ?? installedPrograms(),
     tailscale,
   });
   monitor.start();

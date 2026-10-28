@@ -96,6 +96,7 @@ Further packages are extracted when a boundary is proven, not up front.
      event journal with offline and low-disk alerts.
    - Add Tailscale discovery.
    - Build the machine monitoring views. Useful before any forge is connected.
+   - (Done. Only machines added to Runyard are checked; tailnet peers are offered under Add.)
 3. **GitHub monitoring**
    - Set up the GitHub App manifest flow and the installation repository picker.
    - Read runners and jobs for `org` and `repo` scopes.
