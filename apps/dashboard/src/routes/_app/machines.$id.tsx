@@ -563,7 +563,7 @@ function RemoveMachine({ m }: { m: MachineView }) {
   });
   return (
     <AlertDialog.Root>
-      <AlertDialog.Trigger render={<Button small variant="danger" />}>Remove…</AlertDialog.Trigger>
+      <AlertDialog.Trigger render={<Button small variant="danger" />}>Remove</AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
         <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,380px)] -translate-x-1/2 -translate-y-1/2 p-5">
