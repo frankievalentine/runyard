@@ -91,10 +91,10 @@ test("adds a discovered peer, or ignores and restores it", async () => {
     (await send(app, "POST", "/api/peers/n2/ignore", undefined, { Cookie: admin })).status,
   ).toBe(200);
   const added = await body<MachineConfig>(
-    send(app, "POST", "/api/peers/n1/add", undefined, { Cookie: admin }),
+    send(app, "POST", "/api/peers/n1/add", { user: "ci" }, { Cookie: admin }),
   );
   expect(added).toMatchObject({
-    sshTarget: "box.tail1.ts.net",
+    sshTarget: "ci@box.tail1.ts.net",
     transport: "tailscale",
     expectedOs: "linux",
   });

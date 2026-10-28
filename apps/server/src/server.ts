@@ -24,6 +24,7 @@ import { PoolEngine } from "./pools/engine.ts";
 import { listDispatches, listPools, listRegistrations, listTemplates } from "./pools/store.ts";
 import { ensureRunyardKey, runyardSshPaths, sshKeygenProgram } from "./machines/keys.ts";
 import { HostKeys } from "./machines/host-keys.ts";
+import { MachineSetupCodes } from "./machines/setup-codes.ts";
 import { installedPrograms, type SshPrograms } from "./machines/ssh.ts";
 import { loadSecretKey, SecretStore } from "./secrets.ts";
 import { setupChecks, type TailnetState } from "./setup/checks.ts";
@@ -176,6 +177,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     setupChecks: () => setupChecks({ run, programs, tailnet: tailnetState, dataDir: dir }),
     ssh: sshPaths,
     hostKeys: new HostKeys({ run, programs, file: sshPaths.knownHosts }),
+    machineSetup: new MachineSetupCodes(),
   };
   const deps = (listener: AppDeps["listener"]): AppDeps => ({ ...shared, listener });
 

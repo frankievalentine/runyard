@@ -19,6 +19,8 @@ import { githubRoutes, type GithubDeps } from "./routes/github.ts";
 import { forgejoRoutes } from "./routes/forgejo.ts";
 import { setupRoutes, type SetupDeps } from "./routes/setup.ts";
 import { hostKeyRoutes } from "./routes/host-keys.ts";
+import { machineSetupRoutes } from "./routes/machine-setup.ts";
+import type { MachineSetupCodes } from "./machines/setup-codes.ts";
 import type { HostKeys } from "./machines/host-keys.ts";
 import { boatRoutes } from "./routes/boat.ts";
 import { webhookRoutes, type WebhookDeps } from "./routes/webhooks.ts";
@@ -45,6 +47,7 @@ export type AppDeps = {
   boat: BoatMonitor;
   webhooks: WebhookDeps["webhooks"];
   hostKeys: HostKeys;
+  machineSetup: MachineSetupCodes;
 } & Omit<GithubDeps, "db" | "listener"> &
   Omit<SetupDeps, "db">;
 
@@ -81,6 +84,7 @@ export function createApi(deps: AppDeps, build: string | null = null) {
     .route("/users", userRoutes(deps.db))
     .route("/", machineRoutes(deps))
     .route("/", hostKeyRoutes(deps))
+    .route("/", machineSetupRoutes(deps))
     .route("/github", githubRoutes(deps))
     .route("/", poolRoutes(deps))
     .route("/forgejo", forgejoRoutes(deps))

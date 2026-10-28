@@ -2,6 +2,7 @@ import { accessSteps, type AccessStep, type MachineView } from "@runyard/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, call } from "../api.ts";
 import { sshKeyQuery } from "../lib/queries.ts";
+import { useNow } from "../lib/now.ts";
 import { yardQuery } from "../lib/yard.ts";
 import { CopyValue } from "./CopyValue.tsx";
 import { Button } from "./form.tsx";
@@ -34,6 +35,7 @@ export function AccessPanel({ m, admin }: { m: MachineView; admin: boolean }) {
             {check.isPending ? "Checking…" : "Check again"}
           </Button>
         </div>
+        {admin && <SetupCommand m={m} />}
         <ol className="divide-y divide-line">
           {steps.map((s, i) => (
             <Step key={s.id} step={s} n={i + 1} admin={admin} m={m} />
@@ -198,6 +200,81 @@ function TrustHostKey({ m }: { m: MachineView }) {
         </>
       )}
       {(scan.error ?? trust.error) && <ErrorText error={scan.error ?? trust.error} />}
+    </div>
+  );
+}
+
+/**
+ * The one-line setup command: run on the machine, it authorizes Runyard's key
+ * and reports the account and host keys back. Offered over HTTPS only.
+ */
+function SetupCommand({ m }: { m: MachineView }) {
+  const now = useNow();
+  const show = useMutation({
+    mutationFn: () =>
+      call(api.machines[":id"]["setup-command"].$post({ param: { id: m.id } })) as Promise<{
+        posix: string;
+        windows: string;
+        expiresAt: number;
+      }>,
+  });
+  const cmd = show.data;
+  const expired = cmd ? cmd.expiresAt <= now : false;
+  const commands = cmd
+    ? [
+        ...(m.os !== "windows"
+          ? [{ label: "macOS or Linux, as the account Runyard signs in as", text: cmd.posix }]
+          : []),
+        ...(m.os === "windows" || m.os === null
+          ? [
+              {
+                label: "Windows PowerShell (administrator PowerShell for an administrator account)",
+                text: cmd.windows,
+              },
+            ]
+          : []),
+      ]
+    : [];
+  return (
+    <div className="border-b border-line px-4 py-3 text-[12.5px]">
+      <div className="font-medium text-[13px]">Fastest: one command on the machine</div>
+      <p className="mt-0.5 text-ink-2">
+        It checks the SSH server is on, authorizes Runyard's key, and reports the account and host
+        keys back, so the steps below finish on their own. It installs nothing.
+      </p>
+      {window.location.protocol !== "https:" ? (
+        <p className="mt-2 text-ink-2">
+          Offered only over HTTPS, so the script can't be changed on its way to the machine. Open
+          the dashboard at its tailnet address to use it, or follow the steps below.
+        </p>
+      ) : !cmd || expired ? (
+        <div className="mt-2">
+          <Button small variant="primary" onClick={() => show.mutate()} disabled={show.isPending}>
+            {expired ? "Show a new command" : "Show the setup command"}
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-2 flex flex-col gap-2">
+          {commands.map((c) => (
+            <div key={c.label} className="flex flex-col gap-1">
+              <span className="text-[12px] text-ink-2">{c.label}</span>
+              <div className="rounded-md border border-line bg-bg px-2.5 py-1.5">
+                <CopyValue
+                  value={c.text}
+                  label="Setup command"
+                  className="font-mono text-[12px] break-all whitespace-pre-wrap"
+                />
+              </div>
+            </div>
+          ))}
+          <span className="text-[12px] text-ink-2">
+            Works once, until{" "}
+            {new Date(cmd.expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+            .
+          </span>
+        </div>
+      )}
+      {show.error && <ErrorText className="mt-2" error={show.error} />}
     </div>
   );
 }

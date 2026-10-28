@@ -177,6 +177,26 @@ Further packages are extracted when a boundary is proven, not up front.
      subscribe to `workflow_job` with the hook inactive; existing ones need Active and the event
      ticked in GitHub, which the API can't change.)
 
+## Machine setup
+
+Getting Runyard into a machine is guided, built against fakes:
+
+- **Runyard's own key** (`<data>/ssh/id_ed25519`, made with `ssh-keygen` at first start) and
+  `known_hosts`, offered and checked beside the user's own. Its comment is kept to safe
+  characters, because the setup commands quote it.
+- **SSH failures are sorted** by where they stopped (connection refused or unreachable, host key
+  unknown or changed, login refused, timeout), and the machine page shows the steps in SSH's
+  order with the commands for the failing one per OS. Getting started reads the same steps
+  (`accessSteps` in `packages/core`).
+- **Host keys from the dashboard:** `ssh-keyscan` at the host and port `ssh -G` resolves, a
+  fingerprint the person compares, and a second read that writes only that key. Never a silent
+  replace; Tailscale's published keys are shown as a match when they agree.
+- **The setup command:** a single-use, 15-minute code (kept hashed, in memory) for one machine,
+  offered over HTTPS only. The script checks the SSH server, authorizes Runyard's key with
+  forwarding off, and reports the user, OS and host keys; Runyard sets the user when the target
+  had none and trusts exactly the reported keys. It installs nothing.
+- Left as is: Linux installs still ask for the sudo password per review.
+
 ## Link previews
 
 The dashboard serves `og.png` and a 10 s `og.mp4` loop (rendered from `docs/assets/og/og.html`
@@ -220,6 +240,10 @@ Built and tested only against fakes. Deferred until a real service or machine is
   be stopped at logout; lingering or a service would avoid it).
 - Retiring a runner Runyard didn't install: GitHub's `DELETE …/runners/{id}` on an online
   runner, and what a deregistered runner's service does afterwards, are unverified.
+- Machine setup: the setup scripts on real macOS, Linux and Windows machines (the Windows one
+  parses but hasn't run), `ssh -G` and `ssh-keyscan` output on real hosts, OpenSSH accepting the
+  quoted `UserKnownHostsFile` list with a data directory path containing spaces, and whether
+  Tailscale's published host keys are the OpenSSH server's.
 - GitHub webhooks: a real delivery through Funnel, `tailscale funnel status --json`'s shape
   as parsed, and `PATCH /app/hook/config` on a real app.
 - The read-only boat connection: built from boat's API docs. The per-VM `cost` object's fields

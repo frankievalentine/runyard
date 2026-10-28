@@ -39,6 +39,10 @@ No admin yet. Open the dashboard and enter this setup code to create one:
 Open the dashboard and enter the code to create the first admin. The code changes at every start
 until an admin exists, so only someone who can read Runyard's output can claim the install.
 
+The overview's **Getting started** list then walks through the rest: connect GitHub or Forgejo,
+add a machine and connect it (one command on the machine, see [Connecting a
+machine](#connecting-a-machine)), create a pool, and review the runner install.
+
 ## Installing a release
 
 `vp run release` runs the checks and tests, then cross-compiles `runyard` for macOS (Apple
@@ -74,14 +78,17 @@ docker compose -f docker/compose.yaml logs runyard # the setup code
 ```
 
 The sidecar uses kernel networking (`/dev/net/tun`, `NET_ADMIN`), so the tailnet address is on
-an interface Runyard can listen on. Your `~/.ssh` (or `RUNYARD_SSH_DIR`) is mounted read-only
-and copied in with the modes ssh requires; `known_hosts` must already trust each machine. The
+an interface Runyard can listen on. Runyard's own SSH key and `known_hosts` live in the
+`runyard-data` volume, so machines set up from the dashboard need nothing mounted. Your `~/.ssh`
+(or `RUNYARD_SSH_DIR`) is also mounted read-only and copied in with the modes ssh requires, for
+machines you already reach with your own keys. The
 container runs as root, because `tailscale cert` through the sidecar needs root. Back up
 `docker/runyard.key` apart from the `runyard-data` volume.
 
 ## Running as a service
 
-`runyard service install` keeps Runyard running as your user, which it needs for your SSH keys:
+`runyard service install` keeps Runyard running as your user, which it needs for your own SSH
+keys and `~/.ssh/config`:
 
 | OS      | How                                                                    | Starts          |
 | ------- | ---------------------------------------------------------------------- | --------------- |
@@ -119,12 +126,49 @@ Add machines under **Machines ▸ Add**: pick one of your tailnet's desktops and
 any SSH target (`user@host` or a `Host` alias from `~/.ssh/config`). Only machines you add are
 checked. Every minute Runyard reads CPU, memory, load, disks, uptime and selected power and
 Tailscale settings over SSH, read-only, with at most four sessions at a time. Nothing is installed
-on the machines.
+on the machines until you review a runner change.
 
-SSH runs as the user Runyard runs as, with that user's keys and configuration, plus aarondfrancis/fleet's
-hardening: batch mode, host keys must already be trusted (connect once with `ssh` to accept one),
-and no agent or port forwarding. Machines that publish Tailscale SSH are reached with
-`tailscale ssh`. Windows machines need their OS set to Windows, so Runyard talks PowerShell.
+### Connecting a machine
+
+Until Runyard has reached a machine once, its page shows **Connect Runyard to <machine>**: the
+steps in the order SSH meets them (SSH server on, host key trusted, Runyard's key authorized,
+connected), where the last check stopped, and the commands for that step on the machine's OS.
+**Getting started** names the first machine that isn't connected yet and the step it's stuck on.
+
+The quickest way through is the **setup command** at the top of those steps. Run it on the
+machine, as the account Runyard should sign in as:
+
+```sh
+curl -fsSL https://<runyard>/api/machine-setup/script.sh | sh -s -- <code>     # macOS, Linux
+& ([scriptblock]::Create((irm https://<runyard>/api/machine-setup/script.ps1))) <code>   # Windows
+```
+
+It checks that the SSH server is on (and prints how to turn it on if not), adds Runyard's public
+key to `~/.ssh/authorized_keys` (to `administrators_authorized_keys` for a Windows administrator,
+which needs an administrator PowerShell) without agent, port or X11 forwarding, and reports the
+account name, OS and SSH host keys back. Runyard then fills in the SSH user if the target had
+none, trusts exactly those host keys, and checks the machine. The code works once, for 15
+minutes, and the command is offered only when you use the dashboard over HTTPS (its tailnet
+address), so the script and its report can't be altered on the way.
+
+By hand instead, the steps give the commands to copy, and **Read its host key** shows the
+machine's host key fingerprint with the command that prints it on the machine. Trusting it reads
+the key again and keeps only that fingerprint, in Runyard's own `known_hosts`; when Tailscale
+publishes the machine's host keys, the page says whether they match. A key that changed is never
+replaced without an explicit **Replace**.
+
+### How Runyard signs in
+
+Runyard has its own ed25519 key, created in its data directory (`ssh/id_ed25519`) on first start
+with `ssh-keygen`, and its own `ssh/known_hosts`. **Machines ▸ Add** shows the public key. Every
+connection offers that key and checks those host keys alongside your own: your keys, agent and
+`~/.ssh/config` keep working, so machines you already reach with `ssh` need nothing new. On top
+of that, aarondfrancis/fleet's hardening: batch mode, strict host key checking, and no agent or
+port forwarding. Machines that publish Tailscale SSH are reached with `tailscale ssh`, which
+checks host keys and sign-in itself (your tailnet's SSH access rules must allow the user).
+Windows machines need their OS set to Windows, so Runyard talks PowerShell. Removing a machine
+from Runyard doesn't remove Runyard's key from it; delete the `runyard@` line from its
+`authorized_keys`.
 
 Alerts follow aarondfrancis/fleet's rules: offline for three minutes on the tailnet, or disk space below 10% on
 readings a minute apart (clearing at 12%). Reboots and SSH failures are recorded too. History is

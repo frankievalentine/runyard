@@ -22,6 +22,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { listAssignments, listMigrations } from "./machines/assignments.ts";
 import { HostKeys } from "./machines/host-keys.ts";
+import { MachineSetupCodes } from "./machines/setup-codes.ts";
 import { runyardSshPaths } from "./machines/keys.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
 import { Dispatcher } from "./pools/dispatcher.ts";
@@ -154,6 +155,7 @@ export async function testApp(
       }),
     ssh,
     hostKeys: new HostKeys({ run: fake.run, programs: fake.programs, file: ssh.knownHosts }),
+    machineSetup: new MachineSetupCodes(() => clock.now),
   };
   const app = createApp(deps, options.dashboard);
   return {

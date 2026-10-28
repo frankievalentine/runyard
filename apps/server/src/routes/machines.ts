@@ -93,26 +93,41 @@ export function machineRoutes({ db, monitor }: { db: Db; monitor: MachineMonitor
           return c.json(machine, 201);
         },
       )
-      .post("/peers/:nodeId/add", requireAdmin(), async (c) => {
-        const nodeId = c.req.param("nodeId");
-        const peer =
-          monitor.view.discovered.find((p) => p.nodeId === nodeId) ??
-          monitor.view.ignored.find((p) => p.nodeId === nodeId);
-        if (!peer) return c.json({ error: "That device isn't on the tailnet." }, 404);
-        if (machineForNode(db, nodeId))
-          return c.json({ error: "That device is already a Runyard machine." }, 409);
-        unignorePeer(db, nodeId);
-        const machine = createMachine(db, {
-          name: peer.name,
-          sshTarget: peer.address,
-          transport: peer.tailscaleSsh ? "tailscale" : "openssh",
-          expectedOs: peer.os === "other" ? null : peer.os,
-          tailscaleNodeId: nodeId,
-        });
-        monitor.configChanged();
-        void monitor.checkNow(machine.id);
-        return c.json(machine, 201);
-      })
+      .post(
+        "/peers/:nodeId/add",
+        requireAdmin(),
+        json(
+          z.object({
+            // Optional: without one, the machine's setup command fills it in.
+            user: z
+              .string()
+              .trim()
+              .regex(/^[A-Za-z0-9._-]{0,64}$/, "Use a plain user name.")
+              .optional(),
+          }),
+        ),
+        async (c) => {
+          const nodeId = c.req.param("nodeId");
+          const { user: sshUser } = c.req.valid("json");
+          const peer =
+            monitor.view.discovered.find((p) => p.nodeId === nodeId) ??
+            monitor.view.ignored.find((p) => p.nodeId === nodeId);
+          if (!peer) return c.json({ error: "That device isn't on the tailnet." }, 404);
+          if (machineForNode(db, nodeId))
+            return c.json({ error: "That device is already a Runyard machine." }, 409);
+          unignorePeer(db, nodeId);
+          const machine = createMachine(db, {
+            name: peer.name,
+            sshTarget: sshUser ? `${sshUser}@${peer.address}` : peer.address,
+            transport: peer.tailscaleSsh ? "tailscale" : "openssh",
+            expectedOs: peer.os === "other" ? null : peer.os,
+            tailscaleNodeId: nodeId,
+          });
+          monitor.configChanged();
+          void monitor.checkNow(machine.id);
+          return c.json(machine, 201);
+        },
+      )
       .patch(
         "/machines/:id",
         requireAdmin(),

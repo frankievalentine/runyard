@@ -77,8 +77,16 @@ function PeerRow({ peer, ignored = false }: { peer: PeerView; ignored?: boolean 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const refresh = () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
+  const [adding, setAdding] = useState(false);
+  const [user, setUser] = useState("");
   const add = useMutation({
-    mutationFn: () => call(api.peers[":nodeId"].add.$post({ param: { nodeId: peer.nodeId } })),
+    mutationFn: () =>
+      call(
+        api.peers[":nodeId"].add.$post({
+          param: { nodeId: peer.nodeId },
+          json: { user: user.trim() },
+        }),
+      ),
     onSuccess: async (machine) => {
       await refresh();
       void navigate({ to: "/machines/$id", params: { id: machine.id } });
@@ -105,14 +113,45 @@ function PeerRow({ peer, ignored = false }: { peer: PeerView; ignored?: boolean 
           {!peer.online && ` · last seen ${timeAgo(peer.lastSeen, now)}`}
         </div>
       </div>
-      {!ignored && (
-        <Button small variant="primary" onClick={() => add.mutate()} disabled={add.isPending}>
+      {!ignored && !adding && (
+        <Button small variant="primary" onClick={() => setAdding(true)}>
           Add
         </Button>
       )}
       <Button small variant="ghost" onClick={() => ignore.mutate()} disabled={ignore.isPending}>
         {ignored ? "Restore" : "Ignore"}
       </Button>
+      {adding && (
+        <form
+          className="flex w-full flex-wrap items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            add.mutate();
+          }}
+        >
+          <div className="w-56">
+            <TextField
+              label="SSH user (optional)"
+              value={user}
+              onChange={(e) => setUser(e.target.value)}
+              placeholder="ci"
+              spellCheck={false}
+              autoCapitalize="off"
+              autoFocus
+            />
+          </div>
+          <Button type="submit" small variant="primary" disabled={add.isPending}>
+            Add {peer.name}
+          </Button>
+          <Button small variant="ghost" onClick={() => setAdding(false)}>
+            Cancel
+          </Button>
+          <span className="basis-full text-[12px] text-ink-2">
+            The account Runyard signs in as. Leave it empty and the machine's setup command fills it
+            in.
+          </span>
+        </form>
+      )}
       {(add.error ?? ignore.error) && (
         <ErrorText className="w-full" error={add.error ?? ignore.error} />
       )}

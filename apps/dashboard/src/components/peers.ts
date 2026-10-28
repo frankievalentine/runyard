@@ -12,7 +12,9 @@ export function usePeerActions(nodeId: string) {
   return {
     add: useMutation({
       mutationFn: async () =>
-        (await call(api.peers[":nodeId"].add.$post({ param: { nodeId } }))) as MachineConfig,
+        (await call(
+          api.peers[":nodeId"].add.$post({ param: { nodeId }, json: {} }),
+        )) as MachineConfig,
       onSuccess: async (machine) => {
         await refresh();
         void navigate({ to: "/machines/$id", params: { id: machine.id } });
