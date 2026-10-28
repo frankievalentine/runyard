@@ -1,4 +1,10 @@
-import type { YardView, JobView, QueuedJobView, RunnerView } from "@runyard/core";
+import {
+  waitingReasons,
+  type YardView,
+  type JobView,
+  type QueuedJobView,
+  type RunnerView,
+} from "@runyard/core";
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useYard } from "../lib/yard.ts";
@@ -178,6 +184,13 @@ function QueuedJob({
             <Label key={l}>{l}</Label>
           ))}
         </div>
+        {!compact && !job.onDemand && eligible.length === 0 && (
+          <ul className="mt-2 flex flex-col gap-0.5 text-[12px] text-ink-2">
+            {waitingReasons(job, view).map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        )}
       </div>
       <div
         className={`flex shrink-0 gap-2 ${compact ? "flex-wrap items-center" : "flex-col items-end"}`}

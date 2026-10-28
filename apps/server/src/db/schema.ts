@@ -59,6 +59,29 @@ export const sessions = sqliteTable(
   (t) => [index("sessions_user_id").on(t.userId)],
 );
 
+/**
+ * Personal access tokens for agents (the MCP server only). Stored by hash; the
+ * token itself is shown once. `read` tokens only read; `prepare` tokens can
+ * also save settings and prepare reviews, never run them. Admins only for prepare.
+ */
+export const accessTokens = sqliteTable(
+  "access_tokens",
+  {
+    id: text().primaryKey(),
+    userId: text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text().notNull(),
+    scope: text({ enum: ["read", "prepare"] }).notNull(),
+    /** The token's first characters, to tell tokens apart in the list. */
+    prefix: text().notNull(),
+    createdAt: integer({ mode: "timestamp_ms" }).notNull(),
+    expiresAt: integer({ mode: "timestamp_ms" }),
+    lastUsedAt: integer({ mode: "timestamp_ms" }),
+  },
+  (t) => [index("access_tokens_user_id").on(t.userId)],
+);
+
 /** WebAuthn credentials. A passkey only works on the host name (`rpId`) it was registered on. */
 export const passkeys = sqliteTable(
   "passkeys",

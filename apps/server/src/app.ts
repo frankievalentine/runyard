@@ -21,6 +21,7 @@ import { setupRoutes, type SetupDeps } from "./routes/setup.ts";
 import { hostKeyRoutes } from "./routes/host-keys.ts";
 import { machineSetupRoutes } from "./routes/machine-setup.ts";
 import { testJobRoutes } from "./routes/test-jobs.ts";
+import { tokenRoutes } from "./routes/tokens.ts";
 import type { TestJobs } from "./pools/test-jobs.ts";
 import type { MachineSetupCodes } from "./machines/setup-codes.ts";
 import type { HostKeys } from "./machines/host-keys.ts";
@@ -89,6 +90,7 @@ export function createApi(deps: AppDeps, build: string | null = null) {
     .route("/", hostKeyRoutes(deps))
     .route("/", machineSetupRoutes(deps))
     .route("/", testJobRoutes(deps))
+    .route("/", tokenRoutes(deps))
     .route("/github", githubRoutes(deps))
     .route("/", poolRoutes(deps))
     .route("/forgejo", forgejoRoutes(deps))

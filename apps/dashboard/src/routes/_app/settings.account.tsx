@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tansta
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
+import { AccessTokens } from "../../components/AccessTokens.tsx";
 import { Button, TextField } from "../../components/form.tsx";
 import { Card, ErrorText, Pill, Section } from "../../components/ui.tsx";
 import { addPasskey, passkeysAvailable } from "../../lib/passkeys.ts";
@@ -56,6 +57,7 @@ function Account() {
         </div>
       </Card>
       <Passkeys />
+      <AccessTokens admin={user.role === "admin"} />
       {user.username && <ChangePassword />}
     </div>
   );
