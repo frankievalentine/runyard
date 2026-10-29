@@ -1,4 +1,5 @@
 import type { MachineView, Pool, Scope } from "@runyard/core";
+import { Jobs } from "../../components/Jobs.tsx";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { MachineChanges } from "../../components/changes.tsx";
 import { Dispatches } from "../../components/Dispatches.tsx";
@@ -239,6 +240,7 @@ function PoolPage() {
           )}
         </Section>
       )}
+      <Jobs filter={{ pool: pool.id }} showMachine={pool.machines.length > 1} />
       {view.pools.migrations.some((m) => m.poolId === pool.id) && (
         <Section
           title="Moving in"

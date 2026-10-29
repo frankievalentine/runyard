@@ -1,5 +1,6 @@
 import { createApp, type AppDeps } from "./app.ts";
 import { JobHistory } from "./history/recorder.ts";
+import { possiblyLostJobs } from "./history/store.ts";
 import type { Listener } from "./auth/identity.ts";
 import { Challenges } from "./auth/passkeys.ts";
 import { FailureLimiter } from "./auth/rate-limit.ts";
@@ -83,6 +84,7 @@ export async function testApp(
       since: (machineId) => history.hookSinceSeconds(machineId),
       record: (machineId, lines) => history.fromHooks(machineId, lines),
     },
+    lostJobs: () => possiblyLostJobs(db),
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),
     boat: () => boat.observation(),

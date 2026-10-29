@@ -135,6 +135,22 @@ For 5.2, send the pool page's Recent one-job runners entry and the machine's his
       reason, and a link that opens the review marked with the token's name. Run it yourself.
 - [ ] **8.3** Revoke the token; expect the agent's next call refused.
 
+## Round 8b: run history
+
+- [ ] **8b.1** After rebuilding, expect each machine with GitHub runners to show **Set job hooks
+      on …** as a change waiting. Review and run it on each (it restarts idle runners).
+- [ ] **8b.2** With webhooks on, run `check`. Expect it on the runner's, the pool's and the LXC's
+      **Jobs** within seconds, **Running** then **Passed** with how long it took, and **Show log**
+      showing its output.
+- [ ] **8b.3** Without webhooks: untick **Active** in the app's settings, run `mac`. Expect it in
+      the VM's Jobs within about a minute of finishing, with its result (from the runner's hooks
+      and one GitHub read). Tick Active again.
+- [ ] **8b.4** Run `ondemand`. Expect it in `runyard-ondemand`'s Jobs, on the LXC.
+- [ ] **8b.5** Optional: start `long`, then stop its runner on the LXC
+      (`sudo systemctl stop 'actions.runner.*runyard-check*'`). Once GitHub fails the job (it can
+      take several minutes) and five more pass, expect **Runner lost** and a Needs attention item
+      on the LXC. Start the service again.
+
 ## Round 9: Forgejo (optional)
 
 - [ ] **9.1** Connect it with a token (user, organization and repository: read and write). Send

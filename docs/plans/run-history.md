@@ -1,6 +1,8 @@
 # Planned: run history
 
-Status: **agreed, not started.** Decided with the user on 2026-10-29 during live testing.
+Status: **built for GitHub** on 2026-10-29: webhooks, runner hooks, the result reads, the Jobs
+sections, the overview's counts, Show log, and lost runners as Needs attention items. Forgejo
+(its finished tasks) is still to do. Decided with the user on 2026-10-29 during live testing.
 
 ## Why
 

@@ -141,6 +141,22 @@ export function jobsWithoutResult(db: Db, limit: number): JobRecord[] {
     .map(toRecord);
 }
 
+/** Jobs a hook saw start but not finish, which the forge finished in the last day. */
+export function possiblyLostJobs(db: Db, now = Date.now()): JobRecord[] {
+  return db
+    .select()
+    .from(jobs)
+    .where(
+      and(
+        eq(jobs.hook, "started"),
+        sql`${jobs.conclusion} is not null`,
+        gte(jobs.finishedAt, new Date(now - 24 * 60 * 60_000)),
+      ),
+    )
+    .all()
+    .map(toRecord);
+}
+
 export function pruneJobs(db: Db, now = Date.now()) {
   db.delete(jobs)
     .where(lt(jobs.updatedAt, new Date(now - JOB_RETENTION_MS)))

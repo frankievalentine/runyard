@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { Jobs } from "../../components/Jobs.tsx";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CopyValue } from "../../components/CopyValue.tsx";
 import { Icon } from "../../components/icons.tsx";
@@ -229,6 +230,7 @@ function Runner() {
           />
         </div>
       </Section>
+      {r.forge === "github" && !r.onDemand && <Jobs filter={{ runner: r.name }} />}
       {admin && registered && r.forge === "github" && <TestThisRunner r={r} />}
       {r.labels.length > 0 && (
         <Section title="Labels" count={r.labels.length}>

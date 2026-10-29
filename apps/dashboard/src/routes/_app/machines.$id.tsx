@@ -1,4 +1,5 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
+import { Jobs } from "../../components/Jobs.tsx";
 import type {
   DiagnosticGroup,
   YardView,
@@ -143,6 +144,7 @@ function Machine() {
       )}
       <MachineRunners m={m} />
       <MachineChanges m={m} admin={admin} reviewId={reviewId} />
+      <Jobs filter={{ machine: m.id }} />
       <Monitoring m={m} admin={admin} />
       <RunnerReadiness m={m} />
       <Diagnostics m={m} />

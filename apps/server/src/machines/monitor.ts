@@ -6,10 +6,12 @@ import {
   observe,
   observed,
   osFromTailnet,
+  isLost,
   parseHookLines,
   parseReport,
   type EventKind,
   type HookLine,
+  type JobRecord,
   type YardView,
   type BoatObservation,
   type ForgejoConnectionObservation,
@@ -65,6 +67,8 @@ type Deps = {
     since: (machineId: string) => number;
     record: (machineId: string, lines: HookLine[]) => void;
   };
+  /** Recent jobs whose runner may have been lost mid-job; the view keeps the ones that were. */
+  lostJobs?: () => JobRecord[];
   /** Pools and the runners Runyard registered, joined into the yard view. */
   pools?: () => {
     pools: Pool[];
@@ -211,7 +215,7 @@ export class MachineMonitor {
   }
 
   private derive(now = this.now()): YardView {
-    return deriveYard({
+    const view = deriveYard({
       machines: listMachines(this.deps.db),
       observations: this.observations,
       tailnet: this.tailnet,
@@ -223,6 +227,8 @@ export class MachineMonitor {
       ...this.deps.pools?.(),
       now,
     });
+    const lost = (this.deps.lostJobs?.() ?? []).filter((j) => isLost(j, now));
+    return lost.length ? { ...view, lostJobs: lost } : view;
   }
 
   private publish() {

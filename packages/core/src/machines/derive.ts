@@ -1,4 +1,5 @@
 import { boatVmsByRunner, deriveBoat, type BoatView, type BoatVm } from "../boat/derive.ts";
+import type { JobRecord } from "../history/jobs.ts";
 import type { BoatObservation } from "../boat/model.ts";
 import { deriveForgejo, type ForgejoView } from "../forgejo/derive.ts";
 import type { ForgejoConnectionObservation } from "../forgejo/model.ts";
@@ -142,6 +143,8 @@ export type YardView = {
   /** Runners on a machine by an admin's assignment rather than a Runyard registration, by key. */
   assignedRunners: string[];
   pools: PoolsView;
+  /** Jobs whose runner went away mid-job in the last day: machine problems. */
+  lostJobs?: JobRecord[];
 };
 
 export type PoolsView = {

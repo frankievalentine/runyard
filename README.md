@@ -72,6 +72,8 @@ To remove Runyard later, decommission its machines in the dashboard first, then 
 - **Reviews.** Saving a pool changes nothing. **Create and review** shows each machine's exact
   plan right away; **Run** re-reads everything first and does nothing if anything changed.
 - **Testing.** **Test this runner** runs a short workflow on exactly that runner.
+- **Run history.** Every job on your runners, per machine, pool and runner: results, durations
+  and logs, with a runner lost mid-job flagged as the machine's problem. Kept 30 days.
 - **boat.dev.** Jobs for boat.dev's VMs show alongside, with each VM's cost.
 - **Webhooks** (optional) make Runyard notice queued GitHub jobs in seconds instead of about 45.
   They need a public address for Runyard's webhook listener, such as Tailscale Funnel, which is

@@ -20,6 +20,7 @@ import { BoatMonitor } from "./boat/monitor.ts";
 import { listAssignments, listMigrations } from "./machines/assignments.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
 import { JobHistory } from "./history/recorder.ts";
+import { possiblyLostJobs } from "./history/store.ts";
 import { Dispatcher } from "./pools/dispatcher.ts";
 import { PoolEngine } from "./pools/engine.ts";
 import { listDispatches, listPools, listRegistrations, listTemplates } from "./pools/store.ts";
@@ -95,6 +96,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
       since: (machineId) => history.hookSinceSeconds(machineId),
       record: (machineId, lines) => history.fromHooks(machineId, lines),
     },
+    lostJobs: () => possiblyLostJobs(db),
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),
     boat: () => boat.observation(),

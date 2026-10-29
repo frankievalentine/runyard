@@ -204,12 +204,33 @@ it changed in the app's settings on GitHub and the change accepted on each insta
 Persistent runners keep their workspace and Docker data between jobs, which keeps builds warm
 but lets one job affect the next. A persistent pool's **After each job** setting can clear the
 job's workspace, or the workspace and unused Docker data (stopped containers, dangling images,
-unused networks and anonymous volumes). Runyard sets it up through GitHub's job-completed hook:
-the review writes `runyard-job-completed.sh` into each runner's directory, points the runner's
-`.env` at it and restarts the runner, only while it's idle. The hook deletes only inside the
-job's workspace under that runner's `_work` directory and never fails a job. It's for GitHub
-runners on Linux and macOS; forgejo-runner has no job-completed hook, and on-demand runners
-start clean anyway.
+unused networks and anonymous volumes). Runyard sets it up through GitHub's job hooks, the same
+ones that record run history: the review's **Set job hooks** step writes
+`runyard-job-started.sh` and `runyard-job-completed.sh` into each runner's directory, points the
+runner's `.env` at them and restarts the runner, only while it's idle. The cleanup deletes only
+inside the job's workspace under that runner's `_work` directory and never fails a job. It's for
+GitHub runners on Linux and macOS; forgejo-runner has no job hooks, and on-demand runners start
+clean anyway.
+
+### Run history
+
+Each machine, pool and runner page has **Jobs**: the last 7 days' counts ("41 passed · 2
+failed") and the newest jobs with their result, how long they took, the repository and runner,
+a link to the run, and **Show log**, which fetches the job's log from GitHub when you open it
+and keeps nothing (GitHub keeps logs 90 days by default). The overview's machine table counts
+each machine's jobs, failures in red. Runs of the **Test this runner** workflow are marked
+**Test**. Jobs are kept 30 days.
+
+A job that failed its steps is counted but doesn't flag the machine, since that's usually the
+code. A job whose runner said it started but never that it finished, after GitHub finished it,
+shows **Runner lost** and raises a Needs attention item on the machine: the runner or the machine
+stopped mid-job.
+
+Webhooks fill it in within seconds. Without them it still works: each GitHub runner's job hooks
+append a line to `~/runyard-runners/.runyard-jobs.log` when a job starts and ends, the minute
+check reads new lines, and Runyard asks GitHub once per finished job for its result. Runners set
+up before run history show **Set job hooks** as a change waiting; review and run it (it restarts
+each runner while idle). Forgejo jobs aren't recorded yet.
 
 ### On-demand pools
 
@@ -304,8 +325,9 @@ but signed deliveries. Under **Settings ▸ Connections ▸ GitHub ▸ Webhooks*
    app is created subscribed to **Workflow job**; if it isn't, tick it under **Permissions &
    events ▸ Subscribe to events**.
 
-A delivery only makes Runyard re-read jobs and runners through the API; nothing in a payload is
-acted on.
+A delivery makes Runyard re-read jobs and runners through the API, and a `workflow_job` one is
+recorded in run history (its job, runner and result). Nothing on a machine or a forge is ever
+changed because of what a payload says.
 
 ## AI agents (MCP)
 
@@ -435,7 +457,7 @@ it:
 - **Credentials are encrypted** at rest with a key from the environment or a key file (see
   [Configuration](#configuration)).
 - **Webhooks are only a nudge:** signatures are checked, and a delivery only triggers a re-read
-  through the API.
+  through the API and adds to run history; it never changes a machine or a forge.
 - **Agents prepare, people run:** MCP access tokens can read and prepare changes, never run a
   review; only a dashboard session can.
 

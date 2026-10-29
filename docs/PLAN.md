@@ -235,10 +235,8 @@ jobs page.
 
 ## Planned
 
-- **Run history**: finished jobs per machine, pool and runner, with machine problems kept apart
-  from job failures; from webhooks when set up, otherwise job hooks on the machine plus one
-  GitHub request per job for its result. Agreed, not started:
-  [docs/plans/run-history.md](plans/run-history.md).
+- **Run history for Forgejo**: GitHub's is built ([docs/plans/run-history.md](plans/run-history.md));
+  Forgejo's finished tasks are still to read.
 - **Container runners ("Use this machine for CI")**: a fresh container per job on Runyard's
   own machine, then on SSH machines with Docker. Agreed and designed, not started:
   [docs/plans/container-runners.md](plans/container-runners.md).

@@ -10,6 +10,7 @@ import { join, resolve } from "node:path";
 import { Glob } from "bun";
 import { createMachine, listMachines } from "../src/machines/store.ts";
 import { listPools, recordTemplate, savePool } from "../src/pools/store.ts";
+import { listJobs, recordJob } from "../src/history/store.ts";
 import { FakeBoat } from "../src/boat/fake.ts";
 import { FakeForgejo } from "../src/forgejo/fake.ts";
 import { listConnections, saveConnection } from "../src/forgejo/store.ts";
@@ -598,6 +599,38 @@ const queueGpuJob = () => {
 };
 queueGpuJob();
 setInterval(queueGpuJob, 120_000).unref();
+
+// Run history: a week of finished jobs on the first machines' runners, seeded once.
+if (acme && listJobs(db, { since: 0, limit: 1 }).length === 0) {
+  const machines = listMachines(db);
+  const now = Date.now();
+  const names = ["build", "test", "lint", "e2e", "deploy-preview"];
+  for (let i = 0; i < 40; i++) {
+    const machine = machines[i % Math.min(2, machines.length)];
+    if (!machine) break;
+    const startedAt = now - (i * 4 + 1) * 60 * 60_000 - (i % 5) * 7 * 60_000;
+    const failed = i % 9 === 4;
+    const lost = i === 2;
+    recordJob(db, {
+      forgeId: acme.id,
+      repo: i % 3 ? "acme-demo/web" : "acme-demo/app",
+      jobId: 70_000 + i,
+      runId: 9_000 + i,
+      runAttempt: 1,
+      name: names[i % names.length]!,
+      workflow: i === 6 ? "Runyard runner check" : "CI",
+      test: i === 6,
+      runnerName: i % 2 ? "linux-01" : "mini-01",
+      machineId: machine.id,
+      startedAt,
+      finishedAt: startedAt + (90 + (i % 7) * 45) * 1000,
+      conclusion: i === 11 ? "cancelled" : failed || lost ? "failure" : "success",
+      htmlUrl: `https://github.demo/acme-demo/web/actions/runs/${9_000 + i}`,
+      ...(lost ? { hook: "started" as const } : {}),
+      source: lost ? "hook" : "webhook",
+    });
+  }
+}
 
 // Check right away instead of waiting for the next minute-long round.
 await monitor.checkNow();

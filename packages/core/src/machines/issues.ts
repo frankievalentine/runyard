@@ -1,3 +1,4 @@
+import type { JobRecord } from "../history/jobs.ts";
 import { pendingChanges } from "../pools/pending.ts";
 import { sshUser } from "./access.ts";
 import { readinessProblems } from "./readiness.ts";
@@ -83,6 +84,25 @@ export function deriveIssues(view: YardView): Issue[] {
         machineId: m.id,
       });
     }
+  }
+  // A runner that went away mid-job is the machine's problem, not the job's.
+  const lostBy = new Map<string, JobRecord[]>();
+  for (const j of view.lostJobs ?? [])
+    if (j.machineId) lostBy.set(j.machineId, [...(lostBy.get(j.machineId) ?? []), j]);
+  for (const [machineId, lost] of lostBy) {
+    const m = view.machines.find((x) => x.id === machineId);
+    if (!m) continue;
+    issues.push({
+      id: `${machineId}:lost-jobs`,
+      title: `${m.name}: ${lost.length === 1 ? "a runner" : `${lost.length} runners`} lost mid-job`,
+      detail: `${lost
+        .slice(0, 3)
+        .map((j) => `${j.name ?? "a job"} in ${j.repo} on ${j.runnerName ?? "its runner"}`)
+        .join(
+          "; ",
+        )}: the runner started it but never finished, so the machine or its runner stopped. See Jobs on its page.`,
+      machineId,
+    });
   }
   // Runners registered another way, until someone says which machine they run on.
   const unmanaged = view.runners.filter(

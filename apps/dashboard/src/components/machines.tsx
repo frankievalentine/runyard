@@ -1,5 +1,12 @@
-import { deriveIssues, type Alert, type YardView, type MachineView } from "@runyard/core";
+import {
+  deriveIssues,
+  type Alert,
+  type JobCounts,
+  type YardView,
+  type MachineView,
+} from "@runyard/core";
 import { useQuery } from "@tanstack/react-query";
+import { api, call } from "../api.ts";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { EVENTS_PAGE, eventsQuery, useYard } from "../lib/yard.ts";
@@ -143,6 +150,7 @@ export function Attention({ view }: { view: YardView }) {
 const COLUMNS = [
   { label: "Machine" },
   { label: "Runners", className: "w-32 px-3" },
+  { label: "Jobs, 7 days", className: "w-32 px-3" },
   { label: "Diagnostics" },
   { label: "CPU", className: "w-28 px-3" },
   { label: "Memory", className: "w-28 px-3" },
@@ -155,6 +163,14 @@ export function MachineTable({ machines }: { machines: MachineView[] }) {
   const navigate = useNavigate();
   const now = useNow();
   const { runners } = useYard();
+  const summary = useQuery({
+    queryKey: ["jobs-summary"],
+    queryFn: async () =>
+      (await call(api.jobs.summary.$get())) as unknown as {
+        machines: Record<string, JobCounts>;
+      },
+    refetchInterval: 60_000,
+  });
   if (!machines.length) {
     return (
       <Card>
@@ -202,6 +218,19 @@ export function MachineTable({ machines }: { machines: MachineView[] }) {
                   <RunnerCells runners={own} />
                 ) : (
                   <span className="text-[12px] text-ink-3">None</span>
+                );
+              })()}
+            </td>
+            <td className="px-3 py-2.5 text-[12px] text-ink-2 tabular">
+              {(() => {
+                const c = summary.data?.machines[m.id];
+                if (!c) return <span className="text-ink-3">—</span>;
+                const done = c.passed + c.failed + c.cancelled;
+                return (
+                  <span>
+                    {done}
+                    {c.failed > 0 && <span className="text-bad"> · {c.failed} failed</span>}
+                  </span>
                 );
               })()}
             </td>
