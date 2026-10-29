@@ -73,11 +73,11 @@ and its message.
 
 ## Round 4: a persistent pool
 
-- [ ] **4.1** Create a pool: the LXC with 1 slot, serving the test organization, label
-      `runyard-check`, tool profiles **Essentials**, **Build tools** and **Docker**, After each
-      job **Clear the workspace**.
-- [ ] **4.2** Review the LXC. Expect **Install tools** (only what 3.4 found missing), then
-      **Install**, then **Set cleanup**. Run it.
+- [ ] **4.1** Pools ▸ +: pick the queued `runyard-check` job from 2.3 (or the repository and
+      label `runyard-check` by hand), then the LXC. On the summary, expect one persistent runner,
+      Essentials and Build tools, Clear the workspace; add **Docker** under Tools.
+- [ ] **4.2** **Create and review**: expect the pool page with the LXC's review already shown:
+      **Install tools** (only what 3.4 found missing), **Install**, **Set cleanup**. Run it.
 - [ ] **4.3** Expect every step to succeed, the runner online in GitHub with labels
       `runyard-check`, `runyard`, `runyard-pool-…` and `runyard-runner-<name>`, and readiness
       now clean. Review again: expect nothing to do.

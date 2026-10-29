@@ -153,15 +153,23 @@ alerts.
 ## Runners and pools
 
 A **pool** is runner capacity: labels, the machines it runs on (with how many runners each), and
-the accounts or repositories it serves. Create one under **Pools ▸ +**, which opens with
-suggestions Runyard can justify from what it sees: queued jobs no runner has the labels for, and
-connected machines not yet in a pool. The form shows the runners the pool calls for before you
-save it. An organization gets one runner per slot; a personal GitHub account's repositories each
-get their own, because GitHub can't share a personal account's runner across repositories.
+the accounts or repositories it serves. Create one under **Pools ▸ +** in three steps:
 
-Saving a pool changes nothing on machines. On a machine's page, **Review changes** reads the
-machine and the forge and shows the plan; **Run** reads both again and does nothing if anything
-changed since the review. Runners live under `~/runyard-runners` (`C:\runyard-runners` on
+1. **What it's for:** a suggestion from what Runyard sees (queued jobs no runner has the labels
+   for, connected machines not yet in a pool), or repositories and labels you choose.
+2. **Where it runs:** your connected machines, each saying what its review would install.
+3. **Check and create:** a summary with defaults (one persistent runner per machine, Essentials
+   and Build tools installed where missing, the workspace cleared after each job), each with
+   **Change**, and the runners it registers.
+
+An organization gets one runner per slot; a personal GitHub account's repositories each get
+their own, because GitHub can't share a personal account's runner across repositories.
+
+Saving a pool changes nothing on machines. **Create and review** opens the pool with each
+machine's review already prepared: what it will do there, and **Run**, one machine at a time.
+**Run** reads the machine and the forge again and does nothing if anything changed since the
+review. Until every machine is set up, the pool page keeps showing the reviews still to run; a
+machine's own page has the same **Review changes**. Runners live under `~/runyard-runners` (`C:\runyard-runners` on
 Windows), as a LaunchAgent on macOS (it starts after the user logs in), a systemd service on
 Linux, or a Windows service.
 

@@ -177,6 +177,9 @@ Further packages are extracted when a boundary is proven, not up front.
      subscribe to `workflow_job` with the hook inactive; existing ones need Active and the event
      ticked in GitHub, which the API can't change.)
 
+Pool creation is three steps ending in each machine's review on the pool page
+([docs/plans/pool-flow.md](plans/pool-flow.md), built during live testing).
+
 ## Machine setup
 
 Getting Runyard into a machine is guided, built against fakes:
@@ -236,9 +239,6 @@ jobs page.
   from job failures; from webhooks when set up, otherwise job hooks on the machine plus one
   GitHub request per job for its result. Agreed, not started:
   [docs/plans/run-history.md](plans/run-history.md).
-- **A simpler pool flow**: three short steps (what it's for, where it runs, check and create)
-  ending with each machine's review inline. Agreed, not started:
-  [docs/plans/pool-flow.md](plans/pool-flow.md).
 - **Container runners ("Use this machine for CI")**: a fresh container per job on Runyard's
   own machine, then on SSH machines with Docker. Agreed and designed, not started:
   [docs/plans/container-runners.md](plans/container-runners.md).

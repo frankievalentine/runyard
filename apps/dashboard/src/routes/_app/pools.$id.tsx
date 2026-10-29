@@ -1,5 +1,6 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
-import type { Dispatch, Pool, Scope } from "@runyard/core";
+import type { Dispatch, MachineView, Pool, Scope } from "@runyard/core";
+import { MachineChanges } from "../../components/changes.tsx";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
@@ -31,11 +32,15 @@ import { formatElapsed, timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
 
 export const Route = createFileRoute("/_app/pools/$id")({
+  /** `setup`: just saved, so each machine's review is prepared and shown first. */
+  validateSearch: (search: Record<string, unknown>): { setup?: boolean } =>
+    search.setup === true || search.setup === "true" ? { setup: true } : {},
   component: PoolPage,
 });
 
 function PoolPage() {
   const { id } = Route.useParams();
+  const { setup } = Route.useSearch();
   const view = useYard();
   const navigate = useNavigate();
   const { data: session } = useSuspenseQuery(sessionQuery);
@@ -124,7 +129,14 @@ function PoolPage() {
       />
       {editing && (
         <div className="mt-6">
-          <PoolForm pool={pool} onDone={() => setEditing(false)} />
+          <PoolForm
+            pool={pool}
+            onCancel={() => setEditing(false)}
+            onDone={() => {
+              setEditing(false);
+              void navigate({ to: "/pools/$id", params: { id: pool.id }, search: { setup: true } });
+            }}
+          />
         </div>
       )}
       {pool.labels.length > 0 && (
@@ -151,25 +163,18 @@ function PoolPage() {
           {view.pools.collisions.join(" ")}
         </Callout>
       )}
-      {machinesNeedingReview.length > 0 && (
+      {admin && !editing && (setup || machinesNeedingReview.length > 0) && (
+        <SetUpOnMachines
+          pool={pool}
+          // Just saved: every machine, prepared. Later: those still missing runners.
+          machineIds={setup ? pool.machines.map((x) => x.machineId) : machinesNeedingReview}
+          justSaved={Boolean(setup)}
+          onDismiss={() => void navigate({ to: "/pools/$id", params: { id: pool.id }, search: {} })}
+        />
+      )}
+      {!admin && machinesNeedingReview.length > 0 && (
         <Callout tone="warn" title={onDemand ? "Runner software to install" : "Runners to install"}>
-          {onDemand
-            ? "One-job runners start only on machines with the runner software installed. Review each machine's changes:"
-            : "Saving a pool changes nothing on machines. Review each machine's changes:"}{" "}
-          {machinesNeedingReview.map((mid, i) => (
-            <span key={mid}>
-              {i > 0 && ", "}
-              <Link
-                to="/machines/$id"
-                params={{ id: mid }}
-                hash="changes"
-                className="font-medium text-accent hover:underline"
-              >
-                {view.machines.find((m) => m.id === mid)?.name ?? mid}
-              </Link>
-            </span>
-          ))}
-          .
+          An admin reviews and runs each machine's changes to install them.
         </Callout>
       )}
       <PoolReadiness poolLabels={pool.labels} machineIds={pool.machines.map((x) => x.machineId)} />
@@ -611,6 +616,81 @@ function Dispatches({ dispatches }: { dispatches: Dispatch[] }) {
         })}
       </ul>
     </Card>
+  );
+}
+
+/**
+ * The step after saving a pool, on the pool's own page: each machine's review,
+ * what it will do and a Run button, one machine at a time.
+ */
+function SetUpOnMachines({
+  pool,
+  machineIds,
+  justSaved,
+  onDismiss,
+}: {
+  pool: Pool;
+  machineIds: string[];
+  justSaved: boolean;
+  onDismiss: () => void;
+}) {
+  const view = useYard();
+  // Fixed when shown, so machines don't drop out of the list as they finish.
+  const [ids] = useState(machineIds);
+  const machines = ids
+    .map((mid) => view.machines.find((m) => m.id === mid))
+    .filter((m): m is MachineView => m !== undefined);
+  const [settled, setSettled] = useState<Set<string>>(new Set());
+  const allDone = machines.length > 0 && machines.every((m) => settled.has(m.id));
+  const labels = pool.labels.length ? pool.labels.join(", ") : `runyard-pool-${pool.name}`;
+  const heading = allDone
+    ? "Set up on every machine"
+    : justSaved
+      ? "Saved. Now set it up on your machines"
+      : "Not set up on every machine yet";
+  const text = allDone
+    ? pool.mode === "onDemand"
+      ? `Jobs asking for ${labels} now get a fresh runner on these machines.`
+      : `Its runners come online within a minute; jobs asking for ${labels} start on them.`
+    : justSaved
+      ? "Nothing has changed on your machines yet. Each machine's review below lists exactly what it will do; run it to install what this pool needs."
+      : pool.mode === "onDemand"
+        ? "One-job runners start only where the runner software is installed. Review and run each machine below."
+        : "These machines don't have this pool's runners yet. Review and run each machine below.";
+  return (
+    <section
+      className={`mt-6 rounded-lg border px-4 py-4 ${allDone ? "border-ok/40 bg-ok/5" : "border-accent/40 bg-accent/5"}`}
+    >
+      <div className="flex flex-wrap items-start gap-3">
+        <span className={`mt-0.5 ${allDone ? "text-ok" : "text-accent"}`}>
+          <Icon name={allDone ? "check" : "plan"} size={16} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[14px] font-semibold">{heading}</h2>
+          <p className="mt-0.5 text-[12.5px] text-ink-2">{text}</p>
+        </div>
+        {(justSaved || allDone) && (
+          <Button small variant={allDone ? "primary" : "ghost"} onClick={onDismiss}>
+            {allDone ? "Done" : "Hide"}
+          </Button>
+        )}
+      </div>
+      {machines.map((m) => (
+        <MachineChanges
+          key={m.id}
+          m={m}
+          admin
+          anchor={null}
+          autoPrepare={justSaved}
+          onSettled={() => setSettled((s) => (s.has(m.id) ? s : new Set(s).add(m.id)))}
+          title={
+            <Link to="/machines/$id" params={{ id: m.id }} className="hover:underline">
+              On {m.name}
+            </Link>
+          }
+        />
+      ))}
+    </section>
   );
 }
 

@@ -2,21 +2,30 @@ import {
   desiredRunners,
   desiredTemplates,
   POOL_NAME,
+  profileTools,
+  readinessProblems,
   TOOL_PROFILES,
+  toolInstallPlan,
+  type CleanupMode,
   type ForgeKind,
   type ForgejoMode,
+  type MachineView,
   type Pool,
   type PoolMode,
   type Scope,
   type ToolProfile,
-  type CleanupMode,
 } from "@runyard/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { api, call } from "../api.ts";
 import { yardQuery, useYard } from "../lib/yard.ts";
-import { slug, type PoolDraft } from "../lib/pool-suggestions.ts";
+import {
+  slug,
+  suggestPools,
+  type PoolDraft,
+  type PoolSuggestion,
+} from "../lib/pool-suggestions.ts";
 import { availableScopes, isForgejo, sameScope } from "../lib/pools.ts";
 import { osLabel } from "../lib/status.ts";
 import { Button, TextField } from "./form.tsx";
@@ -39,24 +48,58 @@ const MODES = [
   ],
 ] as const;
 
+const CLEANUPS = [
+  ["off", "Keep everything", "Nothing is cleared between jobs."],
+  ["workspace", "Clear the workspace", "The job's checkout and build output."],
+  [
+    "docker",
+    "Workspace and Docker",
+    "Also stopped containers, dangling images, unused networks and anonymous volumes, for every account on the machine.",
+  ],
+] as const;
+
+const STEPS = ["What it's for", "Where it runs", "Check and create"] as const;
+type StepNo = 1 | 2 | 3;
+
+/** Tools a new pool installs where missing: the basics, and Docker when its labels ask for it. */
+function defaultTools(labels: string[]): ToolProfile[] {
+  return labels.some((l) => l.toLowerCase() === "docker")
+    ? ["essentials", "build", "docker"]
+    : ["essentials", "build"];
+}
+
+/** A machine Runyard can reach, so a review can run on it. */
+const reachable = (m: MachineView) =>
+  m.connection.state === "connected" || m.connection.state === "stale";
+
 /**
- * Creates a pool, or edits one in place, in three steps: what it serves, where
- * and how it runs, and its labels and name. The preview shows what it calls for.
+ * Creates or edits a pool in three short steps: what it's for (a waiting job,
+ * or repositories and labels), where it runs, and a summary with sensible
+ * defaults, each changeable in place. Saving opens the pool with each machine's
+ * review ready to run, so the next step is always on screen.
  */
 export function PoolForm({
   pool,
   initial,
   onDone,
+  onCancel,
 }: {
   pool?: Pool;
   /** Prefilled settings for a new pool, such as a suggestion. */
   initial?: PoolDraft;
-  onDone?: () => void;
+  /** Instead of opening the pool after saving, as when editing it in place. */
+  onDone?: (poolId: string) => void;
+  onCancel?: () => void;
 }) {
   const view = useYard();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const start = pool ?? initial;
+  const [step, setStep] = useState<StepNo>(
+    start?.scopes.length && start.machines.length ? 3 : start?.scopes.length ? 2 : 1,
+  );
+  // Computed once, so suggestions don't reshuffle while the form is filled in.
+  const [suggestions] = useState<PoolSuggestion[]>(() => (start ? [] : suggestPools(view)));
   const [name, setName] = useState(start?.name ?? "");
   // Until the name is typed, it follows the first label.
   const [nameTouched, setNameTouched] = useState(Boolean(start?.name));
@@ -70,8 +113,16 @@ export function PoolForm({
     start?.forgejoMode.kind === "docker" ? start.forgejoMode.image : "node:22-bookworm",
   );
   const [poolMode, setPoolMode] = useState<PoolMode>(start?.mode ?? "persistent");
-  const [toolProfiles, setToolProfiles] = useState<ToolProfile[]>(start?.toolProfiles ?? []);
-  const [cleanup, setCleanup] = useState<CleanupMode>(start?.cleanup ?? "off");
+  const [toolProfiles, setToolProfiles] = useState<ToolProfile[]>(
+    start?.toolProfiles ?? (pool ? [] : defaultTools(start?.labels ?? [])),
+  );
+  // Until tools are picked by hand, a new pool's follow its labels (docker adds Docker).
+  const [toolsTouched, setToolsTouched] = useState(Boolean(pool || start?.toolProfiles));
+  const [cleanup, setCleanup] = useState<CleanupMode>(
+    start?.cleanup ?? (pool ? "off" : "workspace"),
+  );
+  // Which summary lines are open for changing.
+  const [open, setOpen] = useState<Set<string>>(new Set());
   const onDemand = poolMode === "onDemand";
   const options = availableScopes(view);
   const servesForgejo = scopes.some((s) => isForgejo(view, s));
@@ -79,8 +130,9 @@ export function PoolForm({
     .split(",")
     .map((l) => l.trim())
     .filter(Boolean);
-  // Labels every chosen machine can honestly carry, from its last check, not yet in the list.
+  const profiles = toolsTouched ? toolProfiles : defaultTools(labelList);
   const chosen = view.machines.filter((m) => (slots[m.id] ?? 0) > 0);
+  // Labels every chosen machine can honestly carry, from its last check, not yet in the list.
   const suggestedLabels =
     chosen.length && chosen.every((m) => m.readiness)
       ? (chosen[0]!.readiness?.capabilities ?? []).filter(
@@ -99,7 +151,7 @@ export function PoolForm({
     scopes,
     forgejoMode: mode === "docker" ? { kind: "docker", image: image.trim() } : { kind: "host" },
     mode: poolMode,
-    toolProfiles,
+    toolProfiles: profiles,
     // One-job runners start fresh each time; only persistent runners keep a workspace.
     cleanup: poolMode === "persistent" ? cleanup : "off",
   };
@@ -158,15 +210,16 @@ export function PoolForm({
     },
     onSuccess: async ({ id }) => {
       await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
-      if (onDone) onDone();
-      else void navigate({ to: "/pools/$id", params: { id } });
+      if (onDone) onDone(id);
+      else void navigate({ to: "/pools/$id", params: { id }, search: { setup: true } });
     },
   });
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    save.mutate();
+    if (step < 3) setStep((step + 1) as StepNo);
+    else save.mutate();
   };
-  const toggle = (scope: Scope) =>
+  const toggleScope = (scope: Scope) =>
     setScopes((current) =>
       current.some((s) => sameScope(s, scope))
         ? current.filter((s) => !sameScope(s, scope))
@@ -174,306 +227,402 @@ export function PoolForm({
     );
   const setSlot = (id: string, n: number) =>
     setSlots({ ...slots, [id]: Math.max(0, Math.min(16, n)) });
+  const toggleOpen = (key: string) =>
+    setOpen((o) => {
+      const next = new Set(o);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const applySuggestion = (s: PoolSuggestion) => {
+    setScopes(s.draft.scopes);
+    setLabels(s.draft.labels.join(", "));
+    setSlots(Object.fromEntries(s.draft.machines.map((m) => [m.machineId, m.slots])));
+    setName(s.draft.name);
+    setNameTouched(true);
+    if (s.draft.mode) setPoolMode(s.draft.mode);
+    setStep(2);
+  };
   const total = draft.machines.reduce((n, m) => n + m.slots, 0);
+  const canContinue = step === 1 ? scopes.length > 0 : step === 2 ? total > 0 : true;
+  const mayVisit = (n: StepNo) => n === 1 || scopes.length > 0;
 
   return (
     <Card className="max-w-3xl overflow-hidden">
       <form onSubmit={submit} className="text-[13px]">
-        <Step
-          n={1}
-          title="What it serves"
-          hint="Runners register with these accounts or repositories."
-        >
-          {options.length === 0 ? (
-            <EmptyLine>Connect GitHub or Forgejo first, under Settings ▸ Connections.</EmptyLine>
-          ) : (
-            <div className="max-h-64 divide-y divide-line overflow-y-auto rounded-md border border-line">
-              {options.map(({ scope, label, forge }) => (
-                <label
-                  key={`${scope.forgeId}:${scope.kind}:${scope.target}`}
-                  className="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-hover"
+        <ol className="flex flex-wrap gap-x-5 gap-y-1 border-b border-line px-5 py-3 text-[12.5px]">
+          {STEPS.map((step3, i) => {
+            const title = pool && i === 2 ? "Check and save" : step3;
+            const n = (i + 1) as StepNo;
+            const current = n === step;
+            return (
+              <li key={title}>
+                <button
+                  type="button"
+                  onClick={() => setStep(n)}
+                  disabled={!mayVisit(n) || (n === 3 && total === 0)}
+                  aria-current={current ? "step" : undefined}
+                  className={`flex items-center gap-2 disabled:opacity-50 ${current ? "font-medium text-ink" : "text-ink-2 hover:text-ink"}`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={scopes.some((s) => sameScope(s, scope))}
-                    onChange={() => toggle(scope)}
-                  />
-                  <span className="min-w-0 flex-1 font-mono text-[12.5px]">{label}</span>
-                  {forge === "forgejo" && <ForgeBadge />}
-                </label>
-              ))}
-            </div>
-          )}
-          <p className="mt-1.5 text-[12px] text-ink-3">
-            A personal GitHub account's repositories each get their own runners; an organization or
-            Forgejo account shares its runners with all of its repositories.
-          </p>
-        </Step>
-
-        <Step n={2} title="Where and how it runs" hint="Choose how runners run, then the machines.">
-          <fieldset className="mb-3 grid grid-cols-1 gap-2 min-[700px]:grid-cols-2">
-            <legend className="sr-only">How runners run</legend>
-            {MODES.map(([value, title, text]) => (
-              <label
-                key={value}
-                className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 ${poolMode === value ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
-              >
-                <input
-                  type="radio"
-                  name="poolMode"
-                  className="mt-[3px] shrink-0"
-                  checked={poolMode === value}
-                  onChange={() => setPoolMode(value)}
-                />
-                <span>
-                  <span className="block font-medium">{title}</span>
-                  <span className="block text-[12px] text-ink-2">{text}</span>
-                </span>
-              </label>
-            ))}
-          </fieldset>
-          <p className="mb-1.5 text-[12px] text-ink-2">
-            {onDemand
-              ? "The most one-job runners each machine runs at once."
-              : "How many runners each machine gets. Most machines need one."}
-          </p>
-          {view.machines.length === 0 ? (
-            <EmptyLine>Add a machine first.</EmptyLine>
-          ) : (
-            <div className="divide-y divide-line rounded-md border border-line">
-              {view.machines.map((m) => {
-                const n = slots[m.id] ?? 0;
-                return (
-                  <div key={m.id} className="flex items-center gap-3 px-3 py-2">
-                    <span className="min-w-0 flex-1 truncate">
-                      <span className={n ? "font-medium" : ""}>{m.name}</span>{" "}
-                      <span className="text-ink-3">{m.os ? osLabel[m.os] : "OS not read yet"}</span>
-                    </span>
-                    <div
-                      className="flex items-center gap-1"
-                      role="group"
-                      aria-label={`Runners on ${m.name}`}
-                    >
-                      <Button
-                        small
-                        onClick={() => setSlot(m.id, n - 1)}
-                        disabled={n === 0}
-                        aria-label={`One fewer on ${m.name}`}
-                      >
-                        −
-                      </Button>
-                      <span className="w-7 text-center font-mono tabular">{n}</span>
-                      <Button
-                        small
-                        onClick={() => setSlot(m.id, n + 1)}
-                        disabled={n >= 16}
-                        aria-label={`One more on ${m.name}`}
-                      >
-                        +
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {servesForgejo && (
-            <fieldset className="mt-3 flex flex-col gap-2">
-              <legend className="mb-1 text-[12px] font-medium text-ink-2">Forgejo jobs run</legend>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="mode"
-                  checked={mode === "host"}
-                  onChange={() => setMode("host")}
-                />
-                On the machine, as the SSH user
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="mode"
-                  checked={mode === "docker"}
-                  onChange={() => setMode("docker")}
-                />
-                In Docker containers (Docker must already be installed)
-              </label>
-              {mode === "docker" && (
-                <TextField
-                  label="Default image"
-                  value={image}
-                  onChange={(e) => setImage(e.target.value)}
-                  placeholder="node:22-bookworm"
-                  required
-                />
-              )}
-            </fieldset>
-          )}
-          {!onDemand && (
-            <fieldset className="mt-5 flex flex-col gap-2">
-              <legend className="text-[12px] font-medium text-ink-2">After each job</legend>
-              <p className="text-[12px] text-ink-2">
-                Persistent runners keep their workspace and Docker data between jobs, which keeps
-                builds warm but lets one job affect the next. GitHub runners on Linux and macOS;
-                changing it restarts each runner while it's idle.
-              </p>
-              <div className="grid grid-cols-1 gap-2 min-[700px]:grid-cols-3">
-                {(
-                  [
-                    ["off", "Keep everything", "Nothing is cleared between jobs."],
-                    ["workspace", "Clear the workspace", "The job's checkout and build output."],
-                    [
-                      "docker",
-                      "Workspace and Docker",
-                      "Also stopped containers, dangling images, unused networks and anonymous volumes, for every account on the machine.",
-                    ],
-                  ] as const
-                ).map(([value, title, detail]) => (
-                  <label
-                    key={value}
-                    className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-[12.5px] ${cleanup === value ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
+                  <span
+                    className={`flex size-5 items-center justify-center rounded-full border text-[11px] ${current ? "border-accent bg-accent text-white" : n < step ? "border-accent text-accent" : "border-line"}`}
                   >
-                    <input
-                      type="radio"
-                      name="cleanup"
-                      className="mt-[3px] shrink-0"
-                      checked={cleanup === value}
-                      onChange={() => setCleanup(value)}
-                    />
-                    <span>
-                      <span className="font-medium">{title}</span>
-                      <span className="block text-[12px] text-ink-2">{detail}</span>
-                    </span>
-                  </label>
+                    {n}
+                  </span>
+                  {title}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+
+        {step === 1 && (
+          <div className="flex flex-col gap-5 px-5 py-4">
+            {suggestions.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <h3 className="font-medium">From what's waiting</h3>
+                <div className="grid grid-cols-1 gap-2 min-[700px]:grid-cols-2">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => applySuggestion(s)}
+                      className="flex flex-col gap-1 rounded-md border border-line px-3 py-2.5 text-left hover:border-accent hover:bg-accent/5"
+                    >
+                      <span className="font-medium">{s.title}</span>
+                      <span className="text-[12px] text-ink-2">{s.detail}</span>
+                      <span className="mt-0.5 text-[12px] font-medium text-accent">
+                        Make runners for this →
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <h3 className="font-medium">
+                {suggestions.length ? "Or choose yourself" : "Which repositories or accounts"}
+              </h3>
+              {options.length === 0 ? (
+                <EmptyLine>
+                  Connect GitHub or Forgejo first, under{" "}
+                  <Link to="/settings/connections" className="text-accent hover:underline">
+                    Settings ▸ Connections
+                  </Link>
+                  .
+                </EmptyLine>
+              ) : (
+                <div className="max-h-64 divide-y divide-line overflow-y-auto rounded-md border border-line">
+                  {options.map(({ scope, label, forge }) => (
+                    <label
+                      key={`${scope.forgeId}:${scope.kind}:${scope.target}`}
+                      className="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-hover"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={scopes.some((s) => sameScope(s, scope))}
+                        onChange={() => toggleScope(scope)}
+                      />
+                      <span className="min-w-0 flex-1 font-mono text-[12.5px]">{label}</span>
+                      {forge === "forgejo" && <ForgeBadge />}
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="text-[12px] text-ink-3">
+                A personal GitHub account's repositories each get their own runners; an organization
+                or Forgejo account shares its runners with all of its repositories.
+              </p>
+              <TextField
+                label="Labels"
+                value={labels}
+                onChange={(e) => setLabels(e.target.value)}
+                placeholder="linux-build"
+                description="What your workflows ask for in runs-on, comma-separated. GitHub adds self-hosted, the OS and architecture itself."
+              />
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="flex flex-col gap-2 px-5 py-4">
+            <h3 className="font-medium">Which machines</h3>
+            <p className="text-[12px] text-ink-2">
+              Each machine you pick gets one runner. What a machine is missing is installed by its
+              review.
+            </p>
+            {view.machines.length === 0 ? (
+              <EmptyLine>
+                No machines yet.{" "}
+                <Link to="/machines/add" className="text-accent hover:underline">
+                  Add one
+                </Link>{" "}
+                first.
+              </EmptyLine>
+            ) : (
+              <div className="divide-y divide-line rounded-md border border-line">
+                {view.machines.map((m) => (
+                  <MachineChoice
+                    key={m.id}
+                    m={m}
+                    on={(slots[m.id] ?? 0) > 0}
+                    onToggle={(on) => setSlot(m.id, on ? Math.max(1, slots[m.id] ?? 0) : 0)}
+                    profiles={profiles}
+                  />
                 ))}
               </div>
-            </fieldset>
-          )}
-          <fieldset className="mt-5 flex flex-col gap-2">
-            <legend className="text-[12px] font-medium text-ink-2">
-              Tools to install where they're missing
-            </legend>
-            <p className="text-[12px] text-ink-2">
-              Each machine's review installs what its last check found missing, before the runners.
-              Nothing is installed until you run the review.
-            </p>
-            <div className="grid grid-cols-1 gap-2 min-[700px]:grid-cols-3">
-              {(Object.keys(TOOL_PROFILES) as ToolProfile[]).map((p) => {
-                const on = toolProfiles.includes(p);
-                return (
-                  <label
-                    key={p}
-                    className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-[12.5px] ${on ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="mt-[3px] shrink-0"
-                      checked={on}
-                      onChange={() =>
-                        setToolProfiles(
-                          on ? toolProfiles.filter((x) => x !== p) : [...toolProfiles, p],
-                        )
-                      }
-                    />
-                    <span>
-                      <span className="font-medium">{TOOL_PROFILES[p].title}</span>
-                      <span className="block text-[12px] text-ink-2">
-                        {TOOL_PROFILES[p].detail}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
-        </Step>
-
-        <Step n={3} title="Labels and name" hint="Workflows pick these runners with runs-on.">
-          <div className="grid grid-cols-1 gap-4 min-[700px]:grid-cols-2">
-            <TextField
-              label="Labels"
-              value={labels}
-              onChange={(e) => setLabels(e.target.value)}
-              placeholder="xcode, gpu"
-              description="Comma-separated. GitHub adds self-hosted, the OS and architecture itself."
-            />
-            <TextField
-              label="Name"
-              value={effectiveName}
-              onChange={(e) => {
-                setNameTouched(true);
-                setName(e.target.value);
-              }}
-              placeholder="mac-builders"
-              description={nameError ?? "Part of each runner's name, and a runyard-pool-… label."}
-              required
-            />
+            )}
           </div>
-          {suggestedLabels.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] text-ink-2">
-              <span>{chosen.length === 1 ? "This machine has" : "Every chosen machine has"}:</span>
-              {suggestedLabels.map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  className="rounded-md border border-line bg-card px-2 py-0.5 font-mono text-[12px] text-ink hover:bg-hover"
-                  onClick={() => setLabels(labelList.length ? `${labels.trim()}, ${l}` : l)}
-                >
-                  + {l}
-                </button>
-              ))}
-            </div>
-          )}
-        </Step>
+        )}
 
-        <div className="border-t border-line bg-sunken/40 px-5 py-4">
-          {onDemand ? (
-            <>
-              <div className="font-medium">
-                {preview.templates.length === 0
-                  ? "No runners yet"
-                  : `Up to ${total} one-job runner${total === 1 ? "" : "s"} at once`}
-              </div>
-              {preview.templates.length === 0 ? (
-                <p className="mt-1 text-[12.5px] text-ink-2">
-                  Choose at least one account or repository and one machine.
-                </p>
-              ) : (
-                <ul className="mt-2 space-y-1 text-[12px]">
-                  {preview.templates.map((t) => (
-                    <li key={t.key}>
-                      <span className="font-medium">
-                        {view.machines.find((m) => m.id === t.machineId)?.name}
-                      </span>
-                      <span className="text-ink-2">
-                        {" "}
-                        · up to {slots[t.machineId] ?? 0} at once ·{" "}
-                        {t.runnerKind === "forgejo" ? "forgejo-runner" : "GitHub's runner"} kept at{" "}
-                        <span className="font-mono">{t.path}</span>
-                      </span>
-                    </li>
+        {step === 3 && (
+          <div className="flex flex-col">
+            <ul className="divide-y divide-line">
+              <Summary
+                label="Serves"
+                value={
+                  scopes.length
+                    ? scopes.map((s) => s.target).join(", ")
+                    : "Nothing yet: pick a repository or account"
+                }
+                onChange={() => setStep(1)}
+              />
+              <Summary
+                label="Labels"
+                value={
+                  labelList.length ? (
+                    <span className="font-mono">{labelList.join(", ")}</span>
+                  ) : (
+                    "None besides Runyard's own"
+                  )
+                }
+                onChange={() => setStep(1)}
+              >
+                {suggestedLabels.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-ink-2">
+                    <span>
+                      {chosen.length === 1 ? "This machine has" : "Every chosen machine has"}:
+                    </span>
+                    {suggestedLabels.map((l) => (
+                      <button
+                        key={l}
+                        type="button"
+                        className="rounded-md border border-line bg-card px-2 py-0.5 font-mono text-[12px] text-ink hover:bg-hover"
+                        onClick={() => setLabels(labelList.length ? `${labels.trim()}, ${l}` : l)}
+                      >
+                        + {l}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </Summary>
+              <Summary
+                label="Runs on"
+                value={chosen.map((m) => m.name).join(", ") || "No machines yet"}
+                onChange={() => setStep(2)}
+              />
+              <Summary
+                label="Runners"
+                value={
+                  onDemand
+                    ? `On demand: a fresh runner per job, up to ${total} at once`
+                    : total === chosen.length
+                      ? `Persistent: one per machine, kept registered`
+                      : `Persistent: ${total} kept registered`
+                }
+                open={open.has("mode")}
+                onChange={() => toggleOpen("mode")}
+              >
+                <fieldset className="grid grid-cols-1 gap-2 min-[700px]:grid-cols-2">
+                  <legend className="sr-only">How runners run</legend>
+                  {MODES.map(([value, title, text]) => (
+                    <Choice
+                      key={value}
+                      type="radio"
+                      name="poolMode"
+                      checked={poolMode === value}
+                      onChange={() => setPoolMode(value)}
+                      title={title}
+                      detail={text}
+                    />
                   ))}
-                </ul>
-              )}
-              {offPlatform && (
-                <Note>
-                  On-demand runners run on Linux and macOS for now; other machines are skipped.
-                </Note>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="font-medium">
-                {preview.runners.length === 0
-                  ? "No runners yet"
-                  : `Will call for ${preview.runners.length} runner${preview.runners.length === 1 ? "" : "s"}`}
-              </div>
-              {preview.runners.length === 0 ? (
-                <p className="mt-1 text-[12.5px] text-ink-2">
-                  Choose at least one account or repository and one machine.
+                </fieldset>
+                <p className="mt-3 mb-1.5 text-[12px] text-ink-2">
+                  {onDemand
+                    ? "The most one-job runners each machine runs at once."
+                    : "How many runners each machine gets. Most machines need one."}
                 </p>
+                <div className="divide-y divide-line rounded-md border border-line">
+                  {chosen.map((m) => {
+                    const n = slots[m.id] ?? 0;
+                    return (
+                      <div key={m.id} className="flex items-center gap-3 px-3 py-2">
+                        <span className="min-w-0 flex-1 truncate font-medium">{m.name}</span>
+                        <div
+                          className="flex items-center gap-1"
+                          role="group"
+                          aria-label={`Runners on ${m.name}`}
+                        >
+                          <Button
+                            small
+                            onClick={() => setSlot(m.id, n - 1)}
+                            disabled={n <= 1}
+                            aria-label={`One fewer on ${m.name}`}
+                          >
+                            −
+                          </Button>
+                          <span className="w-7 text-center font-mono tabular">{n}</span>
+                          <Button
+                            small
+                            onClick={() => setSlot(m.id, n + 1)}
+                            disabled={n >= 16}
+                            aria-label={`One more on ${m.name}`}
+                          >
+                            +
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Summary>
+              <Summary
+                label="Tools"
+                value={
+                  profiles.length
+                    ? `Installs ${profiles.map((p) => TOOL_PROFILES[p].title).join(", ")} where missing`
+                    : "Installs nothing"
+                }
+                open={open.has("tools")}
+                onChange={() => toggleOpen("tools")}
+              >
+                <div className="grid grid-cols-1 gap-2 min-[700px]:grid-cols-3">
+                  {(Object.keys(TOOL_PROFILES) as ToolProfile[]).map((p) => {
+                    const on = profiles.includes(p);
+                    return (
+                      <Choice
+                        key={p}
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => {
+                          setToolsTouched(true);
+                          setToolProfiles(on ? profiles.filter((x) => x !== p) : [...profiles, p]);
+                        }}
+                        title={TOOL_PROFILES[p].title}
+                        detail={TOOL_PROFILES[p].detail}
+                      />
+                    );
+                  })}
+                </div>
+              </Summary>
+              {!onDemand && (
+                <Summary
+                  label="After each job"
+                  value={CLEANUPS.find(([v]) => v === cleanup)![1]}
+                  open={open.has("cleanup")}
+                  onChange={() => toggleOpen("cleanup")}
+                >
+                  <p className="mb-2 text-[12px] text-ink-2">
+                    Persistent runners keep their workspace and Docker data between jobs, which
+                    keeps builds warm but lets one job affect the next. GitHub runners on Linux and
+                    macOS; changing it restarts each runner while it's idle.
+                  </p>
+                  <div className="grid grid-cols-1 gap-2 min-[700px]:grid-cols-3">
+                    {CLEANUPS.map(([value, title, detail]) => (
+                      <Choice
+                        key={value}
+                        type="radio"
+                        name="cleanup"
+                        checked={cleanup === value}
+                        onChange={() => setCleanup(value)}
+                        title={title}
+                        detail={detail}
+                      />
+                    ))}
+                  </div>
+                </Summary>
+              )}
+              {servesForgejo && (
+                <Summary
+                  label="Forgejo jobs"
+                  value={
+                    mode === "docker"
+                      ? `In Docker containers (${image || "no image"})`
+                      : "On the machine"
+                  }
+                  open={open.has("forgejo")}
+                  onChange={() => toggleOpen("forgejo")}
+                >
+                  <fieldset className="flex flex-col gap-2">
+                    <legend className="sr-only">Forgejo jobs run</legend>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="mode"
+                        checked={mode === "host"}
+                        onChange={() => setMode("host")}
+                      />
+                      On the machine, as the SSH user
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="mode"
+                        checked={mode === "docker"}
+                        onChange={() => setMode("docker")}
+                      />
+                      In Docker containers (Docker must already be installed)
+                    </label>
+                    {mode === "docker" && (
+                      <TextField
+                        label="Default image"
+                        value={image}
+                        onChange={(e) => setImage(e.target.value)}
+                        placeholder="node:22-bookworm"
+                        required
+                      />
+                    )}
+                  </fieldset>
+                </Summary>
+              )}
+              <Summary
+                label="Name"
+                value={<span className="font-mono">{effectiveName || "none yet"}</span>}
+                open={open.has("name") || Boolean(nameError) || !effectiveName}
+                onChange={() => toggleOpen("name")}
+              >
+                <TextField
+                  label="Pool name"
+                  value={effectiveName}
+                  onChange={(e) => {
+                    setNameTouched(true);
+                    setName(e.target.value);
+                  }}
+                  placeholder="linux-builders"
+                  description={
+                    nameError ?? "Part of each runner's name, and a runyard-pool-… label."
+                  }
+                  required
+                />
+              </Summary>
+            </ul>
+
+            <div className="border-t border-line bg-sunken/40 px-5 py-3 text-[12px]">
+              <div className="mb-1 font-medium text-ink-2">
+                {onDemand ? "Runner software" : "Runners it registers"}
+              </div>
+              {onDemand ? (
+                preview.templates.map((t) => (
+                  <div key={t.key} className="text-ink-2">
+                    <span className="font-medium text-ink">
+                      {view.machines.find((m) => m.id === t.machineId)?.name}
+                    </span>{" "}
+                    keeps {t.runnerKind === "forgejo" ? "forgejo-runner" : "GitHub's runner"} at{" "}
+                    <span className="font-mono">{t.path}</span>
+                  </div>
+                ))
               ) : (
-                <ul className="mt-2 space-y-1 font-mono text-[12px]">
+                <ul className="space-y-0.5 font-mono">
                   {preview.runners.slice(0, PREVIEW_ROWS).map((d) => (
                     <li key={d.key} className="flex flex-wrap gap-x-2">
                       <span>{d.name}</span>
@@ -488,65 +637,203 @@ export function PoolForm({
                   )}
                 </ul>
               )}
-            </>
-          )}
-          {unknownOs.length > 0 && (
-            <Note>
-              Machines whose OS hasn't been read yet get runners once Runyard reaches them.
-            </Note>
-          )}
-          {forgejoOffLinux && (
-            <Note>
-              forgejo-runner is published for Linux only, so Forgejo runners on other machines won't
-              install.
-            </Note>
-          )}
-          {save.error && <ErrorText className="mt-3" error={save.error} />}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={save.isPending || Boolean(nameError) || !draft.name}
-            >
-              {pool ? "Save pool" : "Create pool"}
-            </Button>
-            {onDone && <Button onClick={onDone}>Cancel</Button>}
-            <span className="text-[12px] text-ink-3">
-              {onDemand
-                ? "Saving changes nothing on machines; reviewing each machine's changes installs the runner software."
-                : "Saving changes nothing on machines; you review each machine's changes next."}
-            </span>
+              {offPlatform && (
+                <Note>
+                  On-demand runners run on Linux and macOS for now; other machines are skipped.
+                </Note>
+              )}
+              {unknownOs.length > 0 && (
+                <Note>
+                  Machines whose OS hasn't been read yet get runners once Runyard reaches them.
+                </Note>
+              )}
+              {forgejoOffLinux && (
+                <Note>
+                  forgejo-runner is published for Linux only, so Forgejo runners on other machines
+                  won't install.
+                </Note>
+              )}
+            </div>
           </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
+          {step > 1 && (
+            <Button onClick={() => setStep((step - 1) as StepNo)} disabled={save.isPending}>
+              Back
+            </Button>
+          )}
+          {onCancel && (
+            <Button onClick={onCancel} disabled={save.isPending}>
+              Cancel
+            </Button>
+          )}
+          <span className="min-w-0 flex-1 text-[12px] text-ink-3">
+            {step === 3 &&
+              "Nothing changes on machines yet: next, each machine's review shows exactly what it will do, and you run it."}
+          </span>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={
+              !canContinue ||
+              (step === 3 && (save.isPending || Boolean(nameError) || !draft.name || total === 0))
+            }
+          >
+            {step < 3
+              ? "Continue"
+              : save.isPending
+                ? "Saving…"
+                : pool
+                  ? "Save and review"
+                  : "Create and review"}
+          </Button>
         </div>
+        {save.error && <ErrorText className="px-5 pb-3" error={save.error} />}
       </form>
     </Card>
   );
 }
 
-function Step({
-  n,
-  title,
-  hint,
+/** A machine to pick, with what its review would do there, or why it can't be picked yet. */
+function MachineChoice({
+  m,
+  on,
+  onToggle,
+  profiles,
+}: {
+  m: MachineView;
+  on: boolean;
+  onToggle: (on: boolean) => void;
+  profiles: ToolProfile[];
+}) {
+  const ok = reachable(m) && m.os !== null;
+  const install =
+    m.os && m.readiness ? toolInstallPlan(m.os, m.readiness, profileTools(profiles)) : null;
+  // Only what every runner needs; label checks belong to the machine's other pools.
+  const problems = readinessProblems(m.readiness).filter(
+    (p) => p.tier === "required" && !p.id.startsWith("tool-"),
+  );
+  return (
+    <label
+      className={`flex items-start gap-3 px-3 py-2.5 ${ok ? "cursor-pointer hover:bg-hover" : "opacity-60"}`}
+    >
+      <input
+        type="checkbox"
+        className="mt-[3px] shrink-0"
+        checked={on}
+        disabled={!ok && !on}
+        onChange={(e) => onToggle(e.target.checked)}
+      />
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-baseline gap-x-2">
+          <span className="font-medium">{m.name}</span>
+          <span className="text-[12px] text-ink-3">{m.os ? osLabel[m.os] : "OS not read yet"}</span>
+        </span>
+        <span className="block text-[12px] text-ink-2">
+          {!ok ? (
+            <>
+              Runyard can't reach it yet.{" "}
+              <Link
+                to="/machines/$id"
+                params={{ id: m.id }}
+                className="text-accent hover:underline"
+              >
+                Finish its setup
+              </Link>
+            </>
+          ) : !m.readiness ? (
+            "Not checked yet; its review checks it first."
+          ) : install && (install.install.length || install.blocked.length) ? (
+            <>
+              {install.install.length > 0 && `Runyard will install ${install.install.join(", ")}.`}
+              {install.blocked.map((b) => (
+                <span key={b.reason} className="block text-warn">
+                  Needs {b.tools.join(", ")} by hand: {b.reason}
+                </span>
+              ))}
+            </>
+          ) : (
+            "Has everything it needs."
+          )}
+          {ok &&
+            problems.map((p) => (
+              <span key={p.id} className="block text-warn">
+                {p.title}: {p.value}
+              </span>
+            ))}
+        </span>
+      </span>
+    </label>
+  );
+}
+
+/** A summary line: what's set, with Change; open, its controls below. */
+function Summary({
+  label,
+  value,
+  open,
+  onChange,
   children,
 }: {
-  n: number;
-  title: string;
-  hint: string;
-  children: ReactNode;
+  label: string;
+  value: ReactNode;
+  open?: boolean;
+  onChange: () => void;
+  children?: ReactNode;
 }) {
   return (
-    <section className="border-b border-line px-5 py-4 last:border-b-0">
-      <div className="mb-3 flex items-start gap-3">
-        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-line text-[11px] font-medium text-ink-2">
-          {n}
-        </span>
-        <div>
-          <h3 className="font-medium">{title}</h3>
-          <p className="text-[12px] text-ink-2">{hint}</p>
-        </div>
+    <li className="px-5 py-3">
+      <div className="flex items-baseline gap-3">
+        <span className="w-28 shrink-0 text-[12px] text-ink-2">{label}</span>
+        <span className="min-w-0 flex-1 break-words">{value}</span>
+        <button
+          type="button"
+          onClick={onChange}
+          className="shrink-0 text-[12px] font-medium text-accent hover:underline"
+        >
+          {open ? "Done" : "Change"}
+        </button>
       </div>
-      <div className="pl-8">{children}</div>
-    </section>
+      {/* Children that aren't controls (label hints) show always; controls only when open. */}
+      {children && (open || open === undefined) && (
+        <div className="mt-2.5 min-[600px]:pl-31">{children}</div>
+      )}
+    </li>
+  );
+}
+
+function Choice({
+  type,
+  name,
+  checked,
+  onChange,
+  title,
+  detail,
+}: {
+  type: "radio" | "checkbox";
+  name?: string;
+  checked: boolean;
+  onChange: () => void;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <label
+      className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-[12.5px] ${checked ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
+    >
+      <input
+        type={type}
+        name={name}
+        className="mt-[3px] shrink-0"
+        checked={checked}
+        onChange={onChange}
+      />
+      <span>
+        <span className="block font-medium">{title}</span>
+        <span className="block text-[12px] text-ink-2">{detail}</span>
+      </span>
+    </label>
   );
 }
 

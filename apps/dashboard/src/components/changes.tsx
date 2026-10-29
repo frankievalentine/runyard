@@ -1,7 +1,7 @@
 import type { MachineView, PlanItem } from "@runyard/core";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { api, call } from "../api.ts";
 import { useYard } from "../lib/yard.ts";
 import { timeUntil } from "../lib/format.ts";
@@ -117,11 +117,22 @@ export function MachineChanges({
   m,
   admin,
   reviewId,
+  title = "Changes",
+  anchor = "changes",
+  autoPrepare = false,
+  onSettled,
 }: {
   m: MachineView;
   admin: boolean;
   /** A review prepared elsewhere, shown until this page reviews again or runs it. */
   reviewId?: string;
+  title?: ReactNode;
+  /** The section's id for links; null where several are on one page. */
+  anchor?: string | null;
+  /** Prepare a review as soon as it's shown, as after saving a pool. */
+  autoPrepare?: boolean;
+  /** Told when this machine is done: its run succeeded, or its review found nothing to do. */
+  onSettled?: () => void;
 }) {
   const now = useNow();
   const [ownReview, setReview] = useState<Review | null>(null);
@@ -168,6 +179,18 @@ export function MachineChanges({
     enabled: operationId !== null,
     refetchInterval: (q) => (q.state.data?.status === "running" || !q.state.data ? 1000 : false),
   });
+  // Once per mount: preparing only reads, so doing it unasked is safe.
+  const prepared = useRef(false);
+  useEffect(() => {
+    if (!autoPrepare || !admin || prepared.current) return;
+    prepared.current = true;
+    prepare.mutate();
+  }, [autoPrepare, admin, prepare]);
+  const settled =
+    operation.data?.status === "succeeded" || (review !== null && review.items.length === 0);
+  useEffect(() => {
+    if (settled) onSettled?.();
+  }, [settled, onSettled]);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (review) execute.mutate(review.id);
@@ -177,9 +200,9 @@ export function MachineChanges({
   const expired = review !== null && review.expiresAt <= now;
 
   return (
-    <section id="changes" className="mt-8 min-w-0 scroll-mt-4">
+    <section id={anchor ?? undefined} className="mt-8 min-w-0 scroll-mt-4">
       <div className="mb-2 flex min-h-7 flex-wrap items-center gap-2">
-        <h2 className="text-[13px] font-semibold">Changes</h2>
+        <h2 className="text-[13px] font-semibold">{title}</h2>
         {admin && (
           <div className="ml-auto">
             <Button

@@ -1,6 +1,6 @@
-# Planned: a simpler pool flow
+# Built: a simpler pool flow
 
-Status: **agreed, not started.** Decided with the user on 2026-10-29 during live testing.
+Status: **built** on 2026-10-29. Saving opens the pool page with each machine's review prepared there, rather than a separate screen, so the same reviews stay on the pool page until every machine is set up.
 
 ## Why
 

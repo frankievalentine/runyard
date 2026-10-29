@@ -69,8 +69,8 @@ To remove Runyard later, decommission its machines in the dashboard first, then 
 - **Pools.** A pool is **persistent** (registered runners that wait for jobs) or **on demand**
   (a fresh one-job runner for each queued job). It can install missing tools (Essentials, Build
   tools, Docker) and clean up after each job.
-- **Reviews.** Saving a pool changes nothing. A machine's **Review changes** shows the exact
-  plan; **Run** re-reads everything first and does nothing if anything changed.
+- **Reviews.** Saving a pool changes nothing. **Create and review** shows each machine's exact
+  plan right away; **Run** re-reads everything first and does nothing if anything changed.
 - **Testing.** **Test this runner** runs a short workflow on exactly that runner.
 - **boat.dev.** Jobs for boat.dev's VMs show alongside, with each VM's cost.
 - **Webhooks** (optional) make Runyard notice queued GitHub jobs in seconds instead of about 45.
