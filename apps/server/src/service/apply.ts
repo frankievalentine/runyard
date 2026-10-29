@@ -76,8 +76,11 @@ export async function applyPlan(
 }
 
 async function exec(argv: string[], ignoreFailure = false) {
-  const proc = Bun.spawn(argv, { stdin: "inherit", stdout: "inherit", stderr: "inherit" });
+  // A step allowed to fail (stopping a service that isn't running) keeps its output to itself.
+  const output = ignoreFailure ? "pipe" : "inherit";
+  const proc = Bun.spawn(argv, { stdin: "inherit", stdout: output, stderr: output });
   const code = await proc.exited;
-  if (code !== 0 && !ignoreFailure)
-    throw new ServiceError(`${argv.join(" ")} failed (exit ${code}).`);
+  if (code === 0) return;
+  if (!ignoreFailure) throw new ServiceError(`${argv.join(" ")} failed (exit ${code}).`);
+  console.log("    (nothing to stop: it wasn't running)");
 }

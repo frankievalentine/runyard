@@ -48,6 +48,10 @@ export type StartOverrides = {
 };
 
 export async function start(dashboard?: DashboardAssets, overrides: StartOverrides = {}) {
+  // The macOS Tailscale app's binary is also its CLI, but without a terminal (as a
+  // LaunchAgent) it tries to open the app instead; this makes it act as the CLI for
+  // every command Runyard runs. Other Tailscale installs ignore it.
+  process.env.TAILSCALE_BE_CLI = "1";
   const run = overrides.run ?? runCommand;
   const dir = dataDir();
   await mkdir(dir, { recursive: true, mode: 0o700 });
