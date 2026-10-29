@@ -245,6 +245,11 @@ jobs page.
   [docs/plans/docs-audit.md](plans/docs-audit.md).
 - **Narrow screens**: the sidebar and every page at phone width. Noted, to plan:
   [docs/plans/responsive.md](plans/responsive.md).
+- **Release**: a curl install, a Homebrew formula and the Docker compose file for the control
+  plane, from published builds. No Mac app for now. To plan after live testing:
+  [docs/plans/release.md](plans/release.md).
+- **Live testing still to run**: Forgejo (Round 9), Windows and Docker (Round 11), boat.dev
+  (Round 11b) and taking it all down (Round 12).
 
 ## Link previews
 
@@ -260,49 +265,55 @@ address each request came to. To do later:
   API): upload `docs/assets/og/og.png` once the repository is public.
 - Confirm a real unfurl of `og:video` (Discord is the likeliest to play it).
 
-## Pending live verification
+## Live verification
 
-Built and tested only against fakes. Deferred until a real service or machine is available:
-[docs/LIVE-TESTING.md](LIVE-TESTING.md) walks through all of it in order, on a test tailnet.
+[docs/LIVE-TESTING.md](LIVE-TESTING.md) runs everything for real, in order, on a test tailnet.
+Rounds 0 to 8, 8b and 10 passed on 2026-10-28 and 29: a macOS control machine, a Debian 13
+Proxmox LXC and a macOS 27 VM (UTM) as runner machines, a GitHub App on a personal account with
+private repositories, and webhooks through Tailscale Funnel. Fixes found along the way are in
+the history, and their lessons in [docs/plans/docs-audit.md](plans/docs-audit.md).
 
-- The GitHub App: manifest flow, installation, runner and job reads, and a real runner install.
-- Forgejo, on a real instance and Linux machine:
-  - The access-token scopes the settings page asks for (user, organization and repository,
-    read and write) are inferred, not tested.
-  - Runyard writes forgejo-runner's `.runner` file itself after API registration; if its format
-    is wrong, the runner won't start.
-  - Runner status values are assumed to be `offline`, `idle` and `active`.
-  - Docker mode.
-- Real runner installs on macOS, Linux and Windows. The PowerShell scripts parse
-  (`check-powershell`) but have never run on Windows.
-- `runyard service install` on each OS (only `--dry-run` has run, on macOS). The Windows
-  scheduled task and its PowerShell launcher parse but are untested.
-- The Docker compose file with a real `TS_AUTHKEY`. Locally, the image builds and serves, the
-  entrypoint fixes SSH key modes, and Runyard reads an unauthenticated sidecar's state through
-  the shared socket; joining a tailnet and `tailscale cert` there are untested.
-- `install.ps1` on Windows.
-- boat's `runs-on: boat` jobs: labels come from boat's docs; whether boat's runners appear in
-  GitHub's runner list, and how their names look, is unknown. Runyard shows them either way.
-- On-demand pools on any machine: the GitHub runner reading its single-use config from
-  `ACTIONS_RUNNER_INPUT_JITCONFIG` (taken from the runner's source), `generate-jitconfig` with
-  the Default group, forgejo-runner `one-job` with an ephemeral registration, and runners
-  surviving the SSH session (on systemd hosts with `KillUserProcesses=yes`, a one-job runner may
-  be stopped at logout; lingering or a service would avoid it).
-- Retiring a runner Runyard didn't install: GitHub's `DELETE …/runners/{id}` on an online
-  runner, and what a deregistered runner's service does afterwards, are unverified.
-- Machine setup: the setup scripts on real macOS, Linux and Windows machines (the Windows one
-  parses but hasn't run), `ssh -G` and `ssh-keyscan` output on real hosts, OpenSSH accepting the
-  quoted `UserKnownHostsFile` list with a data directory path containing spaces, and whether
-  Tailscale's published host keys are the OpenSSH server's.
-- Runner readiness and its follow-ups on real machines: Xcode and Homebrew detection on a Mac,
-  the Windows readiness script, tool installs with dnf, zypper and pacman, Docker from
-  `moby-engine`, the cleanup hook firing at the end of a real job, and a test job dispatched on
-  GitHub (the `runs-on` expression with an input, and finding the run by its title).
-- GitHub webhooks: a real delivery through Funnel, `tailscale funnel status --json`'s shape
-  as parsed, and `PATCH /app/hook/config` on a real app.
-- The read-only boat connection: built from boat's API docs. The per-VM `cost` object's fields
-  (assumed `dollars`) and the `ci-<repo>-<job id>` VM names are documented but unseen. `install.sh` has run on macOS and in a Debian container, and the
-  Linux binaries run there.
+**Verified live:**
+
+- Install, claim and `runyard service install` on macOS; Tailscale HTTPS and the tailnet
+  sign-in, including signing out.
+- The GitHub App: manifest flow, installation, runner and job reads, a real runner install,
+  label reconciliation and webhooks (`PATCH /app/hook/config`, `tailscale funnel status
+  --json`, signed deliveries through Funnel).
+- Machine setup on Debian and macOS: the setup scripts, `ssh -G` and `ssh-keyscan` on real
+  hosts, the quoted `UserKnownHostsFile` list with a space in the data directory's path, and
+  Runyard's key only with an SSH agent holding many keys.
+- Runner readiness on Debian and macOS (Command Line Tools, Homebrew), tool installs with apt
+  and Homebrew, the cleanup hook in real jobs, and test jobs including a container.
+- Persistent runners as systemd services and LaunchAgents.
+- On-demand pools: the runner's `ACTIONS_RUNNER_INPUT_JITCONFIG`, `generate-jitconfig`, runners
+  surviving the SSH session (with lingering), pausing, and kept runner logs.
+- Taking over a hand-registered runner: `DELETE …/runners/{id}` on an online runner, after which
+  the old runner deletes its credentials, exits 0 and systemd stops its service.
+- Run history from webhooks and from runner hooks, and the MCP server with read and prepare
+  tokens, including revoking one.
+
+**Still unverified:**
+
+- Forgejo (Round 9): the token scopes, the `.runner` file Runyard writes, runner status values,
+  host and Docker modes, `one-job` runners, and run history for Forgejo once it's built.
+- Windows (Round 11): runner installs, the setup, readiness and teardown scripts (they parse
+  but have never run), the scheduled task `runyard service install` sets up, and `install.ps1`.
+- `runyard service install` on Linux.
+- The Docker compose file with a real `TS_AUTHKEY` (Round 11): joining a tailnet and `tailscale
+  cert` inside it.
+- boat.dev (Round 11b): `runs-on: boat` labels, whether boat's runners show in GitHub's runner
+  list, the per-VM `cost` fields and the `ci-<repo>-<job id>` VM names.
+- Other Linux distributions: tool installs with dnf, zypper and pacman, and Docker from
+  `moby-engine`.
+- Organization installations: runner groups (the Default group's public repositories guard) and
+  an organization-wide pool; only personal-account repositories ran live.
+- Allowing a public repository by typing its name.
+- On systemd hosts with `KillUserProcesses=yes`, whether a one-job runner survives logout.
+- A runner lost mid-job showing as **Runner lost** (8b.5, skipped), and the Mac automatic-login
+  warning (10.2; detection works, the warning is covered by tests).
+- Whether Tailscale's published host keys match the OpenSSH server's.
+- Taking it all down (Round 12): decommissioning, the teardown command and `runyard uninstall`.
 
 ## Reference
 
