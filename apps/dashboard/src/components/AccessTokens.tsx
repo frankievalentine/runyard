@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { timeAgo } from "../lib/format.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../api.ts";
@@ -7,6 +8,14 @@ import { Button, Choice, TextField } from "./form.tsx";
 import { Card, ErrorText, Pill, Section } from "./ui.tsx";
 
 const tokensKey = ["access-tokens"];
+
+/** "Oct 29", or "Jan 27, 2027" outside this year: a day without the ambiguity of 10/29/2026. */
+const formatDay = (at: number) =>
+  new Date(at).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(new Date(at).getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }),
+  });
 
 const ACCESS = {
   read: {
@@ -106,56 +115,78 @@ export function AccessTokens({ admin }: { admin: boolean }) {
           <p className="px-4 py-3 text-[12.5px] text-ink-2">None yet.</p>
         )}
         {tokens.data?.map((t) => (
-          <div
-            key={t.id}
-            className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="truncate font-medium">{t.name}</span>
-                {/* Admins change it with the menu beside Revoke. */}
-                {!admin && (
-                  <Pill tone={t.scope === "prepare" ? "info" : "muted"}>
-                    {ACCESS[t.scope].title}
-                  </Pill>
-                )}
+          <div key={t.id} className="border-b border-line px-4 py-3 last:border-b-0">
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="truncate font-medium">{t.name}</span>
+                  {/* Admins change it with the menu beside Revoke. */}
+                  {!admin && (
+                    <Pill tone={t.scope === "prepare" ? "info" : "muted"}>
+                      {ACCESS[t.scope].title}
+                    </Pill>
+                  )}
+                </div>
               </div>
-              <div className="truncate text-[12px] text-ink-2">
-                <span className="font-mono">{t.prefix}…</span> · created{" "}
-                {new Date(t.createdAt).toLocaleDateString()}
-                {t.expiresAt
-                  ? t.expiresAt <= now
-                    ? " · expired"
-                    : ` · expires ${new Date(t.expiresAt).toLocaleDateString()}`
-                  : " · never expires"}
-                {t.lastUsedAt
-                  ? ` · last used ${new Date(t.lastUsedAt).toLocaleDateString()}`
-                  : " · never used"}
-              </div>
+              {admin && (
+                <select
+                  aria-label={`Access for ${t.name}`}
+                  className="input !h-[28px] !w-auto text-[12.5px]"
+                  value={t.scope}
+                  disabled={setAccess.isPending}
+                  onChange={(e) =>
+                    setAccess.mutate({ id: t.id, scope: e.target.value as "read" | "prepare" })
+                  }
+                >
+                  <option value="read">Read only</option>
+                  <option value="prepare">Read and prepare</option>
+                </select>
+              )}
+              <ConfirmDialog
+                trigger="Revoke"
+                title={`Revoke ${t.name}?`}
+                description="Anything using it is refused from its next request. This can't be undone; make a new token to give access again."
+                confirm="Revoke token"
+                onConfirm={() => revoke.mutate(t.id)}
+                pending={revoke.isPending}
+                error={revoke.error}
+              />
             </div>
-            {admin && (
-              <select
-                aria-label={`Access for ${t.name}`}
-                className="input !h-[28px] !w-auto text-[12.5px]"
-                value={t.scope}
-                disabled={setAccess.isPending}
-                onChange={(e) =>
-                  setAccess.mutate({ id: t.id, scope: e.target.value as "read" | "prepare" })
-                }
-              >
-                <option value="read">Read only</option>
-                <option value="prepare">Read and prepare</option>
-              </select>
-            )}
-            <ConfirmDialog
-              trigger="Revoke"
-              title={`Revoke ${t.name}?`}
-              description="Anything using it is refused from its next request. This can't be undone; make a new token to give access again."
-              confirm="Revoke token"
-              onConfirm={() => revoke.mutate(t.id)}
-              pending={revoke.isPending}
-              error={revoke.error}
-            />
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-2">
+              {[
+                <span key="prefix" className="font-mono" title="The start of the token">
+                  {t.prefix}…
+                </span>,
+                <span key="created">Created {formatDay(t.createdAt)}</span>,
+                t.expiresAt && t.expiresAt <= now ? (
+                  <span key="expires" className="text-warn">
+                    Expired {formatDay(t.expiresAt)}
+                  </span>
+                ) : (
+                  <span key="expires">
+                    {t.expiresAt ? `Expires ${formatDay(t.expiresAt)}` : "Never expires"}
+                  </span>
+                ),
+                <span
+                  key="used"
+                  title={t.lastUsedAt ? new Date(t.lastUsedAt).toLocaleString() : undefined}
+                >
+                  {t.lastUsedAt ? `Last used ${timeAgo(t.lastUsedAt, now)}` : "Never used"}
+                </span>,
+              ].map((part, i) =>
+                i === 0 ? (
+                  part
+                ) : (
+                  // The dot travels with what follows it, so a wrap never leaves one dangling.
+                  <span key={i} className="inline-flex items-center gap-x-2 whitespace-nowrap">
+                    <span aria-hidden className="text-ink-3">
+                      ·
+                    </span>
+                    {part}
+                  </span>
+                ),
+              )}
+            </div>
           </div>
         ))}
         {setAccess.error && <ErrorText className="px-4 py-3" error={setAccess.error} />}
