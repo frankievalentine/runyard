@@ -129,11 +129,12 @@ export class GithubHttp {
     const remaining = Number(headers.get("x-ratelimit-remaining"));
     const reset = Number(headers.get("x-ratelimit-reset"));
     if (headers.has("x-ratelimit-limit") && Number.isFinite(limit) && Number.isFinite(remaining)) {
-      this.rateLimit = {
-        limit,
-        remaining,
-        resetsAt: Number.isFinite(reset) && reset > 0 ? reset * 1000 : null,
-      };
+      const resetsAt = Number.isFinite(reset) && reset > 0 ? reset * 1000 : null;
+      // Concurrent responses arrive out of order; within one window the count only falls,
+      // so a response reporting more left than one already seen is older news.
+      const sameWindow = this.rateLimit && this.rateLimit.resetsAt === resetsAt;
+      if (sameWindow && this.rateLimit!.remaining <= remaining) return;
+      this.rateLimit = { limit, remaining, resetsAt };
     }
   }
 }
