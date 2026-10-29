@@ -43,6 +43,7 @@ const install = (over: Partial<InstallationObservation> = {}): InstallationObser
   accountType: "Organization",
   repositorySelection: "all",
   repos: ["acme/app", "acme/web"],
+  ciRepos: null,
   runners: {
     at: 1000,
     value: [

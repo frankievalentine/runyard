@@ -228,7 +228,9 @@ Under **Settings ▸ Connections ▸ GitHub**, Runyard creates a GitHub App for 
 GitHub's manifest flow: you confirm it on GitHub, then install it on your personal account or an
 organization and choose its repositories. The app's credentials are stored encrypted. Runyard
 reads runners and queued jobs for the installation's repositories, and registers runners with
-tokens it mints at the moment of use. It also asks for Actions read and write, to start a runner's test job.
+tokens it mints at the moment of use. It also asks for Actions read and write, to start a runner's test job. Only repositories with an Actions workflow are polled (checked every 5 minutes, so one that
+gets its first workflow is picked up within that), which keeps the load low even when the App is
+installed on every repository of a personal account with many of them.
 
 ### Forgejo
 

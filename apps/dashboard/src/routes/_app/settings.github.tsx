@@ -158,6 +158,13 @@ function AppCard({ app }: { app: GithubAppView }) {
                     jobs {i.jobsAt ? `scanned ${timeAgo(i.jobsAt, now)}` : "not scanned yet"}
                     {i.jobsTruncated && " (partial)"}
                   </div>
+                  {i.ciRepoCount !== null && (
+                    <div className="text-ink-2">
+                      {i.ciRepoCount === 0
+                        ? "None has Actions workflows yet, so none is polled; one that gets a workflow is picked up within 5 minutes."
+                        : `Watching the ${plural(i.ciRepoCount, "repository", "repositories")} with Actions workflows${i.ciRepoCount < i.repoCount ? `; the other ${i.repoCount - i.ciRepoCount} aren't polled` : ""}.`}
+                    </div>
+                  )}
                   {problem && <ErrorText className="mt-1" error={problem} />}
                 </div>
               </li>

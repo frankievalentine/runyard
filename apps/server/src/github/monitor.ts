@@ -3,6 +3,7 @@ import type { Db } from "../db/index.ts";
 import type { SecretStore } from "../secrets.ts";
 import {
   installationRepos,
+  reposWithWorkflows,
   listInstallations,
   MAX_REPOS,
   orgRunners,
@@ -215,6 +216,7 @@ export class GithubMonitor {
           observation: {
             ...inst,
             repos: [],
+            ciRepos: null,
             runners: null,
             runnersError: null,
             jobs: null,
@@ -224,6 +226,8 @@ export class GithubMonitor {
         Object.assign(state.observation, inst);
         try {
           state.observation.repos = await installationRepos(state.http);
+          // Only repositories with workflows are polled; the check repeats with each refresh.
+          state.observation.ciRepos = await reposWithWorkflows(state.http, state.observation.repos);
         } catch (error) {
           state.observation.runnersError = { at: this.now(), value: message(error) };
         }
@@ -243,7 +247,7 @@ export class GithubMonitor {
           scoped.push({ scope: { forgeId, kind: "org", target: o.account }, runner });
         }
       } else {
-        for (const repo of o.repos.slice(0, MAX_REPOS)) {
+        for (const repo of watched(o).slice(0, MAX_REPOS)) {
           for (const runner of await repoRunners(http, repo)) {
             scoped.push({ scope: { forgeId, kind: "repo", target: repo }, runner });
           }
@@ -258,14 +262,14 @@ export class GithubMonitor {
 
   private async readJobs({ http, observation: o }: InstallationState) {
     try {
-      const repos = o.repos.slice(0, JOB_REPOS);
+      const repos = watched(o).slice(0, JOB_REPOS);
       const scan = await scanJobs(http, repos);
       o.jobs = {
         at: this.now(),
         value: {
           ...scan,
           reposScanned: repos,
-          truncated: scan.truncated || o.repos.length > JOB_REPOS,
+          truncated: scan.truncated || watched(o).length > JOB_REPOS,
         },
       };
       o.jobsError = null;
@@ -273,4 +277,9 @@ export class GithubMonitor {
       o.jobsError = { at: this.now(), value: message(error) };
     }
   }
+}
+
+/** The repositories Runyard polls: those with workflows, once that's known. */
+function watched(o: InstallationObservation): string[] {
+  return o.ciRepos ?? o.repos;
 }

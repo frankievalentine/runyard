@@ -64,6 +64,8 @@ export class FakeGithub {
       html_url: string;
     }[]
   >();
+  /** Repositories with no Actions workflows; every other one has an active workflow. */
+  reposWithoutWorkflows = new Set<string>();
   /** Answers dispatches with 403, as an app without Actions write. */
   dispatchForbidden = false;
   /** Repositories GitHub reports as public. */
@@ -267,6 +269,14 @@ export class FakeGithub {
         visibility: isPublic ? "public" : "private",
         default_branch: "main",
       });
+    });
+    app.get("/repos/:owner/:repo/actions/workflows", (c) => {
+      if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
+      const repo = `${c.req.param("owner")}/${c.req.param("repo")}`;
+      const workflows = this.reposWithoutWorkflows.has(repo)
+        ? []
+        : [{ id: 1, name: "CI", path: ".github/workflows/ci.yml", state: "active" }];
+      return this.page(c, { total_count: workflows.length, workflows });
     });
     app.get("/repos/:owner/:repo/actions/workflows/:file", (c) => {
       if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);

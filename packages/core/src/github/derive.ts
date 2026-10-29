@@ -70,6 +70,8 @@ export type InstallationView = {
   accountType: "User" | "Organization";
   repositorySelection: "all" | "selected";
   repoCount: number;
+  /** How many have Actions workflows, which is what Runyard watches; null until checked. */
+  ciRepoCount: number | null;
   /** The repositories it can read, most recently pushed first (at most 200 listed). */
   repos: string[];
   runnersAt: number | null;
@@ -223,6 +225,7 @@ export function deriveGithub(
         accountType: i.accountType,
         repositorySelection: i.repositorySelection,
         repoCount: i.repos.length,
+        ciRepoCount: i.ciRepos?.length ?? null,
         repos: i.repos.slice(0, 200),
         runnersAt: i.runners?.at ?? null,
         runnersError: i.runnersError?.value ?? null,

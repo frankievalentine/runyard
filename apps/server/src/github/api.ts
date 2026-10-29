@@ -142,6 +142,43 @@ export async function scanJobs(
   return { jobs: jobs.sort((a, b) => a.id - b.id), truncated };
 }
 
+/** How many repositories are checked for workflows; the rest are polled as before. */
+const MAX_CI_CHECKS = 300;
+
+/**
+ * The repositories with an active Actions workflow, most recently pushed
+ * first. A repository whose workflows GitHub won't list (403) counts as having
+ * some, so nothing is missed; null when none could be checked.
+ */
+export async function reposWithWorkflows(
+  http: GithubHttp,
+  repos: string[],
+): Promise<string[] | null> {
+  const queue = repos.slice(0, MAX_CI_CHECKS);
+  const found = new Set<string>();
+  let checked = 0;
+  const worker = async () => {
+    for (let repo = queue.shift(); repo; repo = queue.shift()) {
+      try {
+        const { body } = await http.get(`/repos/${repoPath(repo)}/actions/workflows?per_page=100`);
+        checked++;
+        const workflows = (body as { workflows?: { state: string }[] }).workflows ?? [];
+        if (workflows.some((w) => w.state === "active")) found.add(repo);
+      } catch (error) {
+        if (error instanceof GithubError && error.status === 404) checked++;
+        else found.add(repo);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker));
+  if (checked === 0 && repos.length) return null;
+  // Past the checked ones, keep polling as before rather than drop them unseen.
+  return [
+    ...repos.slice(0, MAX_CI_CHECKS).filter((r) => found.has(r)),
+    ...repos.slice(MAX_CI_CHECKS),
+  ];
+}
+
 async function repoJobs(http: GithubHttp, repo: string) {
   type Run = { id: number };
   const path = `/repos/${repoPath(repo)}/actions`;

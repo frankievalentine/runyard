@@ -42,6 +42,12 @@ export type InstallationObservation = {
   repositorySelection: "all" | "selected";
   /** Repositories the installation can read, `owner/name`, most recently pushed first. */
   repos: string[];
+  /**
+   * The ones with an active Actions workflow, which are all Runyard polls: a
+   * repository without one never queues a job. Null until checked, or when
+   * GitHub won't say, and then every repository is polled.
+   */
+  ciRepos: string[] | null;
   runners: Timed<{ scope: Scope; runner: GhRunner }[]> | null;
   runnersError: Timed<string> | null;
   jobs: Timed<{ jobs: GhJob[]; reposScanned: string[]; truncated: boolean }> | null;
