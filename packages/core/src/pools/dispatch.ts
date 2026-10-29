@@ -20,6 +20,8 @@ export type Dispatch = {
   scope: Scope;
   /** The queued job it was started for; it may take another matching job instead. */
   jobId: number;
+  /** That job's name, repository and page, as queued; null for dispatches recorded before these were kept. */
+  job: { name: string; repo: string; url: string | null } | null;
   /** The forge's ID for the runner, to delete it if it never starts. */
   runnerId: number | null;
   state: DispatchState;

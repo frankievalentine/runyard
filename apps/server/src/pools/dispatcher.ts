@@ -152,6 +152,7 @@ export class Dispatcher {
       runnerKind: plan.template.runnerKind,
       scope: plan.scope,
       jobId: plan.job.id,
+      job: { name: plan.job.name, repo: plan.job.repo, url: plan.job.htmlUrl },
       runnerId: null,
       state: "starting",
       startedAt: this.now(),
