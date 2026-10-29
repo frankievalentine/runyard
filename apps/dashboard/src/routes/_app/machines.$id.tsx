@@ -505,13 +505,14 @@ function EditMachine({ m, close }: { m: MachineView; close: () => void }) {
   const [sshTarget, setSshTarget] = useState(m.sshTarget);
   const [transport, setTransport] = useState<SshTransport>(m.transport);
   const [expectedOs, setExpectedOs] = useState<OsFamily | null>(m.os);
+  const [runyardKeyOnly, setRunyardKeyOnly] = useState(m.runyardKeyOnly);
   const queryClient = useQueryClient();
   const save = useMutation({
     mutationFn: () =>
       call(
         api.machines[":id"].$patch({
           param: { id: m.id },
-          json: { name, description, sshTarget, transport, expectedOs },
+          json: { name, description, sshTarget, transport, expectedOs, runyardKeyOnly },
         }),
       ),
     onSuccess: async () => {
@@ -545,6 +546,8 @@ function EditMachine({ m, close }: { m: MachineView; close: () => void }) {
           setTransport={setTransport}
           expectedOs={expectedOs}
           setExpectedOs={setExpectedOs}
+          runyardKeyOnly={runyardKeyOnly}
+          setRunyardKeyOnly={setRunyardKeyOnly}
         />
         {save.error && <ErrorText error={save.error} />}
         <div className="flex gap-2">

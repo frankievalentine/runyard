@@ -9,6 +9,9 @@ export function MachineFields(props: {
   setTransport: (v: SshTransport) => void;
   expectedOs: OsFamily | null;
   setExpectedOs: (v: OsFamily | null) => void;
+  /** Editing only: new machines always start with Runyard's key only. */
+  runyardKeyOnly?: boolean;
+  setRunyardKeyOnly?: (v: boolean) => void;
 }) {
   return (
     <>
@@ -46,6 +49,24 @@ export function MachineFields(props: {
           <option value="windows">Windows</option>
         </select>
       </label>
+      {props.setRunyardKeyOnly && props.transport === "openssh" && (
+        <label className="flex items-start gap-2 text-[12.5px]">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={props.runyardKeyOnly ?? false}
+            onChange={(e) => props.setRunyardKeyOnly?.(e.target.checked)}
+          />
+          <span>
+            <span className="font-medium">Sign in with Runyard's key only</span>
+            <span className="block text-[12px] text-ink-2">
+              For machines set up with Runyard's setup command. Leaves your SSH agent and other keys
+              out, so an agent holding many keys (such as 1Password's) can't use up the machine's
+              sign-in attempts. Turn it off for a machine you reach with your own keys.
+            </span>
+          </span>
+        </label>
+      )}
     </>
   );
 }

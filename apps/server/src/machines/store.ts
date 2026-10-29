@@ -13,6 +13,7 @@ export type MachineInput = {
   transport: SshTransport;
   expectedOs?: OsFamily | null;
   tailscaleNodeId?: string | null;
+  runyardKeyOnly?: boolean;
 };
 
 export type MachineEvent = {
@@ -33,6 +34,7 @@ function toConfig(row: typeof machines.$inferSelect): MachineConfig {
     transport: row.transport,
     expectedOs: row.expectedOs,
     tailscaleNodeId: row.tailscaleNodeId,
+    runyardKeyOnly: row.runyardKeyOnly,
   };
 }
 
@@ -59,6 +61,8 @@ export function createMachine(db: Db, input: MachineInput): MachineConfig {
     transport: input.transport,
     expectedOs: input.expectedOs ?? null,
     tailscaleNodeId: input.tailscaleNodeId ?? null,
+    // New machines are set up with Runyard's key, so they sign in with it alone.
+    runyardKeyOnly: input.runyardKeyOnly ?? true,
     createdAt: new Date(),
   };
   db.insert(machines).values(row).run();
@@ -69,7 +73,10 @@ export function updateMachine(
   db: Db,
   id: string,
   patch: Partial<
-    Pick<MachineInput, "name" | "description" | "sshTarget" | "transport" | "expectedOs">
+    Pick<
+      MachineInput,
+      "name" | "description" | "sshTarget" | "transport" | "expectedOs" | "runyardKeyOnly"
+    >
   >,
 ) {
   db.update(machines).set(patch).where(eq(machines.id, id)).run();

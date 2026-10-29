@@ -7,6 +7,7 @@ const machine = (over: Partial<MachineView>): MachineView => ({
   description: "",
   sshTarget: "ci@mini",
   transport: "openssh",
+  runyardKeyOnly: false,
   os: "macos",
   tailnet: null,
   connection: { state: "connected", checkedAt: 0 },

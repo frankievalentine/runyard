@@ -119,6 +119,8 @@ export const machines = sqliteTable(
     expectedOs: text({ enum: osFamilies }),
     /** Set when added from the tailnet; links the machine to its peer. */
     tailscaleNodeId: text().unique(),
+    /** Sign in with Runyard's own key only; machines added before this keep the user's keys. */
+    runyardKeyOnly: integer({ mode: "boolean" }).notNull().default(false),
     createdAt: integer({ mode: "timestamp_ms" }).notNull(),
   },
   (t) => [check("machines_transport", sql`${t.transport} IN ('openssh', 'tailscale')`)],

@@ -59,6 +59,12 @@ export type MachineConfig = {
   expectedOs: OsFamily | null;
   /** Set when the machine was added from the tailnet. */
   tailscaleNodeId: string | null;
+  /**
+   * OpenSSH signs in with Runyard's own key only, without the user's agent or
+   * other keys: an agent holding many keys (1Password's) makes servers give up
+   * before they see Runyard's. New machines default to it.
+   */
+  runyardKeyOnly: boolean;
 };
 
 export type Timed<T> = { at: number; value: T };
@@ -98,6 +104,8 @@ export type MachineView = {
   description: string;
   sshTarget: string;
   transport: SshTransport;
+  /** Signs in with Runyard's own key only. */
+  runyardKeyOnly: boolean;
   os: OsFamily | null;
   tailnet: (PeerView & { ips: string[] }) | null;
   connection: Connection;
@@ -194,6 +202,7 @@ export function deriveYard(input: {
         description: config.description,
         sshTarget: config.sshTarget,
         transport: config.transport,
+        runyardKeyOnly: config.runyardKeyOnly,
         os: health?.os ?? config.expectedOs ?? (peer ? osFromTailnet(peer.os) : null),
         tailnet: peer ? { ...peerView(peer), ips: peer.ips } : null,
         connection: connection(peer, observation, now),

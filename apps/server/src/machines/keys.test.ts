@@ -105,3 +105,34 @@ describe("sorting SSH failures", () => {
     expect(kind("kex_exchange_identification: read: Connection reset by peer")).toBe("other");
   });
 });
+
+describe("signing in with Runyard's key only", () => {
+  const programs = {
+    ssh: "/usr/bin/ssh",
+    tailscale: "tailscale",
+    identity: "/data/ssh/id_ed25519",
+    knownHosts: "/data/ssh/known_hosts",
+  };
+  test("leaves the agent and other keys out when the machine asks for it", () => {
+    const argv = (runyardKeyOnly: boolean) =>
+      scriptCommand(
+        programs,
+        { sshTarget: "runyard@box", transport: "openssh", runyardKeyOnly },
+        false,
+        "true",
+      ).argv;
+    expect(argv(true)).toContain("IdentitiesOnly=yes");
+    expect(argv(true)).toContain("IdentityAgent=none");
+    expect(argv(false)).not.toContain("IdentitiesOnly=yes");
+  });
+
+  test("says when an agent's keys used up the server's tries", () => {
+    const failure = sshFailure(
+      255,
+      "Received disconnect from 100.89.23.14 port 22:2: Too many authentication failures\nDisconnected from 100.89.23.14 port 22",
+      "openssh",
+    );
+    expect(failure.problem).toBe("loginRefused");
+    expect(failure.message).toContain("Sign in with Runyard's key only");
+  });
+});

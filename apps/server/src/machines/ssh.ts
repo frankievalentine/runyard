@@ -106,7 +106,7 @@ export function inspectionScript(windows: boolean, forgeHosts: readonly string[]
 
 export function scriptCommand(
   programs: SshPrograms,
-  machine: { sshTarget: string; transport: SshTransport },
+  machine: { sshTarget: string; transport: SshTransport; runyardKeyOnly?: boolean },
   windows: boolean,
   script: string,
 ): { argv: string[]; stdin: string } {
@@ -122,6 +122,10 @@ export function scriptCommand(
           programs.ssh,
           ...OPENSSH_OPTIONS,
           ...runyardOptions(programs),
+          // Only Runyard's key: no agent, so many agent keys can't use up the server's tries.
+          ...(machine.runyardKeyOnly && programs.identity
+            ? ["-o", "IdentitiesOnly=yes", "-o", "IdentityAgent=none"]
+            : []),
           "-o",
           `ConnectTimeout=${CONNECT_TIMEOUT_SECS}`,
           "--",
@@ -135,7 +139,7 @@ export function scriptCommand(
 export async function inspect(
   run: CommandRunner,
   programs: SshPrograms,
-  machine: { sshTarget: string; transport: SshTransport },
+  machine: { sshTarget: string; transport: SshTransport; runyardKeyOnly?: boolean },
   os: OsFamily | null,
   forgeHosts: readonly string[] = [],
 ): Promise<string> {
@@ -186,7 +190,12 @@ export function sshFailure(code: number, stderr: string, transport: SshTransport
       "The machine's SSH host key isn't trusted yet. Trust it from the machine's setup steps, then check again.",
       "hostKeyUnknown",
     );
-  if (/Permission denied|Too many authentication failures/i.test(stderr))
+  if (/Too many authentication failures/i.test(stderr))
+    return new SshError(
+      "The machine stopped after too many keys were offered, before reaching Runyard's. An SSH agent holding several keys (such as 1Password's) does this: turn on \"Sign in with Runyard's key only\" in this machine's settings.",
+      "loginRefused",
+    );
+  if (/Permission denied/i.test(stderr))
     return new SshError(
       `SSH refused the login: ${line}. Check the user name and that Runyard's key is authorized.`,
       "loginRefused",

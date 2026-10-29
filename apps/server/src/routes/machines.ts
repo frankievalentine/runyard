@@ -139,6 +139,7 @@ export function machineRoutes({ db, monitor }: { db: Db; monitor: MachineMonitor
             sshTarget: sshTarget.optional(),
             transport: z.enum(transports).optional(),
             expectedOs: z.enum(osFamilies).nullable().optional(),
+            runyardKeyOnly: z.boolean().optional(),
           }),
         ),
         (c) => {

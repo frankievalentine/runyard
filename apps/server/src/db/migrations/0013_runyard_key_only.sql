@@ -1,0 +1,1 @@
+ALTER TABLE `machines` ADD `runyard_key_only` integer DEFAULT false NOT NULL;

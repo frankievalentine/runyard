@@ -11,6 +11,7 @@ import runnerMigrations from "./0009_runner_migrations.sql" with { type: "text" 
 import toolProfiles from "./0010_tool_profiles.sql" with { type: "text" };
 import poolCleanup from "./0011_pool_cleanup.sql" with { type: "text" };
 import accessTokens from "./0012_access_tokens.sql" with { type: "text" };
+import runyardKeyOnly from "./0013_runyard_key_only.sql" with { type: "text" };
 
 /**
  * Every migration drizzle-kit generated, oldest first. Add new files here;
@@ -30,6 +31,7 @@ export const migrations: readonly Migration[] = [
   { name: "0010_tool_profiles", sql: toolProfiles },
   { name: "0011_pool_cleanup", sql: poolCleanup },
   { name: "0012_access_tokens", sql: accessTokens },
+  { name: "0013_runyard_key_only", sql: runyardKeyOnly },
 ];
 
 export type Migration = { name: string; sql: string };

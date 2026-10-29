@@ -31,6 +31,7 @@ const machine = (over: Partial<MachineConfig> = {}): MachineConfig => ({
   transport: "openssh",
   expectedOs: null,
   tailscaleNodeId: null,
+  runyardKeyOnly: false,
   ...over,
 });
 
