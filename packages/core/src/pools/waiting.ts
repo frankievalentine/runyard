@@ -4,6 +4,7 @@ import { readinessProblems } from "../machines/readiness.ts";
 import type { ForgeKind, Scope } from "../model.ts";
 import { scopeKey } from "../scope.ts";
 import { DISPATCH_ATTEMPTS, jobAttempts, nextAttempt } from "./dispatch.ts";
+import type { Dispatch } from "./dispatch.ts";
 
 /** Labels GitHub gives every self-hosted runner by itself; architecture ones aren't checked. */
 const OS_LABELS: Record<string, string> = { macos: "macos", linux: "linux", windows: "windows" };
@@ -26,12 +27,19 @@ function serves(scope: Scope, repo: string): boolean {
  */
 export function waitingReasons(job: QueuedJobView, view: YardView, now = Date.now()): string[] {
   if (job.onDemand) return [`${job.onDemand} starts a VM for it; Runyard doesn't run these.`];
+  // A runner Runyard started for it is on its way: anything else would be noise, and the
+  // forge lists that runner as offline until it connects.
+  const active = activeDispatch(job, view);
+  if (active) return [activeLine(active, view)];
   const wanted = job.labels.map((l) => l.toLowerCase());
   const kinds = new Map<string, ForgeKind>([
     ...view.github.apps.map((a): [string, ForgeKind] => [a.forgeId, "github"]),
     ...view.forgejo.connections.map((c): [string, ForgeKind] => [c.forgeId, "forgejo"]),
   ]);
   const reasons: string[] = [];
+  // Pools that would take it come first, then the runners, then pools that can't.
+  const handling: string[] = [];
+  const lacking: string[] = [];
 
   const serving = view.runners.filter((r) => r.forge === job.forge && serves(r.scope, job.repo));
   const matching = serving.filter((r) => {
@@ -67,6 +75,7 @@ export function waitingReasons(job: QueuedJobView, view: YardView, now = Date.no
     reasons.push(`No pool serves ${job.repo}; create one to give it runners.`);
     return reasons;
   }
+  const runnerLines = reasons.splice(0);
   for (const p of pools) {
     const machines = view.machines.filter((m) => p.machines.some((x) => x.machineId === m.id));
     const has = new Set(
@@ -82,21 +91,21 @@ export function waitingReasons(job: QueuedJobView, view: YardView, now = Date.no
     );
     const lacks = wanted.filter((l) => !has.has(l) && !ARCH.has(l));
     if (lacks.length) {
-      reasons.push(`Pool ${p.name} serves ${job.repo} but doesn't have ${lacks.join(", ")}.`);
+      lacking.push(`Pool ${p.name} serves ${job.repo} but doesn't have ${lacks.join(", ")}.`);
       continue;
     }
     const notReady = machines.filter((m) => readinessProblems(m.readiness).length > 0);
     if (p.mode === "onDemand") {
-      if (p.paused) reasons.push(`Pool ${p.name} would take it, but it's paused.`);
+      if (p.paused) handling.push(`Pool ${p.name} would take it, but it's paused.`);
       else if (!view.pools.templateRecords.some((t) => t.poolId === p.id))
-        reasons.push(
+        handling.push(
           `Pool ${p.name} would take it, but its runner software isn't installed yet; review its machines.`,
         );
       else if (notReady.length === machines.length && machines.length)
-        reasons.push(
+        handling.push(
           `Pool ${p.name} would take it, but its machines aren't ready: ${notReady.map((m) => m.name).join(", ")}.`,
         );
-      else reasons.push(onDemandReason(job, p.id, p.name, p.machines, view, now));
+      else handling.push(onDemandReason(job, p.id, p.name, p.machines, view, now));
       continue;
     }
     const scopes = new Set(p.scopes.map(scopeKey));
@@ -110,19 +119,19 @@ export function waitingReasons(job: QueuedJobView, view: YardView, now = Date.no
       ),
     );
     if (desired.length === 0)
-      reasons.push(
+      handling.push(
         `Pool ${p.name} would take it, but calls for no runners yet; check its machines.`,
       );
     else if (installed.length === 0) {
       const names = [
         ...new Set(desired.map((d) => view.machines.find((m) => m.id === d.machineId)?.name)),
       ].filter(Boolean);
-      reasons.push(
+      handling.push(
         `Pool ${p.name}'s runners aren't installed yet; review ${names.join(", ")} to install them.`,
       );
     }
   }
-  return [...new Set(reasons)];
+  return [...new Set([...handling, ...runnerLines, ...lacking])];
 }
 
 /** What an unpaused, installed on-demand pool is doing about a job, from its runners so far. */
@@ -137,11 +146,7 @@ function onDemandReason(
   const dispatches = view.pools.dispatches;
   const attempts = jobAttempts(dispatches, job.forge === "forgejo" ? "forgejo" : "actions", job.id);
   const next = nextAttempt(attempts, view.queue.at, now);
-  const machineName = (id: string) => view.machines.find((m) => m.id === id)?.name ?? id;
-  if (!next.ok && next.why === "active")
-    return next.dispatch.state === "starting"
-      ? `Runyard started ${next.dispatch.runnerName} for it on ${machineName(next.dispatch.machineId)}; it takes the job once GitHub lists it.`
-      : `${next.dispatch.runnerName} is online on ${machineName(next.dispatch.machineId)}; the forge should hand it the job shortly.`;
+  if (!next.ok && next.why === "active") return activeLine(next.dispatch, view);
   if (!next.ok && next.why === "exhausted")
     return `Runyard started ${next.count} runners for it and none ran it. The last one's log is on pool ${poolName}'s page; Try again starts another.`;
   if (!next.ok && next.why === "wait")
@@ -169,4 +174,39 @@ function onDemandReason(
   return attempts.length
     ? `Pool ${poolName} starts another runner for it within a minute (${attempts.length + 1} of ${DISPATCH_ATTEMPTS} tries).`
     : `Pool ${poolName} should start a one-job runner for it within a minute.`;
+}
+
+/** The one-job runner Runyard started for a job that's still starting or online, if any. */
+export function activeDispatch(job: QueuedJobView, view: YardView): Dispatch | undefined {
+  if (job.onDemand) return undefined;
+  const last = jobAttempts(
+    view.pools.dispatches,
+    job.forge === "forgejo" ? "forgejo" : "actions",
+    job.id,
+  )[0];
+  return last && (last.state === "starting" || last.state === "running") ? last : undefined;
+}
+
+function activeLine(d: Dispatch, view: YardView): string {
+  const machine = view.machines.find((m) => m.id === d.machineId)?.name ?? d.machineId;
+  return d.state === "starting"
+    ? `Runyard started ${d.runnerName} for it on ${machine}; it takes the job once it connects.`
+    : `${d.runnerName} is online on ${machine}; the forge should hand it the job shortly.`;
+}
+
+/** What a waiting job's status pill says, for jobs no runner online matches. */
+export type WaitingState = "runnerStarting" | "runnerOnline" | "poolPaused" | "noRunner";
+
+export function waitingState(job: QueuedJobView, view: YardView): WaitingState {
+  const active = activeDispatch(job, view);
+  if (active) return active.state === "starting" ? "runnerStarting" : "runnerOnline";
+  const wanted = new Set(job.labels.map((l) => l.toLowerCase()));
+  const paused = view.pools.pools.some(
+    (p) =>
+      p.mode === "onDemand" &&
+      p.paused &&
+      p.scopes.some((s) => serves(s, job.repo)) &&
+      p.labels.some((l) => wanted.has(l.toLowerCase())),
+  );
+  return paused ? "poolPaused" : "noRunner";
 }

@@ -1,5 +1,11 @@
 import { expect, test } from "vite-plus/test";
-import { waitingReasons, type Pool, type QueuedJobView, type YardView } from "../src/index.ts";
+import {
+  waitingReasons,
+  waitingState,
+  type Pool,
+  type QueuedJobView,
+  type YardView,
+} from "../src/index.ts";
 
 const job = (labels: string[], eligible: string[] = []): QueuedJobView =>
   ({
@@ -94,7 +100,8 @@ test("busy, offline and not yet installed", () => {
     pools: [pool({})],
     desired: [{ poolId: "p1", machineId: "m1", scope: org, name: "builder-gpu-01" }],
   });
-  expect(waitingReasons(job(["self-hosted", "linux", "gpu"]), uninstalled)[1]).toBe(
+  // The pool that would take it comes before the runner lines.
+  expect(waitingReasons(job(["self-hosted", "linux", "gpu"]), uninstalled)[0]).toBe(
     "Pool gpu's runners aren't installed yet; review Builder to install them.",
   );
 });
@@ -104,7 +111,7 @@ test("on-demand pools: paused, not installed, or about to start one", () => {
     waitingReasons(
       job(["gpu"]),
       view({ pools: [pool({ mode: "onDemand", ...over })], templateRecords: templates }),
-    )[1];
+    )[0];
   expect(onDemand({ paused: true })).toBe("Pool gpu would take it, but it's paused.");
   expect(onDemand({})).toContain("runner software isn't installed yet");
   expect(onDemand({}, [{ poolId: "p1" }])).toBe(
@@ -118,7 +125,7 @@ test("on-demand pools: what its runners so far did about the job", () => {
     templateRecords: [{ poolId: "p1" }],
   };
   const run = (dispatches: unknown[], queueAt: number | null = 2_000, now = 2_000) =>
-    waitingReasons(job(["gpu"]), view({ ...base, dispatches, queueAt }), now)[1];
+    waitingReasons(job(["gpu"]), view({ ...base, dispatches, queueAt }), now)[0];
   const d = (over: object) => ({
     id: "d",
     poolId: "p1",
@@ -134,8 +141,40 @@ test("on-demand pools: what its runners so far did about the job", () => {
     ...over,
   });
   expect(run([d({ state: "starting", endedAt: null })])).toBe(
-    "Runyard started builder-gpu-1a for it on Builder; it takes the job once GitHub lists it.",
+    "Runyard started builder-gpu-1a for it on Builder; it takes the job once it connects.",
   );
+  // That runner shows offline on the forge until it connects; nothing else is said meanwhile.
+  expect(
+    waitingReasons(
+      job(["gpu"]),
+      view({
+        ...base,
+        runners: [runner("builder-gpu-1a", ["gpu"], "offline")],
+        dispatches: [d({ state: "starting", endedAt: null })],
+      }),
+    ),
+  ).toEqual([
+    "Runyard started builder-gpu-1a for it on Builder; it takes the job once it connects.",
+  ]);
+  expect(
+    waitingState(
+      job(["gpu"]),
+      view({ ...base, dispatches: [d({ state: "starting", endedAt: null })] }),
+    ),
+  ).toBe("runnerStarting");
+  expect(
+    waitingState(
+      job(["gpu"]),
+      view({ ...base, dispatches: [d({ state: "running", endedAt: null })] }),
+    ),
+  ).toBe("runnerOnline");
+  expect(waitingState(job(["gpu"]), view({ ...base, dispatches: [d({})] }))).toBe("noRunner");
+  expect(
+    waitingState(
+      job(["gpu"]),
+      view({ ...base, pools: [pool({ mode: "onDemand", paused: true })] }),
+    ),
+  ).toBe("poolPaused");
   expect(run([d({})], 1_400)).toBe(
     "Its runner builder-gpu-1a ended without running it; Runyard starts another once the queue is read again (1 of 3 tries).",
   );

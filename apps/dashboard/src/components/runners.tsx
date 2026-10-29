@@ -2,6 +2,8 @@ import {
   jobAttempts,
   nextAttempt,
   waitingReasons,
+  waitingState,
+  type WaitingState,
   type YardView,
   type JobView,
   type QueuedJobView,
@@ -15,7 +17,7 @@ import type { ReactNode } from "react";
 import { useYard } from "../lib/yard.ts";
 import { formatDollars, formatElapsed, plural } from "../lib/format.ts";
 import { useNow } from "../lib/now.ts";
-import { isBuiltinLabel, runnerStatus } from "../lib/status.ts";
+import { isBuiltinLabel, runnerStatus, type Tone } from "../lib/status.ts";
 import { CopyValue } from "./CopyValue.tsx";
 import { Icon } from "./icons.tsx";
 import { Button } from "./form.tsx";
@@ -24,6 +26,13 @@ import { Card, EmptyLine, ErrorText, Pill, StatusDot } from "./ui.tsx";
 /** Ported from aarondfrancis/fleet's runner pieces (details/shared.tsx and QueueDetail.tsx). */
 
 /** A steady timer that ticks by itself. */
+const WAITING_PILL: Record<WaitingState, { tone: Tone; label: string }> = {
+  runnerStarting: { tone: "busy", label: "Runner starting" },
+  runnerOnline: { tone: "busy", label: "Runner online" },
+  poolPaused: { tone: "muted", label: "Pool paused" },
+  noRunner: { tone: "warn", label: "No matching runner online" },
+};
+
 export function Elapsed({ since }: { since: number }) {
   const now = useNow();
   return <>{formatElapsed(now - since)}</>;
@@ -210,7 +219,9 @@ function QueuedJob({
           // The service starts a VM for the job; no runner exists until then.
           <Pill tone="info">Starts on {job.onDemand}</Pill>
         ) : eligible.length === 0 ? (
-          <Pill tone="warn">No matching runner online</Pill>
+          <Pill tone={WAITING_PILL[waitingState(job, view)].tone}>
+            {WAITING_PILL[waitingState(job, view)].label}
+          </Pill>
         ) : idle > 0 ? (
           <Pill tone="ok">{plural(idle, "idle runner")} match</Pill>
         ) : (
