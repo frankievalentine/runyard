@@ -230,6 +230,12 @@ recorded as `agentPrepared` events; running a review stays with a dashboard sess
 `waitingReasons` in `packages/core` explains queued jobs for both the MCP tool and the Queued
 jobs page.
 
+## Planned
+
+- **Container runners ("Use this machine for CI")**: a fresh container per job on Runyard's
+  own machine, then on SSH machines with Docker. Agreed and designed, not started:
+  [docs/plans/container-runners.md](plans/container-runners.md).
+
 ## Link previews
 
 The dashboard serves `og.png` and a 10 s `og.mp4` loop (rendered from `docs/assets/og/og.html`
