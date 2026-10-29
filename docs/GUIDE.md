@@ -288,10 +288,16 @@ Optional: without them Runyard notices queued jobs within about 45 seconds; with
 seconds. Runyard listens for webhooks only on `127.0.0.1:7444`, and that listener accepts nothing
 but signed deliveries. Under **Settings ▸ Connections ▸ GitHub ▸ Webhooks**:
 
-1. Expose the listener, for example with `tailscale funnel --bg http://127.0.0.1:7444`. Runyard
-   shows the command; it never changes what's public on your tailnet itself.
-2. Set each app's webhook: Runyard points it at the public address with a fresh secret.
-3. In the app's settings on GitHub, tick **Active** and the **Workflow job** event.
+1. Turn on Tailscale Funnel for your tailnet; it's off by default. Allow it for the control
+   machine in the admin console (the `funnel` node attribute in Access controls), or run the
+   command in the next step: while Funnel is off, it prints a link that turns it on, and you run
+   it again afterwards.
+2. Expose the listener: `tailscale funnel --bg http://127.0.0.1:7444`. Funnel publishes it at
+   the machine's `https://<machine>.<tailnet>.ts.net` on port 443; the dashboard stays on 7443,
+   tailnet only. Runyard shows the command; it never changes what's public on your tailnet
+   itself. Any HTTPS reverse proxy to that port works too.
+3. Set each app's webhook: Runyard points it at the public address with a fresh secret.
+4. In the app's settings on GitHub, tick **Active** and the **Workflow job** event.
 
 A delivery only makes Runyard re-read jobs and runners through the API; nothing in a payload is
 acted on.

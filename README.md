@@ -74,6 +74,8 @@ To remove Runyard later, decommission its machines in the dashboard first, then 
 - **Testing.** **Test this runner** runs a short workflow on exactly that runner.
 - **boat.dev.** Jobs for boat.dev's VMs show alongside, with each VM's cost.
 - **Webhooks** (optional) make Runyard notice queued GitHub jobs in seconds instead of about 45.
+  They need a public address for Runyard's webhook listener, such as Tailscale Funnel, which is
+  off by default and has to be turned on for your tailnet first (see the guide's GitHub webhooks).
 - **AI agents.** Agents read everything and can prepare pools and reviews; only you run a
   review. Create a token under **Settings ▸ Account**, then, for Claude Code:
 

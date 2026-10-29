@@ -55,17 +55,15 @@ export function Webhooks() {
           <div className="mt-1 space-y-1.5 text-[12.5px] text-ink-2">
             <p>
               Runyard listens for webhooks only on this machine, at 127.0.0.1:{s.port}, and serves
-              nothing else there. Expose that port with Tailscale Funnel, which Runyard won't change
-              for you:
+              nothing else there. Tailscale Funnel can make that one port public; Runyard won't
+              change Funnel for you.
             </p>
-            <div className="rounded-md border border-line bg-sunken/60 px-3 py-2 font-mono text-[12px]">
-              <CopyValue value={command} label="Command">
-                {command}
-              </CopyValue>
-            </div>
             <p>
-              Funnel must be allowed for this machine in your tailnet policy (the{" "}
-              <span className="font-mono">funnel</span> node attribute).{" "}
+              <span className="font-medium text-ink">First, turn Funnel on for your tailnet.</span>{" "}
+              It's off by default. In the Tailscale admin console, allow it for this machine (the{" "}
+              <span className="font-mono">funnel</span> node attribute in Access controls), or run
+              the command below: if Funnel isn't on yet, it prints a link that turns it on, and you
+              run the command again afterwards.{" "}
               <a
                 href="https://tailscale.com/kb/1223/funnel"
                 target="_blank"
@@ -74,8 +72,14 @@ export function Webhooks() {
               >
                 How Funnel works
               </a>
-              . Any HTTPS reverse proxy to that port works too.
             </p>
+            <p>Then, on this machine:</p>
+            <div className="rounded-md border border-line bg-sunken/60 px-3 py-2 font-mono text-[12px]">
+              <CopyValue value={command} label="Command">
+                {command}
+              </CopyValue>
+            </div>
+            <p>Any HTTPS reverse proxy to that port works instead of Funnel.</p>
             {s.funnelError && (
               <p className="text-warn">Couldn't read Funnel's status: {s.funnelError}</p>
             )}
