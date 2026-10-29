@@ -123,7 +123,8 @@ For 5.2, send the pool page's Recent one-job runners entry and the machine's his
 ## Round 7: webhooks
 
 - [ ] **7.1** Settings ▸ Connections ▸ GitHub ▸ Webhooks: run the Funnel command it shows, then
-      **Set webhook**. Tick **Active** and **Workflow job** in the app's settings on GitHub.
+      **Set webhook**. Tick **Active** on the app's General page on GitHub (Workflow job is
+      already subscribed).
 - [ ] **7.2** Queue a job. Expect it in Queued jobs within seconds, and a delivery in GitHub's
       app settings with a 2xx response.
 

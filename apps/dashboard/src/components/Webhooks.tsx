@@ -182,12 +182,22 @@ function AppHook({ app, publicUrl }: { app: Status["apps"][number]; publicUrl: s
           <div className="min-w-0 flex-1">
             <div className="font-medium">3. Switch it on in GitHub</div>
             <div className="text-ink-2">
-              {app.subscribed
-                ? "Subscribed to Workflow job events."
-                : "Not subscribed to Workflow job events yet."}{" "}
-              In the app's settings, tick <b className="font-medium text-ink">Active</b> under
-              Webhook and <b className="font-medium text-ink">Workflow job</b> under Subscribe to
-              events; GitHub's API can't change these.{" "}
+              {app.subscribed ? (
+                <>
+                  Already subscribed to Workflow job events. On the app's{" "}
+                  <b className="font-medium text-ink">General</b> page, tick{" "}
+                  <b className="font-medium text-ink">Active</b> under Webhook and save; GitHub's
+                  API can't do this for Runyard.{" "}
+                </>
+              ) : (
+                <>
+                  On the app's <b className="font-medium text-ink">General</b> page, tick{" "}
+                  <b className="font-medium text-ink">Active</b> under Webhook. Then, under{" "}
+                  <b className="font-medium text-ink">Permissions & events</b>, tick{" "}
+                  <b className="font-medium text-ink">Workflow job</b> under Subscribe to events.
+                  Save each page; GitHub's API can't do this for Runyard.{" "}
+                </>
+              )}
               <a
                 href={app.settingsUrl}
                 target="_blank"

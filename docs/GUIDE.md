@@ -297,7 +297,9 @@ but signed deliveries. Under **Settings ▸ Connections ▸ GitHub ▸ Webhooks*
    tailnet only. Runyard shows the command; it never changes what's public on your tailnet
    itself. Any HTTPS reverse proxy to that port works too.
 3. Set each app's webhook: Runyard points it at the public address with a fresh secret.
-4. In the app's settings on GitHub, tick **Active** and the **Workflow job** event.
+4. In the app's settings on GitHub, tick **Active** under Webhook on its **General** page. Runyard's
+   app is created subscribed to **Workflow job**; if it isn't, tick it under **Permissions &
+   events ▸ Subscribe to events**.
 
 A delivery only makes Runyard re-read jobs and runners through the API; nothing in a payload is
 acted on.
