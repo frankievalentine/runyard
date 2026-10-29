@@ -221,7 +221,7 @@ export function MachineTable({ machines }: { machines: MachineView[] }) {
                 );
               })()}
             </td>
-            <td className="px-3 py-2.5 text-[12px] text-ink-2 tabular">
+            <td className="px-3 py-2.5 text-[12px] whitespace-nowrap text-ink-2 tabular">
               {(() => {
                 const c = summary.data?.machines[m.id];
                 if (!c) return <span className="text-ink-3">—</span>;
@@ -270,13 +270,16 @@ function MetricCell({
   value,
   fraction,
   stale,
+  "data-label": label,
 }: {
   value: string;
   fraction: number | null;
   stale?: boolean;
+  /** Its column, for the narrow layout (LinkRow sets it). */
+  "data-label"?: string;
 }) {
   return (
-    <td className="px-3 py-2.5">
+    <td className="px-3 py-2.5" data-label={label}>
       <div className="flex min-w-[64px] flex-col gap-1.5">
         <span className={`font-mono text-[12px] tabular ${stale ? "text-ink-3" : "text-ink"}`}>
           {value}

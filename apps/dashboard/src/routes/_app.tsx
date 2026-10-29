@@ -8,7 +8,7 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { api, call } from "../api.ts";
 import { CopyFeedback } from "../components/CopyValue.tsx";
 import { Button } from "../components/form.tsx";
@@ -63,6 +63,15 @@ function Layout() {
   const [query, setQuery] = useState("");
   const [otherOpen, setOtherOpen] = useOpenGroup("runyard.otherMachinesOpen");
   const [runnersOpen, setRunnersOpen] = useOpenGroup("runyard.runnersOpen");
+  // Below 1024px the sidebar is a drawer over the page, opened from the top bar.
+  const narrow = useMediaQuery("(max-width: 1023px)");
+  const [drawer, setDrawer] = useState(false);
+  const [drawerPath, setDrawerPath] = useState(pathname);
+  if (drawerPath !== pathname) {
+    // Following a link closes it.
+    setDrawerPath(pathname);
+    setDrawer(false);
+  }
 
   const filtered = useMemo(() => filterYard(view, query), [view, query]);
   const nav = useMemo(
@@ -82,6 +91,10 @@ function Layout() {
         t instanceof HTMLSelectElement
       )
         return;
+      if (e.key === "Escape" && drawer) {
+        setDrawer(false);
+        return;
+      }
       if (
         e.metaKey ||
         e.ctrlKey ||
@@ -104,31 +117,60 @@ function Layout() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [nav, selected, navigate]);
+  }, [nav, selected, navigate, drawer]);
 
   return (
     <CopyFeedback>
       <div className="flex h-full">
-        <Sidebar
+        {narrow && drawer && (
+          <button
+            type="button"
+            aria-label="Close navigation"
+            className="fixed inset-0 z-30 bg-black/40"
+            onClick={() => setDrawer(false)}
+          />
+        )}
+        <div
+          className={`fixed inset-y-0 left-0 z-40 h-full transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0 lg:transition-none ${drawer ? "translate-x-0 shadow-2xl" : "-translate-x-full"}`}
+          inert={narrow && !drawer}
+        >
+          <Sidebar
+            view={view}
+            filtered={filtered}
+            query={query}
+            setQuery={setQuery}
+            otherOpen={otherOpen}
+            setOtherOpen={setOtherOpen}
+            runnersOpen={runnersOpen}
+            setRunnersOpen={setRunnersOpen}
+            selected={selected}
+            admin={admin}
+            demo={demo}
+          />
+        </div>
+        <Main
           view={view}
-          filtered={filtered}
-          query={query}
-          setQuery={setQuery}
-          otherOpen={otherOpen}
-          setOtherOpen={setOtherOpen}
-          runnersOpen={runnersOpen}
-          setRunnersOpen={setRunnersOpen}
-          selected={selected}
-          admin={admin}
+          pathname={pathname}
           demo={demo}
+          onMenu={narrow ? () => setDrawer(true) : undefined}
         />
-        <Main view={view} pathname={pathname} demo={demo} />
       </div>
     </CopyFeedback>
   );
 }
 
-function Main({ view, pathname, demo }: { view: YardView; pathname: string; demo: boolean }) {
+function Main({
+  view,
+  pathname,
+  demo,
+  onMenu,
+}: {
+  view: YardView;
+  pathname: string;
+  demo: boolean;
+  /** Opens the navigation drawer, on narrow screens. */
+  onMenu?: () => void;
+}) {
   const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
   const check = useMutation({
@@ -143,12 +185,26 @@ function Main({ view, pathname, demo }: { view: YardView; pathname: string; demo
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-bg">
       <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-line px-4 xl:px-6">
+        {onMenu && (
+          <button
+            type="button"
+            aria-label="Open navigation"
+            onClick={onMenu}
+            className="-ml-1.5 flex size-8 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink"
+          >
+            <Icon name="menu" size={16} />
+          </button>
+        )}
         <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
           <ol className="flex min-w-0 items-center gap-1 text-[13px]">
             {crumbs.map((crumb, i) => (
-              <li key={i} className="flex min-w-0 items-center gap-1">
+              // On a phone, only where you are; the drawer has the rest.
+              <li
+                key={i}
+                className={`min-w-0 items-center gap-1 ${i < crumbs.length - 1 ? "hidden sm:flex" : "flex"}`}
+              >
                 {i > 0 && (
-                  <span className="shrink-0 text-ink-3">
+                  <span className="hidden shrink-0 text-ink-3 sm:inline">
                     <Icon name="chevron" size={13} />
                   </span>
                 )}
@@ -191,7 +247,7 @@ function Main({ view, pathname, demo }: { view: YardView; pathname: string; demo
       <UpdateBar />
       {demo && <DemoBanner />}
       <div ref={scrollRef} className="scroll min-h-0 flex-1">
-        <div className="mx-auto w-full max-w-[1200px] px-6 py-8 xl:px-8">
+        <div className="mx-auto w-full max-w-[1200px] px-4 py-6 sm:px-6 sm:py-8 xl:px-8">
           <Outlet />
         </div>
       </div>
@@ -304,4 +360,16 @@ function breadcrumbs(pathname: string, view: YardView): { label: string; to?: st
     ];
   }
   return [yard, { label: pages[pathname] ?? "" }];
+}
+
+/** Whether a media query matches, following changes such as a window resized past it. */
+function useMediaQuery(query: string): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const list = window.matchMedia(query);
+      list.addEventListener("change", onChange);
+      return () => list.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(query).matches,
+  );
 }

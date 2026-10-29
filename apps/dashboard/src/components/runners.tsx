@@ -190,7 +190,7 @@ function QueuedJob({
   const idle = eligible.filter((r) => r.activity === "idle").length;
   return (
     <div
-      className={`flex min-h-[56px] gap-3 border-b border-line px-4 py-3 last:border-b-0 ${compact ? "flex-col" : "flex-wrap items-center"}`}
+      className={`flex min-h-[56px] gap-3 border-b border-line px-4 py-3 last:border-b-0 ${compact ? "flex-col" : "flex-wrap items-center max-sm:flex-col max-sm:items-stretch"}`}
     >
       <div className="min-w-0 flex-1">
         <JobTitle job={job} />
@@ -209,7 +209,7 @@ function QueuedJob({
         {!compact && !job.onDemand && <TryAgain job={job} view={view} />}
       </div>
       <div
-        className={`flex shrink-0 gap-2 ${compact ? "flex-wrap items-center" : "flex-col items-end"}`}
+        className={`flex shrink-0 gap-2 ${compact ? "flex-wrap items-center" : "flex-col items-end max-sm:flex-row max-sm:flex-wrap max-sm:items-center"}`}
       >
         {limits?.atConcurrencyLimit ? (
           <Pill tone="warn">Waiting: boat.dev is at {limits.maxActiveSandboxes} VMs</Pill>

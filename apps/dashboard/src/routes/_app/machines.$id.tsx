@@ -34,6 +34,7 @@ import {
   StatStrip,
   StatusDot,
   type KeyValueRow,
+  Separated,
 } from "../../components/ui.tsx";
 import { yardQuery, useYard } from "../../lib/yard.ts";
 import {
@@ -103,18 +104,10 @@ function Machine() {
           </Pill>
         }
         subtitle={
-          <span className="inline-flex flex-wrap items-center gap-x-2">
+          <Separated>
             {/* No icon: its reserved space made the gap before the dot wider than after. */}
-            <CopyValue value={address} label="Address" showIcon={false} />
-            {os && (
-              <>
-                <span aria-hidden className="text-ink-3">
-                  ·
-                </span>
-                <span>{os}</span>
-              </>
-            )}
-          </span>
+            {[<CopyValue key="address" value={address} label="Address" showIcon={false} />, os]}
+          </Separated>
         }
         actions={
           admin && (

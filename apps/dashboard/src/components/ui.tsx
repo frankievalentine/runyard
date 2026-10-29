@@ -1,4 +1,11 @@
-import type { ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  createContext,
+  isValidElement,
+  useContext,
+  type ReactNode,
+} from "react";
 import { timeAgo } from "../lib/format.ts";
 import { useNow } from "../lib/now.ts";
 import type { Tone } from "../lib/status.ts";
@@ -299,29 +306,34 @@ export function LinkTable({
   children: ReactNode;
 }) {
   return (
-    <Card className="overflow-x-auto">
-      <table className={`w-full text-[13px] ${minWidth}`}>
-        <thead className="border-b border-line bg-sunken/40 text-left text-[12px] text-ink-2">
-          <tr>
-            {columns.map((c, i) => (
-              <th
-                key={c.label}
-                scope="col"
-                className={`py-2 font-medium ${c.className ?? (i === 0 ? "px-4" : "px-3")}`}
-              >
-                {c.label}
+    <Card className="link-table overflow-x-auto">
+      <LinkColumns.Provider value={columns}>
+        <table className={`w-full text-[13px] ${minWidth}`}>
+          <thead className="border-b border-line bg-sunken/40 text-left text-[12px] text-ink-2">
+            <tr>
+              {columns.map((c, i) => (
+                <th
+                  key={c.label}
+                  scope="col"
+                  className={`py-2 font-medium ${c.className ?? (i === 0 ? "px-4" : "px-3")}`}
+                >
+                  {c.label}
+                </th>
+              ))}
+              <th scope="col" className="w-8">
+                <span className="sr-only">Open</span>
               </th>
-            ))}
-            <th scope="col" className="w-8">
-              <span className="sr-only">Open</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-line">{children}</tbody>
-      </table>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">{children}</tbody>
+        </table>
+      </LinkColumns.Provider>
     </Card>
   );
 }
+
+/** The table's columns, so each row's cells can carry their names for the narrow layout. */
+const LinkColumns = createContext<Column[]>([]);
 
 /** A row that opens its page from anywhere on it; `opener` is its keyboard-reachable button. */
 export function LinkRow({
@@ -335,9 +347,16 @@ export function LinkRow({
   title?: string;
   children: ReactNode;
 }) {
+  const columns = useContext(LinkColumns);
+  // Each cell is labeled with its column, shown above it when rows become cards.
+  const cells = Children.map(children, (cell, i) =>
+    isValidElement<{ "data-label"?: string }>(cell)
+      ? cloneElement(cell, { "data-label": columns[i + 1]?.label })
+      : cell,
+  );
   return (
     <tr className="group cursor-pointer hover:bg-hover" onClick={onOpen}>
-      <td className="px-4 py-2.5">
+      <td className="link-opener px-4 py-2.5">
         <button
           className="flex max-w-[240px] items-center gap-2.5 text-left"
           title={title}
@@ -349,8 +368,8 @@ export function LinkRow({
           {opener}
         </button>
       </td>
-      {children}
-      <td className="px-2 text-ink-3">
+      {cells}
+      <td className="link-chevron px-2 text-ink-3">
         <span className="opacity-0 group-hover:opacity-100">
           <Icon name="chevron" />
         </span>
@@ -390,5 +409,35 @@ export function SubHeader({
       </div>
       {actions && <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
+  );
+}
+
+/**
+ * Items with a dot between them. Each dot travels with the item after it, so
+ * a line that wraps never leaves one stranded at its end. Empty items are left out.
+ */
+export function Separated({
+  children,
+  className = "",
+}: {
+  children: ReactNode[];
+  className?: string;
+}) {
+  const parts = children.filter((c) => c !== null && c !== undefined && c !== false && c !== "");
+  return (
+    <span className={`inline-flex flex-wrap items-center gap-x-2 ${className}`}>
+      {parts.map((part, i) =>
+        i === 0 ? (
+          <span key={i}>{part}</span>
+        ) : (
+          <span key={i} className="inline-flex items-center gap-x-2">
+            <span aria-hidden className="text-ink-3">
+              ·
+            </span>
+            {part}
+          </span>
+        ),
+      )}
+    </span>
   );
 }

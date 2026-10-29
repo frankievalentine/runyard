@@ -1,7 +1,11 @@
 # Planned: narrow screens
 
-Status: **noted, not started.** Raised on 2026-10-29 during live testing; to plan with the user
-before building.
+Status: **built** on 2026-10-29. Decided with the user: below 1024px the sidebar is a drawer
+opened from a menu button in the top bar (it closes on navigation, Escape or a tap outside, and
+is out of the tab order while closed); below 768px tables' rows become cards, each cell under
+its column's name. Also at phone width: only the current breadcrumb, queued jobs and review
+steps stacked, the pool form naming only its current step, and dots that never end a line.
+Checked page by page at 390px and 820px in the demo; passkey rows keep their old date style.
 
 ## Why
 

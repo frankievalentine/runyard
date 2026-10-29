@@ -15,6 +15,7 @@ import {
   Section,
   Stat,
   StatStrip,
+  Separated,
 } from "../../components/ui.tsx";
 import { useYard } from "../../lib/yard.ts";
 import { sessionQuery } from "../../lib/queries.ts";
@@ -78,7 +79,7 @@ function Runner() {
           </Pill>
         }
         subtitle={
-          <span className="inline-flex flex-wrap items-center gap-x-2">
+          <Separated>
             {[
               <span key="where">
                 {r.onDemand ? (
@@ -107,17 +108,8 @@ function Runner() {
                   known from its running job; GitHub's runner list doesn't include it
                 </span>
               ),
-            ]
-              .filter(Boolean)
-              .flatMap((part, i) => [
-                i > 0 && (
-                  <span key={`dot${i}`} aria-hidden className="text-ink-3">
-                    ·
-                  </span>
-                ),
-                part,
-              ])}
-          </span>
+            ]}
+          </Separated>
         }
       />
       {vm && (

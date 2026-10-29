@@ -107,6 +107,12 @@ export function Icon({ name, size = 14 }: { name: IconName; size?: number }) {
           <path d="M3.5 8.5l3 3 6-7" />
         </svg>
       );
+    case "menu":
+      return (
+        <svg {...common}>
+          <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" />
+        </svg>
+      );
     case "x":
       return (
         <svg {...common}>
@@ -158,6 +164,7 @@ export type IconName =
   | "settings"
   | "check"
   | "x"
+  | "menu"
   | "dash"
   | "plan"
   | "users"

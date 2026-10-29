@@ -243,8 +243,6 @@ jobs page.
 - **Documentation audit**: the guide split into task pages, every step checked against the
   dashboard, with live testing's findings. Agreed, after live testing and before release:
   [docs/plans/docs-audit.md](plans/docs-audit.md).
-- **Narrow screens**: the sidebar and every page at phone width. Noted, to plan:
-  [docs/plans/responsive.md](plans/responsive.md).
 - **Release**: a curl install, a Homebrew formula and the Docker compose file for the control
   plane, from published builds. No Mac app for now. To plan after live testing:
   [docs/plans/release.md](plans/release.md).

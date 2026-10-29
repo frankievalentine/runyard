@@ -271,9 +271,9 @@ export function MachineChanges({
               {[...actionable, ...blocked].map((i) => (
                 <li
                   key={`${i.action}:${i.path}`}
-                  className="flex items-start gap-3 px-4 py-3 text-[12.5px]"
+                  className="flex items-start gap-3 px-4 py-3 text-[12.5px] max-sm:flex-col max-sm:gap-1.5"
                 >
-                  <span className="mt-0.5 w-40 shrink-0">
+                  <span className="mt-0.5 w-40 shrink-0 max-sm:mt-0 max-sm:w-auto">
                     <Pill
                       tone={i.blocked ? "warn" : i.action === "remove" ? "bad" : "busy"}
                       hollow={i.blocked}

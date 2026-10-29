@@ -272,7 +272,8 @@ export function PoolForm({
                   >
                     {n}
                   </span>
-                  {title}
+                  {/* On a phone only the current step is named; the others are their numbers. */}
+                  <span className={current ? "" : "max-sm:sr-only"}>{title}</span>
                 </button>
               </li>
             );

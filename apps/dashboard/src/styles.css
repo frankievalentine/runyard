@@ -189,3 +189,41 @@ code,
     cursor: not-allowed;
   }
 }
+
+/* Below 768px a LinkTable's rows become cards: the row's opener across the top, then each cell
+   under its column's name (data-label). Hidden cells, such as Uptime, stay hidden. */
+@media (max-width: 767px) {
+  .link-table table,
+  .link-table tbody {
+    display: block;
+    min-width: 0;
+  }
+  .link-table thead,
+  .link-table td.link-chevron {
+    display: none;
+  }
+  .link-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 16px;
+    padding: 12px 16px;
+  }
+  .link-table td:not(.hidden) {
+    display: block;
+    width: auto;
+    padding: 0;
+  }
+  .link-table td.link-opener {
+    grid-column: 1 / -1;
+  }
+  .link-table td.link-opener > button {
+    max-width: none;
+  }
+  .link-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-size: 11px;
+    color: var(--text-3);
+  }
+}
