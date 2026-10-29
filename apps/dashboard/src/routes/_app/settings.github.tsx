@@ -117,7 +117,7 @@ function AppCard({ app }: { app: GithubAppView }) {
         </div>
         <a
           href={app.installUrl}
-          className="inline-flex h-[28px] items-center gap-1.5 rounded-[6px] border border-line bg-card px-2.5 text-[12.5px] font-medium hover:bg-hover"
+          className="inline-flex h-[28px] items-center gap-1.5 rounded-[6px] border border-line-strong bg-card shadow-[0_1px_1px_rgb(0_0_0/0.04)] px-2.5 text-[12.5px] font-medium hover:bg-hover"
         >
           {app.installations.length ? "Change repositories" : "Install"}
           <Icon name="external" size={12} />

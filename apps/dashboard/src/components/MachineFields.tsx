@@ -19,7 +19,7 @@ export function MachineFields(props: {
         placeholder="ci@build-box.tail1234.ts.net"
         spellCheck={false}
         autoCapitalize="off"
-        description="user@host, or a Host alias from this machine's ~/.ssh/config. The host key must already be trusted here."
+        description="user@host, or a Host alias from this machine's ~/.ssh/config. Once it's added, its page walks you through trusting its host key."
         required
       />
       <label className="flex flex-col gap-1.5">

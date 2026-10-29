@@ -9,7 +9,7 @@ import { Card } from "./ui.tsx";
 
 const HIDDEN_KEY = "runyard.setupChecklistHidden";
 const button =
-  "inline-flex h-[26px] items-center rounded-[6px] border border-line bg-card px-2.5 text-[12px] font-medium hover:bg-hover";
+  "inline-flex h-[26px] items-center rounded-[6px] border border-line-strong bg-card shadow-[0_1px_1px_rgb(0_0_0/0.04)] px-2.5 text-[12px] font-medium hover:bg-hover";
 
 function readHidden(): boolean {
   try {

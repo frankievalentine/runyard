@@ -31,10 +31,13 @@ export function Button({
     small ? "h-[28px] px-2.5 text-[12.5px]" : "h-[32px] px-3 text-[13px]"
   }`;
   const styles = {
-    default: "border border-line bg-card text-ink hover:bg-hover active:bg-selected",
+    // Every button but the primary one has an edge you can see in both themes.
+    default:
+      "border border-line-strong bg-card text-ink shadow-[0_1px_1px_rgb(0_0_0/0.04)] hover:bg-hover active:bg-selected",
     primary: "bg-accent text-white hover:brightness-110 active:brightness-95",
-    danger: "border border-bad/20 bg-bad/5 text-bad hover:bg-bad/10",
-    ghost: "text-ink-2 hover:bg-hover hover:text-ink",
+    danger: "border border-bad/40 bg-bad/5 text-bad hover:bg-bad/10",
+    // Quieter than default (no fill), for secondary actions such as Cancel and Ignore.
+    ghost: "border border-line-strong/70 text-ink-2 hover:bg-hover hover:text-ink",
   };
   return (
     <button type="button" className={`${base} ${styles[variant]}`} {...button}>

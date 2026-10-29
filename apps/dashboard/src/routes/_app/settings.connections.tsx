@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/settings/connections")({
 });
 
 const manage =
-  "inline-flex h-[28px] items-center rounded-[6px] border border-line bg-card px-2.5 text-[12.5px] font-medium hover:bg-hover";
+  "inline-flex h-[28px] items-center rounded-[6px] border border-line-strong bg-card shadow-[0_1px_1px_rgb(0_0_0/0.04)] px-2.5 text-[12.5px] font-medium hover:bg-hover";
 /** While no forge is connected, connecting one is the page's main action. */
 const primary =
   "inline-flex h-[28px] items-center rounded-[6px] bg-accent px-2.5 text-[12.5px] font-medium text-white hover:brightness-110";
