@@ -151,7 +151,19 @@ For 5.2, send the pool page's Recent one-job runners entry and the machine's his
 - [ ] **11.3** Docker: `docker/compose.yaml` with a real `TS_AUTHKEY`. Expect the dashboard on
       its tailnet address and the setup code in `docker compose logs runyard`.
 
-## Afterwards
+## Round 12: taking it all down
 
-Revoke test tokens, delete the GitHub App and the test organization's runners, and destroy the
-LXC. Then update docs/PLAN.md's Pending live verification with what passed.
+This is also a test: follow the guide's Uninstalling order and check each step.
+
+- [ ] **12.1** Try **Remove** on the LXC: expect **Decommission first**, naming its runners and
+      runner software. Decommission it, review and run: expect every runner deregistered on
+      GitHub and the runner software deleted. Then **Remove** works.
+- [ ] **12.2** Run the teardown command from the Remove dialog on the LXC as root with
+      `--prepared`: expect the `runyard` account, its sudoers file and home gone, and SSH as
+      `runyard` refused afterwards.
+- [ ] **12.3** Remove the GitHub App in Runyard, then delete it on GitHub. Revoke the test
+      tokens.
+- [ ] **12.4** `runyard uninstall --dry-run --purge`, read it, then without `--dry-run`. Expect
+      the LaunchAgent gone, `runyard` gone from `~/.local/bin` and the data directory deleted.
+
+Then destroy the LXC and update docs/PLAN.md's Pending live verification with what passed.

@@ -345,6 +345,29 @@ admin or a viewer. On loopback, users sign in with a username and password, and 
 passkeys under **Account**. Passkeys need HTTPS or `localhost`, and work only on the address
 they were added from.
 
+## Uninstalling
+
+Take things down in this order, so nothing is left registered where Runyard can no longer reach
+it:
+
+1. **Machines.** On each machine's page, **Remove** becomes **Decommission** while Runyard has
+   runners there: it takes the machine out of every pool. Review and run its changes to remove
+   the runners (each is deregistered and its service removed), then **Remove** the machine.
+   Runyard refuses to remove a machine, a GitHub App or a Forgejo connection that still has
+   runners, naming them.
+2. **What setup left on each machine.** The Remove dialog shows a teardown command to run on
+   the machine: it deletes `~/runyard-runners` and Runyard's key from `authorized_keys`, and with
+   `--prepared` (as root) also the `runyard` account, its sudoers file and lingering. It refuses
+   while a runner there is still configured. Tools installed through tool profiles stay.
+3. **Connections.** Remove each GitHub App and Forgejo connection under **Settings ▸
+   Connections**, then delete the GitHub App in its settings on GitHub. If you exposed webhooks
+   with Funnel, `tailscale funnel reset`.
+4. **Runyard itself.** `runyard uninstall` stops and removes the service and the binary;
+   `--purge` also deletes the data directory (the database, Runyard's SSH key and known hosts,
+   and a generated secret key). It refuses while Runyard still has runners on machines, unless
+   `--force`; `--dry-run` shows every step. With Docker, `docker compose -f docker/compose.yaml
+   down -v`.
+
 ## Security
 
 - **Reading is read-only.** Monitoring never changes a machine or a forge, and never mints a

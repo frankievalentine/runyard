@@ -36,6 +36,17 @@ try {
   const page = await fetch(`${base}/machines/example`);
   if (!(await page.text()).includes('<div id="root">'))
     throw new Error("The dashboard was not served.");
+  // Uninstalling, as a dry run: it plans every step and changes nothing.
+  const dry = Bun.spawnSync([binary, "uninstall", "--dry-run", "--purge"], {
+    env: { ...process.env, RUNYARD_DATA_DIR: dataDir },
+  });
+  const said = dry.stdout.toString();
+  if (
+    dry.exitCode !== 0 ||
+    !said.includes("Nothing was changed") ||
+    !(await Bun.file(binary).exists())
+  )
+    throw new Error(`runyard uninstall --dry-run misbehaved:\n${said}${dry.stderr.toString()}`);
   console.log("Smoke test passed.");
 } finally {
   child.kill();

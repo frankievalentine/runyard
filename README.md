@@ -42,6 +42,9 @@ admin, and follow **Getting started** on the overview:
 3. **Create a pool:** labels, machines and the repositories it serves.
 4. **Review and run** the machine's changes. Its runners start taking jobs.
 
+To remove Runyard later, decommission its machines in the dashboard first, then run
+`runyard uninstall --purge`; the [guide](docs/GUIDE.md#uninstalling) has the full order.
+
 ## Requirements
 
 - **Runyard's machine:** macOS on Apple silicon, Linux (x64 or arm64, glibc) or Windows x64, or

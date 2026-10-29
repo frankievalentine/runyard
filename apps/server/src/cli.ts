@@ -3,6 +3,7 @@ import type { DashboardAssets } from "./dashboard.ts";
 import { start } from "./server.ts";
 import { applyPlan, currentContext } from "./service/apply.ts";
 import { installPlan, ServiceError, statusCommand, uninstallPlan } from "./service/plan.ts";
+import { uninstall } from "./service/uninstall.ts";
 
 const HELP = `Runyard ${pkg.version}: self-hosted CI runner control
 
@@ -11,9 +12,11 @@ Usage:
   runyard service install      Run Runyard as a background service for this user
   runyard service uninstall    Stop and remove the service
   runyard service status       Show the service's state
+  runyard uninstall            Remove the service and this binary; --purge also deletes Runyard's data
   runyard version
 
-Add --dry-run to install or uninstall to print what would change.
+Add --dry-run to install or uninstall to print what would change. uninstall refuses while
+Runyard still has runners on your machines (decommission them first), unless --force.
 Settings come from RUNYARD_* environment variables; install carries them into the service.`;
 
 /** The runyard command line. With no command it serves. */
@@ -25,6 +28,21 @@ export async function main(argv: string[], dashboard?: DashboardAssets): Promise
   }
   if (command === "version" || command === "--version") return console.log(pkg.version);
   if (command === "help" || command === "--help" || command === "-h") return console.log(HELP);
+  if (command === "uninstall") {
+    const flags = [sub, ...rest].filter(Boolean) as string[];
+    try {
+      await uninstall(currentContext(), {
+        purge: flags.includes("--purge"),
+        force: flags.includes("--force"),
+        dryRun: flags.includes("--dry-run"),
+      });
+    } catch (error) {
+      if (!(error instanceof ServiceError)) throw error;
+      console.error(error.message);
+      process.exit(1);
+    }
+    return;
+  }
   if (command === "service") {
     try {
       await service(sub, rest);
