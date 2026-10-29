@@ -16,7 +16,14 @@ export type CommandRunner = (
 export const runCommand: CommandRunner = async (argv, { stdin, timeoutMs = 30_000 } = {}) => {
   let proc: Bun.Subprocess<"pipe", "pipe", "pipe">;
   try {
-    proc = Bun.spawn([...argv], { stdin: "pipe", stdout: "pipe", stderr: "pipe" });
+    // Passed explicitly: Bun.spawn's default environment misses variables set at runtime,
+    // such as TAILSCALE_BE_CLI, which the macOS Tailscale app needs without a terminal.
+    proc = Bun.spawn([...argv], {
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ...process.env },
+    });
   } catch (error) {
     return {
       code: 127,
