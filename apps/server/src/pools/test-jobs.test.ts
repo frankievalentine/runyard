@@ -53,6 +53,25 @@ describe("a runner's test job", () => {
     expect(jobs).toMatchObject([
       { runnerName: "mini-mac-01", status: "completed", conclusion: "success", url: run.html_url },
     ]);
+    expect(jobs[0]!.finishedAt).toBeNumber();
+  });
+
+  test("two tests in a row are kept apart, each following its own run", async () => {
+    const s = await installed();
+    s.fakeGithub.testWorkflows.add("acme/app");
+    await start(s);
+    await start(s, { docker: true });
+    // GitHub lists newest first: the container test's run, then the plain one's.
+    const [second, first] = s.fakeGithub.workflowRuns.get("acme/app")!;
+    first!.status = "completed";
+    first!.conclusion = "success";
+    second!.status = "completed";
+    second!.conclusion = "failure";
+    const { jobs } = await s.call<{ jobs: TestJob[] }>("GET", "/api/runner-tests");
+    expect(jobs).toMatchObject([
+      { docker: true, conclusion: "failure", url: second!.html_url },
+      { docker: false, conclusion: "success", url: first!.html_url },
+    ]);
   });
 
   test("refuses runners Runyard didn't install, other repositories, and explains a missing permission", async () => {

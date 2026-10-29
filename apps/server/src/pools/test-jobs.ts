@@ -59,6 +59,10 @@ export type TestJob = {
   repo: string;
   docker: boolean;
   startedAt: number;
+  /** When GitHub says the run finished; null until then. */
+  finishedAt: number | null;
+  /** GitHub's run id, once found; each run belongs to one test. */
+  runId: number | null;
   /** queued and in_progress, then completed with GitHub's conclusion. */
   status: "dispatched" | "queued" | "in_progress" | "completed";
   conclusion: string | null;
@@ -79,14 +83,16 @@ export class TestJobError extends Error {
 const FIND_RUN_MS = 10 * 60_000;
 /** GitHub is asked about pending runs at most this often. */
 const REFRESH_MS = 5_000;
+/** Tests kept per runner, newest first. */
+const KEEP = 5;
 
 /**
  * Test jobs for Runyard's GitHub runners: starts the user's test workflow on
  * one runner (by its own label), then follows the run it started. Kept in
- * memory: the latest per runner, as a guide; GitHub has the full history.
+ * memory: the last few per runner, as a guide; GitHub has the full history.
  */
 export class TestJobs {
-  private jobs = new Map<string, TestJob>();
+  private jobs = new Map<string, TestJob[]>();
   private refreshedAt = 0;
 
   constructor(private readonly deps: { github: GithubMonitor; now?: () => number }) {}
@@ -126,34 +132,44 @@ export class TestJobs {
       id: crypto.randomUUID(),
       ...input,
       startedAt: this.now(),
+      finishedAt: null,
+      runId: null,
       status: "dispatched",
       conclusion: null,
       url: null,
     };
-    this.jobs.set(key(input.scope, input.runnerName), job);
+    const k = key(input.scope, input.runnerName);
+    this.jobs.set(k, [job, ...(this.jobs.get(k) ?? [])].slice(0, KEEP));
     return job;
   }
 
-  /** The latest test job of each runner, with pending ones refreshed from GitHub. */
+  /** Each runner's recent test jobs, newest first, with pending ones refreshed from GitHub. */
   async list(): Promise<TestJob[]> {
     if (this.now() - this.refreshedAt >= REFRESH_MS) {
       this.refreshedAt = this.now();
       await this.refresh().catch(() => undefined);
     }
-    return [...this.jobs.values()];
+    return [...this.jobs.values()].flat();
   }
 
   private async refresh() {
-    for (const job of this.jobs.values()) {
+    const all = [...this.jobs.values()].flat();
+    const claimed = new Set(all.flatMap((j) => (j.runId === null ? [] : [j.runId])));
+    // Oldest first, so two quick tests on one runner each find their own run.
+    for (const job of all.toReversed()) {
       if (job.status === "completed") continue;
       const runs = await testWorkflowRuns(this.http(job.scope), job.repo);
       const label = runnerLabel(job.runnerName);
-      // The run GitHub made for this dispatch: titled with the runner's label, created after it.
-      const run = runs.find(
-        (r) =>
-          r.display_title.endsWith(` ${label}`) &&
-          Date.parse(r.created_at) >= job.startedAt - 60_000,
-      );
+      // The run GitHub made for this dispatch: titled with the runner's label, created after it,
+      // and not already another test's. GitHub lists newest first, so take the earliest.
+      const run =
+        runs.find((r) => r.id === job.runId) ??
+        runs.findLast(
+          (r) =>
+            !claimed.has(r.id) &&
+            r.display_title.endsWith(` ${label}`) &&
+            Date.parse(r.created_at) >= job.startedAt - 60_000,
+        );
       if (!run) {
         if (this.now() - job.startedAt > FIND_RUN_MS) {
           job.status = "completed";
@@ -161,6 +177,8 @@ export class TestJobs {
         }
         continue;
       }
+      job.runId = run.id;
+      claimed.add(run.id);
       job.url = run.html_url;
       job.status =
         run.status === "completed"
@@ -169,6 +187,8 @@ export class TestJobs {
             ? "in_progress"
             : "queued";
       job.conclusion = run.conclusion;
+      if (job.status === "completed")
+        job.finishedAt = run.updated_at ? Date.parse(run.updated_at) : this.now();
     }
   }
 }

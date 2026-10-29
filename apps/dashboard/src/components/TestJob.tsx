@@ -2,7 +2,7 @@ import type { RunnerView } from "@runyard/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ApiError, call } from "../api.ts";
-import { timeAgo } from "../lib/format.ts";
+import { formatElapsed, timeAgo } from "../lib/format.ts";
 import { useNow } from "../lib/now.ts";
 import { useYard } from "../lib/yard.ts";
 import { CopyValue } from "./CopyValue.tsx";
@@ -10,10 +10,13 @@ import { Button } from "./form.tsx";
 import { Card, ErrorText, Pill, Section } from "./ui.tsx";
 
 type TestJob = {
+  id: string;
   runnerName: string;
   scope: RunnerView["scope"];
   repo: string;
+  docker: boolean;
   startedAt: number;
+  finishedAt: number | null;
   status: "dispatched" | "queued" | "in_progress" | "completed";
   conclusion: string | null;
   url: string | null;
@@ -71,7 +74,8 @@ export function TestThisRunner({ r }: { r: RunnerView }) {
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: testsKey }),
   });
-  const latest = tests.data?.jobs.find(
+  // Newest first, as the server keeps them.
+  const mine = (tests.data?.jobs ?? []).filter(
     (j) => j.runnerName.toLowerCase() === r.name.toLowerCase() && j.scope.target === r.scope.target,
   );
   const needsWorkflow = start.error instanceof ApiError && start.error.code === "noWorkflow";
@@ -120,23 +124,31 @@ export function TestThisRunner({ r }: { r: RunnerView }) {
             </Button>
           </div>
         )}
-        {latest && (
-          <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
-            <Pill tone={resultTone(latest)}>{resultLabel(latest)}</Pill>
-            <span className="text-ink-2">
-              in {latest.repo}, started {timeAgo(latest.startedAt, now)}
-            </span>
-            {latest.url && (
-              <a
-                href={latest.url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-accent hover:underline"
+        {mine.length > 0 && (
+          <ul className="divide-y divide-line rounded-md border border-line">
+            {mine.map((j) => (
+              <li
+                key={j.id}
+                className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 text-[12.5px]"
               >
-                Open the run
-              </a>
-            )}
-          </div>
+                <Pill tone={resultTone(j)}>{resultLabel(j)}</Pill>
+                <span className="font-medium">
+                  {j.docker ? "With a container" : "Tools and build"}
+                </span>
+                <span className="text-ink-2">{when(j, now)}</span>
+                {j.url && (
+                  <a
+                    href={j.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-auto text-accent hover:underline"
+                  >
+                    Open the run
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
         {start.error && <ErrorText error={start.error} />}
         {needsWorkflow && tests.data && (
@@ -163,6 +175,14 @@ export function TestThisRunner({ r }: { r: RunnerView }) {
       </Card>
     </Section>
   );
+}
+
+/** A finished test says when it finished and how long it took; a pending one, how long it's been going. */
+function when(j: TestJob, now: number): string {
+  if (j.status === "completed" && j.finishedAt)
+    return `finished ${timeAgo(j.finishedAt, now)}, took ${formatElapsed(j.finishedAt - j.startedAt)}`;
+  if (j.status === "completed") return `started ${timeAgo(j.startedAt, now)}`;
+  return `for ${formatElapsed(now - j.startedAt)}`;
 }
 
 function resultLabel(j: TestJob): string {

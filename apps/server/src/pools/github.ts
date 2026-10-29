@@ -183,6 +183,8 @@ export type WorkflowRun = {
   html_url: string;
   display_title: string;
   created_at: string;
+  /** When the run last changed: when it finished, once completed. */
+  updated_at?: string;
 };
 
 /** The test workflow's recent manual runs, newest first. */
