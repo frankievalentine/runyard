@@ -20,6 +20,8 @@ async function setup() {
     sshTarget: "box",
     transport: "openssh",
     expectedOs: null,
+    // As a machine added before the key-only setting existed.
+    runyardKeyOnly: false,
   });
   const command = () =>
     send(t.app, "POST", `/api/machines/${machine.id}/setup-command`, {}, { Cookie: cookie });
@@ -77,6 +79,7 @@ describe("the one-line setup command", () => {
     expect(getMachine(t.deps.db, machine.id)).toMatchObject({
       sshTarget: "ci@box",
       expectedOs: "linux",
+      runyardKeyOnly: true,
     });
     expect(await Bun.file(t.deps.ssh.knownHosts).text()).toBe(`box ${keyOnly(OTHER_KEY)}\n`);
     expect((await report(sent)).status).toBe(403);

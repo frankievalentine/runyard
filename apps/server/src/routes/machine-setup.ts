@@ -134,6 +134,8 @@ export function machineSetupRoutes(deps: MachineSetupDeps) {
           updateMachine(db, machine.id, {
             sshTarget: target,
             ...(machine.expectedOs ? {} : { expectedOs: report.os }),
+            // The script authorized Runyard's key, so sign in with it alone.
+            ...(machine.transport === "openssh" ? { runyardKeyOnly: true } : {}),
           });
           // Tailscale SSH checks host keys itself; for OpenSSH, trust exactly what the machine reported.
           if (machine.transport === "openssh") {
