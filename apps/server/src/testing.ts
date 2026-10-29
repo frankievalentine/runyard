@@ -158,6 +158,7 @@ export async function testApp(
     hostKeys: new HostKeys({ run: fake.run, programs: fake.programs, file: ssh.knownHosts }),
     machineSetup: new MachineSetupCodes(() => clock.now),
     testJobs: new TestJobs({ github, now: () => clock.now }),
+    dispatcher,
   };
   const app = createApp(deps, options.dashboard);
   return {

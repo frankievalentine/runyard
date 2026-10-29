@@ -38,16 +38,28 @@ const view = (over: {
   pools?: Pool[];
   desired?: unknown[];
   templateRecords?: unknown[];
+  dispatches?: unknown[];
+  queueAt?: number | null;
 }) =>
   ({
     runners: over.runners ?? [],
-    machines: [{ id: "m1", name: "Builder", os: "linux", readiness: null }],
+    machines: [
+      {
+        id: "m1",
+        name: "Builder",
+        os: "linux",
+        readiness: null,
+        connection: { state: "connected" },
+      },
+    ],
+    queue: { jobs: [], complete: true, at: over.queueAt ?? null },
     github: { apps: [{ forgeId: "gh" }] },
     forgejo: { connections: [] },
     pools: {
       pools: over.pools ?? [],
       desired: over.desired ?? [],
       templateRecords: over.templateRecords ?? [],
+      dispatches: over.dispatches ?? [],
     },
   }) as unknown as YardView;
 
@@ -97,5 +109,44 @@ test("on-demand pools: paused, not installed, or about to start one", () => {
   expect(onDemand({})).toContain("runner software isn't installed yet");
   expect(onDemand({}, [{ poolId: "p1" }])).toBe(
     "Pool gpu should start a one-job runner for it within a minute.",
+  );
+});
+
+test("on-demand pools: what its runners so far did about the job", () => {
+  const base = {
+    pools: [pool({ mode: "onDemand", machines: [{ machineId: "m1", slots: 1 }] })],
+    templateRecords: [{ poolId: "p1" }],
+  };
+  const run = (dispatches: unknown[], queueAt: number | null = 2_000, now = 2_000) =>
+    waitingReasons(job(["gpu"]), view({ ...base, dispatches, queueAt }), now)[1];
+  const d = (over: object) => ({
+    id: "d",
+    poolId: "p1",
+    machineId: "m1",
+    runnerName: "builder-gpu-1a",
+    runnerKind: "actions",
+    jobId: 1,
+    state: "done",
+    startedAt: 1_000,
+    endedAt: 1_500,
+    detail: null,
+    cleared: false,
+    ...over,
+  });
+  expect(run([d({ state: "starting", endedAt: null })])).toBe(
+    "Runyard started builder-gpu-1a for it on Builder; it takes the job once GitHub lists it.",
+  );
+  expect(run([d({})], 1_400)).toBe(
+    "Its runner builder-gpu-1a ended without running it; Runyard starts another once the queue is read again (1 of 3 tries).",
+  );
+  expect(run([d({})])).toBe(
+    "Pool gpu starts another runner for it within a minute (2 of 3 tries).",
+  );
+  expect(run([d({ id: "a" }), d({ id: "b" }), d({ id: "c" })])).toContain(
+    "Runyard started 3 runners for it and none ran it.",
+  );
+  // Another job's runner fills the only slot.
+  expect(run([d({ jobId: 9, state: "running", endedAt: null })])).toContain(
+    "running as many one-job runners as they're allowed (Builder: 1)",
   );
 });

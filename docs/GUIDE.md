@@ -215,8 +215,14 @@ idle runner can take and the pool serves its repository and has its labels, Runy
 2. copies the runner software into its own directory and starts a one-job runner there;
 3. lets the runner take one job and deregister itself, then removes the directory.
 
-Each job gets at most one runner; slots cap how many run at once per machine, and a pool can be
-paused. A runner that never shows up on the forge is deleted after 10 minutes. Starts and
+A one-job runner takes whichever matching job the forge hands it, and can end without running
+one. So a job still queued after its runner ended gets another (marked **Ended early** on the
+first), up to three in all; a runner that failed to start is retried after 10 minutes. After
+three, the job says so under Queued jobs, with **Try again**. Slots cap how many run at once per
+machine, and a pool can be paused. A runner that never shows up on the forge is deleted after 10
+minutes. Each runner's log (its output, then the end of its own diagnostic logs) is kept on the
+machine in `~/runyard-runners/<pool>/jobs/.logs`, the last 20 for up to 7 days; **Show log** on
+the pool page reads it. Starts and
 results appear on the pool page and in each machine's history. On-demand pools run on Linux and
 macOS for now.
 

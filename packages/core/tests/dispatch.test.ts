@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vite-plus/test";
 import {
   advanceDispatches,
+  DISPATCH_RETRY_AFTER_FAILURE_MS,
+  nextAttempt,
   deriveYard,
   desiredRunners,
   desiredTemplates,
@@ -138,6 +140,7 @@ describe("dispatch", () => {
     installed: templates.map(record),
     machines: [machine("m1")],
     dispatches: [] as Dispatch[],
+    queueAt: null as number | null,
     busyMachines: new Set<string>(),
     forgeKinds: new Map([["gh", "github" as const]]),
     now: 1_000_000,
@@ -156,6 +159,7 @@ describe("dispatch", () => {
     startedAt: 1_000_000,
     endedAt: null,
     detail: null,
+    cleared: false,
     ...over,
   });
 
@@ -195,6 +199,39 @@ describe("dispatch", () => {
       }),
     ).toEqual([]);
     expect(none({ queue: [job({ onDemand: "boat.dev" })] })).toEqual([]);
+  });
+
+  test("a job still queued after its runner ended gets another, up to three", () => {
+    const ended = dispatch({ state: "done", endedAt: 1_000_000 });
+    const at = (queueAt: number | null, dispatches: Dispatch[], now = 1_000_000) =>
+      planDispatches({ ...base, queueAt, dispatches, now });
+    // Not until the queue was read after it ended: the job may already be running.
+    expect(at(999_000, [ended])).toEqual([]);
+    expect(at(1_000_500, [ended])).toMatchObject([{ previous: { id: "d1" } }]);
+    // A failed start waits ten minutes.
+    const failed = dispatch({ state: "failed", endedAt: 1_000_000 });
+    expect(at(1_000_500, [failed], 1_000_500)).toEqual([]);
+    expect(at(1_600_500, [failed], 1_600_500)).toHaveLength(1);
+    // Three runners in all, unless Try again cleared them.
+    const three = ["a", "b", "c"].map((id, i) =>
+      dispatch({ id, state: "done", startedAt: 1_000_000 + i, endedAt: 1_000_000 + i }),
+    );
+    expect(at(1_000_500, three)).toEqual([]);
+    expect(
+      at(
+        1_000_500,
+        three.map((d) => ({ ...d, cleared: true })),
+      ),
+    ).toHaveLength(1);
+  });
+
+  test("nextAttempt says why a job gets no runner now", () => {
+    expect(nextAttempt([], null, 0)).toEqual({ ok: true, previous: null });
+    expect(nextAttempt([dispatch({ state: "running" })], 5, 5)).toMatchObject({ why: "active" });
+    expect(nextAttempt([dispatch({ state: "failed", endedAt: 0 })], 5, 5)).toMatchObject({
+      why: "wait",
+      at: DISPATCH_RETRY_AFTER_FAILURE_MS,
+    });
   });
 
   test("slots cap runners per machine, counting ones already starting", () => {
@@ -277,6 +314,7 @@ test("a running one-job runner shows on the machine it was started on", () => {
         startedAt: 0,
         endedAt: null,
         detail: null,
+        cleared: false,
       },
     ],
     now: 1000,

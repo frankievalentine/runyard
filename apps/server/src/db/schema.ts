@@ -360,6 +360,7 @@ export const dispatches = sqliteTable(
     jobName: text(),
     jobRepo: text(),
     jobUrl: text(),
+    cleared: integer({ mode: "boolean" }).notNull().default(false),
     runnerId: integer(),
     state: text({ enum: ["starting", "running", "done", "failed"] }).notNull(),
     startedAt: integer({ mode: "timestamp_ms" }).notNull(),

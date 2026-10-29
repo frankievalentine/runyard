@@ -166,5 +166,43 @@ test("a runner whose directory is gone counts as finished, even one Runyard neve
   // It ended and removed its own directory while Runyard wasn't looking.
   s.host.jobs.delete(name);
   await round(s);
-  expect(listDispatches(s.deps.db)[0]?.state).toBe("done");
+  expect(listDispatches(s.deps.db).find((d) => d.runnerName === name)?.state).toBe("done");
+});
+
+test("a job its runner never ran gets another runner, three in all, then Try again", async () => {
+  const s = await setup({ account: "acme", type: "Organization", repos: ["acme/app"] });
+  await onDemand(s);
+  await queue(s, 701);
+  await round(s);
+  // Each runner ends without the job, which GitHub keeps queued.
+  for (let n = 1; n <= 3; n++) {
+    const name = s.fakeGithub.jitConfigs.at(-1)!.name;
+    s.host.jobs.set(name, "exited");
+    await s.github.pollJobs();
+    await round(s);
+  }
+  const attempts = listDispatches(s.deps.db).filter((d) => d.jobId === 701);
+  expect(attempts).toHaveLength(3);
+  expect(attempts.filter((d) => d.detail?.includes("still waiting"))).toHaveLength(2);
+  expect(s.fakeGithub.jitConfigs).toHaveLength(3);
+  // Try again clears them, and a fourth starts.
+  const retried = await s.raw("POST", "/api/dispatches/retry", { kind: "actions", jobId: 701 });
+  expect(retried.status).toBe(200);
+  expect(s.fakeGithub.jitConfigs).toHaveLength(4);
+});
+
+test("a one-job runner's log is read from its machine, by admins", async () => {
+  const s = await setup({ account: "acme", type: "Organization", repos: ["acme/app"] });
+  await onDemand(s);
+  await queue(s, 801);
+  await round(s);
+  const d = listDispatches(s.deps.db)[0]!;
+  s.host.logs.set(d.runnerName, "Runner: lost the job\n== _diag/Runner_1.log ==");
+  const { log } = await s.call<{ log: string }>("GET", `/api/dispatches/${d.id}/log`);
+  expect(log).toContain("lost the job");
+  s.host.logs.clear();
+  const missing = await s.raw("GET", `/api/dispatches/${d.id}/log`);
+  expect(missing.status).toBe(502);
+  expect(((await missing.json()) as { error: string }).error).toContain("No log for");
+  expect((await s.raw("GET", "/api/dispatches/nope/log")).status).toBe(404);
 });

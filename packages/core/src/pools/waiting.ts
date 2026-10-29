@@ -3,6 +3,7 @@ import type { YardView } from "../machines/derive.ts";
 import { readinessProblems } from "../machines/readiness.ts";
 import type { ForgeKind, Scope } from "../model.ts";
 import { scopeKey } from "../scope.ts";
+import { DISPATCH_ATTEMPTS, jobAttempts, nextAttempt } from "./dispatch.ts";
 
 /** Labels GitHub gives every self-hosted runner by itself; architecture ones aren't checked. */
 const OS_LABELS: Record<string, string> = { macos: "macos", linux: "linux", windows: "windows" };
@@ -23,7 +24,7 @@ function serves(scope: Scope, repo: string): boolean {
  * one. A guide, not a promise: GitHub's runner groups can also keep a job
  * from a runner. No I/O.
  */
-export function waitingReasons(job: QueuedJobView, view: YardView): string[] {
+export function waitingReasons(job: QueuedJobView, view: YardView, now = Date.now()): string[] {
   if (job.onDemand) return [`${job.onDemand} starts a VM for it; Runyard doesn't run these.`];
   const wanted = job.labels.map((l) => l.toLowerCase());
   const kinds = new Map<string, ForgeKind>([
@@ -95,7 +96,7 @@ export function waitingReasons(job: QueuedJobView, view: YardView): string[] {
         reasons.push(
           `Pool ${p.name} would take it, but its machines aren't ready: ${notReady.map((m) => m.name).join(", ")}.`,
         );
-      else reasons.push(`Pool ${p.name} should start a one-job runner for it within a minute.`);
+      else reasons.push(onDemandReason(job, p.id, p.name, p.machines, view, now));
       continue;
     }
     const scopes = new Set(p.scopes.map(scopeKey));
@@ -122,4 +123,50 @@ export function waitingReasons(job: QueuedJobView, view: YardView): string[] {
     }
   }
   return [...new Set(reasons)];
+}
+
+/** What an unpaused, installed on-demand pool is doing about a job, from its runners so far. */
+function onDemandReason(
+  job: QueuedJobView,
+  poolId: string,
+  poolName: string,
+  slots: { machineId: string; slots: number }[],
+  view: YardView,
+  now: number,
+): string {
+  const dispatches = view.pools.dispatches;
+  const attempts = jobAttempts(dispatches, job.forge === "forgejo" ? "forgejo" : "actions", job.id);
+  const next = nextAttempt(attempts, view.queue.at, now);
+  const machineName = (id: string) => view.machines.find((m) => m.id === id)?.name ?? id;
+  if (!next.ok && next.why === "active")
+    return next.dispatch.state === "starting"
+      ? `Runyard started ${next.dispatch.runnerName} for it on ${machineName(next.dispatch.machineId)}; it takes the job once GitHub lists it.`
+      : `${next.dispatch.runnerName} is online on ${machineName(next.dispatch.machineId)}; the forge should hand it the job shortly.`;
+  if (!next.ok && next.why === "exhausted")
+    return `Runyard started ${next.count} runners for it and none ran it. The last one's log is on pool ${poolName}'s page; Try again starts another.`;
+  if (!next.ok && next.why === "wait")
+    return next.last.state === "failed"
+      ? `Its last runner failed to start${next.last.detail ? ` (${next.last.detail})` : ""}; Runyard tries again${next.at ? ` at ${new Date(next.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : " shortly"} (${attempts.length} of ${DISPATCH_ATTEMPTS} tries).`
+      : `Its runner ${next.last.runnerName} ended without running it; Runyard starts another once the queue is read again (${attempts.length} of ${DISPATCH_ATTEMPTS} tries).`;
+  // Free to start: say so unless every machine is reachable-but-full or unreachable.
+  const active = dispatches.filter(
+    (d) => d.poolId === poolId && (d.state === "starting" || d.state === "running"),
+  );
+  const states = slots.map(({ machineId, slots: n }) => {
+    const m = view.machines.find((x) => x.id === machineId);
+    const used = active.filter((d) => d.machineId === machineId).length;
+    return {
+      name: m?.name ?? machineId,
+      connected: m?.connection.state === "connected",
+      full: used >= n,
+      n,
+    };
+  });
+  if (states.length && states.every((x) => !x.connected))
+    return `Pool ${poolName} would start a runner for it, but its machines aren't connected right now: ${states.map((x) => x.name).join(", ")}.`;
+  if (states.length && states.every((x) => !x.connected || x.full))
+    return `Pool ${poolName}'s machines are running as many one-job runners as they're allowed (${states.map((x) => `${x.name}: ${x.n}`).join(", ")}); another starts when one ends.`;
+  return attempts.length
+    ? `Pool ${poolName} starts another runner for it within a minute (${attempts.length + 1} of ${DISPATCH_ATTEMPTS} tries).`
+    : `Pool ${poolName} should start a one-job runner for it within a minute.`;
 }

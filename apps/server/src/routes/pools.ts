@@ -1,3 +1,4 @@
+import { DispatchError, type Dispatcher } from "../pools/dispatcher.ts";
 import {
   desiredRunners,
   isValidScopeTarget,
@@ -77,13 +78,19 @@ const poolSchema = z.object({
 export type PoolDeps = {
   db: Db;
   engine: PoolEngine;
+  dispatcher: Dispatcher;
   monitor: MachineMonitor;
   github: GithubMonitor;
   forgejo: ForgejoMonitor;
 };
 
 /** Refuses a definition with unknown machines, bad targets, or runners that would share a name. */
-export function poolChecker({ db, monitor, github, forgejo }: Omit<PoolDeps, "engine">) {
+export function poolChecker({
+  db,
+  monitor,
+  github,
+  forgejo,
+}: Omit<PoolDeps, "engine" | "dispatcher">) {
   return (input: PoolInput, id?: string): string | null => {
     for (const m of input.machines)
       if (!getMachine(db, m.machineId)) return "One of the machines no longer exists.";
@@ -118,7 +125,7 @@ export function poolChecker({ db, monitor, github, forgejo }: Omit<PoolDeps, "en
 }
 
 /** Pools, reviews and their execution, and public-repository overrides. */
-export function poolRoutes({ db, engine, monitor, github, forgejo }: PoolDeps) {
+export function poolRoutes({ db, engine, dispatcher, monitor, github, forgejo }: PoolDeps) {
   const check = poolChecker({ db, monitor, github, forgejo });
   const errors = (fn: () => Promise<Response>) =>
     fn().catch((error: unknown) => {
@@ -160,6 +167,26 @@ export function poolRoutes({ db, engine, monitor, github, forgejo }: PoolDeps) {
         monitor.configChanged();
         return c.json({ ok: true });
       })
+      // A one-job runner's log, read from its machine; admins only, as it's the job's output.
+      .get("/dispatches/:id/log", requireAdmin(), async (c) => {
+        try {
+          return c.json(await dispatcher.readLog(c.req.param("id")));
+        } catch (error) {
+          if (error instanceof DispatchError) return c.json({ error: error.message }, error.status);
+          throw error;
+        }
+      })
+      // Try again for a job Runyard gave up on: its earlier runners stop counting.
+      .post(
+        "/dispatches/retry",
+        requireAdmin(),
+        json(z.object({ kind: z.enum(["actions", "forgejo"]), jobId: z.number().int() })),
+        async (c) => {
+          const { kind, jobId } = c.req.valid("json");
+          await dispatcher.retry(kind, jobId);
+          return c.json({ ok: true });
+        },
+      )
       .post("/machines/:id/review", requireAdmin(), (c) =>
         errors(async () => c.json(await engine.review(c.req.param("id")))),
       )

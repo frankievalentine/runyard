@@ -1,11 +1,16 @@
 import {
+  jobAttempts,
+  nextAttempt,
   waitingReasons,
   type YardView,
   type JobView,
   type QueuedJobView,
   type RunnerView,
 } from "@runyard/core";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { api, call } from "../api.ts";
+import { sessionQuery } from "../lib/queries.ts";
 import type { ReactNode } from "react";
 import { useYard } from "../lib/yard.ts";
 import { formatDollars, formatElapsed, plural } from "../lib/format.ts";
@@ -13,7 +18,8 @@ import { useNow } from "../lib/now.ts";
 import { isBuiltinLabel, runnerStatus } from "../lib/status.ts";
 import { CopyValue } from "./CopyValue.tsx";
 import { Icon } from "./icons.tsx";
-import { Card, EmptyLine, Pill, StatusDot } from "./ui.tsx";
+import { Button } from "./form.tsx";
+import { Card, EmptyLine, ErrorText, Pill, StatusDot } from "./ui.tsx";
 
 /** Ported from aarondfrancis/fleet's runner pieces (details/shared.tsx and QueueDetail.tsx). */
 
@@ -191,6 +197,7 @@ function QueuedJob({
             ))}
           </ul>
         )}
+        {!compact && !job.onDemand && <TryAgain job={job} view={view} />}
       </div>
       <div
         className={`flex shrink-0 gap-2 ${compact ? "flex-wrap items-center" : "flex-col items-end"}`}
@@ -213,6 +220,29 @@ function QueuedJob({
           waiting <Elapsed since={job.createdAt} />
         </span>
       </div>
+    </div>
+  );
+}
+
+/** For a job Runyard stopped starting runners for: start counting its tries again. */
+function TryAgain({ job, view }: { job: QueuedJobView; view: YardView }) {
+  const session = useQuery(sessionQuery);
+  const kind = job.forge === "forgejo" ? "forgejo" : "actions";
+  const next = nextAttempt(
+    jobAttempts(view.pools.dispatches, kind, job.id),
+    view.queue.at,
+    Date.now(),
+  );
+  const retry = useMutation({
+    mutationFn: () => call(api.dispatches.retry.$post({ json: { kind, jobId: job.id } })),
+  });
+  if (next.ok || next.why !== "exhausted" || session.data?.user?.role !== "admin") return null;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <Button small onClick={() => retry.mutate()} disabled={retry.isPending || retry.isSuccess}>
+        {retry.isPending ? "Starting…" : retry.isSuccess ? "Started" : "Try again"}
+      </Button>
+      {retry.error && <ErrorText error={retry.error} />}
     </div>
   );
 }

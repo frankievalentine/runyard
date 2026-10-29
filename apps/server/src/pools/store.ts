@@ -251,6 +251,7 @@ export function listDispatches(db: Db, limit = DISPATCH_HISTORY): Dispatch[] {
       startedAt: d.startedAt.getTime(),
       endedAt: d.endedAt?.getTime() ?? null,
       detail: d.detail,
+      cleared: d.cleared,
     }));
 }
 
@@ -272,6 +273,7 @@ export function saveDispatch(db: Db, d: Dispatch) {
     startedAt: new Date(d.startedAt),
     endedAt: d.endedAt === null ? null : new Date(d.endedAt),
     detail: d.detail,
+    cleared: d.cleared,
   };
   db.insert(dispatches)
     .values({ id: d.id, ...row })
@@ -290,6 +292,14 @@ export function pruneDispatches(db: Db) {
         inArray(dispatches.state, ["done", "failed"]),
       ),
     )
+    .run();
+}
+
+/** Try again: a job's runners so far stop counting toward its attempts. */
+export function clearJobAttempts(db: Db, kind: "actions" | "forgejo", jobId: number) {
+  db.update(dispatches)
+    .set({ cleared: true })
+    .where(and(eq(dispatches.runnerKind, kind), eq(dispatches.jobId, jobId)))
     .run();
 }
 

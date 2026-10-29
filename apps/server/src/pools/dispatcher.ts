@@ -18,6 +18,7 @@ import { deleteRunner, jitConfig } from "./github.ts";
 import { forgejoLabels } from "./engine.ts";
 import { operationScript, parseSweep } from "./scripts.ts";
 import {
+  clearJobAttempts,
   deleteDispatch,
   listDispatches,
   listPools,
@@ -43,6 +44,18 @@ type Deps = {
 };
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** Names Runyard gives one-job runners; anything else isn't read from a machine. */
+const RUNNER_NAME = /^[A-Za-z0-9._-]{1,64}$/;
+
+export class DispatchError extends Error {
+  constructor(
+    message: string,
+    readonly status: 400 | 404 | 502,
+  ) {
+    super(message);
+  }
+}
 
 /**
  * Starts one-job runners for on-demand pools. Each round sweeps machines with
@@ -123,6 +136,7 @@ export class Dispatcher {
       installed: listTemplates(db),
       machines: view.machines,
       dispatches: listDispatches(db),
+      queueAt: view.queue.at,
       busyMachines: new Set(
         view.machines.filter((m) => this.deps.engine.isBusy(m.id)).map((m) => m.id),
       ),
@@ -158,7 +172,14 @@ export class Dispatcher {
       startedAt: this.now(),
       endedAt: null,
       detail: null,
+      cleared: false,
     };
+    // Another try: say why on the runner that went before, unless it already says something.
+    if (plan.previous && plan.previous.state === "done" && !plan.previous.detail)
+      saveDispatch(db, {
+        ...plan.previous,
+        detail: "It ended with its job still waiting, so Runyard started another.",
+      });
     // Recorded first: a job is dispatched at most once, even if starting fails.
     saveDispatch(db, dispatch);
     const result = await this.deps.engine.withMachine(
@@ -258,6 +279,31 @@ export class Dispatcher {
     } catch {
       // Already gone, or unreachable; the forge drops unused single-use runners itself.
     }
+  }
+
+  /** A one-job runner's log from its machine: kept after it exits, live while it runs. */
+  async readLog(dispatchId: string): Promise<{ runnerName: string; log: string }> {
+    const d = listDispatches(this.deps.db).find((x) => x.id === dispatchId);
+    if (!d) throw new DispatchError("No such one-job runner.", 404);
+    if (!RUNNER_NAME.test(d.runnerName)) throw new DispatchError("Unexpected runner name.", 400);
+    const machine = getMachine(this.deps.db, d.machineId);
+    if (!machine) throw new DispatchError("Its machine was removed.", 404);
+    try {
+      const log = await this.ssh(
+        machine,
+        operationScript("jit-log", false, { RF_NAME: d.runnerName }),
+      );
+      return { runnerName: d.runnerName, log };
+    } catch (error) {
+      throw new DispatchError(message(error), 502);
+    }
+  }
+
+  /** Try again: the job's runners so far stop counting, and the next round may start one. */
+  async retry(kind: "actions" | "forgejo", jobId: number) {
+    clearJobAttempts(this.deps.db, kind, jobId);
+    this.deps.onChange?.();
+    await this.tick();
   }
 
   private async ssh(

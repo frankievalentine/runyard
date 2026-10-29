@@ -1,10 +1,15 @@
 import type { Dispatch } from "@runyard/core";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { api, call } from "../api.ts";
+import { sessionQuery } from "../lib/queries.ts";
 import { formatElapsed, timeAgo } from "../lib/format.ts";
 import { useNow } from "../lib/now.ts";
 import { useYard } from "../lib/yard.ts";
 import { Icon } from "./icons.tsx";
-import { Card, EmptyLine, StatusDot } from "./ui.tsx";
+import { Terminal } from "./Terminal.tsx";
+import { Card, EmptyLine, ErrorText, StatusDot } from "./ui.tsx";
 
 const DISPATCH_STATE = {
   starting: { tone: "busy", label: "Starting", hollow: true },
@@ -26,6 +31,8 @@ export function Dispatches({
 }) {
   const view = useYard();
   const now = useNow();
+  const session = useQuery(sessionQuery);
+  const admin = session.data?.user?.role === "admin";
   if (dispatches.length === 0) {
     return (
       <Card>
@@ -37,7 +44,11 @@ export function Dispatches({
     <Card className="overflow-hidden">
       <ul className="divide-y divide-line">
         {dispatches.map((d) => {
-          const state = DISPATCH_STATE[d.state];
+          // Runyard notes this when the job was still queued after the runner ended.
+          const state =
+            d.state === "done" && d.detail?.includes("still waiting")
+              ? ({ tone: "warn", label: "Ended early", hollow: false } as const)
+              : DISPATCH_STATE[d.state];
           const runner = view.runners.find(
             (r) => r.scope.forgeId === d.scope.forgeId && r.name === d.runnerName,
           );
@@ -118,6 +129,7 @@ export function Dispatches({
                 {d.detail && (
                   <div className={d.state === "failed" ? "text-bad" : "text-ink-2"}>{d.detail}</div>
                 )}
+                {admin && <RunnerLog dispatch={d} />}
               </div>
             </li>
           );
@@ -131,3 +143,35 @@ export function Dispatches({
  * The step after saving a pool, on the pool's own page: each machine's review,
  * what it will do and a Run button, one machine at a time.
  */
+
+/** The runner's log from its machine, read when asked: kept after it exits, live while it runs. */
+function RunnerLog({ dispatch }: { dispatch: Dispatch }) {
+  const [open, setOpen] = useState(false);
+  const running = dispatch.state === "starting" || dispatch.state === "running";
+  const log = useQuery({
+    queryKey: ["dispatch-log", dispatch.id],
+    queryFn: async () =>
+      (await call(api.dispatches[":id"].log.$get({ param: { id: dispatch.id } }))) as {
+        log: string;
+      },
+    enabled: open,
+    retry: false,
+    refetchInterval: open && running ? 5000 : false,
+  });
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="text-[12px] font-medium text-accent hover:underline"
+      >
+        {open ? "Hide log" : "Show log"}
+      </button>
+      {open && log.isPending && (
+        <div className="mt-1 text-[12px] text-ink-3">Reading it from the machine…</div>
+      )}
+      {open && log.error && <ErrorText className="mt-1" error={log.error} />}
+      {open && log.data && <Terminal text={log.data.log} running={running} />}
+    </div>
+  );
+}

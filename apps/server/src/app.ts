@@ -33,6 +33,7 @@ import type { BoatMonitor } from "./boat/monitor.ts";
 import { poolRoutes } from "./routes/pools.ts";
 import type { ForgejoMonitor } from "./forgejo/monitor.ts";
 import type { PoolEngine } from "./pools/engine.ts";
+import type { Dispatcher } from "./pools/dispatcher.ts";
 import { machineRoutes } from "./routes/machines.ts";
 import { passkeyRoutes } from "./routes/passkeys.ts";
 import { userRoutes } from "./routes/users.ts";
@@ -54,6 +55,7 @@ export type AppDeps = {
   hostKeys: HostKeys;
   machineSetup: MachineSetupCodes;
   testJobs: TestJobs;
+  dispatcher: Dispatcher;
 } & Omit<GithubDeps, "db" | "listener"> &
   Omit<SetupDeps, "db">;
 

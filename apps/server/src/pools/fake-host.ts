@@ -23,6 +23,7 @@ export class FakeRunnerHost {
       | "remove"
       | "configure"
       | "template-probe"
+      | "jit-log"
       | "template-install"
       | "template-remove"
       | "jit-start"
@@ -35,6 +36,8 @@ export class FakeRunnerHost {
   templates = new Map<string, string>();
   /** One-job runners started, by name: alive until a test ends them. */
   jobs = new Map<string, "alive" | "exited">();
+  /** Kept one-job runner logs, by runner name. */
+  logs = new Map<string, string>();
   /** Makes the next operation script fail with this output. */
   failNext: string | null = null;
 
@@ -53,6 +56,12 @@ export class FakeRunnerHost {
       const rows = [...this.jobs].map(([name, state]) => `RJ\t${state}\t${name}`);
       for (const [name, state] of this.jobs) if (state === "exited") this.jobs.delete(name);
       return `${rows.join("\n")}\nRJ_END\n`;
+    }
+    if (stdin.includes("No log for")) {
+      const name = /^export RF_NAME=(.+)$/m.exec(stdin)?.[1];
+      const log = name ? this.logs.get(unquote(name)) : undefined;
+      this.received.push({ op: "jit-log", env: {} });
+      return log ?? { code: 4, stdout: "", stderr: `No log for ${name} on this machine.` };
     }
     if (stdin.includes("RF_PROBE_END")) {
       this.received.push({ op: "probe", env: {} });

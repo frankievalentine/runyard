@@ -7,6 +7,10 @@ import type { DesiredTemplate, Pool, TemplateRecord } from "./model.ts";
 export const DISPATCH_START_TIMEOUT_MS = 10 * 60_000;
 /** At most this many runners start per pool per minute. */
 export const DISPATCH_STARTS_PER_MINUTE = 6;
+/** Runners started for one job before Runyard stops and asks: none of them ran it. */
+export const DISPATCH_ATTEMPTS = 3;
+/** After a runner fails to start, the job waits this long before another is tried. */
+export const DISPATCH_RETRY_AFTER_FAILURE_MS = 10 * 60_000;
 
 export type DispatchState = "starting" | "running" | "done" | "failed";
 
@@ -28,7 +32,48 @@ export type Dispatch = {
   startedAt: number;
   endedAt: number | null;
   detail: string | null;
+  /** Set aside by Try again: it no longer counts toward its job's attempts. */
+  cleared: boolean;
 };
+
+/** The runners Runyard started for one job that still count, newest first. */
+export function jobAttempts(dispatches: Dispatch[], kind: RunnerKind, jobId: number): Dispatch[] {
+  return dispatches
+    .filter((d) => !d.cleared && d.runnerKind === kind && d.jobId === jobId)
+    .sort((a, b) => b.startedAt - a.startedAt);
+}
+
+/**
+ * Whether a job may get another runner. A one-job runner takes whichever
+ * matching job the forge hands it, and can end without running one, so a job
+ * still queued after its runner ended gets another: once the queue was read
+ * after that end (so it isn't just stale), soon after a runner that ran, ten
+ * minutes after one that failed to start, and at most three times in all.
+ */
+export type NextAttempt =
+  | { ok: true; previous: Dispatch | null }
+  | { ok: false; why: "active"; dispatch: Dispatch }
+  | { ok: false; why: "exhausted"; last: Dispatch; count: number }
+  | { ok: false; why: "wait"; last: Dispatch; at: number | null };
+
+export function nextAttempt(
+  attempts: Dispatch[],
+  queueAt: number | null,
+  now: number,
+): NextAttempt {
+  const last = attempts[0];
+  if (!last) return { ok: true, previous: null };
+  if (last.state === "starting" || last.state === "running")
+    return { ok: false, why: "active", dispatch: last };
+  if (attempts.length >= DISPATCH_ATTEMPTS)
+    return { ok: false, why: "exhausted", last, count: attempts.length };
+  const ended = last.endedAt ?? last.startedAt;
+  if (last.state === "failed" && now - ended < DISPATCH_RETRY_AFTER_FAILURE_MS)
+    return { ok: false, why: "wait", last, at: ended + DISPATCH_RETRY_AFTER_FAILURE_MS };
+  // The queue must have been read after the runner ended, or the job may already be running.
+  if (queueAt === null || queueAt <= ended) return { ok: false, why: "wait", last, at: null };
+  return { ok: true, previous: last };
+}
 
 /** A runner to start: for this job, from this pool's template on this machine, registered in this scope. */
 export type DispatchPlan = {
@@ -37,6 +82,8 @@ export type DispatchPlan = {
   template: DesiredTemplate;
   machineId: string;
   scope: Scope;
+  /** The job's last runner, when this is another try. */
+  previous: Dispatch | null;
 };
 
 /** Labels every runner has without a pool asking: the forge's own, by OS and architecture. */
@@ -72,8 +119,7 @@ function scopeFor(
 
 /**
  * Which queued jobs get a one-job runner now, and where. Pure. A job qualifies
- * when no idle runner can take it and Runyard hasn't started one for it
- * before. It goes to an unpaused on-demand pool that serves its repository and
+ * when no idle runner can take it and `nextAttempt` allows one. It goes to an unpaused on-demand pool that serves its repository and
  * has every label it asks for, on a reachable machine with that pool's
  * template installed, a free slot and no operation in progress.
  */
@@ -85,15 +131,14 @@ export function planDispatches(input: {
   installed: TemplateRecord[];
   machines: MachineView[];
   dispatches: Dispatch[];
+  /** When the queue was last read; null before the first read. */
+  queueAt: number | null;
   /** Machines with a review or another operation running. */
   busyMachines: ReadonlySet<string>;
   forgeKinds: ReadonlyMap<string, ForgeKind>;
   now: number;
 }): DispatchPlan[] {
   const installed = new Set(input.installed.map((t) => t.key));
-  // Job IDs are unique within a forge, not across GitHub and Forgejo.
-  const jobKey = (kind: RunnerKind, id: number) => `${kind}:${id}`;
-  const dispatched = new Set(input.dispatches.map((d) => jobKey(d.runnerKind, d.jobId)));
   const active = input.dispatches.filter((d) => d.state === "starting" || d.state === "running");
   const plans: DispatchPlan[] = [];
   const startedRecently = (poolId: string) =>
@@ -104,11 +149,13 @@ export function planDispatches(input: {
     plans.filter((p) => p.pool.id === poolId && p.machineId === machineId).length;
 
   for (const job of input.queue) {
-    if (
-      job.onDemand ||
-      dispatched.has(jobKey(job.forge === "forgejo" ? "forgejo" : "actions", job.id))
-    )
-      continue;
+    if (job.onDemand) continue;
+    const attempt = nextAttempt(
+      jobAttempts(input.dispatches, job.forge === "forgejo" ? "forgejo" : "actions", job.id),
+      input.queueAt,
+      input.now,
+    );
+    if (!attempt.ok) continue;
     const idle = input.runners.some((r) => job.eligible.includes(r.key) && r.activity === "idle");
     if (idle) continue;
     const wanted = job.labels.map((l) => l.toLowerCase());
@@ -147,7 +194,14 @@ export function planDispatches(input: {
         .sort((a, b) => load(pool.id, a.machineId) - load(pool.id, b.machineId));
       const best = candidates[0];
       if (best) {
-        plan = { job, pool, template: best.template, machineId: best.machineId, scope };
+        plan = {
+          job,
+          pool,
+          template: best.template,
+          machineId: best.machineId,
+          scope,
+          previous: attempt.previous,
+        };
         break;
       }
     }

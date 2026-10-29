@@ -188,6 +188,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     hostKeys: new HostKeys({ run, programs, file: sshPaths.knownHosts }),
     machineSetup: new MachineSetupCodes(),
     testJobs: new TestJobs({ github }),
+    dispatcher,
   };
   const deps = (listener: AppDeps["listener"]): AppDeps => ({ ...shared, listener });
 

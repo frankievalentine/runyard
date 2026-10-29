@@ -60,9 +60,16 @@ RUNNER
 fi
 
 # setsid, where there is one, keeps the runner out of this session's process group.
+# When the runner exits, its directory goes, but its log is kept first in jobs/.logs (the
+# last 20, at most 7 days): the runner's output, then the end of its own diagnostic logs,
+# where the reason a job was lost is written.
+logs="$pool_dir/jobs/.logs"
+mkdir -p "$logs"
+keep_log="status=\$?; echo; echo \"Runyard: the runner exited with status \$status at \$(date -u +%Y-%m-%dT%H:%M:%SZ).\"; { cat runner.log; for f in \$(ls -t _diag/Runner_*.log _diag/Worker_*.log 2>/dev/null | head -n 4); do echo; echo \"== \$f (last 150 lines) ==\"; tail -n 150 \"\$f\"; done; } > '$logs/$RF_NAME.log' 2>/dev/null; ls -1t '$logs'/*.log 2>/dev/null | tail -n +21 | xargs rm -f 2>/dev/null; find '$logs' -name '*.log' -mtime +7 -exec rm -f {} + 2>/dev/null"
+
 launcher=()
 if command -v setsid >/dev/null 2>&1; then launcher=(setsid); fi
-${launcher[@]+"${launcher[@]}"} nohup bash -c "cd '$RF_JOB_DIR' && $run; status=\$?; cd / && rm -rf '$RF_JOB_DIR'; exit \$status" \
+${launcher[@]+"${launcher[@]}"} nohup bash -c "cd '$RF_JOB_DIR' && $run; $keep_log; cd / && rm -rf '$RF_JOB_DIR'; exit \$status" \
   > "$RF_JOB_DIR/runner.log" 2>&1 < /dev/null &
 echo $! > "$RF_JOB_DIR/.pid"
 echo "started $RF_NAME (pid $!) in $RF_JOB_DIR"

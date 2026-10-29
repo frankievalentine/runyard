@@ -1,0 +1,1 @@
+ALTER TABLE `dispatches` ADD `cleared` integer DEFAULT false NOT NULL;

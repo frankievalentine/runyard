@@ -13,6 +13,7 @@ import poolCleanup from "./0011_pool_cleanup.sql" with { type: "text" };
 import accessTokens from "./0012_access_tokens.sql" with { type: "text" };
 import runyardKeyOnly from "./0013_runyard_key_only.sql" with { type: "text" };
 import dispatchJob from "./0014_dispatch_job.sql" with { type: "text" };
+import dispatchCleared from "./0015_dispatch_cleared.sql" with { type: "text" };
 
 /**
  * Every migration drizzle-kit generated, oldest first. Add new files here;
@@ -34,6 +35,7 @@ export const migrations: readonly Migration[] = [
   { name: "0012_access_tokens", sql: accessTokens },
   { name: "0013_runyard_key_only", sql: runyardKeyOnly },
   { name: "0014_dispatch_job", sql: dispatchJob },
+  { name: "0015_dispatch_cleared", sql: dispatchCleared },
 ];
 
 export type Migration = { name: string; sql: string };

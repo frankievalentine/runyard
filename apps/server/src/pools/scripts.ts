@@ -13,6 +13,7 @@ import forgejoRemove from "../../scripts/forgejo-remove.sh" with { type: "text" 
 import forgejoStart from "../../scripts/forgejo-start.sh" with { type: "text" };
 import jitStart from "../../scripts/jit-start.sh" with { type: "text" };
 import jitSweep from "../../scripts/jit-sweep.sh" with { type: "text" };
+import jitLog from "../../scripts/jit-log.sh" with { type: "text" };
 import templateInstall from "../../scripts/template-install.sh" with { type: "text" };
 import templateRemove from "../../scripts/template-remove.sh" with { type: "text" };
 import toolsInstall from "../../scripts/tools-install.sh" with { type: "text" };
@@ -30,6 +31,7 @@ export type Operation =
   | "template-remove"
   | "jit-start"
   | "jit-sweep"
+  | "jit-log"
   | "tools-install"
   | "cleanup-configure";
 
@@ -68,6 +70,7 @@ const SCRIPTS: Record<Operation, { posix: string; windows: string }> = {
   },
   "jit-start": { posix: jitStart, windows: "throw 'on-demand runners need Linux or macOS'" },
   "jit-sweep": { posix: jitSweep, windows: "throw 'on-demand runners need Linux or macOS'" },
+  "jit-log": { posix: jitLog, windows: "throw 'on-demand runners need Linux or macOS'" },
   "tools-install": { posix: toolsInstall, windows: "throw 'tool profiles need Linux or macOS'" },
   "cleanup-configure": {
     posix: cleanupConfigure,
