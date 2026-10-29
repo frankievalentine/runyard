@@ -49,9 +49,18 @@ export function Webhooks() {
           1. Make the webhook listener public
         </div>
         {s.funnelUrl ? (
-          <p className="mt-1 text-[12.5px] text-ink-2">
-            Tailscale Funnel serves it at <span className="font-mono text-ink">{s.funnelUrl}</span>.
-          </p>
+          <div className="mt-1 space-y-1 text-[12.5px] text-ink-2">
+            <p>
+              Funnel is set to serve it at <span className="font-mono text-ink">{s.funnelUrl}</span>
+              .
+            </p>
+            <p>
+              That's this machine's setting; to check GitHub can reach it, open{" "}
+              <span className="font-mono text-ink">{s.funnelUrl}/webhooks/github</span> from a
+              device off your tailnet, such as a phone with Tailscale and Wi-Fi off. It should say
+              Not found. When Funnel is new, its public name can take up to half an hour to appear.
+            </p>
+          </div>
         ) : (
           <div className="mt-1 space-y-1.5 text-[12.5px] text-ink-2">
             <p>

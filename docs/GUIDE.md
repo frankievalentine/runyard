@@ -295,7 +295,10 @@ but signed deliveries. Under **Settings ▸ Connections ▸ GitHub ▸ Webhooks*
 2. Expose the listener: `tailscale funnel --bg http://127.0.0.1:7444`. Funnel publishes it at
    the machine's `https://<machine>.<tailnet>.ts.net` on port 443; the dashboard stays on 7443,
    tailnet only. Runyard shows the command; it never changes what's public on your tailnet
-   itself. Any HTTPS reverse proxy to that port works too.
+   itself. Any HTTPS reverse proxy to that port works too. To check it's public, open
+   `https://<machine>.<tailnet>.ts.net/webhooks/github` from a device off your tailnet: it should
+   say `Not found`. When Funnel is new, its public name can take up to half an hour to appear
+   (`dig +short <machine>.<tailnet>.ts.net @1.1.1.1` returns nothing until then).
 3. Set each app's webhook: Runyard points it at the public address with a fresh secret.
 4. In the app's settings on GitHub, tick **Active** under Webhook on its **General** page. Runyard's
    app is created subscribed to **Workflow job**; if it isn't, tick it under **Permissions &
