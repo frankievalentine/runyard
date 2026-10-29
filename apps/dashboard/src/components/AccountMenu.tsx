@@ -65,13 +65,18 @@ export function AccountMenu() {
                 ))}
               </Menu.RadioGroup>
             </Menu.Group>
-            {session.via === "session" && (
-              <>
-                <Menu.Separator className="my-1 h-px bg-line" />
-                <Menu.Item className={item} onClick={() => logout.mutate()}>
-                  Sign out
-                </Menu.Item>
-              </>
+            <Menu.Separator className="my-1 h-px bg-line" />
+            {session.via === "tailscale" ? (
+              // The device's Tailscale login signs it in on every request, so there's no
+              // session to end; say so rather than leave the item missing.
+              <div className="max-w-60 px-2 py-1.5 text-[11.5px] leading-snug text-ink-2">
+                Signed in by this device's Tailscale login, so there's nothing to sign out of. To
+                use a password instead, open Runyard at http://localhost:7420 on its own machine.
+              </div>
+            ) : (
+              <Menu.Item className={item} onClick={() => logout.mutate()}>
+                Sign out
+              </Menu.Item>
             )}
           </Menu.Popup>
         </Menu.Positioner>

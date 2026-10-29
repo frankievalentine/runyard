@@ -36,8 +36,10 @@ them, which is the point.
 - [ ] **1.5** Stop it and run `runyard service install` (add `--dry-run` first to read it).
       Expect it to come back on its own at the same address. On Linux it asks for sudo; on
       macOS it starts at login.
-- [ ] **1.6** Add a passkey under Settings ▸ Account on the tailnet address, sign out, sign back
-      in with it.
+- [ ] **1.6** On the tailnet address you're signed in by your Tailscale login (the cog's menu
+      says so), so there's no sign-out there. To test passwords and passkeys, open
+      `http://localhost:7420` on the Mac itself (passkeys need a host name, not 127.0.0.1), sign in with the password, add a passkey under
+      Settings ▸ Account, sign out and sign back in with it. (Passkeys need HTTPS or localhost.)
 
 ## Round 2: GitHub
 
