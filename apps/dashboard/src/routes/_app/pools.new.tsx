@@ -63,15 +63,18 @@ function NewPool() {
     );
   }
   return (
-    <div>
-      <PageHeader
-        icon={<Icon name="plan" size={18} />}
-        title="New pool"
-        subtitle="Runners with the same labels, on machines you choose, for the repositories or accounts you choose."
-      />
-      <div className="mt-6">
-        <PoolForm />
-      </div>
-    </div>
+    <PoolForm
+      header={(step) => (
+        <PageHeader
+          icon={<Icon name="plan" size={18} />}
+          title="New pool"
+          subtitle={
+            step === 3
+              ? "Saving doesn't change your machines. Next, you'll see what each machine needs and run it."
+              : "Choose which repositories it runs jobs for and which machines run them."
+          }
+        />
+      )}
+    />
   );
 }

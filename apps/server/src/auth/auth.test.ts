@@ -24,6 +24,7 @@ describe("setup", () => {
       user: null,
       via: null,
       tailscaleLogin: null,
+      tailscaleUser: false,
       setupRequired: true,
     });
   });
@@ -90,6 +91,39 @@ describe("setup", () => {
     });
   });
 
+  test("on the tailnet, signing out ignores the Tailscale login in that browser only", async () => {
+    const { app, codes } = await testApp({ listener: "tailnet" });
+    const ts = { "X-Test-Tailnet-Login": "frankie@example.com" };
+    await send(app, "POST", "/api/setup", { code: codes[0] }, ts);
+
+    const out = await send(app, "POST", "/api/logout", undefined, ts);
+    const signedOut = out.headers.getSetCookie().find((c) => c.startsWith("runyard_signed_out="));
+    expect(signedOut).toContain("HttpOnly");
+    expect(signedOut).toContain("SameSite=Strict");
+    expect(signedOut).toContain("Secure");
+    const browser = { ...ts, Cookie: signedOut!.split(";")[0]! };
+    expect(await (await send(app, "GET", "/api/session", undefined, browser)).json()).toMatchObject(
+      { user: null, tailscaleLogin: "frankie@example.com", tailscaleUser: true },
+    );
+    expect((await send(app, "GET", "/api/users", undefined, browser)).status).toBe(401);
+    // Another browser on the same device is still signed in.
+    expect((await send(app, "GET", "/api/users", undefined, ts)).status).toBe(200);
+
+    const back = await send(app, "POST", "/api/login/tailscale", undefined, browser);
+    expect(await back.json()).toMatchObject({ via: "tailscale", user: { role: "admin" } });
+    expect(back.headers.getSetCookie().find((c) => c.startsWith("runyard_signed_out="))).toContain(
+      "Max-Age=0",
+    );
+  });
+
+  test("Continue with Tailscale refuses a login that isn't a user", async () => {
+    const { app } = await testApp({ listener: "tailnet" });
+    const res = await send(app, "POST", "/api/login/tailscale", undefined, {
+      "X-Test-Tailnet-Login": "stranger@example.com",
+    });
+    expect(res.status).toBe(401);
+  });
+
   test("never trusts a Tailscale-User-Login header, even on the tailnet", async () => {
     const { app, codes } = await testApp({ listener: "tailnet" });
     const res = await send(
@@ -128,7 +162,9 @@ describe("sign-in", () => {
     expect(login.status).toBe(200);
     const cookie = sessionCookie(login);
     expect((await send(app, "GET", "/api/users", undefined, { Cookie: cookie })).status).toBe(200);
-    await send(app, "POST", "/api/logout", undefined, { Cookie: cookie });
+    const out = await send(app, "POST", "/api/logout", undefined, { Cookie: cookie });
+    // Only the tailnet has a Tailscale login to set aside.
+    expect(out.headers.getSetCookie().some((c) => c.startsWith("runyard_signed_out="))).toBe(false);
     expect((await send(app, "GET", "/api/users", undefined, { Cookie: cookie })).status).toBe(401);
   });
 

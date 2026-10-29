@@ -1,6 +1,12 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { clearSessionCookie, requireUser, type AppEnv, type Listener } from "../auth/identity.ts";
+import {
+  clearSessionCookie,
+  requireUser,
+  setSignedOutCookie,
+  type AppEnv,
+  type Listener,
+} from "../auth/identity.ts";
 import type { FailureLimiter } from "../auth/rate-limit.ts";
 import { revokeOtherSessions, revokeSession } from "../auth/sessions.ts";
 import type { SetupCode } from "../auth/setup.ts";
@@ -69,10 +75,18 @@ export function authRoutes({ db, listener, setup, limiter }: AuthDeps) {
       limiter.reset(key);
       return c.json(sessionView(db, c, user, signIn(db, listener, c, user)));
     })
+    .post("/login/tailscale", (c) => {
+      const { tailscaleUser } = c.get("identity");
+      if (!tailscaleUser)
+        return c.json({ error: "This device's Tailscale login isn't a Runyard user." }, 401);
+      return c.json(sessionView(db, c, tailscaleUser, signIn(db, listener, c, tailscaleUser)));
+    })
     .post("/logout", (c) => {
       const { sessionToken } = c.get("identity");
       if (sessionToken) revokeSession(db, sessionToken);
       clearSessionCookie(c);
+      // The device's Tailscale login would sign it straight back in otherwise.
+      if (listener === "tailnet") setSignedOutCookie(c);
       return c.json({ ok: true });
     })
     .post(

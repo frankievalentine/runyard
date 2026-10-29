@@ -59,7 +59,7 @@ const CLEANUPS = [
 ] as const;
 
 const STEPS = ["What it's for", "Where it runs", "Check and create"] as const;
-type StepNo = 1 | 2 | 3;
+export type StepNo = 1 | 2 | 3;
 
 /** Tools a new pool installs where missing: the basics, and Docker when its labels ask for it. */
 function defaultTools(labels: string[]): ToolProfile[] {
@@ -83,6 +83,7 @@ export function PoolForm({
   initial,
   onDone,
   onCancel,
+  header,
 }: {
   pool?: Pool;
   /** Prefilled settings for a new pool, such as a suggestion. */
@@ -90,6 +91,8 @@ export function PoolForm({
   /** Instead of opening the pool after saving, as when editing it in place. */
   onDone?: (poolId: string) => void;
   onCancel?: () => void;
+  /** The page's header, which can change with the step. */
+  header?: (step: StepNo) => ReactNode;
 }) {
   const view = useYard();
   const queryClient = useQueryClient();
@@ -247,7 +250,7 @@ export function PoolForm({
   const canContinue = step === 1 ? scopes.length > 0 : step === 2 ? total > 0 : true;
   const mayVisit = (n: StepNo) => n === 1 || scopes.length > 0;
 
-  return (
+  const form = (
     <Card className="max-w-3xl overflow-hidden">
       <form onSubmit={submit} className="text-[13px]">
         <ol className="flex flex-wrap gap-x-5 gap-y-1 border-b border-line px-5 py-3 text-[12.5px]">
@@ -668,10 +671,7 @@ export function PoolForm({
               Cancel
             </Button>
           )}
-          <span className="min-w-0 flex-1 text-[12px] text-ink-3">
-            {step === 3 &&
-              "Nothing changes on machines yet: next, each machine's review shows exactly what it will do, and you run it."}
-          </span>
+          <span className="flex-1" />
           <Button
             type="submit"
             variant="primary"
@@ -692,6 +692,13 @@ export function PoolForm({
         {save.error && <ErrorText className="px-5 pb-3" error={save.error} />}
       </form>
     </Card>
+  );
+  if (!header) return form;
+  return (
+    <div>
+      {header(step)}
+      <div className="mt-6">{form}</div>
+    </div>
   );
 }
 

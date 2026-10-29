@@ -19,17 +19,26 @@ export type Identity = {
   via: "tailscale" | "session" | null;
   /** The Tailscale login of the connecting device, even when it matches no user. */
   tailscaleLogin: string | null;
+  /** The Runyard user that login belongs to, even while this browser is signed out of it. */
+  tailscaleUser: User | undefined;
   sessionToken: string | null;
 };
 
 export type AppEnv = { Variables: { identity: Identity } };
 
 export const SESSION_COOKIE = "runyard_session";
+/**
+ * Set by signing out on the tailnet: this browser ignores its device's
+ * Tailscale login until someone signs in again. It can only take access away,
+ * so a forged or copied one does no harm.
+ */
+export const SIGNED_OUT_COOKIE = "runyard_signed_out";
 
 /**
  * Resolves who is asking. On the tailnet the connecting device's owner comes
  * from Tailscale itself; no request header is trusted for identity anywhere.
- * A Tailscale identity takes precedence over a session cookie.
+ * A Tailscale identity takes precedence over a session cookie, unless this
+ * browser signed out of it.
  */
 export function identify(
   db: Db,
@@ -40,11 +49,24 @@ export function identify(
     const tailscaleLogin = listener === "tailnet" ? await tailnetLogin(c) : null;
     const tailscaleUser = tailscaleLogin ? findByTailscaleLogin(db, tailscaleLogin) : undefined;
     const sessionToken = getCookie(c, SESSION_COOKIE) ?? null;
-    if (tailscaleUser) {
-      c.set("identity", { user: tailscaleUser, via: "tailscale", tailscaleLogin, sessionToken });
+    const signedOut = getCookie(c, SIGNED_OUT_COOKIE) !== undefined;
+    if (tailscaleUser && !signedOut) {
+      c.set("identity", {
+        user: tailscaleUser,
+        via: "tailscale",
+        tailscaleLogin,
+        tailscaleUser,
+        sessionToken,
+      });
     } else {
       const user = sessionToken ? resolveSession(db, sessionToken) : undefined;
-      c.set("identity", { user, via: user ? "session" : null, tailscaleLogin, sessionToken });
+      c.set("identity", {
+        user,
+        via: user ? "session" : null,
+        tailscaleLogin,
+        tailscaleUser,
+        sessionToken,
+      });
     }
     await next();
   };
@@ -96,6 +118,22 @@ export function setSessionCookie(c: Context, listener: Listener, token: string) 
 
 export function clearSessionCookie(c: Context) {
   deleteCookie(c, SESSION_COOKIE, { path: "/" });
+}
+
+/** Only the tailnet listener honors it, and that's always HTTPS. */
+export function setSignedOutCookie(c: Context) {
+  setCookie(c, SIGNED_OUT_COOKIE, "1", {
+    httpOnly: true,
+    sameSite: "Strict",
+    path: "/",
+    secure: true,
+    maxAge: 365 * 24 * 60 * 60,
+  });
+}
+
+export function clearSignedOutCookie(c: Context) {
+  if (getCookie(c, SIGNED_OUT_COOKIE) !== undefined)
+    deleteCookie(c, SIGNED_OUT_COOKIE, { path: "/", secure: true });
 }
 
 /**

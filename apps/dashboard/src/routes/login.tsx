@@ -40,6 +40,16 @@ function Login() {
     },
   });
 
+  // This device's Tailscale login is a Runyard user: this browser signed out of it.
+  const offerTailscale = Boolean(session.tailscaleLogin && session.tailscaleUser);
+  const tailscale = useMutation({
+    mutationFn: () => call(api.login.tailscale.$post()),
+    onSuccess: (next) => {
+      queryClient.setQueryData(sessionQuery.queryKey, next);
+      void navigate({ to: "/" });
+    },
+  });
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
     login.mutate();
@@ -47,7 +57,22 @@ function Login() {
 
   return (
     <AuthCard title="Sign in">
-      {session.tailscaleLogin && (
+      {offerTailscale && (
+        <div className="mt-5 flex flex-col gap-2 border-b border-line pb-5">
+          <Button
+            variant="primary"
+            onClick={() => tailscale.mutate()}
+            disabled={tailscale.isPending}
+          >
+            Continue as {session.tailscaleLogin}
+          </Button>
+          <p className="text-[12px] text-ink-2">
+            With this device's Tailscale login. Or sign in as someone else below.
+          </p>
+          {tailscale.error && <ErrorText error={tailscale.error} />}
+        </div>
+      )}
+      {session.tailscaleLogin && !session.tailscaleUser && (
         <p className="mt-2 text-[12.5px] text-ink-2">
           <span className="font-medium text-ink">{session.tailscaleLogin}</span> isn't a Runyard
           user. Ask an admin to add it, or sign in with a password.
@@ -60,7 +85,7 @@ function Login() {
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
           required
-          autoFocus
+          autoFocus={!offerTailscale}
         />
         <TextField
           label="Password"
@@ -71,7 +96,11 @@ function Login() {
           required
         />
         {login.error && <ErrorText error={login.error} />}
-        <Button type="submit" variant="primary" disabled={login.isPending}>
+        <Button
+          type="submit"
+          variant={offerTailscale ? "default" : "primary"}
+          disabled={login.isPending}
+        >
           Sign in
         </Button>
       </form>

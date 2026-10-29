@@ -359,7 +359,8 @@ on. Until they are, or while Tailscale is down, Runyard serves on loopback only 
 
 On the tailnet, Runyard identifies each connection's device with `tailscale whois`, so people
 whose Tailscale login is added under **Settings ▸ Users** are signed in automatically, as an
-admin or a viewer. On loopback, users sign in with a username and password, and can add
+admin or a viewer. **Sign out** sets that aside in the browser you use it in (others stay
+signed in); the sign-in screen then offers **Continue as** your login, or a password. On loopback, users sign in with a username and password, and can add
 passkeys under **Account**. Passkeys need HTTPS or `localhost`, and work only on the address
 they were added from.
 
