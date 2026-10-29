@@ -22,6 +22,13 @@ export function toView(user: User): UserView {
 
 export class UserError extends Error {}
 
+export function setSetupDismissed(db: Db, user: User, dismissed: boolean) {
+  db.update(users)
+    .set({ setupDismissedAt: dismissed ? new Date() : null })
+    .where(eq(users.id, user.id))
+    .run();
+}
+
 export function findById(db: Db, id: string) {
   return db.select().from(users).where(eq(users.id, id)).get();
 }
@@ -64,6 +71,7 @@ export async function createUser(
     tailscaleLogin,
     role: input.role,
     createdAt: new Date(),
+    setupDismissedAt: null,
   };
   db.insert(users).values(user).run();
   return user;

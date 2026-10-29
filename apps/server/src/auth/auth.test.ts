@@ -25,6 +25,7 @@ describe("setup", () => {
       via: null,
       tailscaleLogin: null,
       tailscaleUser: false,
+      setupDismissed: false,
       setupRequired: true,
     });
   });
@@ -197,6 +198,29 @@ describe("sign-in", () => {
       "X-Test-Tailnet-Login": "stranger@example.com",
     });
     expect(await res.json()).toMatchObject({ user: null, tailscaleLogin: "stranger@example.com" });
+  });
+
+  test("Getting started stays dismissed for the user, in every browser", async () => {
+    const { app, cookie } = await setUpAdmin();
+    const dismiss = await send(
+      app,
+      "PATCH",
+      "/api/me",
+      { setupDismissed: true },
+      { Cookie: cookie },
+    );
+    expect(await dismiss.json()).toMatchObject({ setupDismissed: true });
+    const other = sessionCookie(
+      await send(app, "POST", "/api/login", { username: "admin", password: PASSWORD }),
+    );
+    expect(
+      await (await send(app, "GET", "/api/session", undefined, { Cookie: other })).json(),
+    ).toMatchObject({ setupDismissed: true });
+    await send(app, "PATCH", "/api/me", { setupDismissed: false }, { Cookie: other });
+    expect(
+      await (await send(app, "GET", "/api/session", undefined, { Cookie: cookie })).json(),
+    ).toMatchObject({ setupDismissed: false });
+    expect((await send(app, "PATCH", "/api/me", { setupDismissed: true })).status).toBe(401);
   });
 
   test("changing your password signs out your other sessions", async () => {

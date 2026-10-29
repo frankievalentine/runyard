@@ -33,6 +33,8 @@ export const users = sqliteTable(
     tailscaleLogin: text().unique(),
     role: text({ enum: roles }).notNull(),
     createdAt: integer({ mode: "timestamp_ms" }).notNull(),
+    /** When this user dismissed the overview's Getting started; null while it shows. */
+    setupDismissedAt: integer({ mode: "timestamp_ms" }),
   },
   (t) => [
     check("users_has_identity", sql`${t.username} IS NOT NULL OR ${t.tailscaleLogin} IS NOT NULL`),

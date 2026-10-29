@@ -11,7 +11,15 @@ import type { FailureLimiter } from "../auth/rate-limit.ts";
 import { revokeOtherSessions, revokeSession } from "../auth/sessions.ts";
 import type { SetupCode } from "../auth/setup.ts";
 import { sessionView, signIn } from "../auth/signin.ts";
-import { adminCount, createUser, setPassword, verifyLogin, type User } from "../auth/users.ts";
+import {
+  adminCount,
+  createUser,
+  findById,
+  setPassword,
+  setSetupDismissed,
+  verifyLogin,
+  type User,
+} from "../auth/users.ts";
 import type { Db } from "../db/index.ts";
 import { json, password, username } from "./validate.ts";
 
@@ -88,6 +96,11 @@ export function authRoutes({ db, listener, setup, limiter }: AuthDeps) {
       // The device's Tailscale login would sign it straight back in otherwise.
       if (listener === "tailnet") setSignedOutCookie(c);
       return c.json({ ok: true });
+    })
+    .patch("/me", requireUser(), json(z.object({ setupDismissed: z.boolean() })), (c) => {
+      const { user, via } = c.get("identity");
+      setSetupDismissed(db, user!, c.req.valid("json").setupDismissed);
+      return c.json(sessionView(db, c, findById(db, user!.id), via));
     })
     .post(
       "/me/password",

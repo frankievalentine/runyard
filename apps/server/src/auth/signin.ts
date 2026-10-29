@@ -30,6 +30,8 @@ export function sessionView(db: Db, c: Context<AppEnv>, user: User | undefined, 
     tailscaleLogin: c.get("identity").tailscaleLogin,
     /** Whether that login is a Runyard user, so the sign-in screen can offer it. */
     tailscaleUser: Boolean(c.get("identity").tailscaleUser),
+    /** Whether this user dismissed Getting started from the overview. */
+    setupDismissed: Boolean(user?.setupDismissedAt),
     setupRequired: adminCount(db) === 0,
   };
 }

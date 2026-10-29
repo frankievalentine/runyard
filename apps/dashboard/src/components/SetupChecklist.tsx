@@ -1,32 +1,27 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { api, call } from "../api.ts";
 import { useYard } from "../lib/yard.ts";
-import { checksQuery } from "../lib/queries.ts";
+import { checksQuery, sessionQuery } from "../lib/queries.ts";
 import { machineToConnect, machineToReview, setupSteps, type SetupStep } from "../lib/setup.ts";
 import { Icon } from "./icons.tsx";
-import { Card, Section } from "./ui.tsx";
+import { Card, ErrorText, Section } from "./ui.tsx";
 
-const HIDDEN_KEY = "runyard.setupChecklistHidden";
 const button =
   "inline-flex h-[26px] items-center rounded-[6px] border border-line-strong bg-card shadow-[0_1px_1px_rgb(0_0_0/0.04)] px-2.5 text-[12px] font-medium hover:bg-hover";
 
-function readHidden(): boolean {
-  try {
-    return localStorage.getItem(HIDDEN_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-/** Whether this browser dismissed the overview's checklist; the Account tab can bring it back. */
-function writeHidden(hidden: boolean) {
-  try {
-    if (hidden) localStorage.setItem(HIDDEN_KEY, "1");
-    else localStorage.removeItem(HIDDEN_KEY);
-  } catch {
-    // Storage unavailable: it lasts for this visit only.
-  }
+/** Whether the signed-in user dismissed the overview's checklist, and a way to change it. */
+function useDismissed() {
+  const { data: session } = useSuspenseQuery(sessionQuery);
+  const queryClient = useQueryClient();
+  const set = useMutation({
+    mutationFn: (setupDismissed: boolean) => call(api.me.$patch({ json: { setupDismissed } })),
+    onSuccess: (next) => queryClient.setQueryData(sessionQuery.queryKey, next),
+  });
+  // Shown at once rather than after the round trip.
+  const dismissed = set.isPending ? set.variables : session.setupDismissed;
+  return { dismissed, setDismissed: (value: boolean) => set.mutate(value), error: set.error };
 }
 
 /** Where each unfinished step is done, as a link. */
@@ -63,25 +58,21 @@ function useStepActions(): Record<SetupStep["id"], ReactNode> {
 }
 
 /**
- * The first-run checklist, at the top of the overview until this viewer
- * dismisses it, even once every step is done. Steps come from what already
+ * The first-run checklist, at the top of the overview until the signed-in user
+ * dismisses it (in any browser), even once every step is done. Steps come from what already
  * exists.
  */
 export function SetupChecklist() {
   const view = useYard();
-  const [hidden, setHidden] = useState(readHidden);
+  const { dismissed, setDismissed } = useDismissed();
   const checks = useQuery(checksQuery);
   const actions = useStepActions();
   const steps = setupSteps(view);
   const done = steps.filter((s) => s.done).length;
-  if (hidden) return null;
+  if (dismissed) return null;
   const finished = done === steps.length;
   const problems = (checks.data ?? []).filter((c) => c.state === "warn" || c.state === "bad");
   const next = steps.find((s) => !s.done)?.id;
-  const dismiss = () => {
-    writeHidden(true);
-    setHidden(true);
-  };
   return (
     <Card className="mt-6 overflow-hidden">
       <div className="flex items-center gap-3 border-b border-line px-4 py-3">
@@ -95,7 +86,11 @@ export function SetupChecklist() {
               : `${done} of ${steps.length} done`}
           </div>
         </div>
-        <button type="button" onClick={dismiss} className="text-[12px] text-ink-2 hover:text-ink">
+        <button
+          type="button"
+          onClick={() => setDismissed(true)}
+          className="text-[12px] text-ink-2 hover:text-ink"
+        >
           Dismiss
         </button>
       </div>
@@ -163,20 +158,20 @@ export function SetupChecklist() {
 export function SetupSummary() {
   const view = useYard();
   const actions = useStepActions();
-  const [hidden, setHidden] = useState(readHidden);
+  const { dismissed, setDismissed, error } = useDismissed();
   const steps = setupSteps(view);
   const done = steps.filter((s) => s.done).length;
   const next = steps.find((s) => !s.done)?.id;
-  const toggle = () => {
-    writeHidden(!hidden);
-    setHidden(!hidden);
-  };
   return (
     <Section
       title="Getting started"
       action={
-        <button type="button" onClick={toggle} className="text-[12px] text-ink-2 hover:text-ink">
-          {hidden ? "Show on overview" : "Dismiss from overview"}
+        <button
+          type="button"
+          onClick={() => setDismissed(!dismissed)}
+          className="text-[12px] text-ink-2 hover:text-ink"
+        >
+          {dismissed ? "Show on overview" : "Dismiss from overview"}
         </button>
       }
     >
@@ -203,6 +198,7 @@ export function SetupSummary() {
             </li>
           ))}
         </ol>
+        {error ? <ErrorText className="border-t border-line px-4 py-2.5" error={error} /> : null}
       </Card>
     </Section>
   );

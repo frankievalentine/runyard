@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `setup_dismissed_at` integer;
