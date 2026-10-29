@@ -134,6 +134,8 @@ export class PoolEngine {
   private reviews = new Map<string, Review>();
   private operations = new Map<string, OperationView>();
   private running = new Set<string>();
+  /** Per machine: where the running step's output goes as it arrives. */
+  private live = new Map<string, (output: string) => void>();
   private readonly now: () => number;
 
   constructor(private readonly deps: Deps) {
@@ -257,6 +259,7 @@ export class PoolEngine {
       const step = op.steps[i]!;
       step.status = "running";
       this.deps.onChange?.();
+      this.live.set(ctx.machine.id, (output) => (step.output = output));
       try {
         step.output = await this.apply(item, ctx, sudoPassword);
         step.status = "succeeded";
@@ -269,6 +272,7 @@ export class PoolEngine {
         break;
       }
     }
+    this.live.delete(ctx.machine.id);
     if (op.status === "running") op.status = "succeeded";
     op.finishedAt = this.now();
     void this.deps.github.pollRunners();
@@ -467,11 +471,19 @@ export class PoolEngine {
   ): Promise<string> {
     const script = operationScript(op, ctx.windows, values);
     const { argv, stdin } = scriptCommand(this.deps.programs, ctx.machine, ctx.windows, script);
-    const res = await this.deps.run(argv, { stdin, timeoutMs: OPERATION_TIMEOUT_MS });
-    const output = redact(`${res.stdout}${res.stderr}`.trim(), [
-      values.RF_TOKEN,
-      values.RF_SUDO_PASSWORD,
-    ]);
+    const secrets = [values.RF_TOKEN, values.RF_SUDO_PASSWORD];
+    // The running step shows the output as it arrives, redacted on every update.
+    const live = this.live.get(ctx.machine.id);
+    let streamed = "";
+    const res = await this.deps.run(argv, {
+      stdin,
+      timeoutMs: OPERATION_TIMEOUT_MS,
+      onOutput: (chunk) => {
+        streamed += chunk;
+        live?.(redact(streamed, secrets));
+      },
+    });
+    const output = redact((streamed || `${res.stdout}${res.stderr}`).trim(), secrets);
     if (res.code !== 0)
       throw new EngineError(output || `The ${op} script failed (exit ${res.code}).`);
     return output;

@@ -66,6 +66,19 @@ describe("evaluateDiagnostics", () => {
     expect(open["power-idle"]?.status).toBe("warn");
   });
 
+  test("a container leaves sleep to its host", () => {
+    const lxc = byId(
+      report("linux", { container: "lxc", target_sleep: "static", idle_action: "ignore" }),
+    );
+    expect(lxc["power-sleep"]).toMatchObject({
+      status: "info",
+      value: "Managed by the host (lxc container)",
+    });
+    expect(lxc["power-idle"]).toBeUndefined();
+    const own = byId(report("linux", { container: "none", target_sleep: "masked" }));
+    expect(own["power-sleep"]?.status).toBe("pass");
+  });
+
   test("Windows reports unattended mode, startup and power plan settings", () => {
     const checks = byId(
       report("windows", {

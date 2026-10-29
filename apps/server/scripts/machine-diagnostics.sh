@@ -45,6 +45,10 @@ case "$os" in
     ;;
   Linux)
     if [ -n "$ts" ]; then fact tailscale_install cli-daemon; fi
+    # "lxc", "docker" and the like inside a container; "none" on a machine of its own.
+    if command -v systemd-detect-virt >/dev/null 2>&1; then
+      fact container "$(systemd-detect-virt --container 2>/dev/null || true)"
+    fi
     if command -v systemctl >/dev/null 2>&1; then
       fact tailscale_startup "$(systemctl is-enabled tailscaled.service 2>/dev/null)"
       for target in sleep suspend hibernate hybrid-sleep suspend-then-hibernate; do

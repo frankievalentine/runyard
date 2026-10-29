@@ -92,29 +92,36 @@ function Machine() {
         icon={<Icon name="machine" size={18} />}
         title={<CopyValue value={m.name} label="Machine name" showIcon={false} />}
         status={
-          <>
-            <Pill tone={status.tone} hollow={status.hollow}>
-              {status.label}
-            </Pill>
-            {admin && !editing && (
-              <Button
-                small
-                variant="ghost"
-                aria-label={`Edit ${m.name}`}
-                onClick={() => setEditing(true)}
-              >
-                Edit…
-              </Button>
-            )}
-          </>
+          <Pill tone={status.tone} hollow={status.hollow}>
+            {status.label}
+          </Pill>
         }
         subtitle={
-          <>
-            <CopyValue value={address} label="Address" />
-            {os && ` · ${os}`}
-          </>
+          <span className="inline-flex flex-wrap items-center gap-x-2">
+            {/* No icon: its reserved space made the gap before the dot wider than after. */}
+            <CopyValue value={address} label="Address" showIcon={false} />
+            {os && (
+              <>
+                <span aria-hidden className="text-ink-3">
+                  ·
+                </span>
+                <span>{os}</span>
+              </>
+            )}
+          </span>
         }
-        actions={admin && <RemoveMachine m={m} />}
+        actions={
+          admin && (
+            <div className="flex items-center gap-2">
+              {!editing && (
+                <Button small aria-label={`Edit ${m.name}`} onClick={() => setEditing(true)}>
+                  Edit
+                </Button>
+              )}
+              <RemoveMachine m={m} />
+            </div>
+          )
+        }
       />
       {editing ? (
         <EditMachine m={m} close={() => setEditing(false)} />

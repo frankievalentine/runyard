@@ -255,6 +255,19 @@ class Checks {
   }
 
   powerLinux() {
+    // A container (an LXC, say) doesn't sleep on its own: the machine it runs on decides.
+    const container = this.get("container");
+    if (container && container !== "none") {
+      this.add(
+        "power-sleep",
+        "power",
+        "System sleep",
+        "info",
+        `Managed by the host (${container} container)`,
+        "Sleep, suspend and idle actions belong to the machine this container runs on; keep that machine awake.",
+      );
+      return;
+    }
     const targets = ["sleep", "suspend", "hibernate", "hybrid-sleep", "suspend-then-hibernate"];
     const target = (t: string) => this.get(`target_${t}`);
     const blocked =

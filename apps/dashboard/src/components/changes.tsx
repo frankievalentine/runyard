@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { api, call } from "../api.ts";
 import { useYard } from "../lib/yard.ts";
 import { timeUntil } from "../lib/format.ts";
+import { Terminal } from "./Terminal.tsx";
 import { useNow } from "../lib/now.ts";
 import { runnerFor } from "../lib/pools.ts";
 import { runnerStatus } from "../lib/status.ts";
@@ -325,10 +326,8 @@ function OperationLog({ op }: { op: Operation }) {
                 {STEP_STATUS[s.status] ?? s.status}
               </span>
             </div>
-            {s.output && (
-              <pre className="mt-1.5 max-h-48 overflow-auto rounded bg-sunken/60 px-3 py-2 font-mono text-[11.5px] whitespace-pre-wrap text-ink-2 select-text">
-                {s.output}
-              </pre>
+            {(s.output || s.status === "running") && (
+              <Terminal text={s.output} running={s.status === "running"} />
             )}
           </li>
         ))}
