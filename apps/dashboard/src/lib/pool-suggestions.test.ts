@@ -88,6 +88,33 @@ test("queued jobs no runner matches suggest a pool on machines of their OS", () 
   });
 });
 
+test("a job naming no OS prefers machines in no pool, and otherwise leaves the choice", () => {
+  const job = {
+    id: 5,
+    forge: "github",
+    repo: "acme/app",
+    labels: ["self-hosted", "runyard-mac"],
+    eligible: [],
+    onDemand: null,
+  };
+  const withPools = (machineIds: string[]) =>
+    ({
+      ...base,
+      queue: { jobs: [job] },
+      pools: {
+        ...base.pools,
+        pools: [{ name: "check", machines: machineIds.map((machineId) => ({ machineId })) }],
+      },
+    }) as unknown as YardView;
+  // The Linux builder already has a pool; the Mac doesn't.
+  expect(suggestPools(withPools(["m2"]))[0]?.draft.machines).toEqual([
+    { machineId: "m1", slots: 1 },
+  ]);
+  const [none] = suggestPools(withPools(["m1", "m2"]));
+  expect(none?.draft.machines).toEqual([]);
+  expect(none?.detail).toContain("choose their machines next");
+});
+
 test("a job asking only for an OS reads as needing that OS; its machines aren't suggested twice", () => {
   const view = {
     ...base,

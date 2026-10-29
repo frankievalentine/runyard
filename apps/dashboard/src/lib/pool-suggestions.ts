@@ -69,8 +69,11 @@ export function suggestPools(view: YardView): PoolSuggestion[] {
       job.forge === "forgejo"
         ? "linux"
         : (job.labels.map((l) => OS_LABELS[l.toLowerCase()]).find(Boolean) ?? null);
-    const machines = usable.filter((m) => os === null || m.os === os);
-    if (machines.length === 0) continue;
+    // Without an OS label nothing says which machine is meant: prefer ones in no pool yet, and
+    // when every machine has a pool, leave the choice to the next step.
+    const machines =
+      os === null ? usable.filter((m) => !pooled.has(m.id)) : usable.filter((m) => m.os === os);
+    if (os !== null && machines.length === 0) continue;
     const scopes = uniqueScopes(
       jobs.map((j) => scopeFor(options, j)).filter((s): s is Scope => s !== null),
     );
@@ -83,7 +86,9 @@ export function suggestPools(view: YardView): PoolSuggestion[] {
     out.push({
       id: `queue:${key}`,
       title: `${jobs.length} queued job${jobs.length === 1 ? " waits" : "s wait"} for ${wanted}`,
-      detail: `${os ? `${osLabel[os]} runners` : "Runners"} on ${names(machines)} for ${scopes.map((s) => s.target).join(", ")}`,
+      detail: machines.length
+        ? `${os ? `${osLabel[os]} runners` : "Runners"} on ${names(machines)} for ${scopes.map((s) => s.target).join(", ")}`
+        : `Runners for ${scopes.map((s) => s.target).join(", ")}; choose their machines next`,
       draft: {
         name: uniqueName(slug(custom[0] ?? os ?? "ci")),
         labels: custom,
