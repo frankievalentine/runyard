@@ -232,6 +232,10 @@ jobs page.
 
 ## Planned
 
+- **Run history**: finished jobs per machine, pool and runner, with machine problems kept apart
+  from job failures; from webhooks when set up, otherwise job hooks on the machine plus one
+  GitHub request per job for its result. Agreed, not started:
+  [docs/plans/run-history.md](plans/run-history.md).
 - **A simpler pool flow**: three short steps (what it's for, where it runs, check and create)
   ending with each machine's review inline. Agreed, not started:
   [docs/plans/pool-flow.md](plans/pool-flow.md).
