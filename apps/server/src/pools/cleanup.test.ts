@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { pendingChanges, type YardView } from "@runyard/core";
 import type { OperationView, Review } from "./engine.ts";
 import { finish, setup, type Setup } from "./test-helpers.ts";
 
@@ -75,5 +76,19 @@ describe("cleanup after each job", () => {
     expect(off.items.map((i) => [i.action, i.cleanup])).toEqual([["configureCleanup", "off"]]);
     await run(s, off);
     expect((await review(s)).items).toEqual([]);
+  });
+
+  test("the machine shows a cleanup edit as waiting until it's run", async () => {
+    const s = await setup({ account: "acme", type: "Organization", repos: [] });
+    const id = await poolWith(s, "workspace");
+    await run(s, await review(s));
+    await online(s);
+    const waiting = async () =>
+      pendingChanges(await s.call<YardView>("GET", "/api/yard"), s.machine.id);
+    expect(await waiting()).toEqual([]);
+    await poolWith(s, "docker", id);
+    expect(await waiting()).toEqual(["Set cleanup on mini-mac-01"]);
+    await run(s, await review(s));
+    expect(await waiting()).toEqual([]);
   });
 });

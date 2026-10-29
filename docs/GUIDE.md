@@ -169,7 +169,15 @@ Saving a pool changes nothing on machines. **Create and review** opens the pool 
 machine's review already prepared: what it will do there, and **Run**, one machine at a time.
 **Run** reads the machine and the forge again and does nothing if anything changed since the
 review. Until every machine is set up, the pool page keeps showing the reviews still to run; a
-machine's own page has the same **Review changes**. Runners live under `~/runyard-runners` (`C:\runyard-runners` on
+machine's own page has the same **Review changes**.
+
+When Runyard knows a machine has changes waiting (a runner to install or remove, tools its pools
+want, labels or cleanup that changed, a runner ready to retire), the machine shows them in the
+sidebar ("2 changes"), under Needs attention, and on its button: **Review 2 changes**. It works
+that out from its own records and the forges' runner lists; the review itself reads the machine
+again and may find more, such as a runner changed by hand.
+
+Runners live under `~/runyard-runners` (`C:\runyard-runners` on
 Windows), as a LaunchAgent on macOS (it starts after the user logs in), a systemd service on
 Linux, or a Windows service.
 
@@ -228,13 +236,19 @@ macOS for now.
 
 ### Runners Runyard didn't install
 
-Runners registered another way show under **Unassigned runners**. On a runner's page, choose
-the machine it **Runs on** to show it there. To hand it over to Runyard, **Move into pool**
-picks a persistent pool on that machine that serves its scope (or creates one from the runner's
-labels). The pool's own runner is installed through the usual review; once it's online, idle
-and labeled, the machine's review offers to **Retire** the old one, which deregisters it on the
-forge and shows the steps to remove its service. Runyard never changes the old runner's
-directory.
+Runners registered another way show under **Unassigned runners**, and Needs attention lists
+them until you say which machine each runs on. A runner's page has **Take over this runner**, in
+three steps:
+
+1. **Choose the machine it runs on.** It then shows on that machine's page. You can stop here:
+   Runyard shows it but never changes it.
+2. **Move it into a pool**: a persistent pool on that machine that serves its scope, or
+   **Create a pool from this runner** with its labels. The pool's own runner is installed through
+   the machine's usual review.
+3. **Review and retire it.** Once the pool's runner is online, idle and labeled, the machine's
+   review offers **Retire**, which deregisters the old runner on the forge and shows the steps to
+   remove its service. The old runner exits on its own when it notices; Runyard never changes its
+   directory.
 
 ## Forges and services
 

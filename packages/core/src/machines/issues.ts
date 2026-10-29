@@ -1,3 +1,4 @@
+import { pendingChanges } from "../pools/pending.ts";
 import { sshUser } from "./access.ts";
 import { readinessProblems } from "./readiness.ts";
 import type { YardView } from "./derive.ts";
@@ -10,6 +11,10 @@ export type Issue = {
   machineId: string | null;
   /** A page the issue opens instead of a machine. */
   page?: "boat";
+  /** The section of the machine's page it opens. */
+  hash?: "changes";
+  /** A runner the issue opens instead. */
+  runnerKey?: string;
 };
 
 /**
@@ -44,6 +49,15 @@ export function deriveIssues(view: YardView): Issue[] {
         machineId: m.id,
       });
     }
+    const pending = pendingChanges(view, m.id);
+    if (pending.length)
+      issues.push({
+        id: `${m.id}:changes`,
+        title: `${m.name}: ${pending.length === 1 ? "a change" : `${pending.length} changes`} waiting`,
+        detail: `${pending.join("; ")}. Review its changes, then run them.`,
+        machineId: m.id,
+        hash: "changes",
+      });
     const d = m.diagnostics;
     if (!d || d.stale || c.state !== "connected") continue;
     const macRunners = macRunnerIssue(view, m.id);
@@ -70,6 +84,24 @@ export function deriveIssues(view: YardView): Issue[] {
       });
     }
   }
+  // Runners registered another way, until someone says which machine they run on.
+  const unmanaged = view.runners.filter(
+    (r) => r.listed && !r.ephemeral && !r.onDemand && !r.machineId,
+  );
+  const first = unmanaged[0];
+  // The same name can be registered in several scopes.
+  const names = [...new Set(unmanaged.map((r) => r.name))];
+  if (first)
+    issues.push({
+      id: "runners:unmanaged",
+      title:
+        unmanaged.length === 1
+          ? `${first.name}: not managed by Runyard`
+          : `${unmanaged.length} runners Runyard doesn't manage`,
+      detail: `${names.slice(0, 5).join(", ")}${names.length > 5 ? "…" : ""}. Open ${unmanaged.length === 1 ? "it" : "one"} to choose the machine it runs on, then move it into a pool if you'd like Runyard to take it over.`,
+      machineId: null,
+      runnerKey: first.key,
+    });
   const leftover = view.boat?.leftover ?? [];
   if (leftover.length) {
     const dollars = leftover.reduce((sum, v) => sum + (v.dollars ?? 0), 0);

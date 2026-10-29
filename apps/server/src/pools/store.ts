@@ -118,6 +118,7 @@ export function listRegistrations(db: Db): Registration[] {
       path: r.path,
       serviceMode: r.serviceMode,
       runnerKind: r.runnerKind,
+      cleanup: r.cleanup,
     }));
 }
 
@@ -132,11 +133,17 @@ export function recordRegistration(db: Db, r: Registration) {
     path: r.path,
     serviceMode: r.serviceMode,
     runnerKind: r.runnerKind,
+    ...(r.cleanup !== undefined ? { cleanup: r.cleanup } : {}),
   };
   db.insert(registrations)
     .values({ key: r.key, ...row, createdAt: new Date() })
     .onConflictDoUpdate({ target: registrations.key, set: row })
     .run();
+}
+
+/** After the cleanup hook is set up or removed, so the dashboard knows what's in place. */
+export function recordCleanup(db: Db, key: string, cleanup: CleanupMode) {
+  db.update(registrations).set({ cleanup }).where(eq(registrations.key, key)).run();
 }
 
 export function forgetRegistration(db: Db, machineId: string, scope: Scope, runnerName: string) {

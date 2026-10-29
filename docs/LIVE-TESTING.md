@@ -112,10 +112,13 @@ For 5.2, send the pool page's Recent one-job runners entry and the machine's his
 
 - [ ] **6.1** On the LXC, register a runner by hand in another directory with GitHub's own
       instructions, label `runyard-check`, as a service.
-- [ ] **6.2** On its page in Runyard: **Runs on** the LXC, then **Move into pool**. Expect
-      **Waiting** until the pool's runner is online and idle, then **Ready to retire**.
-- [ ] **6.3** Review and run **Retire**. Expect it deregistered on GitHub and the cleanup commands
-      shown. Send what the old runner's service does afterwards (`journalctl -u actions.runner.*`).
+- [ ] **6.2** Expect Needs attention to list it as not managed by Runyard. On its page, follow
+      **Take over this runner**: choose the LXC, then **Start the move** into `runyard-check`.
+      Expect step 3 **Waiting** until the pool's runner is online and idle, then
+      **Ready to retire**, and the LXC showing "1 change" in the sidebar.
+- [ ] **6.3** **Review 1 change** on the LXC and run **Retire**. Expect it deregistered on GitHub
+      and the cleanup commands shown. Send what the old runner's service does afterwards
+      (`sudo journalctl -u 'actions.runner.*'`).
 
 ## Round 7: webhooks
 

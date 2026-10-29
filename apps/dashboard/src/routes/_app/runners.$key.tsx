@@ -1,10 +1,8 @@
-import type { RunnerView } from "@runyard/core";
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { api, call } from "../../api.ts";
 import { CopyValue } from "../../components/CopyValue.tsx";
 import { Icon } from "../../components/icons.tsx";
-import { migrationFor, MoveIntoPool } from "../../components/Migration.tsx";
+import { migrationFor, TakeOver } from "../../components/Migration.tsx";
 import { TestThisRunner } from "../../components/TestJob.tsx";
 import { Elapsed, JobTitle, Label } from "../../components/runners.tsx";
 import {
@@ -16,9 +14,8 @@ import {
   Section,
   Stat,
   StatStrip,
-  ErrorText,
 } from "../../components/ui.tsx";
-import { yardQuery, useYard } from "../../lib/yard.ts";
+import { useYard } from "../../lib/yard.ts";
 import { sessionQuery } from "../../lib/queries.ts";
 import { formatDollars, timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
@@ -126,10 +123,7 @@ function Runner() {
             : `${formatDollars(vm.dollars)} so far at list price`}
         </p>
       )}
-      {admin && !r.onDemand && (!r.machineId || assigned) && <RunsOn r={r} assigned={assigned} />}
-      {admin && !r.onDemand && assigned && r.machineId && (
-        <MoveIntoPool r={r} machineId={r.machineId} />
-      )}
+      {admin && !r.onDemand && !r.ephemeral && (!r.machineId || assigned) && <TakeOver r={r} />}
       <div className="mt-8">
         <StatStrip cols={3}>
           <Stat
@@ -230,7 +224,7 @@ function Runner() {
                       ? `Runyard retires it once pool ${migration.poolName}'s runner here stands in.`
                       : "Shown on the machine only; Runyard doesn't manage this runner."
                     : "Runyard manages this runner through its pool."
-                  : "Runyard places runners on machines when it registers them. For one registered another way, choose its machine under Runs on."
+                  : "Runyard places runners on machines when it registers them. For one registered another way, choose its machine under Take over this runner."
             }
           />
         </div>
@@ -246,55 +240,5 @@ function Runner() {
         </Section>
       )}
     </div>
-  );
-}
-
-/**
- * Places a runner Runyard didn't register on the machine it runs on, so it
- * shows there. Display only: Runyard still won't change it.
- */
-function RunsOn({ r, assigned }: { r: RunnerView; assigned: boolean }) {
-  const view = useYard();
-  const queryClient = useQueryClient();
-  const save = useMutation({
-    mutationFn: (machineId: string | null) =>
-      call(
-        api.runners.assignment.$put({
-          json: {
-            scope: {
-              forgeId: r.scope.forgeId,
-              kind: r.scope.kind as "user" | "org" | "repo",
-              target: r.scope.target,
-            },
-            runnerName: r.name,
-            machineId,
-          },
-        }),
-      ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
-  });
-  return (
-    <Card className="mt-6 flex flex-wrap items-center gap-3 px-4 py-3 text-[13px]">
-      <label className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        <span className="font-medium">Runs on</span>
-        <select
-          className="input !w-auto"
-          value={assigned ? (r.machineId ?? "") : ""}
-          disabled={save.isPending}
-          onChange={(e) => save.mutate(e.target.value || null)}
-        >
-          <option value="">Not assigned</option>
-          {view.machines.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <span className="text-[12px] text-ink-2">
-        Runyard didn't register this runner, so it shows it on the machine without managing it.
-      </span>
-      {save.error && <ErrorText error={save.error} />}
-    </Card>
   );
 }

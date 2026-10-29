@@ -68,6 +68,8 @@ export type Registration = {
   path: string;
   serviceMode: ServiceMode;
   runnerKind: RunnerKind;
+  /** The cleanup Runyard last set up in it; null when not recorded. */
+  cleanup?: CleanupMode | null;
 };
 
 /** Whether a scope may get persistent runners. */

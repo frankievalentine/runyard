@@ -15,6 +15,7 @@ import runyardKeyOnly from "./0013_runyard_key_only.sql" with { type: "text" };
 import dispatchJob from "./0014_dispatch_job.sql" with { type: "text" };
 import dispatchCleared from "./0015_dispatch_cleared.sql" with { type: "text" };
 import setupDismissed from "./0016_setup_dismissed.sql" with { type: "text" };
+import registrationCleanup from "./0017_registration_cleanup.sql" with { type: "text" };
 
 /**
  * Every migration drizzle-kit generated, oldest first. Add new files here;
@@ -38,6 +39,7 @@ export const migrations: readonly Migration[] = [
   { name: "0014_dispatch_job", sql: dispatchJob },
   { name: "0015_dispatch_cleared", sql: dispatchCleared },
   { name: "0016_setup_dismissed", sql: setupDismissed },
+  { name: "0017_registration_cleanup", sql: registrationCleanup },
 ];
 
 export type Migration = { name: string; sql: string };

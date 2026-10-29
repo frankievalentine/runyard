@@ -120,6 +120,13 @@
       "when": 1793301592090,
       "tag": "0016_setup_dismissed",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1793303626400,
+      "tag": "0017_registration_cleanup",
+      "breakpoints": true
     }
   ]
 }

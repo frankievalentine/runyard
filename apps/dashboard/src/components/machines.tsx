@@ -105,7 +105,7 @@ export function Attention({ view }: { view: YardView }) {
                   {issue.detail}
                 </div>
               </div>
-              {(issue.machineId || issue.page) && (
+              {(issue.machineId || issue.page || issue.runnerKey) && (
                 <span className="text-ink-3">
                   <Icon name="chevron" size={11} />
                 </span>
@@ -113,15 +113,17 @@ export function Attention({ view }: { view: YardView }) {
             </>
           );
           const className = "flex min-h-[40px] w-full items-center gap-3 px-4 py-3 text-left";
-          const machineId = issue.machineId;
-          return machineId || issue.page ? (
+          const { machineId, runnerKey } = issue;
+          return machineId || issue.page || runnerKey ? (
             <button
               key={issue.id}
               type="button"
               onClick={() =>
                 void (machineId
-                  ? navigate({ to: "/machines/$id", params: { id: machineId } })
-                  : navigate({ to: "/boat" }))
+                  ? navigate({ to: "/machines/$id", params: { id: machineId }, hash: issue.hash })
+                  : runnerKey
+                    ? navigate({ to: "/runners/$key", params: { key: runnerKey } })
+                    : navigate({ to: "/boat" }))
               }
               className={`${className} hover:bg-warn/5`}
             >

@@ -1,4 +1,4 @@
-import type { YardView, RunnerView } from "@runyard/core";
+import { pendingChanges, type YardView, type RunnerView } from "@runyard/core";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { healthQuery } from "../lib/queries.ts";
@@ -161,6 +161,8 @@ export function Sidebar({
                 : idle
                   ? `${idle} idle`
                   : machineSummary(m);
+          // Shown instead of an idle summary; a busy machine keeps showing its work.
+          const waiting = busy ? 0 : pendingChanges(view, m.id).length;
           return (
             <div key={m.id}>
               <Row
@@ -174,7 +176,19 @@ export function Sidebar({
                 }
                 label={m.name}
                 title={machineTooltip(m)}
-                trailing={summary}
+                trailing={
+                  waiting ? (
+                    <span
+                      className="inline-flex items-center gap-1.5 text-accent"
+                      title={`${waiting === 1 ? "A change" : `${waiting} changes`} waiting to review`}
+                    >
+                      <span className="size-1.5 rounded-full bg-accent" aria-hidden />
+                      {waiting === 1 ? "1 change" : `${waiting} changes`}
+                    </span>
+                  ) : (
+                    summary
+                  )
+                }
               />
               {own.map((r) => (
                 <RunnerRow

@@ -258,6 +258,8 @@ export const registrations = sqliteTable("registrations", {
   runnerKind: text({ enum: ["actions", "forgejo"] })
     .notNull()
     .default("actions"),
+  /** The cleanup Runyard last set up in it; null for runners installed before this was recorded. */
+  cleanup: text({ enum: ["off", "workspace", "docker"] }),
   createdAt: integer({ mode: "timestamp_ms" }).notNull(),
 });
 

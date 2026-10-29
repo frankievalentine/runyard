@@ -58,6 +58,7 @@ import {
   listRegistrations,
   listTemplates,
   publicOverrides,
+  recordCleanup,
   recordRegistration,
   recordTemplate,
 } from "./store.ts";
@@ -321,6 +322,8 @@ export class PoolEngine {
             path: desired.path,
             serviceMode: desired.serviceMode,
             runnerKind: desired.runnerKind,
+            // A fresh install has no cleanup hook until a configureCleanup step adds one.
+            cleanup: "off",
           });
         }
         return output;
@@ -337,12 +340,15 @@ export class PoolEngine {
         const fresh = await this.remoteRunners(http, item.scope);
         if (fresh.get(item.runnerName.toLowerCase())?.busy)
           throw new EngineError("It started a job; cleanup not changed.");
-        return this.runScript(ctx, "cleanup-configure", {
+        const output = await this.runScript(ctx, "cleanup-configure", {
           RF_ROOT: item.path,
           RF_CLEANUP: item.cleanup ?? "off",
           RF_SERVICE_MODE: item.serviceMode,
           RF_SUDO_PASSWORD: sudoPassword,
         });
+        const desired = ctx.desired.find((d) => d.path === item.path && d.name === item.runnerName);
+        if (desired) recordCleanup(this.deps.db, desired.key, item.cleanup ?? "off");
+        return output;
       }
       case "reconcileLabels": {
         const remote = ctx.remote.get(scopeKey(item.scope))?.get(item.runnerName.toLowerCase());

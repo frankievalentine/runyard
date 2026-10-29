@@ -1,4 +1,4 @@
-import type { MachineView, PlanItem } from "@runyard/core";
+import { pendingChanges, type MachineView, type PlanItem } from "@runyard/core";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -195,6 +195,9 @@ export function MachineChanges({
     e.preventDefault();
     if (review) execute.mutate(review.id);
   };
+  const view = useYard();
+  // What Runyard expects the review to find, until one is prepared here.
+  const waiting = pendingChanges(view, m.id);
   const actionable = review?.items.filter((i) => !i.blocked) ?? [];
   const blocked = review?.items.filter((i) => i.blocked) ?? [];
   const expired = review !== null && review.expiresAt <= now;
@@ -207,19 +210,44 @@ export function MachineChanges({
           <div className="ml-auto">
             <Button
               small
+              variant={!review && !operationId && waiting.length ? "primary" : "default"}
               onClick={() => prepare.mutate()}
               disabled={prepare.isPending || operation.data?.status === "running"}
             >
-              {prepare.isPending ? "Reviewing…" : review ? "Review again" : "Review changes"}
+              {prepare.isPending
+                ? "Reviewing…"
+                : review
+                  ? "Review again"
+                  : waiting.length
+                    ? `Review ${waiting.length === 1 ? "1 change" : `${waiting.length} changes`}`
+                    : "Review changes"}
             </Button>
           </div>
         )}
       </div>
       <Card className="overflow-hidden">
-        {!review && !operationId && (
+        {!review && !operationId && waiting.length > 0 && (
+          <div className="px-4 py-3 text-[13px]">
+            <div className="flex items-center gap-2 font-medium">
+              <span className="size-2 shrink-0 rounded-full bg-accent" aria-hidden />
+              {waiting.length === 1 ? "A change is waiting" : `${waiting.length} changes waiting`}
+            </div>
+            <ul className="mt-1.5 ml-4 list-disc text-[12.5px] text-ink-2">
+              {waiting.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[12px] text-ink-3">
+              {admin
+                ? "Review reads the machine and GitHub to confirm them; nothing changes until you run it."
+                : "An admin can review and apply them."}
+            </p>
+          </div>
+        )}
+        {!review && !operationId && waiting.length === 0 && (
           <EmptyLine>
             {admin
-              ? "Review compares this machine's pools with the machine and GitHub. It reads only; nothing changes until you run it."
+              ? "Nothing is known to be waiting. Review compares this machine's pools with the machine and GitHub; it reads only, and nothing changes until you run it."
               : "An admin can review and apply this machine's runner changes."}
           </EmptyLine>
         )}
