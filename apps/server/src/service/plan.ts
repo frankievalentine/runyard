@@ -36,7 +36,13 @@ export type ServicePlan = {
   kind: "systemd" | "launchagent" | "scheduled-task";
   summary: string;
   files: { path: string; content: string; sudo: boolean; mode: number }[];
-  commands: { argv: string[]; sudo: boolean; ignoreFailure?: boolean }[];
+  commands: {
+    argv: string[];
+    sudo: boolean;
+    ignoreFailure?: boolean;
+    /** Tries again this many times, a second apart, before failing. */
+    retries?: number;
+  }[];
   logs: string;
 };
 
@@ -202,7 +208,9 @@ ${Object.entries(env)
         sudo: false,
         ignoreFailure: true,
       },
-      { argv: ["launchctl", "bootstrap", domain, path], sudo: false },
+      // bootout returns before launchd has finished stopping the old service, and
+      // bootstrapping again meanwhile fails ("Bootstrap failed: 5"): try for a few seconds.
+      { argv: ["launchctl", "bootstrap", domain, path], sudo: false, retries: 10 },
     ],
     logs: log,
   };

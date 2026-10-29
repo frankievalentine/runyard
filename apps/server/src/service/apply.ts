@@ -68,19 +68,27 @@ export async function applyPlan(
     for (const command of plan.commands) {
       const argv = withSudo(command.argv, command.sudo);
       log(`  run ${argv.join(" ")}`);
-      if (staging) await exec(argv, command.ignoreFailure);
+      if (staging) await exec(argv, command.ignoreFailure, command.retries ?? 0);
     }
   } finally {
     if (staging) await rm(staging, { recursive: true, force: true });
   }
 }
 
-async function exec(argv: string[], ignoreFailure = false) {
-  // A step allowed to fail (stopping a service that isn't running) keeps its output to itself.
-  const output = ignoreFailure ? "pipe" : "inherit";
-  const proc = Bun.spawn(argv, { stdin: "inherit", stdout: output, stderr: output });
-  const code = await proc.exited;
-  if (code === 0) return;
-  if (!ignoreFailure) throw new ServiceError(`${argv.join(" ")} failed (exit ${code}).`);
-  console.log("    (nothing to stop: it wasn't running)");
+async function exec(argv: string[], ignoreFailure = false, retries = 0) {
+  for (let attempt = 0; ; attempt++) {
+    const last = attempt >= retries;
+    // A step allowed to fail, and every try but the last, keep their output to themselves.
+    const output = ignoreFailure || !last ? "pipe" : "inherit";
+    const proc = Bun.spawn(argv, { stdin: "inherit", stdout: output, stderr: output });
+    const code = await proc.exited;
+    if (code === 0) return;
+    if (!last) {
+      await Bun.sleep(1000);
+      continue;
+    }
+    if (!ignoreFailure) throw new ServiceError(`${argv.join(" ")} failed (exit ${code}).`);
+    console.log("    (nothing to stop: it wasn't running)");
+    return;
+  }
 }
