@@ -13,6 +13,7 @@ describe("pool engine", () => {
     const review = await s.call<Review>("POST", `/api/machines/${s.machine.id}/review`);
     expect(review.items.map((i) => [i.action, i.runnerName, i.path, i.blocked])).toEqual([
       ["install", "mini-mac-01", "~/runyard-runners/mac/01", false],
+      ["configureCleanup", "mini-mac-01", "~/runyard-runners/mac/01", false],
     ]);
     expect(review.mayNeedSudo).toBe(false);
 
@@ -22,7 +23,10 @@ describe("pool engine", () => {
     );
     expect(op).toMatchObject({
       status: "succeeded",
-      steps: [{ action: "install", status: "succeeded" }],
+      steps: [
+        { action: "install", status: "succeeded" },
+        { action: "configureCleanup", status: "succeeded" },
+      ],
     });
 
     const install = s.host.received.find((r) => r.op === "install")!;
@@ -127,6 +131,7 @@ describe("pool engine", () => {
     const allowed = await s.call<Review>("POST", `/api/machines/${s.machine.id}/review`);
     expect(allowed.items.map((i) => [i.action, i.runnerName, i.path])).toEqual([
       ["install", "mini-mac-01", "~/runyard-runners/mac/frankie-site/01"],
+      ["configureCleanup", "mini-mac-01", "~/runyard-runners/mac/frankie-site/01"],
     ]);
   });
 
@@ -174,7 +179,8 @@ describe("pool engine", () => {
     const s = await setup({ account: "acme", type: "Organization", repos: [] });
     await pool(s, [{ kind: "org", target: "acme" }], 2);
     const review = await s.call<Review>("POST", `/api/machines/${s.machine.id}/review`);
-    expect(review.items).toHaveLength(2);
+    // Two runners, each installed and then given its job hooks.
+    expect(review.items).toHaveLength(4);
     s.host.failNext = "config.sh failed";
     const original = s.host.answer;
     s.host.answer = (stdin) => {
@@ -192,7 +198,7 @@ describe("pool engine", () => {
       }),
     );
     expect(op.status).toBe("failed");
-    expect(op.steps.map((st) => st.status)).toEqual(["failed", "skipped"]);
+    expect(op.steps.map((st) => st.status)).toEqual(["failed", "skipped", "skipped", "skipped"]);
     expect(op.steps[0]!.output).toContain("token=•••");
     expect(JSON.stringify(op)).not.toContain("AREG");
     expect(listRegistrations(s.deps.db)).toEqual([]);

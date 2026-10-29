@@ -260,6 +260,8 @@ export const registrations = sqliteTable("registrations", {
     .default("actions"),
   /** The cleanup Runyard last set up in it; null for runners installed before this was recorded. */
   cleanup: text({ enum: ["off", "workspace", "docker"] }),
+  /** Runyard's job hooks are set up in it, recording its jobs for run history. */
+  history: integer({ mode: "boolean" }),
   createdAt: integer({ mode: "timestamp_ms" }).notNull(),
 });
 
@@ -372,4 +374,39 @@ export const dispatches = sqliteTable(
     detail: text(),
   },
   (t) => [index("dispatches_job").on(t.jobId), index("dispatches_started").on(t.startedAt)],
+);
+
+/** Jobs that ran on self-hosted runners Runyard sees, from webhooks, runner hooks and reads; kept 30 days. */
+export const jobs = sqliteTable(
+  "jobs",
+  {
+    id: text().primaryKey(),
+    forgeId: text().notNull(),
+    repo: text().notNull(),
+    jobId: integer(),
+    runId: integer().notNull(),
+    runAttempt: integer().notNull(),
+    name: text(),
+    workflow: text(),
+    runnerName: text(),
+    machineId: text(),
+    poolId: text(),
+    startedAt: integer({ mode: "timestamp_ms" }),
+    finishedAt: integer({ mode: "timestamp_ms" }),
+    conclusion: text(),
+    htmlUrl: text(),
+    test: integer({ mode: "boolean" }).notNull().default(false),
+    hook: text({ enum: ["started", "completed"] }),
+    /** JSON array of where it was seen: webhook, hook, api. */
+    sources: text().notNull(),
+    /** Last change, for pruning and for the newest-first lists. */
+    updatedAt: integer({ mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [
+    index("jobs_job").on(t.forgeId, t.repo, t.jobId),
+    index("jobs_run").on(t.forgeId, t.repo, t.runId, t.runAttempt),
+    index("jobs_machine").on(t.machineId, t.startedAt),
+    index("jobs_pool").on(t.poolId, t.startedAt),
+    index("jobs_updated").on(t.updatedAt),
+  ],
 );

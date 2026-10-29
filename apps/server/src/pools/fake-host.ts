@@ -2,6 +2,8 @@ import type { CommandResult } from "../command.ts";
 
 type Dir = {
   cleanup?: string;
+  /** Runyard's job hooks are set up, as cleanup-configure leaves them. */
+  history?: boolean;
   configured: boolean;
   service: "active" | "inactive" | "uninstalled";
   name: string | null;
@@ -69,7 +71,7 @@ export class FakeRunnerHost {
       const rows = paths.map((path, i) => {
         const d = this.dirs.get(path);
         const service = d?.configured ? d.service : "missing";
-        return `RF1\t${i}\t${d?.configured ? "true" : "false"}\t${service}\t${d?.configured ? "2.329.0" : ""}\t${d?.name ?? ""}\t${d?.cleanup ?? ""}`;
+        return `RF1\t${i}\t${d?.configured ? "true" : "false"}\t${service}\t${d?.configured ? "2.329.0" : ""}\t${d?.name ?? ""}\t${d?.cleanup ?? ""}\t${d?.history ? "1" : ""}`;
       });
       return `${rows.join("\n")}\nRF_PROBE_END\n`;
     }
@@ -79,7 +81,10 @@ export class FakeRunnerHost {
     if ("RF_CLEANUP" in env) {
       this.received.push({ op: "cleanup-configure", env });
       const dir = this.dirs.get(env.RF_ROOT!);
-      if (dir) dir.cleanup = env.RF_CLEANUP === "off" ? "" : env.RF_CLEANUP;
+      if (dir) {
+        dir.cleanup = env.RF_CLEANUP === "off" ? "" : env.RF_CLEANUP;
+        dir.history = true;
+      }
       return `cleanup ${env.RF_CLEANUP}`;
     }
     if ("RF_TOOLS" in env) {

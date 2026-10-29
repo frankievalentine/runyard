@@ -19,6 +19,7 @@ import { ForgejoMonitor } from "./forgejo/monitor.ts";
 import { BoatMonitor } from "./boat/monitor.ts";
 import { listAssignments, listMigrations } from "./machines/assignments.ts";
 import { MachineMonitor } from "./machines/monitor.ts";
+import { JobHistory } from "./history/recorder.ts";
 import { Dispatcher } from "./pools/dispatcher.ts";
 import { PoolEngine } from "./pools/engine.ts";
 import { listDispatches, listPools, listRegistrations, listTemplates } from "./pools/store.ts";
@@ -84,11 +85,16 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   const github = new GithubMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
   const forgejo = new ForgejoMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
   const boat = new BoatMonitor({ secrets, fetch, onChange: () => monitor?.tick() });
+  const history = new JobHistory({ db, github, view: () => monitor!.view });
   monitor = new MachineMonitor({
     db,
     run,
     programs,
     tailscale,
+    jobLog: {
+      since: (machineId) => history.hookSinceSeconds(machineId),
+      record: (machineId, lines) => history.fromHooks(machineId, lines),
+    },
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),
     boat: () => boat.observation(),
@@ -145,10 +151,23 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     secrets,
     github,
     afterRefresh: async () => {
+      history.fromScan(github.observations());
       monitor?.tick();
       await dispatcher.tick();
     },
+    onJob: (forgeId, payload) => history.fromWebhook(forgeId, payload),
   });
+  // Run history: in-progress jobs the scan saw, results for finished ones, and the 30 days kept.
+  const historyRound = async () => {
+    const apps = github.observations();
+    history.fromScan(apps);
+    await history.fillResults(apps);
+  };
+  const historyTimers = [
+    setInterval(() => void historyRound().catch(() => {}), 60_000),
+    setInterval(() => history.prune(), 60 * 60_000),
+  ];
+  for (const t of historyTimers) t.unref();
   let webhookPort: number | null = null;
   if (process.env.RUNYARD_WEBHOOKS !== "off") {
     const port = Number(process.env.RUNYARD_WEBHOOK_PORT ?? 7444);
@@ -191,6 +210,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     machineSetup: new MachineSetupCodes(),
     testJobs: new TestJobs({ github }),
     dispatcher,
+    history,
   };
   const deps = (listener: AppDeps["listener"]): AppDeps => ({ ...shared, listener });
 

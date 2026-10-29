@@ -14,9 +14,10 @@ export type DeliveryRecord = { at: number; event: string };
 
 /**
  * Receives GitHub webhooks on their own listener. A delivery must carry a valid
- * signature from the app it names; it then only nudges Runyard to re-read jobs
- * and runners through the API and run a dispatch round. Nothing in a payload is
- * acted on, so a forged or replayed delivery can at most cause an extra read.
+ * signature from the app it names; it then nudges Runyard to re-read jobs and
+ * runners through the API and run a dispatch round. A `workflow_job` delivery
+ * is also recorded in run history, for display only: nothing on a machine or a
+ * forge is ever changed because of what a payload says.
  */
 export class WebhookReceiver {
   private seen: string[] = [];
@@ -32,6 +33,8 @@ export class WebhookReceiver {
       github: GithubMonitor;
       /** What a nudge does after the re-read: publish the view and run a dispatch round. */
       afterRefresh: () => Promise<void>;
+      /** A signed `workflow_job` delivery's payload, for run history. */
+      onJob?: (forgeId: string, payload: unknown) => void;
       now?: () => number;
       nudgeDelayMs?: number;
     },
@@ -65,7 +68,14 @@ export class WebhookReceiver {
       if (this.seen.length > SEEN_DELIVERIES) this.seen.shift();
     }
     this.last.set(app.id, { at: this.now(), event });
-    if (event === "workflow_job") this.nudge();
+    if (event === "workflow_job") {
+      try {
+        this.deps.onJob?.(app.id, JSON.parse(new TextDecoder().decode(body)) as unknown);
+      } catch {
+        // A payload that isn't JSON still nudges; history just doesn't get it.
+      }
+      this.nudge();
+    }
     return new Response(null, { status: 202 });
   }
 

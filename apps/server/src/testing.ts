@@ -1,4 +1,5 @@
 import { createApp, type AppDeps } from "./app.ts";
+import { JobHistory } from "./history/recorder.ts";
 import type { Listener } from "./auth/identity.ts";
 import { Challenges } from "./auth/passkeys.ts";
 import { FailureLimiter } from "./auth/rate-limit.ts";
@@ -71,12 +72,17 @@ export async function testApp(
     now: () => clock.now,
     onChange: () => monitor?.tick(),
   });
+  const history = new JobHistory({ db, github, view: () => monitor!.view, now: () => clock.now });
   monitor = new MachineMonitor({
     db,
     run: fake.run,
     programs: fake.programs,
     tailscale: fake.tailscale,
     now: () => clock.now,
+    jobLog: {
+      since: (machineId) => history.hookSinceSeconds(machineId),
+      record: (machineId, lines) => history.fromHooks(machineId, lines),
+    },
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),
     boat: () => boat.observation(),
@@ -125,6 +131,7 @@ export async function testApp(
     },
     now: () => clock.now,
     nudgeDelayMs: 0,
+    onJob: (forgeId, payload) => history.fromWebhook(forgeId, payload),
   });
   /** What Tailscale reports Funnel serving; tests set it. */
   const funnel: { url: string | null } = { url: null };
@@ -162,6 +169,7 @@ export async function testApp(
     machineSetup: new MachineSetupCodes(() => clock.now),
     testJobs: new TestJobs({ github, now: () => clock.now }),
     dispatcher,
+    history,
   };
   const app = createApp(deps, options.dashboard);
   return {
@@ -184,6 +192,7 @@ export async function testApp(
     receiver,
     funnel,
     rechecked,
+    history,
   };
 }
 

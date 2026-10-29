@@ -6,8 +6,10 @@ import {
   observe,
   observed,
   osFromTailnet,
+  parseHookLines,
   parseReport,
   type EventKind,
+  type HookLine,
   type YardView,
   type BoatObservation,
   type ForgejoConnectionObservation,
@@ -58,6 +60,11 @@ type Deps = {
   boat?: () => BoatObservation | null;
   /** The forges' hosts, which the readiness check tries to reach from each machine. */
   forgeHosts?: () => string[];
+  /** Run history's reads of each machine's job log, written by Runyard's runner hooks. */
+  jobLog?: {
+    since: (machineId: string) => number;
+    record: (machineId: string, lines: HookLine[]) => void;
+  };
   /** Pools and the runners Runyard registered, joined into the yard view. */
   pools?: () => {
     pools: Pool[];
@@ -266,8 +273,22 @@ export class MachineMonitor {
         machine,
         os,
         this.deps.forgeHosts?.() ?? [],
+        this.deps.jobLog?.since(machine.id) ?? 0,
       );
-      const report = parseReport(output, machine.expectedOs ?? os ?? "other");
+      // Job log lines are run history's, not the report's.
+      const jobLines = output
+        .split("\n")
+        .filter((l) => l.startsWith("RFJ\t"))
+        .map((l) => l.slice(4));
+      if (jobLines.length)
+        this.deps.jobLog?.record(machine.id, parseHookLines(jobLines.join("\n")));
+      const report = parseReport(
+        output
+          .split("\n")
+          .filter((l) => !l.startsWith("RFJ\t"))
+          .join("\n"),
+        machine.expectedOs ?? os ?? "other",
+      );
       this.observations.set(machine.id, {
         report: { at: this.now(), value: report },
         error: previous.error,

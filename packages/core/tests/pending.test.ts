@@ -68,6 +68,7 @@ const registration: Registration = {
   serviceMode: "systemd",
   runnerKind: "actions",
   cleanup: "workspace",
+  history: true,
 };
 
 const runner = (over: Partial<RunnerView> = {}): RunnerView => ({
@@ -154,7 +155,7 @@ test("a runner Runyard recorded that the forge doesn't list", () => {
 test("a pool edit to cleanup, once Runyard knows what it set up", () => {
   const edited = { ...desired, cleanup: "docker" as const };
   expect(pendingChanges(view({ desired: [edited] }), "m1")).toEqual([
-    "Set cleanup on lxc-check-01",
+    "Set job hooks on lxc-check-01",
   ]);
   // Installed before Runyard recorded it: unknown, so no guess.
   expect(
@@ -163,6 +164,12 @@ test("a pool edit to cleanup, once Runyard knows what it set up", () => {
       "m1",
     ),
   ).toEqual([]);
+});
+
+test("a runner set up before run history needs its job hooks", () => {
+  expect(
+    pendingChanges(view({ registrations: [{ ...registration, history: null }] }), "m1"),
+  ).toEqual(["Set job hooks on lxc-check-01"]);
 });
 
 test("labels that differ on the forge, ignoring the ones GitHub adds", () => {

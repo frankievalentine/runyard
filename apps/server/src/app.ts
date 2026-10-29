@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import type { JobHistory } from "./history/recorder.ts";
+import { historyRoutes } from "./routes/history.ts";
 import pkg from "../package.json" with { type: "json" };
 import {
   identify,
@@ -56,6 +58,7 @@ export type AppDeps = {
   machineSetup: MachineSetupCodes;
   testJobs: TestJobs;
   dispatcher: Dispatcher;
+  history: JobHistory;
 } & Omit<GithubDeps, "db" | "listener"> &
   Omit<SetupDeps, "db">;
 
@@ -95,6 +98,7 @@ export function createApi(deps: AppDeps, build: string | null = null) {
     .route("/", machineSetupRoutes(deps))
     .route("/", testJobRoutes(deps))
     .route("/", tokenRoutes(deps))
+    .route("/", historyRoutes(deps))
     .route("/", mcpRoutes({ ...deps, checkPool: poolChecker(deps) }))
     .route("/github", githubRoutes(deps))
     .route("/", poolRoutes(deps))

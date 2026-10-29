@@ -70,6 +70,36 @@ export class GithubHttp {
     return page;
   }
 
+  /**
+   * A text download such as a job's log, following GitHub's redirect to its
+   * storage; only the last `maxBytes` are kept. Never cached.
+   */
+  async getText(path: string, maxBytes: number): Promise<string> {
+    const url = `${this.apiBase.replace(/\/$/, "")}${path}`;
+    let res: Response;
+    try {
+      res = await this.fetch(
+        new Request(url, {
+          headers: {
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": API_VERSION,
+            "User-Agent": "runyard",
+            Authorization: `Bearer ${await this.token()}`,
+          },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        }),
+      );
+    } catch (error) {
+      throw new GithubError(
+        `Couldn't reach GitHub: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    this.recordRate(res.headers);
+    if (!res.ok) throw await errorFor(res, this.rateLimit);
+    const text = await res.text();
+    return text.length > maxBytes ? text.slice(-maxBytes) : text;
+  }
+
   /** A write (POST, PUT, DELETE). Never cached. */
   async send(
     method: "POST" | "PUT" | "PATCH" | "DELETE",

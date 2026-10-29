@@ -70,6 +70,8 @@ export type Registration = {
   runnerKind: RunnerKind;
   /** The cleanup Runyard last set up in it; null when not recorded. */
   cleanup?: CleanupMode | null;
+  /** Its job hooks record its jobs for run history; null when not set up or not recorded. */
+  history?: boolean | null;
 };
 
 /** Whether a scope may get persistent runners. */
@@ -175,13 +177,15 @@ export function planMachine(input: PlanInput): PlanItem[] {
         ...item(
           "configureCleanup",
           mode === "off"
-            ? "Remove Runyard's cleanup hook and restart the runner."
-            : `After each job, clear its workspace${mode === "docker" ? " and prune unused Docker data" : ""}; restarts the runner to take effect.`,
+            ? "Record its jobs for run history, clearing nothing after them; restarts the runner to take effect."
+            : `Record its jobs for run history, and after each one clear its workspace${mode === "docker" ? " and prune unused Docker data" : ""}; restarts the runner to take effect.`,
           blocked,
         ),
         cleanup: mode,
       };
     };
+    // Runyard's job hooks record every job for run history; Linux and macOS GitHub runners.
+    const hooked = d.runnerKind === "actions" && d.serviceMode !== "windows-service";
 
     if (d.runnerKind === "forgejo" && d.serviceMode !== "systemd") {
       items.push(item("unsupportedPlatform", "forgejo-runner is only published for Linux.", true));
@@ -224,8 +228,10 @@ export function planMachine(input: PlanInput): PlanItem[] {
           d.labels,
         ),
       );
-      // A new runner starts without Runyard's hook; set it up right after the install.
-      if (d.cleanup && d.cleanup !== "off") items.push(cleanupItem(d.cleanup, false));
+      // A new runner starts without Runyard's hooks; set them up right after the install.
+      // (On Windows only a cleanup asked for is noted, as not supported there yet.)
+      if (hooked || (d.cleanup && d.cleanup !== "off"))
+        items.push(cleanupItem(d.cleanup ?? "off", false));
       continue;
     }
     if (!remote && configured) {
@@ -269,13 +275,15 @@ export function planMachine(input: PlanInput): PlanItem[] {
       items.push(item("reconcileLabels", changes.filter(Boolean).join("; "), false, d.labels));
     }
     const wantCleanup = d.cleanup ?? "off";
-    if (d.runnerKind === "actions" && (local.cleanup ?? "off") !== wantCleanup) {
+    // Runners set up before run history lack the hooks (false); undefined where it isn't read.
+    const needsHooks = hooked && local.history === false;
+    if (d.runnerKind === "actions" && ((local.cleanup ?? "off") !== wantCleanup || needsHooks)) {
       items.push(
         remote.busy
           ? {
               ...cleanupItem(wantCleanup, true),
               reason:
-                "It's running a job; changing its cleanup restarts it, so this waits until it's idle.",
+                "It's running a job; setting its job hooks restarts it, so this waits until it's idle.",
             }
           : cleanupItem(wantCleanup, false),
       );

@@ -89,7 +89,7 @@ describe("cleanup after each job", () => {
       pendingChanges(await s.call<YardView>("GET", "/api/yard"), s.machine.id);
     expect(await waiting()).toEqual([]);
     await poolWith(s, "docker", id);
-    expect(await waiting()).toEqual(["Set cleanup on mini-mac-01"]);
+    expect(await waiting()).toEqual(["Set job hooks on mini-mac-01"]);
     await run(s, await review(s));
     expect(await waiting()).toEqual([]);
   });

@@ -42,6 +42,7 @@ describe("a pool's tool profiles", () => {
       ["installTools", false, ["unzip", "zip", "xz", "zstd", "jq", "gpg"]],
       ["installTools", true, ["docker"]],
       ["install", false, null],
+      ["configureCleanup", false, null],
     ]);
     const op = await finish(
       s,
@@ -51,6 +52,7 @@ describe("a pool's tool profiles", () => {
     expect(s.host.received.filter((r) => r.op !== "probe").map((r) => r.op)).toEqual([
       "tools-install",
       "install",
+      "cleanup-configure",
     ]);
     expect(s.host.received.find((r) => r.op === "tools-install")?.env.RF_TOOLS).toBe(
       "unzip zip xz zstd jq gpg",

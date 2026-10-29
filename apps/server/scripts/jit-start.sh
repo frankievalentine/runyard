@@ -33,6 +33,8 @@ fi
 rm -f "$RF_JOB_DIR/.runyard-template"
 cd "$RF_JOB_DIR"
 umask 077
+# Its jobs are recorded for run history, like a persistent runner's.
+if [ "$RF_KIND" = actions ]; then runyard_job_hooks "$(pwd -P)" "$RF_NAME"; fi
 
 if [ "$RF_KIND" = actions ]; then
   : "${RF_JIT_CONFIG:?}"

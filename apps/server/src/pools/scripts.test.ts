@@ -87,6 +87,7 @@ describe("probe", () => {
       version: "2.329.0",
       agentName: "mini-mac-01",
       cleanup: null,
+      history: false,
     });
     expect(local.get("~/runyard-runners/mac/02")).toMatchObject({
       configured: false,

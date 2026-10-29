@@ -1,9 +1,10 @@
-# Sets what a GitHub runner clears after each job (RF_CLEANUP: off,
-# workspace or docker) through the runner's job-completed hook: writes
-# runyard-job-completed.sh into its directory, points .env's
-# ACTIONS_RUNNER_HOOK_JOB_COMPLETED at it (an absolute path, as the runner
-# needs), records the mode in .runyard-cleanup, and restarts the service so
-# the runner reads .env again. Runyard only sends this for an idle runner.
+# Sets a GitHub runner's job hooks: both record each job for run history, and
+# the job-completed one also clears what RF_CLEANUP says (off, workspace or
+# docker). Writes runyard-job-started.sh and runyard-job-completed.sh into its
+# directory, points .env at them (absolute paths, as the runner needs), records
+# the mode in .runyard-cleanup and the hooks in .runyard-history, and restarts
+# the service so the runner reads .env again. Runyard only sends this for an
+# idle runner.
 set -eu
 
 : "${RF_ROOT:?}"
@@ -17,21 +18,13 @@ case "$RF_CLEANUP" in off | workspace | docker) ;; *) echo "unknown cleanup: $RF
 [ -f "$RF_ROOT/.runner" ] || { echo "no configured runner at $RF_ROOT" >&2; exit 3; }
 cd "$RF_ROOT"
 root="$(pwd -P)"
-hook="$root/runyard-job-completed.sh"
 
-# .env without Runyard's line; the runner wrote the rest and keeps it.
-kept="$(mktemp "$root/.env.XXXXXX")"
-if [ -f .env ]; then grep -v '^ACTIONS_RUNNER_HOOK_JOB_COMPLETED=' .env >"$kept" || true; fi
-
-if [ "$RF_CLEANUP" = off ]; then
-  rm -f "$hook" .runyard-cleanup
-  mv "$kept" .env
-  echo "Removed Runyard's cleanup hook."
-else
+agent="$(tr -d '[:space:]' < .runner | sed -n 's/.*"agentName":"\([^"]*\)".*/\1/p')"
+extra="$(mktemp "$root/.cleanup.XXXXXX")"
+trap 'rm -f "$extra"' EXIT
+if [ "$RF_CLEANUP" != off ]; then
   {
-    echo '#!/bin/sh'
-    echo "# Written by Runyard for this runner's pool. Clears the job's workspace when"
-    echo "# a job ends, only inside this runner's _work directory, and never fails the job."
+    echo "# Clears the job's workspace, only inside this runner's _work directory."
     printf "root='%s'\n" "$root"
     cat <<'HOOK'
 ws="${GITHUB_WORKSPACE:-}"
@@ -57,13 +50,15 @@ if command -v docker >/dev/null 2>&1; then
 fi
 HOOK
     fi
-    echo 'exit 0'
-  } >"$hook"
-  chmod 755 "$hook"
-  printf 'ACTIONS_RUNNER_HOOK_JOB_COMPLETED=%s\n' "$hook" >>"$kept"
-  mv "$kept" .env
+  } >"$extra"
+fi
+runyard_job_hooks "$root" "${agent:-runner}" "$extra"
+if [ "$RF_CLEANUP" = off ]; then
+  rm -f .runyard-cleanup
+  echo "Set the runner to record its jobs for run history; it clears nothing after them."
+else
   printf '%s\n' "$RF_CLEANUP" >.runyard-cleanup
-  echo "Set the runner to clear its workspace after each job$([ "$RF_CLEANUP" = docker ] && echo ' and prune unused Docker data')."
+  echo "Set the runner to record its jobs and clear its workspace after each one$([ "$RF_CLEANUP" = docker ] && echo ', pruning unused Docker data')."
 fi
 
 # The runner reads .env when it starts.

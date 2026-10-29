@@ -4,6 +4,7 @@ import windowsDiagnostics from "../../scripts/machine-diagnostics.ps1" with { ty
 import posixDiagnostics from "../../scripts/machine-diagnostics.sh" with { type: "text" };
 import windowsHealth from "../../scripts/machine-health.ps1" with { type: "text" };
 import posixHealth from "../../scripts/machine-health.sh" with { type: "text" };
+import posixJobs from "../../scripts/machine-jobs.sh" with { type: "text" };
 import windowsReadiness from "../../scripts/machine-readiness.ps1" with { type: "text" };
 import posixReadiness from "../../scripts/machine-readiness.sh" with { type: "text" };
 import type { CommandRunner } from "../command.ts";
@@ -97,11 +98,16 @@ const FORGE_HOST = /^[A-Za-z0-9.-]+(:\d{1,5})?$/;
  * Diagnostics and readiness run isolated from health; readiness tries an
  * HTTPS request to each forge host.
  */
-export function inspectionScript(windows: boolean, forgeHosts: readonly string[] = []): string {
+export function inspectionScript(
+  windows: boolean,
+  forgeHosts: readonly string[] = [],
+  jobsSince = 0,
+): string {
   const hosts = [...new Set(forgeHosts.filter((h) => FORGE_HOST.test(h)))];
+  const since = Number.isInteger(jobsSince) && jobsSince >= 0 ? jobsSince : 0;
   return windows
     ? `${windowsHealth}\n& {\n${windowsDiagnostics}\n$RunyardForgeHosts = @(${hosts.map((h) => `'${h}'`).join(", ")})\n${windowsReadiness}\n}\n`
-    : `${posixHealth}\n(\n${posixDiagnostics}\nRUNYARD_FORGE_HOSTS='${hosts.join(" ")}'\n${posixReadiness}\n)\n`;
+    : `${posixHealth}\n(\n${posixDiagnostics}\nRUNYARD_FORGE_HOSTS='${hosts.join(" ")}'\n${posixReadiness}\n)\n(\nRUNYARD_JOBS_SINCE=${since}\n${posixJobs}\n)\n`;
 }
 
 export function scriptCommand(
@@ -142,13 +148,14 @@ export async function inspect(
   machine: { sshTarget: string; transport: SshTransport; runyardKeyOnly?: boolean },
   os: OsFamily | null,
   forgeHosts: readonly string[] = [],
+  jobsSince = 0,
 ): Promise<string> {
   const windows = os === "windows";
   const { argv, stdin } = scriptCommand(
     programs,
     machine,
     windows,
-    inspectionScript(windows, forgeHosts),
+    inspectionScript(windows, forgeHosts, jobsSince),
   );
   const res = await run(argv, { stdin, timeoutMs: SSH_TIMEOUT_MS });
   if (res.code === 0) return res.stdout;

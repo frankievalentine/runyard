@@ -137,7 +137,10 @@ describe("the MCP server", () => {
     });
     expect(saved.isError).toBe(false);
     const review = (await call(s.app, prepare, "prepare_review", { machine: "Mini" })).json();
-    expect(review.changes.map((c: { action: string }) => c.action)).toEqual(["install"]);
+    expect(review.changes.map((c: { action: string }) => c.action)).toEqual([
+      "install",
+      "configureCleanup",
+    ]);
     expect(review.link).toMatch(/\/machines\/m_[a-z0-9]+\?review=[0-9a-f-]+#changes$/);
     // A person opens it in the dashboard, which shows who prepared it.
     const reviewId = new URL(review.link).searchParams.get("review");
@@ -147,7 +150,7 @@ describe("the MCP server", () => {
     expect(s.host.received.filter((r) => r.op === "install")).toEqual([]);
     const events = listEvents(s.deps.db, { machineId: s.machine.id, limit: 10 });
     expect(events.filter((e) => e.kind === "agentPrepared").map((e) => e.detail)).toEqual([
-      'Prepared a review of 1 change (by agent-owner via token "Claude Code")',
+      'Prepared a review of 2 changes (by agent-owner via token "Claude Code")',
       'Created pool mac (by agent-owner via token "Claude Code")',
     ]);
   });

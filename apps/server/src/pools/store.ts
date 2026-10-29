@@ -119,6 +119,7 @@ export function listRegistrations(db: Db): Registration[] {
       serviceMode: r.serviceMode,
       runnerKind: r.runnerKind,
       cleanup: r.cleanup,
+      history: r.history,
     }));
 }
 
@@ -143,7 +144,8 @@ export function recordRegistration(db: Db, r: Registration) {
 
 /** After the cleanup hook is set up or removed, so the dashboard knows what's in place. */
 export function recordCleanup(db: Db, key: string, cleanup: CleanupMode) {
-  db.update(registrations).set({ cleanup }).where(eq(registrations.key, key)).run();
+  // The same step sets up the job hooks.
+  db.update(registrations).set({ cleanup, history: true }).where(eq(registrations.key, key)).run();
 }
 
 export function forgetRegistration(db: Db, machineId: string, scope: Scope, runnerName: string) {

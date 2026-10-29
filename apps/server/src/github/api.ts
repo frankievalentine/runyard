@@ -27,6 +27,7 @@ type RawRunner = {
 type RawJob = {
   id: number;
   run_id: number;
+  run_attempt?: number;
   name: string;
   workflow_name?: string | null;
   status: string;
@@ -212,6 +213,7 @@ async function repoJobs(http: GithubHttp, repo: string) {
       jobs.push({
         id: j.id,
         runId: j.run_id,
+        runAttempt: j.run_attempt ?? 1,
         repo,
         name: j.name,
         workflowName: j.workflow_name ?? null,

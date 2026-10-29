@@ -18,6 +18,7 @@ import templateInstall from "../../scripts/template-install.sh" with { type: "te
 import templateRemove from "../../scripts/template-remove.sh" with { type: "text" };
 import toolsInstall from "../../scripts/tools-install.sh" with { type: "text" };
 import cleanupConfigure from "../../scripts/cleanup-configure.sh" with { type: "text" };
+import jobHooks from "../../scripts/job-hooks.sh" with { type: "text" };
 
 export type Operation =
   | "install"
@@ -122,7 +123,7 @@ export function operationScript(
     .map(([k, v]) => `export ${k}=${PATHS.has(k) ? shPath(v) : shQuote(v)}`)
     .join("\n");
   const nixos = `export RF_NIXOS_SERVICE_HELPER=${shQuote(nixosHelper)}`;
-  return `${env}\n${nixos}\n${MAC_PATH}\n${runAsRoot}\n${SCRIPTS[op].posix}`;
+  return `${env}\n${nixos}\n${MAC_PATH}\n${runAsRoot}\n${jobHooks}\n${SCRIPTS[op].posix}`;
 }
 
 /**
@@ -169,10 +170,11 @@ $rows += [pscustomobject]@{ index = ${i}; configured = $configured; service = $s
   if [ -z "$label" ]; then service=uninstalled
   else service="$(systemctl is-active "$label" 2>/dev/null || true)"; [ -n "$service" ] || service=unknown; fi`;
     return `path=${shPath(t.path)}
-configured=false; service=missing; version=''; agent=''; cleanup=''
+configured=false; service=missing; version=''; agent=''; cleanup=''; history=''
 if [ -f "$path/.runner" ]; then
   configured=true
   cleanup="$(cat "$path/.runyard-cleanup" 2>/dev/null || true)"
+  history="$(cat "$path/.runyard-history" 2>/dev/null || true)"
   ${service}
   # actions/runner records agentName; forgejo-runner records name.
   agent="$(tr -d '[:space:]' < "$path/.runner" | sed -n 's/.*"agentName":"\\([^"]*\\)".*/\\1/p')"
@@ -183,7 +185,7 @@ if [ -f "$path/.runner" ]; then
     version="$("$path/forgejo-runner" --version 2>/dev/null | awk '{print $NF; exit}')"
   fi
 fi
-printf 'RF1\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' ${i} "$configured" "$service" "$version" "$agent" "$cleanup"`;
+printf 'RF1\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' ${i} "$configured" "$service" "$version" "$agent" "$cleanup" "$history"`;
   });
   return ["set -u", ...blocks, "printf 'RF_PROBE_END\\n'"].join("\n");
 }
@@ -212,6 +214,7 @@ export function parseProbe(
     version: string | null;
     agent: string | null;
     cleanup?: CleanupMode | null;
+    history?: boolean;
   }[] = [];
   if (windows) {
     const json = output.slice(0, output.lastIndexOf("RF_PROBE_END")).trim();
@@ -229,7 +232,7 @@ export function parseProbe(
   } else {
     for (const line of output.split(/\r?\n/)) {
       if (!line.startsWith("RF1\t")) continue;
-      const [, index, configured, service, version, agent, cleanup] = line.split("\t");
+      const [, index, configured, service, version, agent, cleanup, history] = line.split("\t");
       if (index === undefined || configured === undefined || service === undefined) {
         throw new ProbeError(`Malformed runner check row: ${line}`);
       }
@@ -240,6 +243,7 @@ export function parseProbe(
         version: version?.trim() || null,
         agent: agent?.trim() || null,
         cleanup: cleanupMode(cleanup),
+        history: history?.trim() === "1",
       });
     }
   }
@@ -255,6 +259,7 @@ export function parseProbe(
       version: row.version,
       agentName: row.agent,
       cleanup: row.cleanup ?? null,
+      ...(row.history !== undefined ? { history: row.history } : {}),
     });
   }
   if (result.size !== targets.length)

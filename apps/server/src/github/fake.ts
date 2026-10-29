@@ -19,6 +19,8 @@ type Job = {
   runner_name?: string;
   created_at: string;
   started_at?: string;
+  completed_at?: string;
+  conclusion?: string | null;
 };
 type Installation = {
   id: number;
@@ -47,7 +49,12 @@ export class FakeGithub {
   jitConfigs: { owner: string; name: string; labels: string[]; config: string; id: number }[] = [];
   deletedRunners: { owner: string; id: number }[] = [];
   /** Workflow runs by `owner/repo`, each with its jobs. */
-  runs = new Map<string, { id: number; status: "queued" | "in_progress"; jobs: Job[] }[]>();
+  runs = new Map<
+    string,
+    { id: number; status: "queued" | "in_progress" | "completed"; jobs: Job[] }[]
+  >();
+  /** Job logs by job ID. */
+  logs = new Map<number, string>();
   tokens = new Map<string, number>();
   requests: string[] = [];
   /** Test workflows present, as `owner/repo`; dispatches made; and the runs they started. */
@@ -320,18 +327,27 @@ export class FakeGithub {
         workflow_runs: runs.map((r) => ({ id: r.id })),
       });
     });
-    app.get("/repos/:owner/:repo/actions/runs/:run/jobs", (c) => {
+    const runJobs = (c: Context) => {
       if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
       const repo = `${c.req.param("owner")}/${c.req.param("repo")}`;
       const run = (this.runs.get(repo) ?? []).find((r) => r.id === Number(c.req.param("run")));
-      const jobs = (run?.jobs ?? []).map((j) => ({
+      if (!run) return c.json({ message: "Not Found" }, 404);
+      const jobs = run.jobs.map((j) => ({
         ...j,
-        run_id: run!.id,
+        run_id: run.id,
+        run_attempt: 1,
         workflow_name: "CI",
-        html_url: null,
+        html_url: `https://github.test/${repo}/actions/runs/${run.id}/job/${j.id}`,
         head_branch: "main",
       }));
       return this.page(c, { total_count: jobs.length, jobs });
+    };
+    app.get("/repos/:owner/:repo/actions/runs/:run/jobs", runJobs);
+    app.get("/repos/:owner/:repo/actions/runs/:run/attempts/:attempt/jobs", runJobs);
+    app.get("/repos/:owner/:repo/actions/jobs/:id/logs", (c) => {
+      if (!this.installationFor(c)) return c.json({ message: "Bad credentials" }, 401);
+      const log = this.logs.get(Number(c.req.param("id")));
+      return log === undefined ? c.json({ message: "Not Found" }, 404) : c.text(log);
     });
     return app;
   }

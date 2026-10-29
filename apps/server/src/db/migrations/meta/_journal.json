@@ -127,6 +127,20 @@
       "when": 1793303626400,
       "tag": "0017_registration_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1793312850669,
+      "tag": "0018_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1793313207413,
+      "tag": "0019_registration_history",
+      "breakpoints": true
     }
   ]
 }

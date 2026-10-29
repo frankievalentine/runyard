@@ -46,9 +46,12 @@ export function pendingChanges(view: YardView, machineId: string): string[] {
       const drift = labelDrift(d.labels, remote.labels);
       if (drift.missing.length || drift.unexpected.length) out.push(`Update labels on ${d.name}`);
     }
-    // Unknown (null) for runners installed before Runyard recorded it.
+    // Cleanup unknown (null) for runners installed before Runyard recorded it; job hooks
+    // missing on runners set up before run history.
     const applied = registration.cleanup;
-    if (applied != null && applied !== (d.cleanup ?? "off")) out.push(`Set cleanup on ${d.name}`);
+    const cleanupChanged = applied != null && applied !== (d.cleanup ?? "off");
+    const hooksMissing = d.serviceMode !== "windows-service" && registration.history !== true;
+    if (cleanupChanged || hooksMissing) out.push(`Set job hooks on ${d.name}`);
   }
   const wanted = new Set(desired.map((d) => d.key));
   for (const r of p.registrations)

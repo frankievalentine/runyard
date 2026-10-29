@@ -17,6 +17,8 @@ export type GhRunner = {
 export type GhJob = {
   id: number;
   runId: number;
+  /** Which attempt of the run; 1 unless it was re-run. */
+  runAttempt?: number;
   /** `owner/name`. */
   repo: string;
   name: string;

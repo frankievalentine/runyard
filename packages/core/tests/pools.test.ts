@@ -147,14 +147,31 @@ describe("planMachine", () => {
   const gh = (r: RemoteRunner) => new Map([[scopeKey(org), new Map([[r.name.toLowerCase(), r]])]]);
   const actions = (i: PlanInput) => planMachine(i).map((p) => [p.action, p.blocked]);
 
-  test("installs a runner nobody has yet", () => {
-    expect(actions(input())).toEqual([["install", false]]);
+  test("installs a runner nobody has yet, then sets its job hooks", () => {
+    expect(actions(input())).toEqual([
+      ["install", false],
+      ["configureCleanup", false],
+    ]);
   });
 
   test("a runner in sync needs nothing", () => {
     expect(actions(input({ local: new Map([[d.path, local()]]), github: gh(remote()) }))).toEqual(
       [],
     );
+  });
+
+  test("a runner from before run history gets its job hooks once, then nothing", () => {
+    const at = (history: boolean | undefined) =>
+      actions(
+        input({
+          local: new Map([[d.path, { ...local(), ...(history === undefined ? {} : { history }) }]]),
+          github: gh(remote()),
+        }),
+      );
+    expect(at(false)).toEqual([["configureCleanup", false]]);
+    expect(at(true)).toEqual([]);
+    // Not read (as on Windows): nothing is guessed.
+    expect(at(undefined)).toEqual([]);
   });
 
   test("an unreachable machine or GitHub blocks instead of looking missing", () => {
