@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { AccessTokens } from "../../components/AccessTokens.tsx";
+import { SetupSummary } from "../../components/SetupChecklist.tsx";
 import { Button, TextField } from "../../components/form.tsx";
 import { Card, ErrorText, Pill, Section } from "../../components/ui.tsx";
 import { addPasskey, passkeysAvailable } from "../../lib/passkeys.ts";
@@ -60,6 +61,7 @@ function Account() {
       <Passkeys />
       <AccessTokens admin={user.role === "admin"} />
       {user.username && <ChangePassword />}
+      {user.role === "admin" && <SetupSummary />}
     </div>
   );
 }

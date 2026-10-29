@@ -5,7 +5,7 @@ import { useYard } from "../lib/yard.ts";
 import { checksQuery } from "../lib/queries.ts";
 import { machineToConnect, machineToReview, setupSteps, type SetupStep } from "../lib/setup.ts";
 import { Icon } from "./icons.tsx";
-import { Card } from "./ui.tsx";
+import { Card, Section } from "./ui.tsx";
 
 const HIDDEN_KEY = "runyard.setupChecklistHidden";
 const button =
@@ -19,20 +19,22 @@ function readHidden(): boolean {
   }
 }
 
-/**
- * The first-run checklist, at the top of the overview until every step is
- * done or this viewer hides it. Steps come from what already exists.
- */
-export function SetupChecklist() {
+/** Whether this browser dismissed the overview's checklist; the Account tab can bring it back. */
+function writeHidden(hidden: boolean) {
+  try {
+    if (hidden) localStorage.setItem(HIDDEN_KEY, "1");
+    else localStorage.removeItem(HIDDEN_KEY);
+  } catch {
+    // Storage unavailable: it lasts for this visit only.
+  }
+}
+
+/** Where each unfinished step is done, as a link. */
+function useStepActions(): Record<SetupStep["id"], ReactNode> {
   const view = useYard();
-  const [hidden, setHidden] = useState(readHidden);
-  const checks = useQuery(checksQuery);
-  const steps = setupSteps(view);
-  const done = steps.filter((s) => s.done).length;
-  if (hidden || done === steps.length) return null;
   const review = machineToReview(view);
   const stuck = machineToConnect(view);
-  const actions: Record<SetupStep["id"], ReactNode> = {
+  return {
     forge: (
       <Link to="/settings/connections" className={button}>
         Connect a forge
@@ -58,27 +60,43 @@ export function SetupChecklist() {
       </Link>
     ) : null,
   };
+}
+
+/**
+ * The first-run checklist, at the top of the overview until this viewer
+ * dismisses it, even once every step is done. Steps come from what already
+ * exists.
+ */
+export function SetupChecklist() {
+  const view = useYard();
+  const [hidden, setHidden] = useState(readHidden);
+  const checks = useQuery(checksQuery);
+  const actions = useStepActions();
+  const steps = setupSteps(view);
+  const done = steps.filter((s) => s.done).length;
+  if (hidden) return null;
+  const finished = done === steps.length;
   const problems = (checks.data ?? []).filter((c) => c.state === "warn" || c.state === "bad");
   const next = steps.find((s) => !s.done)?.id;
-  const hide = () => {
-    try {
-      localStorage.setItem(HIDDEN_KEY, "1");
-    } catch {
-      // Storage unavailable: hidden for this visit only.
-    }
+  const dismiss = () => {
+    writeHidden(true);
     setHidden(true);
   };
   return (
     <Card className="mt-6 overflow-hidden">
       <div className="flex items-center gap-3 border-b border-line px-4 py-3">
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-semibold">Get Runyard running</div>
+          <div className="text-[14px] font-semibold">
+            {finished ? "Runyard is running" : "Get Runyard running"}
+          </div>
           <div className="text-[12px] text-ink-2">
-            {done} of {steps.length} done
+            {finished
+              ? "Every step is done. Settings ▸ Account keeps this list."
+              : `${done} of ${steps.length} done`}
           </div>
         </div>
-        <button type="button" onClick={hide} className="text-[12px] text-ink-2 hover:text-ink">
-          Hide
+        <button type="button" onClick={dismiss} className="text-[12px] text-ink-2 hover:text-ink">
+          Dismiss
         </button>
       </div>
       <ol className="divide-y divide-line">
@@ -135,5 +153,57 @@ export function SetupChecklist() {
         </div>
       )}
     </Card>
+  );
+}
+
+/**
+ * The checklist in brief for Settings ▸ Account: one line per step, a link
+ * for the next one, and a way to put the full card back on the overview.
+ */
+export function SetupSummary() {
+  const view = useYard();
+  const actions = useStepActions();
+  const [hidden, setHidden] = useState(readHidden);
+  const steps = setupSteps(view);
+  const done = steps.filter((s) => s.done).length;
+  const next = steps.find((s) => !s.done)?.id;
+  const toggle = () => {
+    writeHidden(!hidden);
+    setHidden(!hidden);
+  };
+  return (
+    <Section
+      title="Getting started"
+      action={
+        <button type="button" onClick={toggle} className="text-[12px] text-ink-2 hover:text-ink">
+          {hidden ? "Show on overview" : "Dismiss from overview"}
+        </button>
+      }
+    >
+      <Card className="overflow-hidden">
+        <div className="border-b border-line px-4 py-2.5 text-[12px] text-ink-2">
+          {done === steps.length ? "Every step is done." : `${done} of ${steps.length} done`}
+        </div>
+        <ol className="divide-y divide-line">
+          {steps.map((s) => (
+            <li key={s.id} className="flex items-center gap-2.5 px-4 py-2 text-[13px]">
+              <span className="flex w-3 shrink-0 justify-center text-ok">
+                {s.done ? (
+                  <Icon name="check" size={12} />
+                ) : (
+                  <span
+                    className={`size-2.5 rounded-full border ${s.id === next ? "border-accent" : "border-line-strong"}`}
+                  />
+                )}
+              </span>
+              <span className={`min-w-0 flex-1 ${s.done ? "text-ink-2" : "font-medium"}`}>
+                {s.title}
+              </span>
+              {s.id === next && actions[s.id]}
+            </li>
+          ))}
+        </ol>
+      </Card>
+    </Section>
   );
 }
