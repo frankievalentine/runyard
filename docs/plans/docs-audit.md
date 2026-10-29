@@ -29,6 +29,11 @@ Split `docs/GUIDE.md` into task pages under `docs/`, with the README as a short 
 - Tailscale Funnel is off by default and must be turned on for the tailnet before webhooks
   (now said in the Webhooks section, the guide and the README).
 - Funnel publishes the webhook listener on port 443; the dashboard stays on 7443, tailnet only.
+- Funnel's public DNS record took 20 to 30 minutes to appear in live testing, past Tailscale's
+  documented 10, even with the `funnel` node attribute, the Funnel label and `tailscale funnel
+  status` all in order. Check it with `dig +short <machine>.<tailnet>.ts.net @1.1.1.1` (a public
+  resolver; Tailscale's own answers with the tailnet address), or from a device off the tailnet.
+  "Funnel serves it at …" in Runyard reflects only the local setting.
 - The LXC was Debian 13, not 12; the Tailscale `/dev/net/tun` lines; a DNS note for the Proxmox
   recipe, pending which case it was.
 - On the control Mac, an SSH agent offering many keys gives "Too many authentication failures";
