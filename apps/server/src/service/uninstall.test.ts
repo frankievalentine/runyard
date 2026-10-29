@@ -56,9 +56,11 @@ describe("runyard uninstall", () => {
     } as unknown as ServiceContext;
     const lines: string[] = [];
     const log = (l: string) => lines.push(l);
-    await expect(uninstall(ctx, { purge: true, force: false, dryRun: true, log })).rejects.toThrow(
-      "box-mac-01",
+    const refused = await uninstall(ctx, { purge: true, force: false, dryRun: true, log }).then(
+      () => null,
+      (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
+    expect(refused).toContain("box-mac-01");
     await uninstall(ctx, { purge: true, force: true, dryRun: true, log });
     expect(lines.join("\n")).toContain(`remove ${binary}`);
     expect(lines.join("\n")).toContain("Nothing was changed");

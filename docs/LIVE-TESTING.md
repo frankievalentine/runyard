@@ -30,8 +30,9 @@ them, which is the point.
       setup code. If it serves on loopback only, send the reason it prints.
 - [ ] **1.3** Open the tailnet address from another device. Expect a valid certificate and the
       setup screen; enter the code and create the admin.
-- [ ] **1.4** Getting started's control-machine checks: expect SSH, SSH key (Runyard's own key,
-      with a fingerprint) and Tailscale HTTPS all green. Send any that aren't.
+- [ ] **1.4** Settings ▸ This machine: expect the OpenSSH client, SSH key (Runyard's own, with a
+      fingerprint) and Tailscale HTTPS all green; Background service turns green after 1.5. Send
+      any others that aren't. (The overview only mentions these when one needs attention.)
 - [ ] **1.5** Stop it and run `runyard service install` (add `--dry-run` first to read it).
       Expect it to come back on its own at the same address. On Linux it asks for sudo; on
       macOS it starts at login.

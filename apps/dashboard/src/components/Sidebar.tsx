@@ -485,7 +485,9 @@ function Footer({ view, demo }: { view: YardView; demo: boolean }) {
   const text = demo ? (
     "Demo · fictional machines"
   ) : forgeError ? (
-    "A forge can't be read · Settings ▸ Connections"
+    <Link to="/settings/connections" className="hover:text-ink hover:underline">
+      A forge can't be read
+    </Link>
   ) : view.tailnet.error ? (
     "Tailscale unavailable"
   ) : checked ? (
@@ -495,11 +497,14 @@ function Footer({ view, demo }: { view: YardView; demo: boolean }) {
   ) : apps.length || conns.length ? (
     "Waiting for the forges"
   ) : (
-    "No forge connected · Settings ▸ Connections"
+    <Link to="/settings/connections" className="hover:text-ink hover:underline">
+      No forge connected
+    </Link>
   );
+  const noForge = !demo && apps.length === 0 && conns.length === 0;
   return (
     <div className="flex h-9 shrink-0 items-center gap-2 border-t border-line px-3 text-[11px] text-ink-2">
-      <StatusDot tone={problem ? "warn" : "ok"} size={6} />
+      <StatusDot tone={problem ? "warn" : noForge ? "muted" : "ok"} hollow={noForge} size={6} />
       <span
         className="min-w-0 flex-1 truncate"
         title={
@@ -507,7 +512,11 @@ function Footer({ view, demo }: { view: YardView; demo: boolean }) {
             ? view.tailnet.error
             : typeof text === "string"
               ? text
-              : undefined
+              : forgeError
+                ? "Open Settings ▸ Connections to see which"
+                : noForge
+                  ? "Connect GitHub or Forgejo in Settings ▸ Connections"
+                  : undefined
         }
       >
         {text}
