@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Dispatches } from "../../components/Dispatches.tsx";
+import { useJobs } from "../../components/Jobs.tsx";
 import { Icon } from "../../components/icons.tsx";
 import { emptyQueueText, forgesConnected, QueueList } from "../../components/runners.tsx";
 import { Card, PageHeader, Section } from "../../components/ui.tsx";
@@ -23,6 +24,8 @@ function Queue() {
   const recent = view.pools.dispatches.filter(
     (d) => d.state === "starting" || d.state === "running" || now - d.startedAt < RECENT_MS,
   );
+  // Their jobs' results, from run history.
+  const jobs = useJobs({});
   return (
     <div>
       <PageHeader
@@ -73,7 +76,7 @@ function Queue() {
             One-job runners Runyard started for queued jobs in the last half hour; their jobs leave
             the list above once a runner takes them.
           </p>
-          <Dispatches dispatches={recent.slice(0, 10)} showPool />
+          <Dispatches dispatches={recent.slice(0, 10)} jobs={jobs.data?.jobs ?? []} showPool />
         </Section>
       )}
       <div className="mt-4 space-y-1.5 text-[12px] text-ink-2">

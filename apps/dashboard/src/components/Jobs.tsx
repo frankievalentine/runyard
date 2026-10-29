@@ -13,7 +13,7 @@ import { Card, EmptyLine, ErrorText, Pill, Section } from "./ui.tsx";
 type Filter = { machine?: string; pool?: string; runner?: string };
 type JobsResponse = { days: number; counts: JobCounts; jobs: JobRecord[]; now: number };
 
-const RESULT: Record<ReturnType<typeof jobResult>, { tone: Tone; label: string }> = {
+export const JOB_RESULT: Record<ReturnType<typeof jobResult>, { tone: Tone; label: string }> = {
   passed: { tone: "ok", label: "Passed" },
   failed: { tone: "bad", label: "Failed" },
   cancelled: { tone: "muted", label: "Cancelled" },
@@ -34,14 +34,9 @@ export function countsLine(c: JobCounts): string {
   return parts.length ? parts.join(" · ") : "No jobs";
 }
 
-/**
- * Run history for a machine, pool or runner: the last 7 days' counts and the
- * newest jobs, each with its result, how long it took and its log.
- */
-export function Jobs({ filter, showMachine }: { filter: Filter; showMachine?: boolean }) {
-  const [failures, setFailures] = useState(false);
-  const [shown, setShown] = useState(10);
-  const jobs = useQuery({
+/** Run history's last 7 days for a machine, pool or runner, refreshed every 30 seconds. */
+export function useJobs(filter: Filter, failures = false) {
+  return useQuery({
     queryKey: ["jobs", filter, failures],
     queryFn: async () =>
       (await call(
@@ -49,6 +44,16 @@ export function Jobs({ filter, showMachine }: { filter: Filter; showMachine?: bo
       )) as unknown as JobsResponse,
     refetchInterval: 30_000,
   });
+}
+
+/**
+ * Run history for a machine, pool or runner: the last 7 days' counts and the
+ * newest jobs, each with its result, how long it took and its log.
+ */
+export function Jobs({ filter, showMachine }: { filter: Filter; showMachine?: boolean }) {
+  const [failures, setFailures] = useState(false);
+  const [shown, setShown] = useState(10);
+  const jobs = useJobs(filter, failures);
   const counts = jobs.data?.counts;
   return (
     <Section
@@ -100,7 +105,7 @@ function JobRow({ job, showMachine }: { job: JobRecord; showMachine?: boolean })
   const view = useYard();
   const now = useNow();
   const [open, setOpen] = useState(false);
-  const result = RESULT[jobResult(job, now)];
+  const result = JOB_RESULT[jobResult(job, now)];
   const runner = job.runnerName
     ? view.runners.find((r) => r.name.toLowerCase() === job.runnerName!.toLowerCase())
     : undefined;

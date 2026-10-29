@@ -1,5 +1,5 @@
-import type { MachineView, Pool, Scope } from "@runyard/core";
-import { Jobs } from "../../components/Jobs.tsx";
+import type { Dispatch, MachineView, Pool, Scope } from "@runyard/core";
+import { countsLine, Jobs, useJobs } from "../../components/Jobs.tsx";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { MachineChanges } from "../../components/changes.tsx";
 import { Dispatches } from "../../components/Dispatches.tsx";
@@ -188,9 +188,7 @@ function PoolPage() {
           <Section title="Machines" count={pool.machines.length}>
             <OnDemandMachines pool={pool} />
           </Section>
-          <Section title="Recent one-job runners" count={dispatches.length}>
-            <Dispatches dispatches={dispatches.slice(0, 20)} />
-          </Section>
+          <OneJobRunners poolId={pool.id} dispatches={dispatches} />
         </>
       )}
       {!onDemand && (
@@ -245,7 +243,8 @@ function PoolPage() {
           )}
         </Section>
       )}
-      <Jobs filter={{ pool: pool.id }} showMachine={pool.machines.length > 1} />
+      {/* An on-demand pool's jobs are its one-job runners' rows above. */}
+      {!onDemand && <Jobs filter={{ pool: pool.id }} showMachine={pool.machines.length > 1} />}
       {view.pools.migrations.some((m) => m.poolId === pool.id) && (
         <Section
           title="Moving in"
@@ -613,5 +612,29 @@ function DeletePool({ pool, onDeleted }: { pool: Pool; onDeleted: () => void }) 
       pending={remove.isPending}
       error={remove.error}
     />
+  );
+}
+
+/**
+ * An on-demand pool's one-job runners, each with the job it ran: its result,
+ * the runner's log and the job's. Run history's counts head the list, since
+ * each runner runs one job.
+ */
+function OneJobRunners({ poolId, dispatches }: { poolId: string; dispatches: Dispatch[] }) {
+  const jobs = useJobs({ pool: poolId });
+  return (
+    <Section
+      title="One-job runners"
+      count={dispatches.length}
+      action={
+        jobs.data && (
+          <span className="text-[12px] text-ink-2">
+            Last 7 days: {countsLine(jobs.data.counts)}
+          </span>
+        )
+      }
+    >
+      <Dispatches dispatches={dispatches.slice(0, 20)} jobs={jobs.data?.jobs ?? []} />
+    </Section>
   );
 }

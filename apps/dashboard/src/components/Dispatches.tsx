@@ -1,4 +1,5 @@
-import type { Dispatch } from "@runyard/core";
+import { jobResult, type Dispatch, type JobRecord } from "@runyard/core";
+import { JOB_RESULT } from "./Jobs.tsx";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -21,10 +22,13 @@ const DISPATCH_STATE = {
 /** One-job runners the pool started, newest first, with how each ended. */
 export function Dispatches({
   dispatches,
+  jobs = [],
   showPool = false,
   empty = "None yet. A runner starts here when a matching job is queued and no idle runner can take it.",
 }: {
   dispatches: Dispatch[];
+  /** Run history's jobs, to show each runner's job and its result. */
+  jobs?: JobRecord[];
   /** Name each runner's pool, where runners from several pools are listed. */
   showPool?: boolean;
   empty?: string;
@@ -44,11 +48,15 @@ export function Dispatches({
     <Card className="overflow-hidden">
       <ul className="divide-y divide-line">
         {dispatches.map((d) => {
+          // The job it ran, once run history has it: its result says more than "Finished".
+          const job = jobs.find((j) => j.runnerName?.toLowerCase() === d.runnerName.toLowerCase());
           // Runyard notes this when the job was still queued after the runner ended.
           const state =
             d.state === "done" && d.detail?.includes("still waiting")
               ? ({ tone: "warn", label: "Ended early", hollow: false } as const)
-              : DISPATCH_STATE[d.state];
+              : job && d.state !== "failed"
+                ? { ...JOB_RESULT[jobResult(job, now)], hollow: false }
+                : DISPATCH_STATE[d.state];
           const runner = view.runners.find(
             (r) => r.scope.forgeId === d.scope.forgeId && r.name === d.runnerName,
           );
@@ -129,7 +137,7 @@ export function Dispatches({
                 {d.detail && (
                   <div className={d.state === "failed" ? "text-bad" : "text-ink-2"}>{d.detail}</div>
                 )}
-                {admin && <RunnerLog dispatch={d} />}
+                <Logs dispatch={d} job={job} admin={admin} />
               </div>
             </li>
           );
@@ -140,38 +148,55 @@ export function Dispatches({
 }
 
 /**
- * The step after saving a pool, on the pool's own page: each machine's review,
- * what it will do and a Run button, one machine at a time.
+ * A one-job runner's two logs: the runner's own, read from its machine (kept
+ * after it exits, live while it runs; it explains a job that was lost), and
+ * its job's, fetched from GitHub. Opened one at a time.
  */
-
-/** The runner's log from its machine, read when asked: kept after it exits, live while it runs. */
-function RunnerLog({ dispatch }: { dispatch: Dispatch }) {
-  const [open, setOpen] = useState(false);
+function Logs({ dispatch, job, admin }: { dispatch: Dispatch; job?: JobRecord; admin: boolean }) {
+  const [open, setOpen] = useState<"runner" | "job" | null>(null);
   const running = dispatch.state === "starting" || dispatch.state === "running";
-  const log = useQuery({
+  const runnerLog = useQuery({
     queryKey: ["dispatch-log", dispatch.id],
     queryFn: async () =>
       (await call(api.dispatches[":id"].log.$get({ param: { id: dispatch.id } }))) as {
         log: string;
       },
-    enabled: open,
+    enabled: open === "runner",
     retry: false,
-    refetchInterval: open && running ? 5000 : false,
+    refetchInterval: open === "runner" && running ? 5000 : false,
   });
+  const jobLog = useQuery({
+    queryKey: ["job-log", job?.id],
+    queryFn: async () =>
+      (await call(api.jobs[":id"].log.$get({ param: { id: job!.id } }))) as { log: string },
+    enabled: open === "job" && Boolean(job),
+    retry: false,
+  });
+  const toggle = (which: "runner" | "job") => setOpen(open === which ? null : which);
+  const log = open === "runner" ? runnerLog : jobLog;
+  const button = "text-[12px] font-medium text-accent hover:underline";
+  if (!admin && job?.jobId == null) return null;
   return (
     <div className="mt-1">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="text-[12px] font-medium text-accent hover:underline"
-      >
-        {open ? "Hide log" : "Show log"}
-      </button>
+      <div className="flex gap-3">
+        {admin && (
+          <button type="button" onClick={() => toggle("runner")} className={button}>
+            {open === "runner" ? "Hide runner log" : "Runner log"}
+          </button>
+        )}
+        {job?.jobId != null && (
+          <button type="button" onClick={() => toggle("job")} className={button}>
+            {open === "job" ? "Hide job log" : "Job log"}
+          </button>
+        )}
+      </div>
       {open && log.isPending && (
-        <div className="mt-1 text-[12px] text-ink-3">Reading it from the machine…</div>
+        <div className="mt-1 text-[12px] text-ink-3">
+          {open === "runner" ? "Reading it from the machine…" : "Fetching it from GitHub…"}
+        </div>
       )}
       {open && log.error && <ErrorText className="mt-1" error={log.error} />}
-      {open && log.data && <Terminal text={log.data.log} running={running} />}
+      {open && log.data && <Terminal text={log.data.log} running={open === "runner" && running} />}
     </div>
   );
 }

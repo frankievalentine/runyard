@@ -106,7 +106,7 @@ log. For 4.5, send what the card says.
       `runyard` account has lingering on, from 3.2).
 - [ ] **5.4** Pause the pool, queue a job: expect Queued jobs to say it's paused.
 
-For 5.2, send the pool page's Recent one-job runners entry and the machine's history.
+For 5.2, send the pool page's One-job runners entry and the machine's history.
 
 ## Round 6: taking over a hand-registered runner
 

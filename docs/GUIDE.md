@@ -214,12 +214,14 @@ clean anyway.
 
 ### Run history
 
-Each machine, pool and runner page has **Jobs**: the last 7 days' counts ("41 passed · 2
+Each machine, persistent pool and runner page has **Jobs**: the last 7 days' counts ("41 passed · 2
 failed") and the newest jobs with their result, how long they took, the repository and runner,
 a link to the run, and **Show log**, which fetches the job's log from GitHub when you open it
 and keeps nothing (GitHub keeps logs 90 days by default). The overview's machine table counts
 each machine's jobs, failures in red. Runs of the **Test this runner** workflow are marked
-**Test**. Jobs are kept 30 days.
+**Test**. Jobs are kept 30 days. An on-demand pool lists its **One-job runners** instead, each
+with its job's result, **Runner log** (from the machine; it explains a job that was lost) and
+**Job log** (from GitHub), under the same 7-day counts.
 
 A job that failed its steps is counted but doesn't flag the machine, since that's usually the
 code. A job whose runner said it started but never that it finished, after GitHub finished it,
