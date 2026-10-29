@@ -216,12 +216,12 @@ export function PoolForm({
             {MODES.map(([value, title, text]) => (
               <label
                 key={value}
-                className={`flex cursor-pointer gap-2 rounded-md border px-3 py-2 ${poolMode === value ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
+                className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 ${poolMode === value ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
               >
                 <input
                   type="radio"
                   name="poolMode"
-                  className="mt-1"
+                  className="mt-[3px] shrink-0"
                   checked={poolMode === value}
                   onChange={() => setPoolMode(value)}
                 />
@@ -331,12 +331,12 @@ export function PoolForm({
                 ).map(([value, title, detail]) => (
                   <label
                     key={value}
-                    className={`flex cursor-pointer gap-2 rounded-md border px-3 py-2 text-[12.5px] ${cleanup === value ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
+                    className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-[12.5px] ${cleanup === value ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
                   >
                     <input
                       type="radio"
                       name="cleanup"
-                      className="mt-0.5"
+                      className="mt-[3px] shrink-0"
                       checked={cleanup === value}
                       onChange={() => setCleanup(value)}
                     />
@@ -363,11 +363,11 @@ export function PoolForm({
                 return (
                   <label
                     key={p}
-                    className={`flex cursor-pointer gap-2 rounded-md border px-3 py-2 text-[12.5px] ${on ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
+                    className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-[12.5px] ${on ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
                   >
                     <input
                       type="checkbox"
-                      className="mt-0.5"
+                      className="mt-[3px] shrink-0"
                       checked={on}
                       onChange={() =>
                         setToolProfiles(

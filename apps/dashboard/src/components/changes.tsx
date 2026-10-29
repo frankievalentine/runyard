@@ -277,6 +277,14 @@ export function MachineChanges({
   );
 }
 
+const STEP_STATUS: Record<string, string> = {
+  pending: "Waiting",
+  running: "Running…",
+  succeeded: "Done",
+  failed: "Failed",
+  skipped: "Skipped",
+};
+
 function OperationLog({ op }: { op: Operation }) {
   return (
     <div className="border-t border-line">
@@ -306,10 +314,16 @@ function OperationLog({ op }: { op: Operation }) {
                 }
                 hollow={s.status === "pending" || s.status === "skipped"}
               />
-              <span className="font-mono">
-                {ACTION[s.action as PlanItem["action"]] ?? s.action} {s.runnerName}
+              <span className="font-medium">
+                {ACTION[s.action as PlanItem["action"]] ?? s.action}
               </span>
-              <span className="text-ink-3">{s.status}</span>
+              {/* Runners by name; a machine-wide step (tools) has no runner to name. */}
+              {s.runnerName !== "Tools" && (
+                <span className="min-w-0 truncate font-mono text-ink-2">{s.runnerName}</span>
+              )}
+              <span className="ml-auto shrink-0 text-ink-2">
+                {STEP_STATUS[s.status] ?? s.status}
+              </span>
             </div>
             {s.output && (
               <pre className="mt-1.5 max-h-48 overflow-auto rounded bg-sunken/60 px-3 py-2 font-mono text-[11.5px] whitespace-pre-wrap text-ink-2 select-text">

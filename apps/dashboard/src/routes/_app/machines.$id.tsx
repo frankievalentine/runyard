@@ -397,10 +397,13 @@ function Diagnostics({ m }: { m: MachineView }) {
                       <div key={c.id} className={`px-4 py-3 ${d.stale ? "opacity-60" : ""}`}>
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <dt className="flex min-w-0 items-center gap-2 text-[12px] text-ink-2">
-                            <StatusDot
-                              tone={d.stale ? "muted" : status.tone}
-                              hollow={c.status === "unknown" || d.stale}
-                            />
+                            {/* Plain facts (the account, the architecture) are just listed. */}
+                            {c.status !== "info" && (
+                              <StatusDot
+                                tone={d.stale ? "muted" : status.tone}
+                                hollow={c.status === "unknown" || d.stale}
+                              />
+                            )}
                             <span className="break-words">{c.title}</span>
                           </dt>
                           <dd className="max-w-full text-[12px] font-medium break-words">
