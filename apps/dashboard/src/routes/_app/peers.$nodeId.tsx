@@ -20,8 +20,13 @@ import { sessionQuery } from "../../lib/queries.ts";
 import { osLabel } from "../../lib/status.ts";
 
 export const Route = createFileRoute("/_app/peers/$nodeId")({
-  component: Peer,
+  component: KeyedPeer,
 });
+
+/** Each nodeId gets the page fresh: moving between them never carries one's state to the next. */
+function KeyedPeer() {
+  return <Peer key={Route.useParams().nodeId} />;
+}
 
 /** A tailnet device that isn't a Runyard machine: aarondfrancis/fleet's Other machines page, with Add instead of automatic checks. */
 function Peer() {

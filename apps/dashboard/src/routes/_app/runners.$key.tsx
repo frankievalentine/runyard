@@ -23,8 +23,13 @@ import { useNow } from "../../lib/now.ts";
 import { runnerStatus } from "../../lib/status.ts";
 
 export const Route = createFileRoute("/_app/runners/$key")({
-  component: Runner,
+  component: KeyedRunner,
 });
+
+/** Each key gets the page fresh: moving between them never carries one's state to the next. */
+function KeyedRunner() {
+  return <Runner key={Route.useParams().key} />;
+}
 
 /** aarondfrancis/fleet's RunnerDetail; machine and runner-management state join it with runner management. */
 function Runner() {

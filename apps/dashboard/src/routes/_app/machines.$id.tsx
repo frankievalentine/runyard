@@ -59,8 +59,13 @@ export const Route = createFileRoute("/_app/machines/$id")({
   /** `review`: one prepared elsewhere (an agent's, through the MCP server), to open for running. */
   validateSearch: (search: Record<string, unknown>): { review?: string } =>
     typeof search.review === "string" ? { review: search.review } : {},
-  component: Machine,
+  component: KeyedMachine,
 });
+
+/** Each id gets the page fresh: moving between them never carries one's state to the next. */
+function KeyedMachine() {
+  return <Machine key={Route.useParams().id} />;
+}
 
 /** aarondfrancis/fleet's MachineDetail; runners, changes and runner checks join it with runner management. */
 function Machine() {

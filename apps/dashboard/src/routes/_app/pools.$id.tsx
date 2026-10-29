@@ -35,8 +35,13 @@ export const Route = createFileRoute("/_app/pools/$id")({
   /** `setup`: just saved, so each machine's review is prepared and shown first. */
   validateSearch: (search: Record<string, unknown>): { setup?: boolean } =>
     search.setup === true || search.setup === "true" ? { setup: true } : {},
-  component: PoolPage,
+  component: KeyedPoolPage,
 });
+
+/** Each id gets the page fresh: moving between them never carries one's state to the next. */
+function KeyedPoolPage() {
+  return <PoolPage key={Route.useParams().id} />;
+}
 
 function PoolPage() {
   const { id } = Route.useParams();
