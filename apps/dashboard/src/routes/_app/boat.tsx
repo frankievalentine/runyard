@@ -1,5 +1,5 @@
-import { AlertDialog } from "@base-ui/react/alert-dialog";
 import type { BoatVm } from "@runyard/core";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
@@ -221,29 +221,14 @@ function Disconnect() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
   });
   return (
-    <AlertDialog.Root>
-      <AlertDialog.Trigger render={<Button small variant="danger" />}>
-        Disconnect
-      </AlertDialog.Trigger>
-      <AlertDialog.Portal>
-        <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
-        <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,400px)] -translate-x-1/2 -translate-y-1/2 p-5">
-          <AlertDialog.Title className="text-[15px] font-semibold">
-            Disconnect boat?
-          </AlertDialog.Title>
-          <AlertDialog.Description className="mt-1.5 text-[13px] text-ink-2">
-            Runyard forgets the API key. boat.dev jobs still show from GitHub's data, without costs.
-            Revoke the key in boat.dev if it's no longer needed.
-          </AlertDialog.Description>
-          {remove.error && <ErrorText className="mt-2" error={remove.error} />}
-          <div className="mt-5 flex justify-end gap-2">
-            <AlertDialog.Close render={<Button />}>Cancel</AlertDialog.Close>
-            <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
-              Disconnect
-            </Button>
-          </div>
-        </AlertDialog.Popup>
-      </AlertDialog.Portal>
-    </AlertDialog.Root>
+    <ConfirmDialog
+      trigger="Disconnect"
+      title="Disconnect boat?"
+      description="Runyard forgets the API key. boat.dev jobs still show from GitHub's data, without costs. Revoke the key in boat.dev if it's no longer needed."
+      confirm="Disconnect"
+      onConfirm={() => remove.mutate()}
+      pending={remove.isPending}
+      error={remove.error}
+    />
   );
 }

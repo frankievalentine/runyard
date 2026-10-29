@@ -61,36 +61,60 @@ function Runner() {
     <div>
       <PageHeader
         icon={<Icon name="runner" size={16} />}
-        title={<CopyValue value={r.name} label="Runner name" className="font-mono text-[18px]" />}
+        title={
+          <CopyValue
+            value={r.name}
+            label="Runner name"
+            className="font-mono text-[18px]"
+            showIcon={false}
+          />
+        }
         status={
           <Pill tone={status.tone} hollow={status.hollow}>
             {status.label}
           </Pill>
         }
         subtitle={
-          <>
-            {r.onDemand ? (
-              `A one-job runner on ${r.onDemand}`
-            ) : machine ? (
-              <>
-                On{" "}
-                <Link
-                  to="/machines/$id"
-                  params={{ id: machine.id }}
-                  className="text-accent hover:underline"
-                >
-                  {machine.name}
-                </Link>
-                {assigned ? " (assigned)" : ""}
-                {migration && ` · moving into pool ${migration.poolName}`}
-              </>
-            ) : (
-              "Unassigned"
-            )}{" "}
-            · <CopyValue value={r.scopeLabel} label={scopeKind} showIcon={false} />
-            {r.os && ` · ${r.os}`}
-            {!r.listed && " · known from its running job; GitHub's runner list doesn't include it"}
-          </>
+          <span className="inline-flex flex-wrap items-center gap-x-2">
+            {[
+              <span key="where">
+                {r.onDemand ? (
+                  `A one-job runner on ${r.onDemand}`
+                ) : machine ? (
+                  <>
+                    On{" "}
+                    <Link
+                      to="/machines/$id"
+                      params={{ id: machine.id }}
+                      className="text-accent hover:underline"
+                    >
+                      {machine.name}
+                    </Link>
+                    {assigned ? " (assigned)" : ""}
+                  </>
+                ) : (
+                  "Unassigned"
+                )}
+              </span>,
+              migration && <span key="moving">moving into pool {migration.poolName}</span>,
+              <CopyValue key="scope" value={r.scopeLabel} label={scopeKind} showIcon={false} />,
+              r.os && <span key="os">{r.os}</span>,
+              !r.listed && (
+                <span key="listed">
+                  known from its running job; GitHub's runner list doesn't include it
+                </span>
+              ),
+            ]
+              .filter(Boolean)
+              .flatMap((part, i) => [
+                i > 0 && (
+                  <span key={`dot${i}`} aria-hidden className="text-ink-3">
+                    ·
+                  </span>
+                ),
+                part,
+              ])}
+          </span>
         }
       />
       {vm && (

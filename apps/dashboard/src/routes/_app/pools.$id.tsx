@@ -1,5 +1,5 @@
-import { AlertDialog } from "@base-ui/react/alert-dialog";
 import type { MachineView, Pool, Scope } from "@runyard/core";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { MachineChanges } from "../../components/changes.tsx";
 import { Dispatches } from "../../components/Dispatches.tsx";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -597,27 +597,14 @@ function DeletePool({ pool, onDeleted }: { pool: Pool; onDeleted: () => void }) 
     },
   });
   return (
-    <AlertDialog.Root>
-      <AlertDialog.Trigger render={<Button small variant="danger" />}>Delete</AlertDialog.Trigger>
-      <AlertDialog.Portal>
-        <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
-        <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,400px)] -translate-x-1/2 -translate-y-1/2 p-5">
-          <AlertDialog.Title className="text-[15px] font-semibold">
-            Delete {pool.name}?
-          </AlertDialog.Title>
-          <AlertDialog.Description className="mt-1.5 text-[13px] text-ink-2">
-            Its runners keep running until you review each machine's changes, which then remove
-            them. Directories are kept.
-          </AlertDialog.Description>
-          {remove.error && <ErrorText className="mt-2" error={remove.error} />}
-          <div className="mt-5 flex justify-end gap-2">
-            <AlertDialog.Close render={<Button />}>Cancel</AlertDialog.Close>
-            <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
-              Delete pool
-            </Button>
-          </div>
-        </AlertDialog.Popup>
-      </AlertDialog.Portal>
-    </AlertDialog.Root>
+    <ConfirmDialog
+      trigger="Delete"
+      title={`Delete ${pool.name}?`}
+      description="Its runners keep running until you review each machine's changes, which then remove them. Directories are kept."
+      confirm="Delete pool"
+      onConfirm={() => remove.mutate()}
+      pending={remove.isPending}
+      error={remove.error}
+    />
   );
 }

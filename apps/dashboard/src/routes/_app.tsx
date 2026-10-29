@@ -146,7 +146,7 @@ function Main({ view, pathname, demo }: { view: YardView; pathname: string; demo
         <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
           <ol className="flex min-w-0 items-center gap-1 text-[13px]">
             {crumbs.map((crumb, i) => (
-              <li key={crumb.label} className="flex min-w-0 items-center gap-1">
+              <li key={i} className="flex min-w-0 items-center gap-1">
                 {i > 0 && (
                   <span className="shrink-0 text-ink-3">
                     <Icon name="chevron" size={13} />
@@ -156,6 +156,8 @@ function Main({ view, pathname, demo }: { view: YardView; pathname: string; demo
                   <Link to={crumb.to} className="truncate text-ink-2 hover:text-ink">
                     {crumb.label}
                   </Link>
+                ) : i < crumbs.length - 1 ? (
+                  <span className="truncate text-ink-2">{crumb.label}</span>
                 ) : (
                   <span className="truncate font-medium" aria-current="page" title={crumb.label}>
                     {crumb.label}
@@ -243,10 +245,17 @@ function selectedKey(pathname: string): string {
 
 function breadcrumbs(pathname: string, view: YardView): { label: string; to?: string }[] {
   const yard = { label: "Yard", to: "/" };
+  // Machines, pools and runners have no list page of their own (the sidebar lists them), so
+  // their section is a label rather than a link.
   const machine = /^\/machines\/([^/]+)$/.exec(pathname)?.[1];
-  if (machine === "add") return [yard, { label: "Add machines" }];
-  if (machine)
-    return [yard, { label: view.machines.find((m) => m.id === machine)?.name ?? "Machine" }];
+  if (machine === "add") return [yard, { label: "Machines" }, { label: "Add machines" }];
+  if (machine) {
+    return [
+      yard,
+      { label: "Machines" },
+      { label: view.machines.find((m) => m.id === machine)?.name ?? "Machine" },
+    ];
+  }
   const peer = /^\/peers\/([^/]+)$/.exec(pathname)?.[1];
   if (peer) {
     return [
@@ -256,12 +265,22 @@ function breadcrumbs(pathname: string, view: YardView): { label: string; to?: st
     ];
   }
   const pool = /^\/pools\/([^/]+)$/.exec(pathname)?.[1];
-  if (pool === "new") return [yard, { label: "New pool" }];
-  if (pool) return [yard, { label: view.pools.pools.find((p) => p.id === pool)?.name ?? "Pool" }];
+  if (pool === "new") return [yard, { label: "Pools" }, { label: "New pool" }];
+  if (pool) {
+    return [
+      yard,
+      { label: "Pools" },
+      { label: view.pools.pools.find((p) => p.id === pool)?.name ?? "Pool" },
+    ];
+  }
   const runner = /^\/runners\/([^/]+)$/.exec(pathname)?.[1];
   if (runner) {
     const key = decodeURIComponent(runner);
-    return [yard, { label: view.runners.find((r) => r.key === key)?.name ?? "Runner" }];
+    return [
+      yard,
+      { label: "Runners" },
+      { label: view.runners.find((r) => r.key === key)?.name ?? "Runner" },
+    ];
   }
   const pages: Record<string, string> = {
     "/queue": "Queued jobs",

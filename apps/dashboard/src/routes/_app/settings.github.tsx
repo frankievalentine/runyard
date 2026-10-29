@@ -1,5 +1,5 @@
-import { AlertDialog } from "@base-ui/react/alert-dialog";
 import type { GithubAppView } from "@runyard/core";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
@@ -266,35 +266,27 @@ function RemoveApp({ app }: { app: GithubAppView }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
   });
   return (
-    <AlertDialog.Root>
-      <AlertDialog.Trigger render={<Button small variant="danger" />}>Remove</AlertDialog.Trigger>
-      <AlertDialog.Portal>
-        <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
-        <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,400px)] -translate-x-1/2 -translate-y-1/2 p-5">
-          <AlertDialog.Title className="text-[15px] font-semibold">
-            Remove {app.name} from Runyard?
-          </AlertDialog.Title>
-          <AlertDialog.Description className="mt-1.5 text-[13px] text-ink-2">
-            Runyard forgets the app and its key. The app stays on GitHub until you delete it in its{" "}
-            <a
-              href={app.htmlUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-accent hover:underline"
-            >
-              settings
-            </a>
-            .
-          </AlertDialog.Description>
-          {remove.error && <ErrorText className="mt-2" error={remove.error} />}
-          <div className="mt-5 flex justify-end gap-2">
-            <AlertDialog.Close render={<Button />}>Cancel</AlertDialog.Close>
-            <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
-              Remove
-            </Button>
-          </div>
-        </AlertDialog.Popup>
-      </AlertDialog.Portal>
-    </AlertDialog.Root>
+    <ConfirmDialog
+      trigger="Remove"
+      title={`Remove ${app.name} from Runyard?`}
+      description={
+        <>
+          Runyard forgets the app and its key. The app stays on GitHub until you delete it in its{" "}
+          <a
+            href={app.htmlUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent hover:underline"
+          >
+            settings
+          </a>
+          .
+        </>
+      }
+      confirm="Remove"
+      onConfirm={() => remove.mutate()}
+      pending={remove.isPending}
+      error={remove.error}
+    />
   );
 }

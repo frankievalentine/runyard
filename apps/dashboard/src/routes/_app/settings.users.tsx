@@ -1,5 +1,5 @@
-import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { Dialog } from "@base-ui/react/dialog";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
@@ -83,36 +83,17 @@ function UserRow({ user }: { user: UserView }) {
       </select>
       {user.username && <ResetPassword user={user} />}
       {!isYou && (
-        <AlertDialog.Root>
-          <AlertDialog.Trigger render={<Button variant="danger" small />}>
-            Remove
-          </AlertDialog.Trigger>
-          <AlertDialog.Portal>
-            <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
-            <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,380px)] -translate-x-1/2 -translate-y-1/2 p-5">
-              <AlertDialog.Title className="text-[15px] font-semibold">
-                Remove {user.username ?? user.tailscaleLogin}?
-              </AlertDialog.Title>
-              <AlertDialog.Description className="mt-1.5 text-[13px] text-ink-2">
-                They're signed out everywhere and can't sign in again.
-              </AlertDialog.Description>
-              <div className="mt-5 flex justify-end gap-2">
-                <AlertDialog.Close render={<Button />}>Cancel</AlertDialog.Close>
-                <Button
-                  variant="danger"
-                  onClick={() => remove.mutate()}
-                  disabled={remove.isPending}
-                >
-                  Remove
-                </Button>
-              </div>
-            </AlertDialog.Popup>
-          </AlertDialog.Portal>
-        </AlertDialog.Root>
+        <ConfirmDialog
+          trigger="Remove"
+          title={`Remove ${user.username ?? user.tailscaleLogin}?`}
+          description="They're signed out everywhere and can't sign in again."
+          confirm="Remove"
+          onConfirm={() => remove.mutate()}
+          pending={remove.isPending}
+          error={remove.error}
+        />
       )}
-      {(setRole.error ?? remove.error) && (
-        <ErrorText className="w-full" error={setRole.error ?? remove.error} />
-      )}
+      {setRole.error && <ErrorText className="w-full" error={setRole.error} />}
     </div>
   );
 }

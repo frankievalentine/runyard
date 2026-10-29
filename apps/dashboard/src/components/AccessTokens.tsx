@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../api.ts";
 import { CopyValue } from "./CopyValue.tsx";
@@ -112,14 +113,15 @@ export function AccessTokens({ admin }: { admin: boolean }) {
                   : " · never used"}
               </div>
             </div>
-            <Button
-              variant="danger"
-              small
-              onClick={() => revoke.mutate(t.id)}
-              disabled={revoke.isPending}
-            >
-              Revoke
-            </Button>
+            <ConfirmDialog
+              trigger="Revoke"
+              title={`Revoke ${t.name}?`}
+              description="Anything using it is refused from its next request. This can't be undone; make a new token to give access again."
+              confirm="Revoke token"
+              onConfirm={() => revoke.mutate(t.id)}
+              pending={revoke.isPending}
+              error={revoke.error}
+            />
           </div>
         ))}
         {adding && (
@@ -167,7 +169,6 @@ export function AccessTokens({ admin }: { admin: boolean }) {
             </div>
           </form>
         )}
-        {revoke.error && <ErrorText className="px-4 py-3" error={revoke.error} />}
       </Card>
     </Section>
   );

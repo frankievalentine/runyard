@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
@@ -185,14 +186,15 @@ function Passkeys() {
                 {p.lastUsedAt && ` · last used ${new Date(p.lastUsedAt).toLocaleDateString()}`}
               </div>
             </div>
-            <Button
-              variant="danger"
-              small
-              onClick={() => remove.mutate(p.id)}
-              disabled={remove.isPending}
-            >
-              Remove
-            </Button>
+            <ConfirmDialog
+              trigger="Remove"
+              title={`Remove passkey ${p.name}?`}
+              description="It can't sign you in any more. Your password and other passkeys still work."
+              confirm="Remove passkey"
+              onConfirm={() => remove.mutate(p.id)}
+              pending={remove.isPending}
+              error={remove.error}
+            />
           </div>
         ))}
         {!available && (
@@ -211,7 +213,7 @@ function Passkeys() {
                 description="A passkey works only on the address you add it from."
                 required
               />
-              {(add.error ?? remove.error) && <ErrorText error={add.error ?? remove.error} />}
+              {add.error && <ErrorText error={add.error} />}
               <div className="flex gap-2">
                 <Button type="submit" variant="primary" disabled={add.isPending}>
                   Add passkey
@@ -221,7 +223,6 @@ function Passkeys() {
             </form>
           </div>
         )}
-        {!adding && remove.error && <ErrorText className="px-4 py-3" error={remove.error} />}
       </Card>
     </Section>
   );
