@@ -29,13 +29,13 @@ const PREVIEW_ROWS = 8;
 const MODES = [
   [
     "persistent",
-    "Keep runners registered",
+    "Persistent",
     "Each slot is a runner that stays registered and waits for jobs. Best for warm caches.",
   ],
   [
     "onDemand",
-    "Start a runner per job",
-    "Runyard installs the runner once, then starts a one-job runner for each queued job and removes it after. Linux and macOS.",
+    "On demand",
+    "A fresh runner for each queued job, removed after it. Runyard installs the runner software once. Linux and macOS.",
   ],
 ] as const;
 
