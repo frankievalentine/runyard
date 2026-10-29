@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { pointsAt } from "../lib/webhooks.ts";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../api.ts";
 import { timeAgo } from "../lib/format.ts";
@@ -100,7 +101,9 @@ export function Webhooks() {
 function AppHook({ app, publicUrl }: { app: Status["apps"][number]; publicUrl: string | null }) {
   const now = useNow();
   const queryClient = useQueryClient();
-  const [url, setUrl] = useState(publicUrl ?? "");
+  // Follows Funnel's address, which can appear after the page opens, until something is typed.
+  const [typed, setUrl] = useState<string | null>(null);
+  const url = typed ?? publicUrl ?? "";
   const configure = useMutation({
     mutationFn: () =>
       call(
@@ -112,14 +115,7 @@ function AppHook({ app, publicUrl }: { app: Status["apps"][number]; publicUrl: s
     e.preventDefault();
     configure.mutate();
   };
-  // A new app's manifest sets a placeholder URL; once Funnel's address is known, only that counts.
-  const pointed = Boolean(
-    app.hookUrl &&
-    app.secretSet &&
-    (publicUrl
-      ? app.hookUrl.startsWith(publicUrl)
-      : !/\/\/(127\.0\.0\.1|localhost)[:/]/.test(app.hookUrl)),
-  );
+  const pointed = app.secretSet && pointsAt(app.hookUrl, publicUrl);
   return (
     <Card className="px-4 py-3">
       <div className="flex flex-wrap items-center gap-2 font-medium">
@@ -147,7 +143,15 @@ function AppHook({ app, publicUrl }: { app: Status["apps"][number]; publicUrl: s
                   secret only Runyard and GitHub know.
                 </>
               ) : (
-                "Runyard sets the app's webhook URL and a new secret through GitHub's API."
+                <>
+                  {app.hookUrl && (
+                    <>
+                      It points at <span className="font-mono">{app.hookUrl}</span>, not the public
+                      address.{" "}
+                    </>
+                  )}
+                  Runyard sets the app's webhook URL and a new secret through GitHub's API.
+                </>
               )}
             </div>
             <form onSubmit={submit} className="mt-2 flex flex-wrap items-end gap-2">
