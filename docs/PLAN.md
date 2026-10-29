@@ -232,6 +232,9 @@ jobs page.
 
 ## Planned
 
+- **A simpler pool flow**: three short steps (what it's for, where it runs, check and create)
+  ending with each machine's review inline. Agreed, not started:
+  [docs/plans/pool-flow.md](plans/pool-flow.md).
 - **Container runners ("Use this machine for CI")**: a fresh container per job on Runyard's
   own machine, then on SSH machines with Docker. Agreed and designed, not started:
   [docs/plans/container-runners.md](plans/container-runners.md).
