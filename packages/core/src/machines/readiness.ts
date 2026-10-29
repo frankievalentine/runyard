@@ -80,8 +80,8 @@ const WINDOWS_RECOMMENDED: Tool[] = [
 
 function howToInstall(os: OsFamily, tool: Tool): string {
   if (os === "macos")
-    return tool.fact === "git" || tool.fact === "cc" || tool.fact === "make"
-      ? "Install the Command Line Tools: xcode-select --install"
+    return ["git", "cc", "make", "python3"].includes(tool.fact)
+      ? "It comes with the Command Line Tools: xcode-select --install"
       : `Install it with Homebrew: brew install ${tool.brew ?? tool.fact}`;
   if (os === "windows") return "Install it with winget or its installer.";
   return `Install it with your package manager, such as: sudo apt install -y ${tool.apt ?? tool.fact}`;

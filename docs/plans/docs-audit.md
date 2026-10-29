@@ -47,3 +47,6 @@ Split `docs/GUIDE.md` into task pages under `docs/`, with the README as a short 
   show as changes waiting.
 - `claude mcp add` defaults to the local scope, tied to the folder it ran in; the docs now use
   `--scope user`. A token created Read only (the default) can be changed in place.
+- A fresh Mac has no Command Line Tools; `/usr/bin/git`, `cc`, `make`, `python3` and
+  `xcodebuild` are stand-ins that open an install dialog when run. Readiness now skips them, so
+  the Mac recipe should say the dialog only appears when someone runs `xcode-select --install`.

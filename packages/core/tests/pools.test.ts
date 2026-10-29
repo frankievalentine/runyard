@@ -448,8 +448,9 @@ describe("installing a pool's tools", () => {
     expect(
       plan("macos", readiness(["tool-curl", "tool-tar"], true), ["essentials", "build", "docker"]),
     ).toEqual([
-      ["installTools", false, ["unzip", "zip", "xz", "zstd", "jq", "gpg", "python3"]],
-      ["installTools", true, ["git", "cc", "make"]],
+      ["installTools", false, ["unzip", "zip", "xz", "zstd", "jq", "gpg"]],
+      // python3 on a Mac is the Command Line Tools' too.
+      ["installTools", true, ["git", "cc", "make", "python3"]],
       ["installTools", true, ["docker"]],
     ]);
     const noBrew = plan("macos", readiness(["tool-git", "tool-curl", "tool-tar"]), ["essentials"]);

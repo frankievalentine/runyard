@@ -55,7 +55,7 @@ export function hasTool(readiness: Readiness, tool: ToolId): boolean {
 }
 
 /** Tools that come with the Command Line Tools on a Mac rather than Homebrew. */
-const MAC_CLT: ReadonlySet<ToolId> = new Set(["git", "cc", "make"]);
+const MAC_CLT: ReadonlySet<ToolId> = new Set(["git", "cc", "make", "python3"]);
 
 /** How a machine's missing tools can be installed: what Runyard can do, and what needs a person. */
 export function toolInstallPlan(
