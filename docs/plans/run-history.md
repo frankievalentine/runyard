@@ -21,6 +21,15 @@ but doesn't flag the machine (it's usually the code). A job that started and nev
 (the runner was lost, the machine went offline) or was cancelled because its runner went away
 is a machine problem and raises a Needs attention item on the machine.
 
+## Job logs
+
+Each job in the list opens its log in the same terminal panel the reviews use. Runyard doesn't
+store logs: it fetches one when it's opened (`GET /repos/{repo}/actions/jobs/{job_id}/logs`, one
+request, which answers with a short-lived download link), shows it, and keeps nothing.
+Forgejo's equivalent where its API offers one. Logs are only as available as GitHub keeps them
+(90 days by default), and redact nothing beyond what GitHub already masks, so viewing them is
+limited to signed-in users, like the rest of the dashboard.
+
 ## Where the data comes from
 
 Webhooks are not required. Set up, they make it instant; without them, the machine and a few

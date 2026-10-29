@@ -1,10 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Dispatches } from "../../components/Dispatches.tsx";
 import { Icon } from "../../components/icons.tsx";
 import { emptyQueueText, forgesConnected, QueueList } from "../../components/runners.tsx";
-import { Card, PageHeader } from "../../components/ui.tsx";
+import { Card, PageHeader, Section } from "../../components/ui.tsx";
 import { useYard } from "../../lib/yard.ts";
 import { timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
+
+const RECENT_MS = 30 * 60_000;
 
 export const Route = createFileRoute("/_app/queue")({
   component: Queue,
@@ -16,6 +19,10 @@ function Queue() {
   const now = useNow();
   const q = view.queue;
   const connected = forgesConnected(view);
+  // A job leaves the queue once a runner takes it; on-demand ones often within the minute.
+  const recent = view.pools.dispatches.filter(
+    (d) => d.state === "starting" || d.state === "running" || now - d.startedAt < RECENT_MS,
+  );
   return (
     <div>
       <PageHeader
@@ -60,6 +67,15 @@ function Queue() {
           </Card>
         )}
       </div>
+      {recent.length > 0 && (
+        <Section title="Recently started" count={recent.length}>
+          <p className="-mt-1 mb-2 text-[12px] text-ink-2">
+            One-job runners Runyard started for queued jobs in the last half hour; their jobs leave
+            the list above once a runner takes them.
+          </p>
+          <Dispatches dispatches={recent.slice(0, 10)} showPool />
+        </Section>
+      )}
       <div className="mt-4 space-y-1.5 text-[12px] text-ink-2">
         {!q.complete && connected && (
           <p className="text-warn">

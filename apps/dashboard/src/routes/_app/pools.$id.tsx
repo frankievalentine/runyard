@@ -1,6 +1,7 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
-import type { Dispatch, MachineView, Pool, Scope } from "@runyard/core";
+import type { MachineView, Pool, Scope } from "@runyard/core";
 import { MachineChanges } from "../../components/changes.tsx";
+import { Dispatches } from "../../components/Dispatches.tsx";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
@@ -28,8 +29,6 @@ import { yardQuery, useYard } from "../../lib/yard.ts";
 import { isForgejo, runnerFor, scopeLabel } from "../../lib/pools.ts";
 import { sessionQuery } from "../../lib/queries.ts";
 import { runnerStatus } from "../../lib/status.ts";
-import { formatElapsed, timeAgo } from "../../lib/format.ts";
-import { useNow } from "../../lib/now.ts";
 
 export const Route = createFileRoute("/_app/pools/$id")({
   /** `setup`: just saved, so each machine's review is prepared and shown first. */
@@ -517,112 +516,6 @@ function OnDemandMachines({ pool }: { pool: Pool }) {
   );
 }
 
-const DISPATCH_STATE = {
-  starting: { tone: "busy", label: "Starting", hollow: true },
-  running: { tone: "busy", label: "Running", hollow: false },
-  done: { tone: "ok", label: "Finished", hollow: false },
-  failed: { tone: "bad", label: "Failed", hollow: false },
-} as const;
-
-/** One-job runners the pool started, newest first, with how each ended. */
-function Dispatches({ dispatches }: { dispatches: Dispatch[] }) {
-  const view = useYard();
-  const now = useNow();
-  if (dispatches.length === 0) {
-    return (
-      <Card>
-        <EmptyLine>
-          None yet. A runner starts here when a matching job is queued and no idle runner can take
-          it.
-        </EmptyLine>
-      </Card>
-    );
-  }
-  return (
-    <Card className="overflow-hidden">
-      <ul className="divide-y divide-line">
-        {dispatches.map((d) => {
-          const state = DISPATCH_STATE[d.state];
-          const runner = view.runners.find(
-            (r) => r.scope.forgeId === d.scope.forgeId && r.name === d.runnerName,
-          );
-          const took = (d.endedAt ?? now) - d.startedAt;
-          return (
-            <li key={d.id} className="flex items-start gap-3 px-4 py-2.5 text-[12.5px]">
-              {/* As tall as the first line, so the dot sits on it however many lines follow. */}
-              <span className="flex h-[18px] shrink-0 items-center">
-                <StatusDot tone={state.tone} hollow={state.hollow} />
-              </span>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[18px]">
-                <div className="flex flex-wrap items-center justify-between gap-x-3">
-                  <span className="flex min-w-0 items-center gap-2">
-                    {runner ? (
-                      <Link
-                        to="/runners/$key"
-                        params={{ key: runner.key }}
-                        className="truncate font-mono font-medium hover:underline"
-                      >
-                        {d.runnerName}
-                      </Link>
-                    ) : (
-                      <span className="truncate font-mono font-medium">{d.runnerName}</span>
-                    )}
-                    <span className={state.tone === "bad" ? "text-bad" : "text-ink-2"}>
-                      {state.label}
-                    </span>
-                  </span>
-                  <span
-                    className="shrink-0 text-[11.5px] text-ink-3 tabular"
-                    title={new Date(d.startedAt).toLocaleString()}
-                  >
-                    {timeAgo(d.startedAt, now)} · took {formatElapsed(took)}
-                  </span>
-                </div>
-                <div className="text-ink-2">
-                  {runner?.job ? (
-                    <>
-                      Running <span className="font-medium text-ink">{runner.job.name}</span> in{" "}
-                      {runner.job.repo}
-                    </>
-                  ) : d.job ? (
-                    <>
-                      For <span className="font-medium text-ink">{d.job.name}</span>
-                      {d.job.url && (
-                        <a
-                          href={d.job.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label={`Open ${d.job.name} on GitHub`}
-                          className="ml-1 inline-flex translate-y-[2px] text-ink-3 hover:text-ink"
-                        >
-                          <Icon name="external" size={12} />
-                        </a>
-                      )}{" "}
-                      in {d.job.repo}
-                    </>
-                  ) : (
-                    <>
-                      For job {d.jobId} in {d.scope.target}
-                    </>
-                  )}{" "}
-                  · on {view.machines.find((m) => m.id === d.machineId)?.name ?? d.machineId}
-                </div>
-                {d.detail && (
-                  <div className={d.state === "failed" ? "text-bad" : "text-ink-2"}>{d.detail}</div>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </Card>
-  );
-}
-
-/**
- * The step after saving a pool, on the pool's own page: each machine's review,
- * what it will do and a Run button, one machine at a time.
- */
 function SetUpOnMachines({
   pool,
   machineIds,
