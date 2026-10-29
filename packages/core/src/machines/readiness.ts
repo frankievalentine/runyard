@@ -168,6 +168,17 @@ export function evaluateReadiness(
     });
   }
 
+  if (os === "macos")
+    items.push({
+      id: "homebrew",
+      tier: "recommended",
+      title: "Homebrew",
+      status: has("tool_brew") ? "ok" : "warn",
+      value: has("tool_brew") ? "Installed" : "Not found",
+      detail: has("tool_brew")
+        ? "A pool's review installs missing tools with it."
+        : 'A pool\'s review installs missing tools with it, so install it once first, from brew.sh: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
+    });
   for (const t of windows ? WINDOWS_RECOMMENDED : POSIX_RECOMMENDED) tool(t, "recommended");
   const dockerOk = has("docker_server");
   items.push({

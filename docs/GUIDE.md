@@ -138,7 +138,7 @@ shows an **Install tools** step for just what its last check found missing, ahea
 runners, and carries it out with the package manager (apt, dnf, zypper or pacman, with the
 review's sudo) or Homebrew on a Mac. Docker comes from the distribution's own packages and the
 runner's account joins the `docker` group; on a Mac, Docker and the Command Line Tools stay
-manual, and Homebrew must already be installed. Runyard also puts Homebrew's directories on the
+manual, and Homebrew must already be installed (readiness shows whether it is). Runyard also puts Homebrew's directories on the
 PATH its Mac runners start with, so jobs find what it installs. A machine in a pool that's missing something required
 or promised shows under **Needs attention** and on the pool's page, and the pool form suggests
 labels every chosen machine can carry. The check itself only reads.

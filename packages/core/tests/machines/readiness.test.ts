@@ -22,6 +22,18 @@ const posixTools = Object.fromEntries(
 );
 
 describe("runner readiness", () => {
+  test("a Mac shows whether Homebrew is there, without counting it as a problem", () => {
+    const mac = (facts: Record<string, string>) =>
+      evaluateReadiness(report("macos", { ...posixTools, xcode_clt: "/x", ...facts }), NOW, none);
+    expect(status(mac({}), "homebrew")).toBe("warn");
+    expect(mac({})?.items.find((i) => i.id === "homebrew")?.detail).toContain("brew.sh");
+    expect(readinessProblems(mac({})).map((i) => i.id)).not.toContain("homebrew");
+    expect(status(mac({ tool_brew: "/opt/homebrew/bin/brew" }), "homebrew")).toBe("ok");
+    expect(status(evaluateReadiness(report("linux", posixTools), NOW, none), "homebrew")).toBe(
+      undefined,
+    );
+  });
+
   test("waits for a check that collected it", () => {
     expect(
       evaluateReadiness({ os: "linux", diagnostics: {} } as unknown as MachineReport, NOW, none),
