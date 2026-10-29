@@ -221,16 +221,16 @@ export function JobTitle({ job }: { job: JobView }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-0 flex-1 truncate font-medium" title={job.name}>
+        <span className="min-w-0 truncate font-medium" title={job.name}>
           {job.name}
         </span>
-        {job.forge === "forgejo" && <ForgeBadge />}
-        {job.onDemand && <Badge>{job.onDemand}</Badge>}
         {job.htmlUrl && (
           <GitHubLink url={job.htmlUrl} label={`Open ${job.name} on GitHub`}>
             <Icon name="external" size={12} />
           </GitHubLink>
         )}
+        {job.forge === "forgejo" && <ForgeBadge />}
+        {job.onDemand && <Badge>{job.onDemand}</Badge>}
       </div>
       <div className="mt-0.5 truncate font-mono text-[12px] text-ink-2">
         {job.workflowName && <>{job.workflowName} · </>}
