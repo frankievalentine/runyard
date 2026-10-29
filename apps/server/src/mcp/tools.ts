@@ -132,8 +132,21 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
       canPrepare
         ? fn(args)
         : fail("This token is read only; changes need a token that can prepare them.");
+  // Read-only callers still see the prepare tools, so they can say what a change would take,
+  // but each one says up front that it's refused for them.
+  const register = ((name, config, cb) =>
+    server.registerTool(
+      name,
+      config.annotations === PREPARE && !canPrepare
+        ? {
+            ...config,
+            description: `${config.description} Refused for this token, which is read only.`,
+          }
+        : config,
+      cb,
+    )) as typeof server.registerTool;
 
-  server.registerTool(
+  register(
     "yard_summary",
     {
       title: "Yard summary",
@@ -154,7 +167,7 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
     },
   );
 
-  server.registerTool(
+  register(
     "list_machines",
     {
       title: "List machines",
@@ -165,7 +178,7 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
     () => ok(view().machines.map(machineSummary)),
   );
 
-  server.registerTool(
+  register(
     "get_machine",
     {
       title: "Get a machine",
@@ -204,7 +217,7 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
     },
   );
 
-  server.registerTool(
+  register(
     "list_runners",
     {
       title: "List runners",
@@ -235,7 +248,7 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
     },
   );
 
-  server.registerTool(
+  register(
     "list_queued_jobs",
     {
       title: "List queued jobs",
@@ -259,7 +272,7 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
     },
   );
 
-  server.registerTool(
+  register(
     "list_pools",
     {
       title: "List pools",
@@ -287,7 +300,7 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
     },
   );
 
-  server.registerTool(
+  register(
     "list_test_jobs",
     {
       title: "List test jobs",
@@ -298,7 +311,7 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
     async () => ok(await deps.testJobs.list()),
   );
 
-  server.registerTool(
+  register(
     "add_machine",
     {
       title: "Add a machine",
@@ -343,7 +356,7 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
     ),
   );
 
-  server.registerTool(
+  register(
     "save_pool",
     {
       title: "Create or edit a pool",
@@ -423,7 +436,7 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
     ),
   );
 
-  server.registerTool(
+  register(
     "prepare_review",
     {
       title: "Prepare a machine's review",
@@ -458,7 +471,7 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
     }),
   );
 
-  server.registerTool(
+  register(
     "machine_setup_command",
     {
       title: "Get a machine's setup command",
@@ -479,7 +492,7 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
     }),
   );
 
-  server.registerTool(
+  register(
     "start_test_job",
     {
       title: "Start a runner's test job",
@@ -506,4 +519,13 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
       }
     }),
   );
+}
+
+/** What the MCP server tells an agent first: what Runyard is, and what this token allows. */
+export function instructionsFor(scope: TokenScope): string {
+  const base =
+    "Runyard manages self-hosted CI runners on the user's machines. Read tools show what its dashboard shows. No tool runs a review: prepared reviews are links a person opens, checks and runs.";
+  return scope === "prepare"
+    ? `${base} This token can also prepare changes: save pools, add machines and prepare reviews.`
+    : `${base} This token is read only: don't offer to save pools, add machines or prepare reviews; tell the user those need a Read and prepare token, or the dashboard.`;
 }

@@ -3,10 +3,22 @@ import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../api.ts";
 import { CopyValue } from "./CopyValue.tsx";
-import { Button, TextField } from "./form.tsx";
+import { Button, Choice, TextField } from "./form.tsx";
 import { Card, ErrorText, Pill, Section } from "./ui.tsx";
 
 const tokensKey = ["access-tokens"];
+
+const ACCESS = {
+  read: {
+    title: "Read only",
+    detail: "Sees what the dashboard shows: machines, pools, runners and queued jobs.",
+  },
+  prepare: {
+    title: "Read and prepare",
+    detail:
+      "Also saves pools, adds machines and prepares reviews. Only you run a review, here in the dashboard.",
+  },
+} as const;
 
 /**
  * The user's access tokens, for agents using Runyard's MCP server. A new
@@ -38,6 +50,11 @@ export function AccessTokens({ admin }: { admin: boolean }) {
       setName("");
       await refresh();
     },
+  });
+  const setAccess = useMutation({
+    mutationFn: ({ id, scope }: { id: string; scope: "read" | "prepare" }) =>
+      call(api.tokens[":id"].$patch({ param: { id }, json: { scope } })),
+    onSuccess: refresh,
   });
   const revoke = useMutation({
     mutationFn: (id: string) => call(api.tokens[":id"].$delete({ param: { id } })),
@@ -96,9 +113,12 @@ export function AccessTokens({ admin }: { admin: boolean }) {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="truncate font-medium">{t.name}</span>
-                <Pill tone={t.scope === "prepare" ? "info" : "muted"}>
-                  {t.scope === "prepare" ? "Read and prepare" : "Read only"}
-                </Pill>
+                {/* Admins change it with the menu beside Revoke. */}
+                {!admin && (
+                  <Pill tone={t.scope === "prepare" ? "info" : "muted"}>
+                    {ACCESS[t.scope].title}
+                  </Pill>
+                )}
               </div>
               <div className="truncate text-[12px] text-ink-2">
                 <span className="font-mono">{t.prefix}…</span> · created{" "}
@@ -113,6 +133,20 @@ export function AccessTokens({ admin }: { admin: boolean }) {
                   : " · never used"}
               </div>
             </div>
+            {admin && (
+              <select
+                aria-label={`Access for ${t.name}`}
+                className="input !h-[28px] !w-auto text-[12.5px]"
+                value={t.scope}
+                disabled={setAccess.isPending}
+                onChange={(e) =>
+                  setAccess.mutate({ id: t.id, scope: e.target.value as "read" | "prepare" })
+                }
+              >
+                <option value="read">Read only</option>
+                <option value="prepare">Read and prepare</option>
+              </select>
+            )}
             <ConfirmDialog
               trigger="Revoke"
               title={`Revoke ${t.name}?`}
@@ -124,6 +158,7 @@ export function AccessTokens({ admin }: { admin: boolean }) {
             />
           </div>
         ))}
+        {setAccess.error && <ErrorText className="px-4 py-3" error={setAccess.error} />}
         {adding && (
           <form onSubmit={submit} className="flex flex-col gap-3 px-4 py-4">
             <TextField
@@ -134,18 +169,28 @@ export function AccessTokens({ admin }: { admin: boolean }) {
               description="Which agent uses it; changes it prepares are recorded under this name."
               required
             />
-            <div className="grid grid-cols-1 gap-3 min-[600px]:grid-cols-2">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-medium text-ink-2">Access</span>
-                <select
-                  className="input"
-                  value={scope}
-                  onChange={(e) => setScope(e.target.value as "read" | "prepare")}
-                >
-                  <option value="read">Read only</option>
-                  {admin && <option value="prepare">Read and prepare changes</option>}
-                </select>
-              </label>
+            <fieldset className="flex flex-col gap-1.5">
+              <legend className="mb-1.5 text-[12px] font-medium text-ink-2">Access</legend>
+              <div className="grid grid-cols-1 gap-2 min-[600px]:grid-cols-2">
+                {(["read", "prepare"] as const).map((value) => (
+                  <Choice
+                    key={value}
+                    type="radio"
+                    name="token-access"
+                    checked={scope === value}
+                    onChange={() => setScope(value)}
+                    disabled={value === "prepare" && !admin}
+                    title={ACCESS[value].title}
+                    detail={
+                      value === "prepare" && !admin
+                        ? "Only admins can make tokens that prepare changes."
+                        : ACCESS[value].detail
+                    }
+                  />
+                ))}
+              </div>
+            </fieldset>
+            <div className="max-w-60">
               <label className="flex flex-col gap-1.5">
                 <span className="text-[12px] font-medium text-ink-2">Expires</span>
                 <select

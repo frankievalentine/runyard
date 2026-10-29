@@ -28,7 +28,7 @@ import {
 } from "../lib/pool-suggestions.ts";
 import { availableScopes, isForgejo, sameScope } from "../lib/pools.ts";
 import { osLabel } from "../lib/status.ts";
-import { Button, TextField } from "./form.tsx";
+import { Button, Choice, TextField } from "./form.tsx";
 import { Icon } from "./icons.tsx";
 import { ForgeBadge } from "./runners.tsx";
 import { Card, EmptyLine, ErrorText } from "./ui.tsx";
@@ -807,40 +807,6 @@ function Summary({
         <div className="mt-2.5 min-[600px]:pl-31">{children}</div>
       )}
     </li>
-  );
-}
-
-function Choice({
-  type,
-  name,
-  checked,
-  onChange,
-  title,
-  detail,
-}: {
-  type: "radio" | "checkbox";
-  name?: string;
-  checked: boolean;
-  onChange: () => void;
-  title: string;
-  detail: string;
-}) {
-  return (
-    <label
-      className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-[12.5px] ${checked ? "border-accent bg-accent/5" : "border-line hover:bg-hover"}`}
-    >
-      <input
-        type={type}
-        name={name}
-        className="mt-[3px] shrink-0"
-        checked={checked}
-        onChange={onChange}
-      />
-      <span>
-        <span className="block font-medium">{title}</span>
-        <span className="block text-[12px] text-ink-2">{detail}</span>
-      </span>
-    </label>
   );
 }
 

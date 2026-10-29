@@ -45,3 +45,5 @@ Split `docs/GUIDE.md` into task pages under `docs/`, with the README as a short 
   the service. Only the unit and directory are left for the cleanup commands.
 - Runners installed before cleanup was recorded need one review that sets cleanup before edits
   show as changes waiting.
+- `claude mcp add` defaults to the local scope, tied to the folder it ran in; the docs now use
+  `--scope user`. A token created Read only (the default) can be changed in place.

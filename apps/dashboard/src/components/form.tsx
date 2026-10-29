@@ -45,3 +45,41 @@ export function Button({
     </button>
   );
 }
+
+/** A radio or checkbox option as a card: a title and a line on what it means. */
+export function Choice({
+  type,
+  name,
+  checked,
+  onChange,
+  title,
+  detail,
+  disabled,
+}: {
+  type: "radio" | "checkbox";
+  name?: string;
+  checked: boolean;
+  onChange: () => void;
+  title: string;
+  detail: string;
+  disabled?: boolean;
+}) {
+  return (
+    <label
+      className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-[12.5px] ${checked ? "border-accent bg-accent/5" : "border-line hover:bg-hover"} ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+    >
+      <input
+        type={type}
+        name={name}
+        className="mt-[3px] shrink-0"
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+      />
+      <span>
+        <span className="block font-medium">{title}</span>
+        <span className="block text-[12px] text-ink-2">{detail}</span>
+      </span>
+    </label>
+  );
+}

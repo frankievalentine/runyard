@@ -314,9 +314,12 @@ so an agent such as Claude Code can ask about your CI and prepare changes for yo
 under **Settings ▸ Account ▸ Access tokens**, then, for Claude Code:
 
 ```sh
-claude mcp add --transport http runyard https://<runyard>/api/mcp \
+claude mcp add --scope user --transport http runyard https://<runyard>/api/mcp \
   --header "Authorization: Bearer <token>"
 ```
+
+`--scope user` makes it available wherever you start Claude Code; without it, only in the folder
+you ran the command in. A token's access can be changed later with the menu beside **Revoke**.
 
 - **Read only** tokens can call `yard_summary`, `list_machines`, `get_machine` (health,
   readiness, the steps to connect it with commands, recent history), `list_runners`,

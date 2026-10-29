@@ -80,7 +80,7 @@ To remove Runyard later, decommission its machines in the dashboard first, then 
   review. Create a token under **Settings ▸ Account**, then, for Claude Code:
 
   ```sh
-  claude mcp add --transport http runyard https://<runyard>/api/mcp \
+  claude mcp add --scope user --transport http runyard https://<runyard>/api/mcp \
     --header "Authorization: Bearer <token>"
   ```
 

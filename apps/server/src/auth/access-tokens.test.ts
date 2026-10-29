@@ -62,6 +62,25 @@ describe("access tokens", () => {
     const make = (scope: string) =>
       send(t.app, "POST", "/api/tokens", { name: "v", scope, expiresInDays: 90 }, viewer);
     expect((await make("prepare")).status).toBe(403);
-    expect((await make("read")).status).toBe(201);
+    const made = await body<{ record: AccessToken }>(make("read"));
+    // Nor can they raise one later.
+    expect(
+      (await send(t.app, "PATCH", `/api/tokens/${made.record.id}`, { scope: "prepare" }, viewer))
+        .status,
+    ).toBe(403);
+  });
+
+  test("an admin can change what a token may do, only for their own tokens", async () => {
+    const { t, call } = await admin();
+    const { token, record } = await body<{ token: string; record: AccessToken }>(
+      call("POST", "/api/tokens", { name: "z", scope: "read", expiresInDays: 30 }),
+    );
+    expect((await call("PATCH", `/api/tokens/${record.id}`, { scope: "prepare" })).status).toBe(
+      200,
+    );
+    expect(resolveAccessToken(t.deps.db, token)?.token.scope).toBe("prepare");
+    expect((await call("PATCH", `/api/tokens/${record.id}`, { scope: "read" })).status).toBe(200);
+    expect(resolveAccessToken(t.deps.db, token)?.token.scope).toBe("read");
+    expect((await call("PATCH", "/api/tokens/someone-elses", { scope: "read" })).status).toBe(404);
   });
 });

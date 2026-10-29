@@ -69,6 +69,19 @@ export function revokeAccessToken(db: Db, userId: string, id: string): boolean {
   return true;
 }
 
+/** Changes what one of the user's tokens may do; false when it isn't theirs. */
+export function setAccessTokenScope(
+  db: Db,
+  userId: string,
+  id: string,
+  scope: AccessToken["scope"],
+): boolean {
+  const mine = and(eq(accessTokens.id, id), eq(accessTokens.userId, userId));
+  if (!db.select({ id: accessTokens.id }).from(accessTokens).where(mine).get()) return false;
+  db.update(accessTokens).set({ scope }).where(mine).run();
+  return true;
+}
+
 /** The token's user and record, or undefined when it's unknown or expired (and then deleted). */
 export function resolveAccessToken(db: Db, token: string, now = Date.now()) {
   if (!token.startsWith(PREFIX)) return undefined;

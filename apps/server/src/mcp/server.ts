@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { resolveAccessToken } from "../auth/access-tokens.ts";
 import { requestOrigin, type AppEnv, type Listener } from "../auth/identity.ts";
 import type { FailureLimiter } from "../auth/rate-limit.ts";
-import { registerTools, type ToolDeps } from "./tools.ts";
+import { instructionsFor, registerTools, type ToolDeps } from "./tools.ts";
 
 export type McpDeps = ToolDeps & { listener: Listener; limiter: FailureLimiter; version?: string };
 
@@ -38,7 +38,10 @@ export function mcpRoutes(deps: McpDeps) {
     } catch {
       origin = "";
     }
-    const server = new McpServer({ name: "runyard", version: deps.version ?? "0.1.0" });
+    const server = new McpServer(
+      { name: "runyard", version: deps.version ?? "0.1.0" },
+      { instructions: instructionsFor(resolved.token.scope) },
+    );
     registerTools(server, deps, { user: resolved.user, token: resolved.token, origin });
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

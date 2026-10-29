@@ -106,6 +106,27 @@ describe("the MCP server", () => {
     expect(res.text).toContain("read only");
   });
 
+  test("tells an agent up front what its token allows", async () => {
+    const { s, read, prepare } = await withTokens();
+    const init = (token: string) =>
+      rpc(s.app, token, "initialize", {
+        protocolVersion: "2025-06-18",
+        capabilities: {},
+        clientInfo: { name: "test", version: "1" },
+      });
+    expect((await init(read)).body.result.instructions).toContain("This token is read only");
+    expect((await init(prepare)).body.result.instructions).toContain("can also prepare changes");
+    const describe = async (token: string) => {
+      const tools = (await rpc(s.app, token, "tools/list")).body.result.tools as {
+        name: string;
+        description: string;
+      }[];
+      return tools.find((t) => t.name === "prepare_review")?.description ?? "";
+    };
+    expect(await describe(read)).toContain("Refused for this token, which is read only.");
+    expect(await describe(prepare)).not.toContain("Refused");
+  });
+
   test("prepares a pool and a review for a person to run, and records who asked", async () => {
     const { s, prepare } = await withTokens();
     const saved = await call(s.app, prepare, "save_pool", {
