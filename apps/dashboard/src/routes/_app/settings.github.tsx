@@ -81,11 +81,12 @@ function GithubSettings() {
           </div>
         )}
       </Section>
-      <Section title="Webhooks">
-        <Webhooks />
-      </Section>
       <Section title="Create a GitHub App">
         <CreateApp />
+      </Section>
+      {/* Optional, and only useful once an app exists. */}
+      <Section title="Webhooks">
+        <Webhooks />
       </Section>
     </div>
   );
