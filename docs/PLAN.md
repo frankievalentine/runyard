@@ -242,6 +242,11 @@ jobs page.
 - **Container runners ("Use this machine for CI")**: a fresh container per job on Runyard's
   own machine, then on SSH machines with Docker. Agreed and designed, not started:
   [docs/plans/container-runners.md](plans/container-runners.md).
+- **Documentation audit**: the guide split into task pages, every step checked against the
+  dashboard, with live testing's findings. Agreed, after live testing and before release:
+  [docs/plans/docs-audit.md](plans/docs-audit.md).
+- **Narrow screens**: the sidebar and every page at phone width. Noted, to plan:
+  [docs/plans/responsive.md](plans/responsive.md).
 
 ## Link previews
 
