@@ -115,6 +115,8 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     fetch,
     machineView: (id) => monitor?.view.machines.find((m) => m.id === id),
     onChange: () => monitor?.tick(),
+    // Installed tools and runners show in readiness right away, not at the next minute check.
+    afterRun: (machineId) => void monitor?.checkMachines([machineId]).catch(() => {}),
   });
   const dispatcher = new Dispatcher({
     db,

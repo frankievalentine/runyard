@@ -112,6 +112,8 @@ type Deps = {
   machineView: (id: string) => MachineView | undefined;
   now?: () => number;
   onChange?: () => void;
+  /** After a run that changed something on the machine, so its readiness is read again. */
+  afterRun?: (machineId: string) => void;
 };
 
 type Context = {
@@ -246,6 +248,7 @@ export class PoolEngine {
     void this.carryOut(op, steps, ctx, options.sudoPassword).finally(() => {
       this.running.delete(review.machineId);
       this.deps.onChange?.();
+      if (op.steps.some((s) => s.status === "succeeded")) this.deps.afterRun?.(review.machineId);
     });
     return op;
   }

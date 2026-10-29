@@ -47,6 +47,8 @@ describe("cleanup after each job", () => {
       ["configureCleanup", "workspace"],
     ]);
     expect((await run(s, r)).status).toBe("succeeded");
+    // So readiness shows what the run changed without waiting for the minute check.
+    expect(s.rechecked).toEqual([s.machine.id]);
     const ops = s.host.received.filter((x) => x.op !== "probe");
     expect(ops.map((x) => x.op)).toEqual(["install", "cleanup-configure"]);
     expect(ops[1]?.env).toMatchObject({

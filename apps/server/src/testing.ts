@@ -89,6 +89,8 @@ export async function testApp(
       migrations: listMigrations(db),
     }),
   });
+  /** Machines a finished run asked to check again. */
+  const rechecked: string[] = [];
   const engine = new PoolEngine({
     db,
     run: fake.run,
@@ -99,6 +101,7 @@ export async function testApp(
     machineView: (id) => monitor?.view.machines.find((m) => m.id === id),
     now: () => clock.now,
     onChange: () => monitor?.tick(),
+    afterRun: (machineId) => rechecked.push(machineId),
   });
   const dispatcher = new Dispatcher({
     db,
@@ -180,6 +183,7 @@ export async function testApp(
     dispatcher,
     receiver,
     funnel,
+    rechecked,
   };
 }
 
