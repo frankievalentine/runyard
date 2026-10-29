@@ -15,7 +15,8 @@ them, which is the point.
 - [ ] **0.2** A control machine on it for Runyard: your Mac works, or a small Linux VM.
 - [ ] **0.3** A Proxmox LXC on the tailnet: unprivileged Debian 12, 2 CPUs, 4 GB, 20 GB disk,
       **nesting** and **keyctl** on, Tailscale's `/dev/net/tun` lines added (see the guide's
-      Runner machines), Tailscale installed and logged in. Only `root` exists yet.
+      Runner machines), updated (`apt update && apt full-upgrade -y`), Tailscale installed and
+      logged in. Only `root` exists yet.
 - [ ] **0.4** A GitHub organization for testing with one private repository (`runyard-test`)
       holding any small project, and a second private repository to spare.
 - [ ] **0.5** Optional for later rounds: a Mac on the tailnet that can run runners, a Forgejo

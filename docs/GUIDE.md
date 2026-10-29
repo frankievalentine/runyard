@@ -101,7 +101,9 @@ What a machine needs to host runners, by kind:
   ```
 
   Without Tailscale, add it to Runyard by its LAN address instead. Then `pct enter <id>`,
-  install `curl` if it's missing, and run the machine's fresh-machine setup command as root.
+  bring it up to date (`apt update && apt full-upgrade -y`, since templates lag behind on
+  security updates), install `curl` if it's missing, and run the machine's fresh-machine setup
+  command as root.
 
 - **Linux VPS.** Install Tailscale (`curl -fsSL https://tailscale.com/install.sh | sh`, then
   `sudo tailscale up`) so Runyard reaches it privately and the setup command can report back,
