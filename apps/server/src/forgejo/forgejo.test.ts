@@ -184,6 +184,14 @@ describe("Forgejo runners", () => {
     const op = await run(s);
     expect(op.status).toBe("succeeded");
     expect(s.host.received.find((r) => r.op === "tools-install")?.env.RF_TOOLS).toBe("node");
+    // The run is in the machine's history, with who ran it.
+    const events = await s.call<{ kind: string; detail: string }[]>(
+      "GET",
+      `/api/events?machine=${s.machine.id}`,
+    );
+    expect(events.find((e) => e.kind === "changesRun")?.detail).toBe(
+      "Installed Node.js; installed box-ci-01 (by admin).",
+    );
 
     const res = await s.raw("PUT", `/api/pools/${poolId}`, {
       name: "ci",
@@ -223,7 +231,15 @@ describe("Forgejo runners", () => {
     s.host.failNext = "Docker mode needs Docker installed";
     const op = await run(s);
     expect(op.status).toBe("failed");
+    const events = await s.call<{ kind: string; detail: string }[]>(
+      "GET",
+      `/api/events?machine=${s.machine.id}`,
+    );
+    expect(events.find((e) => e.kind === "changesFailed")?.detail).toBe(
+      "Couldn't install box-ci-01: Docker mode needs Docker installed (by admin).",
+    );
     expect(s.fakeForgejo.deleted.map((d) => d.id)).toEqual([1]);
+
     expect(s.fakeForgejo.runners.get("user")).toEqual([]);
     expect(listRegistrations(s.deps.db)).toEqual([]);
   });

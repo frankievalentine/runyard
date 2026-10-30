@@ -214,9 +214,16 @@ export function poolRoutes({ db, engine, dispatcher, monitor, github, forgejo }:
         requireAdmin(),
         json(z.object({ sudoPassword: z.string().max(1024).optional() })),
         (c) =>
-          errors(async () =>
-            c.json(await engine.execute(c.req.param("id"), c.req.valid("json")), 202),
-          ),
+          errors(async () => {
+            const user = c.get("identity").user!;
+            return c.json(
+              await engine.execute(c.req.param("id"), {
+                ...c.req.valid("json"),
+                by: user.username ?? user.tailscaleLogin ?? user.id,
+              }),
+              202,
+            );
+          }),
       )
       .get("/operations", requireUser(), (c) => c.json(engine.recentOperations()))
       .get("/operations/:id", requireUser(), (c) => {

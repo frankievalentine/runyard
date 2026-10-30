@@ -150,9 +150,11 @@ labels every chosen machine can carry. The check itself only reads.
 ### Alerts and history
 
 A machine alerts when it's offline on the tailnet for three minutes, or when disk space is below
-10% on readings a minute apart (clearing at 12%). Reboots and SSH failures are recorded too.
-History is kept for 30 days, up to 5,000 events. **Maintenance for 1 hour** pauses a machine's
-alerts.
+10% on readings a minute apart (clearing at 12%). Reboots and SSH failures are recorded too, and
+so is each run of a machine's changes: what each step did, or where it stopped, and who ran it.
+One-job runners starting and ending are recorded; persistent runners' jobs are under **Jobs**
+instead. History (the overview's **Recent activity**, and each machine's) is kept for 30 days, up
+to 5,000 events. **Pause alerts for 1 hour** pauses a machine's alerts.
 
 ## Runners and pools
 

@@ -26,7 +26,10 @@ export type EventKind =
   | "runnerFinished"
   | "runnerFailed"
   /** Something an agent prepared through the MCP server, with who and which token. */
-  | "agentPrepared";
+  | "agentPrepared"
+  /** A machine's reviewed changes, run by a person: what each step did, or where it stopped. */
+  | "changesRun"
+  | "changesFailed";
 
 /** `notify` marks changes a future notification channel should announce. */
 export type Change = { kind: EventKind; detail: string; notify: boolean };

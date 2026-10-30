@@ -5,6 +5,7 @@ import {
   planFingerprint,
   planMachine,
   poolTools,
+  toolName,
   retireCleanup,
   scopeKey,
   type DesiredRunner,
@@ -31,7 +32,7 @@ import { orgRunners, repoRunners } from "../github/api.ts";
 import type { GithubMonitor } from "../github/monitor.ts";
 import { scriptCommand, type SshPrograms } from "../machines/ssh.ts";
 import { finishMigration, listMigrations } from "../machines/assignments.ts";
-import { getMachine } from "../machines/store.ts";
+import { appendEvents, getMachine } from "../machines/store.ts";
 import {
   defaultGroupAllowsPublic,
   deleteRunner,
@@ -206,7 +207,10 @@ export class PoolEngine {
    * Re-reads everything and starts the reviewed changes if the plan is
    * unchanged. Returns the operation, which continues in the background.
    */
-  async execute(reviewId: string, options: { sudoPassword?: string } = {}): Promise<OperationView> {
+  async execute(
+    reviewId: string,
+    options: { sudoPassword?: string; by?: string } = {},
+  ): Promise<OperationView> {
     const review = this.reviews.get(reviewId);
     this.reviews.delete(reviewId);
     if (!review || review.expiresAt <= this.now())
@@ -248,10 +252,36 @@ export class PoolEngine {
     this.operations.set(op.id, op);
     void this.carryOut(op, steps, ctx, options.sudoPassword).finally(() => {
       this.running.delete(review.machineId);
+      this.recordRun(op, steps, ctx.machine.name, options.by);
+
       this.deps.onChange?.();
       if (op.steps.some((s) => s.status === "succeeded")) this.deps.afterRun?.(review.machineId);
     });
     return op;
+  }
+
+  /** A run of a machine's changes, in its history: each step done, or where it stopped. */
+  private recordRun(op: OperationView, steps: PlanItem[], machineName: string, by?: string) {
+    const done = steps.flatMap((item, i) =>
+      op.steps[i]?.status === "succeeded" ? [describeStep(item)] : [],
+    );
+    const failedAt = op.steps.findIndex((s) => s.status === "failed");
+    const failed =
+      failedAt >= 0
+        ? `couldn't ${describeStep(steps[failedAt]!, true)}: ${op.steps[failedAt]!.output.split("\n").at(-1) ?? "failed"}`
+        : null;
+    const parts = [...done, ...(failed ? [failed] : [])];
+    if (parts.length === 0) return;
+    const text = parts.join("; ");
+    appendEvents(this.deps.db, [
+      {
+        machineId: op.machineId,
+        machineName,
+        kind: failed ? "changesFailed" : "changesRun",
+        detail: `${text.charAt(0).toUpperCase()}${text.slice(1)}${by ? ` (by ${by})` : ""}.`,
+        at: this.now(),
+      },
+    ]);
   }
 
   private async carryOut(
@@ -867,4 +897,24 @@ export function forgejoLabels(labels: string[], mode: ForgejoMode): string {
   return labels
     .map((l) => (mode.kind === "docker" ? `${l}:docker://${mode.image}` : `${l}:host`))
     .join(",");
+}
+
+/** A step of a run, for the machine's history: "installed box-ci-01", or the verb alone. */
+function describeStep(item: PlanItem, infinitive = false): string {
+  const tools = (item.tools ?? []).map(toolName).join(", ");
+  const [past, base]: [string, string] = (
+    {
+      install: ["installed", "install"],
+      start: ["started", "start"],
+      reconcileLabels: ["set the labels of", "set the labels of"],
+      remove: ["removed", "remove"],
+      retire: ["retired", "retire"],
+      installTemplate: ["installed the runner software for", "install the runner software for"],
+      removeTemplate: ["removed the runner software for", "remove the runner software for"],
+      configureCleanup: ["set job hooks on", "set job hooks on"],
+      recordJobs: ["set job recording on", "set job recording on"],
+    } as Partial<Record<PlanItem["action"], [string, string]>>
+  )[item.action] ?? [item.action, item.action];
+  if (item.action === "installTools") return `${infinitive ? "install" : "installed"} ${tools}`;
+  return `${infinitive ? base : past} ${item.runnerName}`;
 }

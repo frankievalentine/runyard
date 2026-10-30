@@ -68,6 +68,8 @@ export const eventStyle: Record<EventKind, { label: string; tone: Tone }> = {
   runnerFinished: { label: "One-job runner finished", tone: "ok" },
   runnerFailed: { label: "One-job runner failed", tone: "bad" },
   agentPrepared: { label: "Prepared by an agent", tone: "info" },
+  changesRun: { label: "Changes run", tone: "ok" },
+  changesFailed: { label: "Changes failed", tone: "bad" },
 };
 
 export const osLabel: Record<string, string> = {
