@@ -194,7 +194,7 @@ test("a runner no pool wants any more", () => {
 
 test("tools its pools ask for that the last check didn't find", () => {
   const readiness = {
-    items: [{ id: "tool-jq", status: "missing" }],
+    items: [{ id: "tool-jq", status: "missing", value: "Not found" }],
     capabilities: [],
     homebrew: false,
   } as unknown as MachineView["readiness"];

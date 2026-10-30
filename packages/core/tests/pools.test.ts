@@ -6,6 +6,7 @@ import {
   nameCollisions,
   planFingerprint,
   planMachine,
+  poolTools,
   profileTools,
   scopeKey,
   type DesiredRunner,
@@ -519,4 +520,34 @@ test("cleanup applies to GitHub runners, and waits on Windows", () => {
     ["install", false],
     ["unsupportedPlatform", true],
   ]);
+});
+
+describe("what a pool installs because of how its runners run", () => {
+  const forgejo: Scope = { forgeId: "fj", kind: "user", target: "frankie" };
+  const kinds = new Map([
+    ["gh", "github"],
+    ["fj", "forgejo"],
+  ] as const);
+  test("Node.js for Forgejo jobs on the machine, Docker for them in containers, beside the profiles", () => {
+    expect(poolTools(pool({ scopes: [forgejo], toolProfiles: [] }), kinds)).toEqual(["node"]);
+    expect(
+      poolTools(
+        pool({ scopes: [forgejo], forgejoMode: { kind: "docker", image: "node:22" } }),
+        kinds,
+      ),
+    ).toEqual(["docker"]);
+    expect(poolTools(pool({ scopes: [org], toolProfiles: [] }), kinds)).toEqual([]);
+    expect(poolTools(pool({ scopes: [org, forgejo], toolProfiles: ["build"] }), kinds)).toEqual([
+      "cc",
+      "make",
+      "python3",
+      "node",
+    ]);
+  });
+  test("only on Linux, where forgejo-runner runs", () => {
+    expect(poolTools(pool({ scopes: [forgejo], toolProfiles: [] }), kinds, "macos")).toEqual([]);
+    expect(poolTools(pool({ scopes: [forgejo], toolProfiles: [] }), kinds, "linux")).toEqual([
+      "node",
+    ]);
+  });
 });

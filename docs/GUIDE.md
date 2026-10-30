@@ -139,7 +139,11 @@ runners, and carries it out with the package manager (apt, dnf, zypper or pacman
 review's sudo) or Homebrew on a Mac. Docker comes from the distribution's own packages and the
 runner's account joins the `docker` group; on a Mac, Docker and the Command Line Tools stay
 manual, and Homebrew must already be installed (readiness shows whether it is). Runyard also puts Homebrew's directories on the
-PATH its Mac runners start with, so jobs find what it installs. A machine in a pool that's missing something required
+PATH its Mac runners start with, so jobs find what it installs. A pool also installs what its own
+runners need, whatever you pick: a Forgejo pool that runs jobs on the machine installs Node.js
+(JavaScript actions such as `actions/checkout` run with it), and one that runs them in Docker
+installs Docker. The Tools step lists these as always included. Readiness warns when Node.js is
+older than 20, which current actions need; use Docker mode or a newer Node.js there. A machine in a pool that's missing something required
 or promised shows under **Needs attention** and on the pool's page, and the pool form suggests
 labels every chosen machine can carry. The check itself only reads.
 
@@ -291,7 +295,9 @@ Connect a Forgejo instance (15 or later) under **Settings ▸ Connections ▸ Fo
 access token whose user, organization and repository scopes are set to read and write. Runyard
 watches that user's runners and those of every organization they belong to. A pool can serve
 the account or an organization. Jobs run on the machine (host mode) or, per pool, in Docker
-containers from a default image; Docker must already be installed and usable by the SSH user.
+containers from a default image. The pool installs Node.js (host mode) or Docker (Docker mode)
+where it's missing, through each machine's review.
+
 forgejo-runner is published for Linux only, so Forgejo runners install on Linux machines as
 `runyard-forgejo-<name>` systemd services, from the latest forgejo-runner release with its
 SHA-256 checked.

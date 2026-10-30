@@ -4,7 +4,7 @@ import {
   desiredTemplates,
   planFingerprint,
   planMachine,
-  profileTools,
+  poolTools,
   retireCleanup,
   scopeKey,
   type DesiredRunner,
@@ -523,14 +523,18 @@ export class PoolEngine {
     ).filter((t) => t.machineId === machineId);
     const templateRecords = listTemplates(this.deps.db).filter((t) => t.machineId === machineId);
     const migrations = listMigrations(this.deps.db).filter((m) => m.machineId === machineId);
-    // The tool profiles of this machine's pools, checked against its last readiness read.
+    // The tools this machine's pools call for (their profiles, and what their runners need),
+    // checked against its last readiness read.
+    const kinds = this.forgeKinds();
     const withTools = listPools(this.deps.db).filter(
-      (p) => p.toolProfiles.length && p.machines.some((m) => m.machineId === machineId),
+      (p) =>
+        poolTools(p, kinds, view.os).length && p.machines.some((m) => m.machineId === machineId),
     );
     const toolScope = withTools.flatMap((p) => p.scopes)[0];
     const tools = toolScope
       ? {
-          wanted: profileTools(withTools.flatMap((p) => p.toolProfiles)),
+          wanted: [...new Set(withTools.flatMap((p) => poolTools(p, kinds, view.os)))],
+
           os: view.os,
           readiness: view.readiness,
           scope: toolScope,
@@ -600,7 +604,6 @@ export class PoolEngine {
     const githubErrors = new Map<string, string>();
     const policies = new Map<string, ScopePolicy>();
     const overrides = publicOverrides(this.deps.db);
-    const kinds = this.forgeKinds();
     for (const [key, scope] of scopes) {
       try {
         if (kinds.get(scope.forgeId) === "forgejo") {

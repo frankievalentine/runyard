@@ -1,6 +1,10 @@
 import {
+  forgeKindsOf,
+  poolTools,
   readinessProblems,
+  toolInstallPlan,
   type MachineView,
+  type Pool,
   type ReadinessItem,
   type ReadinessTier,
 } from "@runyard/core";
@@ -81,23 +85,30 @@ export function RunnerReadiness({ m }: { m: MachineView }) {
  * The pool's machines that can't serve its jobs: missing something required,
  * or something its labels promise.
  */
-export function PoolReadiness({
-  poolLabels,
-  machineIds,
-}: {
-  poolLabels: string[];
-  machineIds: string[];
-}) {
+export function PoolReadiness({ pool }: { pool: Pool }) {
   const view = useYard();
-  const labels = new Set(poolLabels.map((l) => `label-${l.toLowerCase()}`));
+  const kinds = forgeKindsOf(view);
+  const labels = new Set(pool.labels.map((l) => `label-${l.toLowerCase()}`));
+  const machineIds = pool.machines.map((x) => x.machineId);
   const rows = view.machines
     .filter((m) => machineIds.includes(m.id))
-    .map((m) => ({
-      m,
-      problems: readinessProblems(m.readiness).filter(
-        (i) => i.tier !== "label" || labels.has(i.id),
-      ),
-    }))
+    .map((m) => {
+      // What the pool installs where missing; the machine's review takes care of those.
+      const installs = new Set(
+        m.os && m.readiness
+          ? toolInstallPlan(m.os, m.readiness, poolTools(pool, kinds, m.os)).install.map((t) =>
+              t === "docker" ? "docker" : `tool-${t}`,
+            )
+          : [],
+      );
+      return {
+        m,
+        problems: readinessProblems(m.readiness).filter(
+          (i) => (i.tier !== "label" || labels.has(i.id)) && !installs.has(i.id),
+        ),
+      };
+    })
+
     .filter((r) => r.problems.length > 0);
   if (rows.length === 0) return null;
   return (

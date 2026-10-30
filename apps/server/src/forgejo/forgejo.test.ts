@@ -10,7 +10,8 @@ import { body, send, sessionCookie, testApp } from "../testing.ts";
 
 const PASSWORD = "correct horse battery";
 
-async function setup(os: "linux" | "macos" = "linux") {
+/** A machine checked once, with a readiness report: Node.js found unless `node` is false. */
+async function setup(os: "linux" | "macos" = "linux", { node = true } = {}) {
   const t = await testApp();
   const res = await send(t.app, "POST", "/api/setup", {
     code: t.codes[0],
@@ -27,7 +28,15 @@ async function setup(os: "linux" | "macos" = "linux") {
     .replace("RFM\tos\tmacos", `RFM\tos\t${os}`)
     .replace(
       "RFM\tdiag:complete",
-      `RFM\tdiag:architecture\t${os === "linux" ? "x86_64" : "arm64"}\nRFM\tdiag:complete`,
+      [
+        `RFM\tdiag:architecture\t${os === "linux" ? "x86_64" : "arm64"}`,
+        ...(node
+          ? ["RFM\tdiag:tool_node\t/usr/bin/node", "RFM\tdiag:tool_node_version\tv20.19.2"]
+          : []),
+        `RFM\tdiag:epoch\t${Math.floor(Date.now() / 1000)}`,
+        "RFM\tdiag:readiness_complete\t1",
+        "RFM\tdiag:complete",
+      ].join("\n"),
     );
   t.fake.machines.set("ci@box", (stdin) =>
     stdin.includes("metric os") ? report : host.answer(stdin),
@@ -156,6 +165,35 @@ describe("Forgejo runners", () => {
         "docker:docker://node:22-bookworm,runyard:docker://node:22-bookworm,runyard-pool-ci:docker://node:22-bookworm",
       RF_MODE: "docker",
     });
+  });
+
+  test("a pool's runners' needs install with no tool profile: Node.js on the machine, Docker in containers", async () => {
+    const s = await setup("linux", { node: false });
+    const forgeId = await connect(s);
+    const poolId = await pool(s, forgeId);
+    const review = await s.call<Review>("POST", `/api/machines/${s.machine.id}/review`);
+    expect(review.items[0]).toMatchObject({
+      action: "installTools",
+      blocked: false,
+      tools: ["node"],
+      reason: "Install Node.js with the package manager.",
+    });
+    const op = await run(s);
+    expect(op.status).toBe("succeeded");
+    expect(s.host.received.find((r) => r.op === "tools-install")?.env.RF_TOOLS).toBe("node");
+
+    const res = await s.raw("PUT", `/api/pools/${poolId}`, {
+      name: "ci",
+      labels: ["docker"],
+      machines: [{ machineId: s.machine.id, slots: 1 }],
+      scopes: [{ forgeId, kind: "user", target: "frankie" }],
+
+      forgejoMode: { kind: "docker", image: "node:22-bookworm" },
+    });
+    expect(res.status).toBe(200);
+
+    const docker = await s.call<Review>("POST", `/api/machines/${s.machine.id}/review`);
+    expect(docker.items.find((i) => i.action === "installTools")?.tools).toEqual(["docker"]);
   });
 
   test("an account with public repositories needs its name typed", async () => {

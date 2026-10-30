@@ -79,6 +79,37 @@ describe("runner readiness", () => {
     expect(mac?.items.find((i) => i.id === "xcode-clt")?.command).toBe("xcode-select --install");
   });
 
+  test("a tool the pools install says so instead of how; an old Node.js warns", () => {
+    const linux = report("linux", posixTools);
+    const node = (r: ReturnType<typeof evaluateReadiness>) =>
+      r?.items.find((i) => i.id === "tool-node");
+    const installs = node(
+      evaluateReadiness(linux, NOW, { labels: [], forgejoHost: true, installs: ["node"] }),
+    );
+    expect(installs?.status).toBe("missing");
+    expect(installs?.command).toBeUndefined();
+
+    expect(installs?.detail).toContain("This machine's review installs it.");
+
+    const old = report("linux", {
+      ...posixTools,
+      tool_node: "/usr/bin/node",
+      tool_node_version: "v18.19.0",
+    });
+    expect(node(evaluateReadiness(old, NOW, { labels: [], forgejoHost: true }))).toMatchObject({
+      status: "warn",
+      value: "Node 18.19.0",
+    });
+    const current = report("linux", {
+      ...posixTools,
+      tool_node: "/usr/bin/node",
+      tool_node_version: "v20.19.2",
+    });
+    expect(
+      status(evaluateReadiness(current, NOW, { labels: [], forgejoHost: true }), "tool-node"),
+    ).toBe("ok");
+  });
+
   test("labels are checked against what the machine has", () => {
     const mac = report("macos", {
       ...posixTools,

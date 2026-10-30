@@ -22,6 +22,7 @@ import type {
 } from "../pools/model.ts";
 import { migrationViews, type MigrationView } from "../pools/migrate.ts";
 import type { Registration } from "../pools/plan.ts";
+import { poolTools } from "../pools/tools.ts";
 import type { Dispatch } from "../pools/dispatch.ts";
 import { evaluateDiagnostics } from "./diagnostics.ts";
 import { evaluateReadiness, type Readiness, type ReadinessNeeds } from "./readiness.ts";
@@ -222,7 +223,7 @@ export function deriveYard(input: {
           ? evaluateReadiness(
               observation.report.value,
               observation.report.at,
-              readinessNeeds(input.pools ?? [], config.id, forgeKinds),
+              readinessNeeds(input.pools ?? [], config.id, forgeKinds, observation.report.value.os),
             )
           : null,
         alerts: [],
@@ -440,10 +441,13 @@ function readinessNeeds(
   pools: Pool[],
   machineId: string,
   forgeKinds: ReadonlyMap<string, ForgeKind>,
+  os: OsFamily | null,
 ): ReadinessNeeds {
   const mine = pools.filter((p) => p.machines.some((m) => m.machineId === machineId));
   return {
     labels: mine.flatMap((p) => p.labels),
+    installs: [...new Set(mine.flatMap((p) => poolTools(p, forgeKinds, os)))],
+
     forgejoHost: mine.some(
       (p) =>
         p.forgejoMode.kind === "host" &&

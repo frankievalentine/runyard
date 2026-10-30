@@ -2,7 +2,7 @@ import type { Readiness } from "../machines/readiness.ts";
 import type { OsFamily } from "../machines/model.ts";
 import { scopeKey } from "../scope.ts";
 import type { RunnerKind, Scope } from "../model.ts";
-import { toolInstallPlan, type ToolId } from "./tools.ts";
+import { toolInstallPlan, toolName, type ToolId } from "./tools.ts";
 import {
   isActive,
   serviceModeFor,
@@ -388,12 +388,13 @@ function planTools(input: PlanInput): PlanItem[] {
       ? [
           item(
             install,
-            `Install ${install.join(", ")} with ${t.os === "macos" ? "Homebrew" : "the package manager"}.`,
+            `Install ${install.map(toolName).join(", ")} with ${t.os === "macos" ? "Homebrew" : "the package manager"}.`,
+
             false,
           ),
         ]
       : []),
-    ...blocked.map((b) => item(b.tools, `${b.tools.join(", ")}: ${b.reason}`, true)),
+    ...blocked.map((b) => item(b.tools, `${b.tools.map(toolName).join(", ")}: ${b.reason}`, true)),
   ];
 }
 

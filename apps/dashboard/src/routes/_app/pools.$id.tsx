@@ -8,7 +8,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { Button, TextField } from "../../components/form.tsx";
-import { TOOL_PROFILES } from "@runyard/core";
+import { forgeKindsOf, poolRequiredTools, poolTools, TOOL_PROFILES } from "@runyard/core";
 import { MigrationsIn } from "../../components/Migration.tsx";
 import { PoolReadiness } from "../../components/Readiness.tsx";
 import { Icon } from "../../components/icons.tsx";
@@ -64,7 +64,11 @@ function PoolPage() {
     );
   }
   const admin = session.user?.role === "admin";
+  const kinds = forgeKindsOf(view);
+  const required = poolRequiredTools(pool, kinds);
+  const tools = poolTools(pool, kinds);
   const desired = view.pools.desired.filter((d) => d.poolId === pool.id);
+
   const existing = desired.filter((d) => runnerFor(view, d)).length;
   const repos = pool.scopes.filter((s) => s.kind === "repo" && !isForgejo(view, s));
   const accounts = pool.scopes.flatMap((s) => {
@@ -157,10 +161,14 @@ function PoolPage() {
           {pool.cleanup === "docker" ? " and prune unused Docker data" : ""} after each job.
         </p>
       )}
-      {pool.toolProfiles.length > 0 && (
+      {tools.length > 0 && (
         <p className="mt-3 text-[12.5px] text-ink-2">
-          Installs {pool.toolProfiles.map((p) => TOOL_PROFILES[p].title).join(", ")} where missing,
-          through each machine's review.
+          Installs{" "}
+          {[
+            ...pool.toolProfiles.map((p) => TOOL_PROFILES[p].title),
+            ...required.map((r) => r.title),
+          ].join(", ")}{" "}
+          where missing, through each machine's review.
         </p>
       )}
       {view.pools.collisions.length > 0 && (
@@ -182,7 +190,8 @@ function PoolPage() {
           An admin reviews and runs each machine's changes to install them.
         </Callout>
       )}
-      <PoolReadiness poolLabels={pool.labels} machineIds={pool.machines.map((x) => x.machineId)} />
+      <PoolReadiness pool={pool} />
+
       {onDemand && (
         <>
           <Section title="Machines" count={pool.machines.length}>

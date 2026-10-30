@@ -29,6 +29,10 @@ done
 if [ -n "$(command -v git 2>/dev/null)" ] && { [ -z "$clt_missing" ] || [ "$(command -v git)" != /usr/bin/git ]; }; then
   fact tool_git_version "$(git --version 2>/dev/null | head -n 1)"
 fi
+if command -v node >/dev/null 2>&1; then
+  fact tool_node_version "$(node --version 2>/dev/null | head -n 1)"
+fi
+
 if command -v docker >/dev/null 2>&1; then
   # The server's version answers only when this account can use the daemon.
   fact docker_server "$(docker version --format '{{.Server.Version}}' 2>/dev/null | head -n 1)"

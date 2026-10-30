@@ -1,11 +1,15 @@
 import {
   desiredRunners,
   desiredTemplates,
+  forgeKindsOf,
   POOL_NAME,
-  profileTools,
+  poolRequiredTools,
+  poolTools,
   readinessProblems,
   TOOL_PROFILES,
   toolInstallPlan,
+  toolName,
+  type ToolId,
   type CleanupMode,
   type ForgeKind,
   type ForgejoMode,
@@ -158,6 +162,9 @@ export function PoolForm({
     // One-job runners start fresh each time; only persistent runners keep a workspace.
     cleanup: poolMode === "persistent" ? cleanup : "off",
   };
+  // What the pool installs by itself, because of how its runners run, beside the profiles.
+  const kinds = forgeKindsOf(view);
+  const required = poolRequiredTools(draft, kinds);
 
   const preview = useMemo(() => {
     const info = new Map(view.machines.map((m) => [m.id, { name: m.name, os: m.os }]));
@@ -371,7 +378,7 @@ export function PoolForm({
                     m={m}
                     on={(slots[m.id] ?? 0) > 0}
                     onToggle={(on) => setSlot(m.id, on ? Math.max(1, slots[m.id] ?? 0) : 0)}
-                    profiles={profiles}
+                    tools={poolTools(draft, kinds, m.os)}
                   />
                 ))}
               </div>
@@ -493,8 +500,8 @@ export function PoolForm({
               <Summary
                 label="Tools"
                 value={
-                  profiles.length
-                    ? `Installs ${profiles.map((p) => TOOL_PROFILES[p].title).join(", ")} where missing`
+                  profiles.length || required.length
+                    ? `Installs ${[...profiles.map((p) => TOOL_PROFILES[p].title), ...required.map((r) => r.title)].join(", ")} where missing`
                     : "Installs nothing"
                 }
                 open={open.has("tools")}
@@ -518,6 +525,12 @@ export function PoolForm({
                     );
                   })}
                 </div>
+                {required.map((r) => (
+                  <p key={r.tool} className="mt-2 text-[12px] text-ink-2">
+                    Always included: <span className="font-medium text-ink">{r.title}</span>,{" "}
+                    {r.why}.
+                  </p>
+                ))}
               </Summary>
               {!onDemand && (
                 <Summary
@@ -575,7 +588,7 @@ export function PoolForm({
                         checked={mode === "docker"}
                         onChange={() => setMode("docker")}
                       />
-                      In Docker containers (requires Docker)
+                      In Docker containers
                     </label>
                     {mode === "docker" && (
                       <TextField
@@ -708,16 +721,15 @@ function MachineChoice({
   m,
   on,
   onToggle,
-  profiles,
+  tools,
 }: {
   m: MachineView;
   on: boolean;
   onToggle: (on: boolean) => void;
-  profiles: ToolProfile[];
+  tools: ToolId[];
 }) {
   const ok = reachable(m) && m.os !== null;
-  const install =
-    m.os && m.readiness ? toolInstallPlan(m.os, m.readiness, profileTools(profiles)) : null;
+  const install = m.os && m.readiness ? toolInstallPlan(m.os, m.readiness, tools) : null;
   // Only what every runner needs; label checks belong to the machine's other pools.
   const problems = readinessProblems(m.readiness).filter(
     (p) => p.tier === "required" && !p.id.startsWith("tool-"),
@@ -754,10 +766,11 @@ function MachineChoice({
             "Not checked yet; its review checks it first."
           ) : install && (install.install.length || install.blocked.length) ? (
             <>
-              {install.install.length > 0 && `Runyard will install ${install.install.join(", ")}.`}
+              {install.install.length > 0 &&
+                `Runyard will install ${install.install.map(toolName).join(", ")}.`}
               {install.blocked.map((b) => (
                 <span key={b.reason} className="block text-warn">
-                  Needs {b.tools.join(", ")} by hand: {b.reason}
+                  Needs {b.tools.map(toolName).join(", ")} by hand: {b.reason}
                 </span>
               ))}
             </>

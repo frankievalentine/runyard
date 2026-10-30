@@ -1,9 +1,17 @@
 import type { RunnerView } from "../github/derive.ts";
 import type { YardView } from "../machines/derive.ts";
 import { scopeKey } from "../scope.ts";
-import type { Scope } from "../model.ts";
+import type { ForgeKind, Scope } from "../model.ts";
 import { labelDrift } from "./plan.ts";
-import { profileTools, toolInstallPlan } from "./tools.ts";
+import { poolTools, toolInstallPlan, toolName } from "./tools.ts";
+
+/** Which forge each connection in the view is. */
+export function forgeKindsOf(view: Pick<YardView, "github" | "forgejo">): Map<string, ForgeKind> {
+  return new Map<string, ForgeKind>([
+    ...view.github.apps.map((a): [string, ForgeKind] => [a.forgeId, "github"]),
+    ...view.forgejo.connections.map((c): [string, ForgeKind] => [c.forgeId, "forgejo"]),
+  ]);
+}
 
 /**
  * What a machine's review would most likely do, from what Runyard already
@@ -21,14 +29,18 @@ export function pendingChanges(view: YardView, machineId: string): string[] {
       (r) => scopeKey(r.scope) === scopeKey(scope) && r.name.toLowerCase() === name.toLowerCase(),
     );
 
-  const wantedTools = profileTools(
-    p.pools
-      .filter((pool) => pool.machines.some((m) => m.machineId === machineId))
-      .flatMap((pool) => pool.toolProfiles),
-  );
+  const kinds = forgeKindsOf(view);
+  const wantedTools = [
+    ...new Set(
+      p.pools
+        .filter((pool) => pool.machines.some((m) => m.machineId === machineId))
+        .flatMap((pool) => poolTools(pool, kinds, machine.os)),
+    ),
+  ];
+
   if (wantedTools.length && machine.readiness && machine.os) {
     const install = toolInstallPlan(machine.os, machine.readiness, wantedTools).install;
-    if (install.length) out.push(`Install ${install.join(", ")}`);
+    if (install.length) out.push(`Install ${install.map(toolName).join(", ")}`);
   }
 
   const desired = p.desired.filter((d) => d.machineId === machineId);

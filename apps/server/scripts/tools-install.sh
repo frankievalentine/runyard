@@ -8,7 +8,7 @@ set -eu
 tools="${RF_TOOLS:-}"
 for tool in $tools; do
   case "$tool" in
-    git | curl | tar | unzip | zip | xz | zstd | jq | gpg | cc | make | python3 | docker) ;;
+    git | curl | tar | unzip | zip | xz | zstd | jq | gpg | cc | make | python3 | docker | node) ;;
     *)
       echo "unknown tool: $tool" >&2
       exit 2
@@ -64,7 +64,9 @@ package_for() {
     zypper:cc | pacman:cc) echo gcc ;;
     pacman:gpg) echo gnupg ;;
     pacman:python3) echo python ;;
+    *:node) echo nodejs ;;
     *) echo "$1" ;;
+
   esac
 }
 

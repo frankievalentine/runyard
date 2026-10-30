@@ -1,5 +1,7 @@
 import type { OsFamily } from "../machines/model.ts";
 import type { Readiness } from "../machines/readiness.ts";
+import type { ForgeKind } from "../model.ts";
+import type { Pool } from "./model.ts";
 
 /** Tools a pool can have installed on its machines, as the readiness check names them. */
 export type ToolId =
@@ -15,7 +17,8 @@ export type ToolId =
   | "cc"
   | "make"
   | "python3"
-  | "docker";
+  | "docker"
+  | "node";
 
 export type ToolProfile = "essentials" | "build" | "docker";
 
@@ -42,17 +45,66 @@ export const TOOL_PROFILES: Record<
   },
 };
 
-export const TOOL_IDS = new Set<string>(Object.values(TOOL_PROFILES).flatMap((p) => p.tools));
+export const TOOL_IDS = new Set<string>([
+  ...Object.values(TOOL_PROFILES).flatMap((p) => p.tools),
+  "node",
+]);
 
 /** The tools a set of profiles calls for, in profile order. */
 export function profileTools(profiles: readonly ToolProfile[]): ToolId[] {
   return [...new Set(profiles.flatMap((p) => TOOL_PROFILES[p]?.tools ?? []))];
 }
 
-/** Whether the last readiness check found a tool. */
+/** A tool as people know it, for review lines: Node.js rather than its command. */
+export const toolName = (tool: ToolId): string => (tool === "node" ? "Node.js" : tool);
+
+/** A tool a pool's runners can't do without, and why. */
+
+export type RequiredTool = { tool: ToolId; title: string; why: string };
+
+/**
+ * What a pool needs on its machines because of how its runners run, whatever
+ * its tool profiles: Node.js for Forgejo jobs on the machine (JavaScript
+ * actions run with it), Docker for Forgejo jobs in containers. Given a
+ * machine's operating system, only what applies there: forgejo-runner runs on
+ * Linux only.
+ */
+export function poolRequiredTools(
+  pool: Pick<Pool, "scopes" | "forgejoMode">,
+  forgeKinds: ReadonlyMap<string, ForgeKind>,
+  os?: OsFamily | null,
+): RequiredTool[] {
+  if (!pool.scopes.some((s) => forgeKinds.get(s.forgeId) === "forgejo")) return [];
+  if (os && os !== "linux") return [];
+  return pool.forgejoMode.kind === "host"
+    ? [{ tool: "node", title: "Node.js", why: "for Forgejo jobs on the machine" }]
+    : [{ tool: "docker", title: "Docker", why: "for Forgejo jobs in containers" }];
+}
+
+/** Every tool a pool's machines' reviews install where missing: its profiles' and its runners' needs. */
+export function poolTools(
+  pool: Pick<Pool, "scopes" | "forgejoMode" | "toolProfiles">,
+  forgeKinds: ReadonlyMap<string, ForgeKind>,
+  os?: OsFamily | null,
+): ToolId[] {
+  return [
+    ...new Set([
+      ...profileTools(pool.toolProfiles),
+      ...poolRequiredTools(pool, forgeKinds, os).map((r) => r.tool),
+    ]),
+  ];
+}
+
+/**
+ * Whether the last readiness check found a tool. Docker counts only when it's
+ * usable; another tool counts once found, even with a warning (an old Node.js),
+ * since installing it again wouldn't change that.
+ */
 export function hasTool(readiness: Readiness, tool: ToolId): boolean {
   const id = tool === "docker" ? "docker" : `tool-${tool}`;
-  return readiness.items.some((i) => i.id === id && i.status === "ok");
+  const item = readiness.items.find((i) => i.id === id);
+  if (!item) return false;
+  return item.status === "ok" || (tool !== "docker" && item.value !== "Not found");
 }
 
 /** Tools that come with the Command Line Tools on a Mac rather than Homebrew. */

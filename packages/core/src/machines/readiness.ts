@@ -29,7 +29,12 @@ export type ReadinessNeeds = {
   labels: string[];
   /** A Forgejo pool runs its jobs on the machine itself, where JavaScript actions need Node. */
   forgejoHost: boolean;
+  /** Tools the machine's pools install where missing; their items say so instead of how. */
+  installs?: readonly string[];
 };
+
+/** The oldest Node.js current JavaScript actions (actions/checkout@v4) run on. */
+const NODE_MIN_MAJOR = 20;
 
 /** Clock drift past which TLS and runner tokens start failing. */
 const DRIFT_WARN_SECS = 60;
@@ -106,8 +111,14 @@ export function evaluateReadiness(
   const os = report.os;
   const has = (key: string) => Boolean(facts[key]);
   const items: ReadinessItem[] = [];
+  const installs = new Set(needs.installs ?? []);
+  const reviewInstalls = "This machine's review installs it.";
   const tool = (t: Tool, tier: ReadinessTier) => {
-    const fix = has(`tool_${t.fact}`) ? {} : howToInstall(os, t);
+    const fix = has(`tool_${t.fact}`)
+      ? {}
+      : installs.has(t.fact)
+        ? { note: reviewInstalls }
+        : howToInstall(os, t);
     items.push({
       id: `tool-${t.fact}`,
       tier,
@@ -137,7 +148,17 @@ export function evaluateReadiness(
         : "git, clang and make for builds on macOS. Installing opens a dialog on the Mac.",
       ...(has("xcode_clt") ? {} : { command: "xcode-select --install" }),
     });
-  if (needs.forgejoHost) tool(NODE, "required");
+  if (needs.forgejoHost) {
+    tool(NODE, "required");
+    const version = facts.tool_node_version ?? "";
+    const major = Number(/^v?(\d+)/.exec(version)?.[1]);
+    if (has("tool_node") && major && major < NODE_MIN_MAJOR) {
+      const node = items.at(-1)!;
+      node.status = "warn";
+      node.value = `Node ${version.replace(/^v/, "")}`;
+      node.detail = `Actions like actions/checkout@v4 need Node ${NODE_MIN_MAJOR} or later. Use Docker mode, or install a newer Node.js.`;
+    }
+  }
 
   const epoch = Number(facts.epoch);
   if (Number.isFinite(epoch) && epoch > 0) {
@@ -205,7 +226,7 @@ export function evaluateReadiness(
       ? "Container jobs, service containers and Docker builds can run."
       : has("docker_cli")
         ? "The daemon isn't running, or this account isn't in the docker group."
-        : "Needed for container jobs, service containers and Docker builds.",
+        : `Needed for container jobs, service containers and Docker builds.${installs.has("docker") ? ` ${reviewInstalls}` : ""}`,
   });
 
   const capabilities: string[] = [];
