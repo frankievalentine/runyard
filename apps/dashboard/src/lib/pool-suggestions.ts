@@ -39,7 +39,9 @@ const MAX = 4;
  * that no runner matches, then machines not in any pool yet. No I/O.
  */
 export function suggestPools(view: YardView): PoolSuggestion[] {
-  const options = availableScopes(view);
+  // A Forgejo account covers its repositories: suggestions serve the account.
+  const options = availableScopes(view).filter((o) => !o.account);
+
   const pooled = new Set(view.pools.pools.flatMap((p) => p.machines.map((m) => m.machineId)));
   const usable = view.machines.filter((m) => m.os !== null);
   const taken = new Set(view.pools.pools.map((p) => p.name));

@@ -118,8 +118,10 @@ function JobRow({ job, showMachine }: { job: JobRecord; showMachine?: boolean })
     ? view.runners.find((r) => r.name.toLowerCase() === job.runnerName!.toLowerCase())
     : undefined;
   const machine = showMachine ? view.machines.find((m) => m.id === job.machineId) : undefined;
-  // Forgejo serves job logs from version 16; its jobs link to the run instead.
-  const forgejo = view.forgejo.connections.some((c) => c.forgeId === job.forgeId);
+  // Forgejo serves job logs from version 16; before that, its jobs link to the run instead.
+  const conn = view.forgejo.connections.find((c) => c.forgeId === job.forgeId);
+  const forgejo = conn !== undefined;
+  const logs = !forgejo || Number(/^v?(\d+)\./.exec(conn.version ?? "")?.[1]) >= 16;
   const took =
     job.startedAt && job.finishedAt
       ? `took ${formatElapsed(job.finishedAt - job.startedAt)}`
@@ -200,7 +202,7 @@ function JobRow({ job, showMachine }: { job: JobRecord; showMachine?: boolean })
               {part}
             </span>
           ))}
-        {forgejo && job.htmlUrl && (
+        {!logs && job.htmlUrl && (
           <a
             href={job.htmlUrl}
             target="_blank"
@@ -210,7 +212,7 @@ function JobRow({ job, showMachine }: { job: JobRecord; showMachine?: boolean })
             Open on Forgejo
           </a>
         )}
-        {!forgejo && job.jobId !== null && (
+        {logs && job.jobId !== null && (
           <button
             type="button"
             onClick={() => setOpen(!open)}
@@ -227,7 +229,9 @@ function JobRow({ job, showMachine }: { job: JobRecord; showMachine?: boolean })
         </p>
       )}
       {open && log.isPending && (
-        <div className="mt-1 text-[12px] text-ink-3">Fetching it from GitHub…</div>
+        <div className="mt-1 text-[12px] text-ink-3">
+          Fetching it from {forgejo ? "Forgejo" : "GitHub"}…
+        </div>
       )}
       {open && log.error && <ErrorText className="mt-1" error={log.error} />}
       {open && log.data && <Terminal text={log.data.log} running={false} />}

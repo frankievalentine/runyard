@@ -84,7 +84,14 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   // The machine monitor publishes the whole view; GitHub polls ask it to.
   let monitor: MachineMonitor | undefined;
   const github = new GithubMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
-  const forgejo = new ForgejoMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
+  const forgejo = new ForgejoMonitor({
+    db,
+    secrets,
+    fetch,
+    onChange: () => monitor?.tick(),
+    repoScopes: () => listPools(db).flatMap((p) => p.scopes.filter((s) => s.kind === "repo")),
+  });
+
   const boat = new BoatMonitor({ secrets, fetch, onChange: () => monitor?.tick() });
   // A round can change many jobs; the view is derived again once for all of them.
   let jobsTick: ReturnType<typeof setTimeout> | undefined;

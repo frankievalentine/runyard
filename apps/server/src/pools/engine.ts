@@ -694,16 +694,15 @@ export class PoolEngine {
       this.deps.forgejo?.observations().find((c) => c.forgeId === scope.forgeId)?.login ??
       scope.target;
     const repos = await api.repos(scope, login);
-    const target =
-      scope.kind === "repo"
-        ? repos.filter((r) => r.fullName.toLowerCase() === scope.target.toLowerCase())
-        : repos;
-    const open = target.filter((r) => !r.private).map((r) => r.fullName);
+    const open = repos.filter((r) => !r.private).map((r) => r.fullName);
     if (open.length === 0) return { ok: true };
     if (overrides.has(`${scope.forgeId}:${scope.target.toLowerCase()}`)) return { ok: true };
     return {
       ok: false,
-      reason: `${scope.target} has public repositories (${open.slice(0, 3).join(", ")}${open.length > 3 ? ", …" : ""}); a runner here would run their pull requests' workflows. Allow it in the pool's settings once you've locked them down.`,
+      reason:
+        scope.kind === "repo"
+          ? `${scope.target} is public; a runner here would run its pull requests' workflows. Allow it in the pool's settings once you've locked it down.`
+          : `${scope.target} has public repositories (${open.slice(0, 3).join(", ")}${open.length > 3 ? ", …" : ""}); a runner here would run their pull requests' workflows. Allow it in the pool's settings once you've locked them down.`,
     };
   }
 

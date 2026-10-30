@@ -21,6 +21,12 @@ export function supportedVersion(version: string): boolean {
   return Number.isFinite(major) && major >= MIN_FORGEJO_MAJOR;
 }
 
+/** Forgejo serves a job's log through its API from version 16. */
+export function servesJobLogs(version: string | null): boolean {
+  const major = Number(/^v?(\d+)\./.exec(version ?? "")?.[1]);
+  return Number.isFinite(major) && major >= 16;
+}
+
 type RawRunner = {
   id: number;
   uuid: string;
@@ -59,7 +65,12 @@ export class ForgejoApi {
     private readonly token: string,
   ) {}
 
-  private async request(method: string, path: string, body?: unknown): Promise<unknown> {
+  private async request(
+    method: string,
+    path: string,
+    body?: unknown,
+    as: "json" | "text" = "json",
+  ): Promise<unknown> {
     let res: Response;
     try {
       res = await this.fetch(
@@ -100,6 +111,7 @@ export class ForgejoApi {
         );
       throw new ForgejoError(`Forgejo returned ${res.status}: ${message}`, res.status);
     }
+    if (as === "text") return res.text();
     return res.status === 204 ? null : ((await res.json()) as unknown);
   }
 
@@ -128,8 +140,21 @@ export class ForgejoApi {
     return (await this.list<{ username: string }>("/user/orgs")).map((o) => o.username);
   }
 
-  /** The account's own repositories (not ones it only collaborates on). */
+  /**
+   * The account's own repositories (not ones it only collaborates on). For a
+   * repository scope, its owner's: the user's own, or its organization's.
+   */
   async repos(scope: Scope, login: string): Promise<ForgejoRepo[]> {
+    if (scope.kind === "repo") {
+      const owner = scope.target.split("/")[0]!;
+      const account: Scope =
+        owner.toLowerCase() === login.toLowerCase()
+          ? { ...scope, kind: "user", target: login }
+          : { ...scope, kind: "org", target: owner };
+      return (await this.repos(account, login)).filter(
+        (r) => r.fullName.toLowerCase() === scope.target.toLowerCase(),
+      );
+    }
     const raw =
       scope.kind === "org"
         ? await this.list<{
@@ -213,6 +238,26 @@ export class ForgejoApi {
       startedAt: t.run_started_at ?? null,
       updatedAt: t.updated_at ?? null,
     }));
+  }
+
+  /**
+   * A finished task's log (Forgejo 16 and later): its run found by number,
+   * the run's job that ran the task, then that job's log.
+   */
+  async taskLog(repo: string, runNumber: number, taskId: number): Promise<string> {
+    const base = `/repos/${repo.split("/").map(enc).join("/")}/actions`;
+    const runs = (await this.request("GET", `${base}/runs?run_number=${runNumber}&limit=1`)) as {
+      workflow_runs?: { id: number }[];
+    } | null;
+    const run = runs?.workflow_runs?.[0];
+    if (!run) throw new ForgejoError(`Forgejo has no run ${runNumber} in ${repo}.`, 404);
+    const jobs = ((await this.request("GET", `${base}/runs/${run.id}/jobs`)) ?? []) as {
+      id: number;
+      task_id: number;
+    }[];
+    const job = jobs.find((j) => j.task_id === taskId);
+    if (!job) throw new ForgejoError(`Forgejo no longer lists this job in run ${runNumber}.`, 404);
+    return (await this.request("GET", `${base}/jobs/${job.id}/logs`, undefined, "text")) as string;
   }
 
   /** Jobs for the scope's runners: waiting, and running ones too. */

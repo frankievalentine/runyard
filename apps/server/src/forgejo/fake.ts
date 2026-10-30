@@ -35,6 +35,13 @@ export class FakeForgejo {
   jobs = new Map<string, Job[]>();
   /** Each repository's tasks, as `actions/tasks` answers, by full name. */
   tasks = new Map<string, Record<string, unknown>[]>();
+  /** Each repository's runs (Forgejo 16 and later): ID, number, and their jobs' tasks. */
+  runs = new Map<
+    string,
+    { id: number; number: number; jobs: { id: number; task_id: number }[] }[]
+  >();
+  /** Job logs by job ID. */
+  logs = new Map<number, string>();
   /** Runner tokens handed out at registration. */
   issued: { scope: string; name: string; token: string }[] = [];
   deleted: { scope: string; id: number }[] = [];
@@ -84,6 +91,21 @@ export class FakeForgejo {
       ),
     );
     app.get("/api/v1/user/repos", (c) => this.page(c, this.repos));
+    const runsOf = (c: Context) =>
+      this.runs.get(`${c.req.param("owner")}/${c.req.param("repo")}`) ?? [];
+    app.get("/api/v1/repos/:owner/:repo/actions/runs", (c) => {
+      const n = Number(c.req.query("run_number"));
+      const runs = runsOf(c).filter((r) => !n || r.number === n);
+      return c.json({ workflow_runs: runs.map((r) => ({ id: r.id, index_in_repo: r.number })) });
+    });
+    app.get("/api/v1/repos/:owner/:repo/actions/runs/:id/jobs", (c) => {
+      const run = runsOf(c).find((r) => r.id === Number(c.req.param("id")));
+      return run ? c.json(run.jobs) : c.json({ message: "not found" }, 404);
+    });
+    app.get("/api/v1/repos/:owner/:repo/actions/jobs/:id/logs", (c) => {
+      const log = this.logs.get(Number(c.req.param("id")));
+      return log === undefined ? c.json({ message: "not found" }, 404) : c.text(log);
+    });
     app.get("/api/v1/repos/:owner/:repo/actions/tasks", (c) => {
       const tasks = this.tasks.get(`${c.req.param("owner")}/${c.req.param("repo")}`) ?? [];
       return c.json({ workflow_runs: tasks, total_count: tasks.length });

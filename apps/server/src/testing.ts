@@ -65,7 +65,9 @@ export async function testApp(
     secrets,
     fetch: fakeForgejo.fetch,
     onChange: () => monitor?.tick(),
+    repoScopes: () => listPools(db).flatMap((p) => p.scopes.filter((s) => s.kind === "repo")),
   });
+
   const fakeBoat = new FakeBoat();
   const boat = new BoatMonitor({
     secrets,

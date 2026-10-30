@@ -27,7 +27,7 @@ const base = {
       {
         forgeId: "fj",
         baseUrl: "https://forgejo.test",
-        scopes: [{ kind: "user", target: "frankie" }],
+        scopes: [{ kind: "user", target: "frankie", repos: ["frankie/app"] }],
       },
     ],
   },

@@ -360,8 +360,99 @@ describe("Forgejo run history", () => {
     expect(jobs).toHaveLength(1);
     expect(jobs[0]).toMatchObject({ runId: 3, conclusion: "success" });
 
+    // Forgejo 16 and later serve the log: the run by number (here not its ID), then its job.
+    s.fakeForgejo.runs.set("frankie/app", [{ id: 41, number: 3, jobs: [{ id: 9, task_id: 7 }] }]);
+    s.fakeForgejo.logs.set(9, "Run make\nok\n");
+    expect(await s.call<{ log: string }>("GET", `/api/jobs/${jobs[0]!.id}/log`)).toEqual({
+      log: "Run make\nok\n",
+    });
+  });
+
+  test("Forgejo 15 has no job logs; its jobs link to the run", async () => {
+    const s = await setup();
+    s.fakeForgejo.version = "15.0.3+gitea-1.22.0";
+    await pool(s, await connect(s));
+    await run(s);
+    const now = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+    s.fake.machines.set("ci@box", (stdin) =>
+      stdin.includes("metric os")
+        ? `${s.report}\nRFF\t${now}\tbox-ci-01\t7\tfrankie/app`
+        : s.host.answer(stdin),
+    );
+    await s.monitor.checkMachines();
+    const { jobs } = await s.call<Jobs>("GET", `/api/jobs?machine=${s.machine.id}`);
     const log = await s.raw("GET", `/api/jobs/${jobs[0]!.id}/log`);
     expect(log.status).toBe(404);
     expect(((await log.json()) as { error: string }).error).toContain("Open the job on Forgejo");
+  });
+});
+
+describe("Forgejo repository scopes", () => {
+  async function repoPool(s: Setup, forgeId: string, repos: string[]) {
+    return s.raw("POST", "/api/pools", {
+      name: "ci",
+      labels: ["docker"],
+      machines: [{ machineId: s.machine.id, slots: 1 }],
+      scopes: repos.map((target) => ({ forgeId, kind: "repo", target })),
+      forgejoMode: { kind: "host" },
+    });
+  }
+
+  test("an account's repositories are offered, and a runner registers on just one", async () => {
+    const s = await setup();
+    s.fakeForgejo.repos.push({
+      id: 2,
+      full_name: "frankie/site",
+      private: false,
+      owner: { login: "frankie" },
+    });
+    const forgeId = await connect(s);
+    const account = s.monitor.view.forgejo.connections[0]!.scopes.find((x) => x.kind === "user");
+    expect(account?.repos).toEqual(["frankie/app", "frankie/site"]);
+
+    expect((await repoPool(s, forgeId, ["frankie/app"])).status).toBe(201);
+    // The public frankie/site doesn't hold up a runner for the private frankie/app.
+    expect((await run(s)).status).toBe("succeeded");
+    expect(s.fakeForgejo.issued[0]).toMatchObject({ scope: "repo:frankie/app", name: "box-ci-01" });
+    expect(s.host.received.find((r) => r.op === "install")?.env.RF_ROOT).toBe(
+      "~/runyard-runners/ci/forgejo-frankie-app/01",
+    );
+    // Watched as soon as the pool is saved: its runner shows under the repository.
+    await s.forgejo.refreshAll();
+    expect(
+      s.monitor.view.forgejo.connections[0]!.scopes.some(
+        (x) => x.kind === "repo" && x.target === "frankie/app",
+      ),
+    ).toBe(true);
+  });
+
+  test("a public repository needs its own name typed", async () => {
+    const s = await setup();
+    s.fakeForgejo.repos[0]!.private = false;
+    const forgeId = await connect(s);
+    await repoPool(s, forgeId, ["frankie/app"]);
+    await s.forgejo.refreshAll();
+    const review = await s.call<Review>("POST", `/api/machines/${s.machine.id}/review`);
+    expect(review.items.map((i) => [i.action, i.blocked])).toEqual([["publicRepo", true]]);
+    expect(review.items[0]?.reason).toBe(
+      "frankie/app is public; a runner here would run its pull requests' workflows. Allow it in the pool's settings once you've locked it down.",
+    );
+  });
+
+  test("a pool takes an account or its repositories, not both", async () => {
+    const s = await setup();
+    const forgeId = await connect(s);
+    const res = await s.raw("POST", "/api/pools", {
+      name: "ci",
+      labels: ["docker"],
+      machines: [{ machineId: s.machine.id, slots: 1 }],
+      scopes: [
+        { forgeId, kind: "user", target: "frankie" },
+        { forgeId, kind: "repo", target: "frankie/app" },
+      ],
+      forgejoMode: { kind: "host" },
+    });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain("not both");
   });
 });

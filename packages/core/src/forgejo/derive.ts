@@ -15,12 +15,14 @@ export type ForgejoConnectionView = {
   version: string | null;
   error: string | null;
   scopes: {
-    kind: "user" | "org";
+    kind: "user" | "org" | "repo";
     target: string;
     runnersAt: number | null;
     runnersError: string | null;
     jobsError: string | null;
     publicRepos: string[] | null;
+    /** An account's repositories; empty for a repository scope. */
+    repos: string[];
   }[];
 };
 
@@ -40,6 +42,8 @@ export function deriveForgejo(
   const waiting: QueuedJobView[] = [];
   let complete = true;
   let at: number | null = null;
+  // A job shows through its account and through a repository scope a pool serves: once.
+  const seenJobs = new Set<string>();
   for (const conn of connections) {
     for (const s of conn.scopes) {
       if (s.runners) {
@@ -73,6 +77,9 @@ export function deriveForgejo(
       else at = at === null ? jobs.at : Math.min(at, jobs.at);
       for (const j of jobs?.value ?? []) {
         if (j.status !== "waiting") continue;
+        const seen = `${conn.forgeId}:${j.id}`;
+        if (seenJobs.has(seen)) continue;
+        seenJobs.add(seen);
         const job = {
           id: j.id,
           forge: "forgejo" as const,
@@ -120,12 +127,13 @@ export function deriveForgejo(
       version: c.version,
       error: c.error,
       scopes: c.scopes.map((s) => ({
-        kind: s.scope.kind === "org" ? "org" : "user",
+        kind: s.scope.kind === "org" || s.scope.kind === "repo" ? s.scope.kind : "user",
         target: s.scope.target,
         runnersAt: s.runners?.at ?? null,
         runnersError: s.runnersError?.value ?? null,
         jobsError: s.jobsError?.value ?? null,
         publicRepos: s.publicRepos,
+        repos: s.repos ?? [],
       })),
     })),
     runners,

@@ -71,8 +71,9 @@ function PoolPage() {
 
   const existing = desired.filter((d) => runnerFor(view, d)).length;
   const repos = pool.scopes.filter((s) => s.kind === "repo" && !isForgejo(view, s));
+  // Forgejo accounts and single repositories with something public, as last read.
   const accounts = pool.scopes.flatMap((s) => {
-    if (s.kind === "repo" || !isForgejo(view, s)) return [];
+    if (!isForgejo(view, s)) return [];
     const conn = view.forgejo.connections.find((c) => c.forgeId === s.forgeId);
     const observed = conn?.scopes.find(
       (x) => x.kind === s.kind && x.target.toLowerCase() === s.target.toLowerCase(),
@@ -278,9 +279,9 @@ function PoolPage() {
       {admin && accounts.length > 0 && (
         <Section title="Public repositories">
           <p className="mb-3 max-w-2xl text-[12.5px] text-ink-2">
-            A Forgejo account or organization runner serves every repository it owns, public ones
-            included. Runyard won't register runners for it until you allow it: any runner here runs
-            whatever workflow a pull request brings.
+            A Forgejo account runner serves every repository it owns, public ones included. Runyard
+            won't register runners for a public repository or an account with one until you allow
+            it: any runner here runs whatever workflow a pull request brings.
           </p>
           <div className="space-y-3">
             {accounts.map((a) => (
@@ -413,15 +414,19 @@ function PublicAccount({ scope, publicRepos }: { scope: Scope; publicRepos: stri
     <Card className="px-4 py-3 text-[12.5px]">
       <div className="flex items-center gap-2 font-medium">
         <StatusDot tone="warn" />
-        <span className="font-mono">{scope.target}</span> owns{" "}
-        {publicRepos.length === 1
-          ? "a public repository"
-          : `${publicRepos.length} public repositories`}
+        <span className="font-mono">{scope.target}</span>
+        {scope.kind === "repo"
+          ? " is public"
+          : publicRepos.length === 1
+            ? " owns a public repository"
+            : ` owns ${publicRepos.length} public repositories`}
       </div>
-      <p className="mt-1.5 font-mono text-ink-2">
-        {publicRepos.slice(0, 8).join(", ")}
-        {publicRepos.length > 8 && ", …"}
-      </p>
+      {scope.kind !== "repo" && (
+        <p className="mt-1.5 font-mono text-ink-2">
+          {publicRepos.slice(0, 8).join(", ")}
+          {publicRepos.length > 8 && ", …"}
+        </p>
+      )}
       <p className="mt-2 text-ink-2">
         Before allowing it, turn off pull requests on these repositories or make them private, and
         make sure no workflow on these runners is triggered by issues, comments or

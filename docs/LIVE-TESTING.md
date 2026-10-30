@@ -164,6 +164,12 @@ For 5.2, send the pool page's One-job runners entry and the machine's history.
       the runner from 9.2 shows **Record jobs** as a change waiting; run it.
       Then run the workflow again: expect the job under **Jobs** on the LXC's page and the pool's,
       with its result within a minute or two and **Open on Forgejo** linking to the run.
+- [ ] **9.5** On Forgejo 17: a job's **Show log** shows its output.
+- [ ] **9.6** Repository scopes: a new pool lists the account's repositories under it; choosing
+      the account greys them out. A pool serving one private repository registers its runner on
+      that repository in Forgejo (Settings ▸ Actions ▸ Runners of the repository), and a public
+      repository elsewhere on the account doesn't hold it up. Its service is named after its
+      directory (`runyard-forgejo-<pool>-forgejo-<owner>-<repo>-01`).
 
 ## Round 10: a Mac runner machine (optional)
 

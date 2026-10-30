@@ -40,6 +40,8 @@ export class ForgejoMonitor {
       fetch: Fetch;
       now?: () => number;
       onChange?: () => void;
+      /** Single Forgejo repositories pools serve, watched beside the accounts. */
+      repoScopes?: () => Scope[];
     },
   ) {
     this.now = deps.now ?? Date.now;
@@ -143,7 +145,12 @@ export class ForgejoMonitor {
           target: org,
         })),
       ];
-      const keys = new Set(wanted.map((s) => `${s.kind}:${s.target.toLowerCase()}`));
+      const repoScopes = (this.deps.repoScopes?.() ?? []).filter(
+        (s) => s.forgeId === state.config.id && s.kind === "repo",
+      );
+      const keys = new Set(
+        [...wanted, ...repoScopes].map((s) => `${s.kind}:${s.target.toLowerCase()}`),
+      );
       for (const key of state.scopes.keys()) if (!keys.has(key)) state.scopes.delete(key);
       for (const scope of wanted) {
         const key = `${scope.kind}:${scope.target.toLowerCase()}`;
@@ -163,9 +170,36 @@ export class ForgejoMonitor {
           existing.observation.publicRepos = existing.repos
             .filter((r) => !r.private)
             .map((r) => r.fullName);
+          existing.observation.repos = existing.repos.map((r) => r.fullName);
         } catch (error) {
           existing.observation.runnersError = { at: this.now(), value: message(error) };
         }
+        state.scopes.set(key, existing);
+      }
+      // A repository's details come from its account's list, read just above.
+      const owned = [...state.scopes.values()].flatMap((s) =>
+        s.observation.scope.kind === "repo" ? [] : s.repos,
+      );
+      for (const scope of repoScopes) {
+        const key = `repo:${scope.target.toLowerCase()}`;
+        const existing = state.scopes.get(key) ?? {
+          repos: [],
+          observation: {
+            scope,
+            runners: null,
+            runnersError: null,
+            jobs: null,
+            jobsError: null,
+            publicRepos: null,
+            repos: [],
+          },
+        };
+        existing.repos = owned.filter(
+          (r) => r.fullName.toLowerCase() === scope.target.toLowerCase(),
+        );
+        existing.observation.publicRepos = existing.repos
+          .filter((r) => !r.private)
+          .map((r) => r.fullName);
         state.scopes.set(key, existing);
       }
     } catch (error) {

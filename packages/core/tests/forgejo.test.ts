@@ -143,3 +143,16 @@ test("an admin's assignment places a runner on a machine; a registration wins", 
   expect(registered.runners.find((r) => r.name === "box-ci-01")?.machineId).toBe("m2");
   expect(registered.assignedRunners).toEqual([]);
 });
+
+test("a job seen through its account and a repository scope queues once", () => {
+  const base = conn();
+  const account = base.scopes[0]!;
+  const repo = {
+    ...account,
+    scope: { forgeId: "fj", kind: "repo" as const, target: "frankie/app" },
+    runners: { at: 1000, value: [] },
+  };
+  const view = deriveForgejo([{ ...base, scopes: [account, repo] }], 1000);
+  expect(view.queue.jobs.map((j) => j.id)).toEqual([7]);
+  expect(view.connections[0]!.scopes.map((s) => s.kind)).toEqual(["user", "repo"]);
+});

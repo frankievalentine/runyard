@@ -62,9 +62,11 @@ GitHub requests fill it in.
    - The result round reads the repository's newest 50 tasks once for all its unfinished jobs,
      filling the name, run number, result, end and link.
    - Only tasks a Runyard runner logged are recorded: the API can't say which runner ran a task.
-   - No Show log (Forgejo 15 has no job log endpoint; 16 adds
-     `/repos/{repo}/actions/jobs/{id}/logs`, to add once tried on a real 16), and no Runner lost
-     (no end line). Runners installed before this get a **Record jobs** review step.
+   - Show log on Forgejo 16 and later (tried on the user's 17.0.1): the run by its number
+     (`/actions/runs?run_number=N`, since a run's ID and number can differ), the run's job whose
+     `task_id` is the task, then `/actions/jobs/{id}/logs`. Forgejo 15 has no log endpoint, so
+     its jobs link to the run. No Runner lost (no end line). Runners installed before this get a
+     **Record jobs** review step.
 
 Records from all sources merge on (forge, repository, job id).
 

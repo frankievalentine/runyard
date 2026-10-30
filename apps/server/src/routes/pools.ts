@@ -116,6 +116,15 @@ export function poolChecker({
       if (s.kind === "user" && kinds.get(s.forgeId) !== "forgejo") {
         return "GitHub has no account-wide runners for personal accounts.";
       }
+      // A Forgejo account's runner already serves its repositories; one job, one runner.
+      if (s.kind === "repo" && kinds.get(s.forgeId) === "forgejo") {
+        const owner = s.target.split("/")[0]!.toLowerCase();
+        const account = input.scopes.find(
+          (a) => a.forgeId === s.forgeId && a.kind !== "repo" && a.target.toLowerCase() === owner,
+        );
+        if (account)
+          return `${account.target}'s runner already serves ${s.target}; choose the account or its repositories, not both.`;
+      }
     }
     const collisions = nameCollisions(
       desiredRunners([...others, { id: id ?? "new", paused: false, ...input }], info, kinds),
@@ -142,6 +151,8 @@ export function poolRoutes({ db, engine, dispatcher, monitor, github, forgejo }:
         if (problem) return c.json({ error: problem }, 400);
         const id = savePool(db, input);
         monitor.configChanged();
+        // Starts watching a single Forgejo repository it serves now, not at the next account read.
+        void forgejo.refreshAll();
         return c.json({ id }, 201);
       })
       .put("/pools/:id", requireAdmin(), json(poolSchema), (c) => {
@@ -152,6 +163,7 @@ export function poolRoutes({ db, engine, dispatcher, monitor, github, forgejo }:
         if (problem) return c.json({ error: problem }, 400);
         savePool(db, input, id);
         monitor.configChanged();
+        void forgejo.refreshAll();
         return c.json({ id });
       })
       .delete("/pools/:id", requireAdmin(), (c) => {

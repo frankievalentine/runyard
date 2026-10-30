@@ -242,8 +242,9 @@ Forgejo jobs are recorded too. A Forgejo runner writes its output to `runner.log
 directory (a one-job runner's is kept in `jobs/.logs`), which logs each task it takes. The minute
 check reads those lines, and Runyard reads the repository's tasks from Forgejo (Forgejo 15 or
 later) for each one's result. Forgejo's API doesn't say which runner ran a task, so only tasks a
-Runyard runner logged are recorded. Forgejo jobs link to their run with **Open on Forgejo**:
-Forgejo serves job logs only from version 16. They're never marked **Runner lost**, since the
+Runyard runner logged are recorded. On Forgejo 16 and later, **Show log** fetches a job's log
+(Runyard finds the run by its number, then the job that ran the task); on Forgejo 15, which has
+no log endpoint, jobs link to their run with **Open on Forgejo**. They're never marked **Runner lost**, since the
 runner doesn't log a task's end. Forgejo runners set up before run history show **Record jobs**
 as a change waiting; it points the service's output at `runner.log` and restarts the runner while
 idle, so the runner's output is in that file rather than the journal.
@@ -304,13 +305,19 @@ installed on every repository of a personal account with many of them.
 Connect a Forgejo instance (15 or later) under **Settings ▸ Connections ▸ Forgejo** with an
 access token whose user, organization and repository scopes are set to read and write. Runyard
 watches that user's runners and those of every organization they belong to. A pool can serve
-the account or an organization. Jobs run on the machine (host mode) or, per pool, in Docker
+the account or an organization, whose runner serves every repository it owns, or single
+repositories, listed under their account: choosing an account covers its repositories, so a pool
+takes one or the other. A single repository's runner registers on that repository, and only its
+own visibility counts for the public-repository check. Runyard watches a repository's runners and
+waiting jobs only while a pool serves it. Jobs run on the machine (host mode) or, per pool, in Docker
+
 containers from a default image. The pool installs Node.js (host mode) or Docker (Docker mode)
 where it's missing, through each machine's review.
 
 forgejo-runner is published for Linux only, so Forgejo runners install on Linux machines as
-`runyard-forgejo-<name>` systemd services, from the latest forgejo-runner release with its
-SHA-256 checked.
+`runyard-forgejo-<pool>-<scope>-<NN>` systemd services, named after their directory so a pool's
+runners for different scopes never share one (runners installed earlier keep
+`runyard-forgejo-<name>`), from the latest forgejo-runner release with its SHA-256 checked.
 
 ### boat.dev
 

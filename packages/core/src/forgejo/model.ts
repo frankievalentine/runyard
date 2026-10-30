@@ -30,7 +30,10 @@ export type ForgejoJob = {
   runsOn: string[];
 };
 
-/** One account (user or organization) a Forgejo connection watches. */
+/**
+ * One scope a Forgejo connection watches: the user's account and its
+ * organizations, and the single repositories pools serve.
+ */
 export type ForgejoScopeObservation = {
   scope: Scope;
   runners: Timed<ForgejoRunner[]> | null;
@@ -39,6 +42,8 @@ export type ForgejoScopeObservation = {
   jobsError: Timed<string> | null;
   /** Public repositories the account owns; a runner at this scope would serve them. */
   publicRepos: string[] | null;
+  /** An account's repositories, for pools that serve just one of them; empty for a repository. */
+  repos?: string[] | null;
 };
 
 /** A Forgejo instance and user Runyard connects as. */

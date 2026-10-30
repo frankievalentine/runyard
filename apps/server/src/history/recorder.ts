@@ -9,7 +9,7 @@ import {
   type YardView,
 } from "@runyard/core";
 import type { Db } from "../db/index.ts";
-import { ForgejoError, type ForgejoApi } from "../forgejo/client.ts";
+import { ForgejoError, servesJobLogs, type ForgejoApi } from "../forgejo/client.ts";
 import type { GithubMonitor } from "../github/monitor.ts";
 import { GithubError } from "../github/client.ts";
 import { jobsWithoutResult, pruneJobs, recordJob } from "./store.ts";
@@ -233,11 +233,25 @@ export class JobHistory {
 
   /** A job's log from GitHub, fetched when asked for and not kept. */
   async log(job: JobRecord): Promise<string> {
-    if (this.isForgejo(job.forgeId))
-      throw new ForgejoError(
-        "Forgejo doesn't serve job logs before version 16. Open the job on Forgejo.",
-        404,
-      );
+    if (this.isForgejo(job.forgeId)) {
+      const conn = this.deps.view().forgejo.connections.find((c) => c.forgeId === job.forgeId);
+      if (!servesJobLogs(conn?.version ?? null))
+        throw new ForgejoError(
+          "Forgejo doesn't serve job logs before version 16. Open the job on Forgejo.",
+          404,
+        );
+      const api = this.deps.forgejo?.apiFor({
+        forgeId: job.forgeId,
+        kind: "repo",
+        target: job.repo,
+      });
+      if (!api) throw new ForgejoError("The Forgejo connection isn't usable right now.");
+      if (job.jobId === null || job.runId === 0)
+        throw new ForgejoError("Forgejo hasn't reported this job's run yet.", 404);
+      const text = await api.taskLog(job.repo, job.runId, job.jobId);
+      return text.length > LOG_BYTES ? text.slice(-LOG_BYTES) : text;
+    }
+
     if (job.jobId === null) throw new GithubError("GitHub hasn't named this job yet.");
     const http = this.deps.github.clientFor({
       forgeId: job.forgeId,

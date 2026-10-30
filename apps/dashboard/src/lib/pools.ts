@@ -15,11 +15,19 @@ export function runnerFor(view: YardView, d: DesiredRunner): RunnerView | undefi
   );
 }
 
-export type ScopeOption = { scope: Scope; label: string; group: string; forge: ForgeKind };
+export type ScopeOption = {
+  scope: Scope;
+  label: string;
+  group: string;
+  forge: ForgeKind;
+  /** A Forgejo repository listed under its account: chosen alone, or covered by the account. */
+  account?: Scope;
+};
 
 /**
  * Scopes a pool can serve: each GitHub organization installation and each
- * repository of a personal one, and each Forgejo account and organization.
+ * repository of a personal one, and each Forgejo account and organization,
+ * then each of their repositories.
  */
 export function availableScopes(view: YardView): ScopeOption[] {
   const out: ScopeOption[] = [];
@@ -46,12 +54,23 @@ export function availableScopes(view: YardView): ScopeOption[] {
   for (const c of view.forgejo.connections) {
     const host = new URL(c.baseUrl).host;
     for (const s of c.scopes) {
+      // Repository scopes are listed under their account, from its repositories.
+      if (s.kind === "repo") continue;
+      const account: Scope = { forgeId: c.forgeId, kind: s.kind, target: s.target };
       out.push({
-        scope: { forgeId: c.forgeId, kind: s.kind, target: s.target },
-        label: `${s.target} on ${host} (all ${s.kind === "org" ? "organization" : "account"} repositories)`,
+        scope: account,
+        label: `${s.target} on ${host} (every repository)`,
         group: host,
         forge: "forgejo",
       });
+      for (const repo of s.repos)
+        out.push({
+          scope: { forgeId: c.forgeId, kind: "repo", target: repo },
+          label: repo,
+          group: host,
+          forge: "forgejo",
+          account,
+        });
     }
   }
   return out;

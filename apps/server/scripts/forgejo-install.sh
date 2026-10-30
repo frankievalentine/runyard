@@ -31,7 +31,10 @@ if [ "$RF_MODE" = docker ] && ! docker info >/dev/null 2>&1; then
   exit 2
 fi
 
-unit="runyard-forgejo-$RF_NAME.service"
+# Named after its directory, which is unique on the machine: a pool serving several Forgejo
+# scopes has a runner of the same name in each. Runners installed before keep theirs (.service).
+unit="runyard-forgejo-$(printf '%s' "${RF_ROOT#"$HOME/runyard-runners/"}" | tr -c 'A-Za-z0-9_.-' '-').service"
+
 
 if [ -f "$RF_ROOT/.runner" ]; then
   if ! tr -d '[:space:]' < "$RF_ROOT/.runner" | grep -F "\"name\":\"$RF_NAME\"" >/dev/null; then

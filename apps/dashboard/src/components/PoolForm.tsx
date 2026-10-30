@@ -229,11 +229,17 @@ export function PoolForm({
     if (step < 3) setStep((step + 1) as StepNo);
     else save.mutate();
   };
+  // Choosing a Forgejo account drops its single repositories: its runner serves them already.
+  const covers = (account: Scope, s: Scope) =>
+    s.kind === "repo" &&
+    account.kind !== "repo" &&
+    s.forgeId === account.forgeId &&
+    s.target.split("/")[0]!.toLowerCase() === account.target.toLowerCase();
   const toggleScope = (scope: Scope) =>
     setScopes((current) =>
       current.some((s) => sameScope(s, scope))
         ? current.filter((s) => !sameScope(s, scope))
-        : [...current, scope],
+        : [...current.filter((s) => !(isForgejo(view, scope) && covers(scope, s))), scope],
     );
   const setSlot = (id: string, n: number) =>
     setSlots({ ...slots, [id]: Math.max(0, Math.min(16, n)) });
@@ -324,26 +330,32 @@ export function PoolForm({
                 </EmptyLine>
               ) : (
                 <div className="max-h-64 divide-y divide-line overflow-y-auto rounded-md border border-line">
-                  {options.map(({ scope, label, forge }) => (
-                    <label
-                      key={`${scope.forgeId}:${scope.kind}:${scope.target}`}
-                      className="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-hover"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={scopes.some((s) => sameScope(s, scope))}
-                        onChange={() => toggleScope(scope)}
-                      />
-                      <span className="min-w-0 flex-1 font-mono text-[12.5px]">{label}</span>
-                      <ForgeBadge forge={forge} />
-                    </label>
-                  ))}
+                  {options.map(({ scope, label, forge, account }) => {
+                    const covered = account && scopes.some((s) => sameScope(s, account));
+                    return (
+                      <label
+                        key={`${scope.forgeId}:${scope.kind}:${scope.target}`}
+                        className={`flex items-center gap-3 py-2 pr-3 ${account ? "pl-8" : "pl-3"} ${covered ? "opacity-60" : "cursor-pointer hover:bg-hover"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={covered || scopes.some((s) => sameScope(s, scope))}
+                          disabled={covered}
+                          onChange={() => toggleScope(scope)}
+                        />
+                        <span className="min-w-0 flex-1 font-mono text-[12.5px]">{label}</span>
+                        <ForgeBadge forge={forge} />
+                      </label>
+                    );
+                  })}
                 </div>
               )}
               <p className="text-[12px] text-ink-3">
-                A personal GitHub account's repositories each get their own runners; an organization
-                or Forgejo account shares its runners with all of its repositories.
+                Personal GitHub repositories each get their own runners. An organization or a
+                Forgejo account shares one runner across its repositories, or pick single Forgejo
+                repositories under it.
               </p>
+
               <TextField
                 label="Labels"
                 value={labels}
