@@ -191,7 +191,7 @@ function Passkeys() {
             <ConfirmDialog
               trigger="Remove"
               title={`Remove passkey ${p.name}?`}
-              description="It can't sign you in any more. Your password and other passkeys still work."
+              description="It can't sign you in anymore. Your password and other passkeys still work."
               confirm="Remove passkey"
               onConfirm={() => remove.mutate(p.id)}
               pending={remove.isPending}

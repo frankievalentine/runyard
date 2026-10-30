@@ -73,7 +73,7 @@ export function Webhooks() {
               It's off by default. In the Tailscale admin console, allow it for this machine (the{" "}
               <span className="font-mono">funnel</span> node attribute in Access controls), or run
               the command below: if Funnel isn't on yet, it prints a link that turns it on, and you
-              run the command again afterwards.{" "}
+              run the command again afterward.{" "}
               <a
                 href="https://tailscale.com/kb/1223/funnel"
                 target="_blank"
@@ -194,15 +194,15 @@ function AppHook({ app, publicUrl }: { app: Status["apps"][number]; publicUrl: s
               {app.subscribed ? (
                 <>
                   Already subscribed to Workflow job events. On the app's{" "}
-                  <b className="font-medium text-ink">General</b> page, tick{" "}
+                  <b className="font-medium text-ink">General</b> page, check{" "}
                   <b className="font-medium text-ink">Active</b> under Webhook and save; GitHub's
                   API can't do this for Runyard.{" "}
                 </>
               ) : (
                 <>
-                  On the app's <b className="font-medium text-ink">General</b> page, tick{" "}
+                  On the app's <b className="font-medium text-ink">General</b> page, check{" "}
                   <b className="font-medium text-ink">Active</b> under Webhook. Then, under{" "}
-                  <b className="font-medium text-ink">Permissions & events</b>, tick{" "}
+                  <b className="font-medium text-ink">Permissions & events</b>, check{" "}
                   <b className="font-medium text-ink">Workflow job</b> under Subscribe to events.
                   Save each page; GitHub's API can't do this for Runyard.{" "}
                 </>

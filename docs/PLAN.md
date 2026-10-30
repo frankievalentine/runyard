@@ -243,7 +243,11 @@ jobs page.
 - **Documentation audit**: the guide split into task pages, every step checked against the
   dashboard, with live testing's findings. Agreed, after live testing and before release:
   [docs/plans/docs-audit.md](plans/docs-audit.md).
-- **Release**: a curl install, a Homebrew formula and the Docker compose file for the control
+- **The rest of the copy pass**: pools and runners, settings, and core's waiting and plan
+  reasons, compacted the way the machine pages were, plus a check on jobs that stay Running:
+  [docs/plans/copy-pass.md](plans/copy-pass.md).
+- **Release**: a curl install, a Homebrew formula
+  and the Docker compose file for the control
   plane, from published builds. No Mac app for now. To plan after live testing:
   [docs/plans/release.md](plans/release.md).
 - **Live testing still to run**: Forgejo (Round 9), Windows and Docker (Round 11), boat.dev

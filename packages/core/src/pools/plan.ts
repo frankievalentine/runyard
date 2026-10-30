@@ -191,11 +191,12 @@ export function planMachine(input: PlanInput): PlanItem[] {
       items.push(item("unsupportedPlatform", "forgejo-runner is only published for Linux.", true));
       continue;
     }
+    const forge = d.runnerKind === "forgejo" ? "Forgejo" : "GitHub";
     const ghError = input.githubErrors.get(sk);
     if (ghError || input.machineError) {
       const reasons = [
-        ghError && `${d.runnerKind === "forgejo" ? "Forgejo" : "GitHub"} unavailable: ${ghError}`,
-        input.machineError && `machine unavailable: ${input.machineError}`,
+        ghError && `${forge} unavailable: ${ghError}`,
+        input.machineError && `Machine unavailable: ${input.machineError}`,
       ];
       items.push(item("inspect", reasons.filter(Boolean).join("; "), true));
       continue;
@@ -238,7 +239,7 @@ export function planMachine(input: PlanInput): PlanItem[] {
       items.push(
         item(
           "repairRegistration",
-          "The directory is configured, but GitHub has no runner with this name. Inspect it by hand.",
+          `The directory is configured, but ${forge} has no runner with this name. Inspect it by hand.`,
           true,
         ),
       );
@@ -248,7 +249,7 @@ export function planMachine(input: PlanInput): PlanItem[] {
       items.push(
         item(
           "recoverLocal",
-          "GitHub has this runner, but its directory isn't configured on the machine.",
+          `${forge} has this runner, but its directory isn't configured on the machine.`,
           true,
         ),
       );
@@ -293,7 +294,7 @@ export function planMachine(input: PlanInput): PlanItem[] {
         items.push(
           item(
             "preserveService",
-            `The service is ${local.service}, but GitHub reports a running job.`,
+            `The service is ${local.service}, but ${forge} reports a running job.`,
             true,
           ),
         );
@@ -302,7 +303,8 @@ export function planMachine(input: PlanInput): PlanItem[] {
       items.push(
         item(
           "inspectOffline",
-          "The service is running, but GitHub reports the runner offline.",
+          `The service is running, but ${forge} reports the runner offline.`,
+
           true,
         ),
       );
@@ -345,7 +347,7 @@ export function planMachine(input: PlanInput): PlanItem[] {
       ...base,
       action: "remove",
       reason:
-        "No pool needs it any more: stop and uninstall its service and deregister it. The directory is kept.",
+        "No pool needs it anymore: stop and uninstall its service and deregister it. The directory is kept.",
       blocked: false,
     });
   }
@@ -567,7 +569,7 @@ function planTemplates(input: PlanInput): PlanItem[] {
       runnerName: `${r.poolName} template`,
       scope: r.scope,
       path: r.path,
-      reason: "No on-demand pool needs it any more: delete the unpacked runner software.",
+      reason: "No on-demand pool needs it anymore: delete the unpacked runner software.",
       blocked: false,
       serviceMode: r.serviceMode,
       runnerKind: r.runnerKind,

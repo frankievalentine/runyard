@@ -256,8 +256,8 @@ function PoolPage() {
       {admin && repos.length > 0 && (
         <Section title="Public repositories">
           <p className="mb-3 max-w-2xl text-[12.5px] text-ink-2">
-            Runyard won't register runners for a public repository until you allow it. A persistent
-            runner runs whatever workflow a pull request brings, so lock the repository down first.
+            Runyard won't register runners for a public repository until you allow it. Any runner
+            here runs whatever workflow a pull request brings, so lock the repository down first.
           </p>
           <div className="space-y-3">
             {repos.map((s) => (
@@ -270,8 +270,8 @@ function PoolPage() {
         <Section title="Public repositories">
           <p className="mb-3 max-w-2xl text-[12.5px] text-ink-2">
             A Forgejo account or organization runner serves every repository it owns, public ones
-            included. Runyard won't register runners for it until you allow it: a persistent runner
-            runs whatever workflow a pull request brings.
+            included. Runyard won't register runners for it until you allow it: any runner here runs
+            whatever workflow a pull request brings.
           </p>
           <div className="space-y-3">
             {accounts.map((a) => (

@@ -158,7 +158,11 @@ function Runner() {
             sub={
               r.scope.kind === "org"
                 ? "serves the organization's repositories"
-                : "serves this repository only"
+                : r.scope.kind === "user"
+                  ? "serves the account's repositories"
+                  : r.scope.kind === "instance"
+                    ? "serves the whole instance"
+                    : "serves this repository only"
             }
           />
         </StatStrip>

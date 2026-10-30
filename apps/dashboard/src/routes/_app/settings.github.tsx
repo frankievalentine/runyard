@@ -107,7 +107,9 @@ function AppCard({ app }: { app: GithubAppView }) {
             >
               {app.name}
             </a>
-            <Pill tone={app.error ? "bad" : "ok"}>{app.error ? "Error" : "Connected"}</Pill>
+            <Pill tone={app.error ? "bad" : app.installations.length ? "ok" : "warn"}>
+              {app.error ? "Error" : app.installations.length ? "Connected" : "Not installed"}
+            </Pill>
           </div>
           <div className="text-[12px] text-ink-2">
             Owned by {app.owner} · installable only there
@@ -162,7 +164,7 @@ function AppCard({ app }: { app: GithubAppView }) {
                     <div className="text-ink-2">
                       {i.ciRepoCount === 0
                         ? "None has Actions workflows yet, so none is polled; one that gets a workflow is picked up within 5 minutes."
-                        : `Watching the ${plural(i.ciRepoCount, "repository", "repositories")} with Actions workflows${i.ciRepoCount < i.repoCount ? `; the other ${i.repoCount - i.ciRepoCount} aren't polled` : ""}.`}
+                        : `Watching the ${plural(i.ciRepoCount, "repository", "repositories")} with Actions workflows${i.ciRepoCount < i.repoCount ? ` · ${i.repoCount - i.ciRepoCount} skipped` : ""}.`}
                     </div>
                   )}
                   {problem && <ErrorText className="mt-1" error={problem} />}

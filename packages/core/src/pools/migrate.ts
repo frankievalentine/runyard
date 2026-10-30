@@ -130,20 +130,20 @@ export function retireCleanup(os: OsFamily | null, kind: RunnerKind, path: strin
       "Stop and remove its service by hand. Find its systemd unit with:",
       "  systemctl list-units --all 'forgejo-runner*'",
       "then: sudo systemctl disable --now <unit>",
-      `Its directory (${dir}) can be deleted afterwards.`,
+      `Its directory (${dir}) can be deleted afterward.`,
     ].join("\n");
   if (os === "windows")
     return [
       "Stop and remove its service by hand, in an administrator PowerShell:",
       "  Get-Service actions.runner.*",
       "  Stop-Service <name>; sc.exe delete <name>",
-      `Its directory (${dir}) can be deleted afterwards.`,
+      `Its directory (${dir}) can be deleted afterward.`,
     ].join("\n");
   const sudo = os === "linux" ? "sudo " : "";
   return [
     "Stop and remove its service by hand:",
     `  cd ${dir} && ${sudo}./svc.sh stop && ${sudo}./svc.sh uninstall`,
     "If it ran from a terminal (run.sh) instead, stop that process.",
-    "The directory can be deleted afterwards.",
+    "The directory can be deleted afterward.",
   ].join("\n");
 }

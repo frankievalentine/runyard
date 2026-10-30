@@ -50,7 +50,7 @@ export function waitingReasons(job: QueuedJobView, view: YardView, now = Date.no
     const idle = matching.filter((r) => r.activity === "idle");
     reasons.push(
       idle.length
-        ? `${idle.map((r) => r.name).join(", ")} ${idle.length === 1 ? "is" : "are"} idle and matches; the forge should hand the job over shortly.`
+        ? `${idle.map((r) => r.name).join(", ")} ${idle.length === 1 ? "is idle and matches" : "are idle and match"}; the forge should hand the job over shortly.`
         : `Every runner that matches is busy (${matching.map((r) => r.name).join(", ")}).`,
     );
     return reasons;

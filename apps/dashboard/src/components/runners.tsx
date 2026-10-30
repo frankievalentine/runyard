@@ -223,9 +223,11 @@ function QueuedJob({
             {WAITING_PILL[waitingState(job, view)].label}
           </Pill>
         ) : idle > 0 ? (
-          <Pill tone="ok">{plural(idle, "idle runner")} match</Pill>
+          <Pill tone="ok">
+            {plural(idle, "idle runner")} {idle === 1 ? "matches" : "match"}
+          </Pill>
         ) : (
-          <Pill tone="busy">{eligible.length} matching, all working</Pill>
+          <Pill tone="busy">{eligible.length} matching, all busy</Pill>
         )}
         <span className="text-[11px] text-ink-2 tabular">
           waiting <Elapsed since={job.createdAt} />

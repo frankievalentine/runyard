@@ -575,7 +575,7 @@ export function PoolForm({
                         checked={mode === "docker"}
                         onChange={() => setMode("docker")}
                       />
-                      In Docker containers (Docker must already be installed)
+                      In Docker containers (requires Docker)
                     </label>
                     {mode === "docker" && (
                       <TextField
