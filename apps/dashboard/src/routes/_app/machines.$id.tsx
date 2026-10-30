@@ -14,7 +14,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { api, call } from "../../api.ts";
 import { RunnerReadiness } from "../../components/Readiness.tsx";
 import { AccessPanel } from "../../components/AccessPanel.tsx";
-import { CopyValue } from "../../components/CopyValue.tsx";
+import { CommandBox, CopyValue } from "../../components/CopyValue.tsx";
 import { Button, TextField } from "../../components/form.tsx";
 import { Icon } from "../../components/icons.tsx";
 import { MachineFields } from "../../components/MachineFields.tsx";
@@ -81,9 +81,9 @@ function Machine() {
     return (
       <Card>
         <EmptyLine>
-          This machine isn't in Runyard any more.{" "}
+          This machine isn't in Runyard anymore.{" "}
           <Link to="/" className="text-accent hover:underline">
-            Back to the overview
+            Go to overview
           </Link>
         </EmptyLine>
       </Card>
@@ -149,7 +149,7 @@ function Machine() {
       <Diagnostics m={m} />
       <Details m={m} />
       {m.health && m.health.warnings.length > 0 && (
-        <Section title="SSH check notes" count={m.health.warnings.length}>
+        <Section title="SSH warnings" count={m.health.warnings.length}>
           <Card className="px-4 py-3 text-[12px] text-ink-2">
             {m.health.warnings.map((w) => (
               <div key={w}>{w}</div>
@@ -171,7 +171,7 @@ function Glance({ m }: { m: MachineView }) {
   const tailnet: Fact = !t
     ? {
         tone: "muted",
-        value: "Not on the tailnet",
+        value: "Not on tailnet",
         sub: <CopyValue value={m.sshTarget} label="SSH target" truncate />,
         hollow: true,
       }
@@ -189,26 +189,30 @@ function Glance({ m }: { m: MachineView }) {
   const c = m.connection;
   const ssh: Fact =
     c.state === "connected"
-      ? { tone: "ok", value: "Connected", sub: `read ${timeAgo(c.checkedAt, now)}` }
+      ? { tone: "ok", value: "Connected", sub: `checked ${timeAgo(c.checkedAt, now)}` }
       : c.state === "stale"
         ? {
             tone: "warn",
             value: "Stale",
-            sub: `last read ${timeAgo(c.checkedAt, now)}`,
+            sub: `last checked ${timeAgo(c.checkedAt, now)}`,
             hollow: true,
           }
         : c.state === "error"
           ? {
               tone: "bad",
-              value: "Couldn't connect",
-              sub: <CopyValue value={c.detail} label="SSH error" truncate />,
+              value: "SSH failed",
+              sub: (
+                <CopyValue value={c.detail} label="SSH error" truncate>
+                  {c.detail.split("\n")[0]}
+                </CopyValue>
+              ),
             }
           : c.state === "offline"
             ? { tone: "muted", value: "Offline", sub: "machine is offline", hollow: true }
             : {
                 tone: "muted",
                 value: "Checking…",
-                sub: "read automatically every minute",
+                sub: "checked every minute",
                 hollow: true,
               };
   const warnings =
@@ -216,17 +220,18 @@ function Glance({ m }: { m: MachineView }) {
       ? m.diagnostics.checks.filter((x) => x.status === "warn").length
       : 0;
   const diagnostics: Fact = !m.diagnostics
-    ? { tone: "muted", value: "Not checked", sub: "after the first SSH read", hollow: true }
+    ? { tone: "muted", value: "Not checked", sub: "after the first SSH check", hollow: true }
     : m.diagnostics.stale
       ? {
           tone: "muted",
           value: "Stale",
-          sub: `read ${timeAgo(m.diagnostics.asOf, now)}`,
+          sub: `checked ${timeAgo(m.diagnostics.asOf, now)}`,
           hollow: true,
         }
       : warnings
-        ? { tone: "warn", value: diagnosticSummary(m), sub: "see Diagnostics below" }
-        : { tone: "ok", value: "No warnings", sub: `read ${timeAgo(m.diagnostics.asOf, now)}` };
+        ? { tone: "warn", value: diagnosticSummary(m), sub: "details below" }
+        : { tone: "ok", value: "No warnings", sub: `checked ${timeAgo(m.diagnostics.asOf, now)}` };
+
   return (
     <StatStrip cols={3}>
       <Stat label="Tailnet" {...tailnet} />
@@ -299,21 +304,21 @@ function ConnectionNotice({ m }: { m: MachineView }) {
   switch (c.state) {
     case "stale":
       return (
-        <Callout tone="warn" title={`Showing the last SSH read, from ${timeAgo(c.checkedAt, now)}`}>
-          {c.reason} Health above is not current.
+        <Callout tone="warn" title={`Last checked ${timeAgo(c.checkedAt, now)}`}>
+          {c.reason} Health above is out of date.
         </Callout>
       );
     case "offline":
       return (
         <Callout tone="warn" title="Offline on the tailnet">
-          {c.lastSeen ? `Last seen ${timeAgo(c.lastSeen, now)}.` : "Not seen recently."} Health
-          shows the last read.
+          {c.lastSeen ? `Last seen ${timeAgo(c.lastSeen, now)}.` : "Not seen recently."} Health is
+          from the last check.
         </Callout>
       );
     case "error":
       return (
-        <Callout tone="bad" title="Couldn't read this machine over SSH">
-          {c.detail}
+        <Callout tone="bad" title="SSH failed">
+          <SshDetail detail={c.detail} />
         </Callout>
       );
     default:
@@ -340,7 +345,7 @@ function Monitoring({ m, admin }: { m: MachineView; admin: boolean }) {
             <p className="text-[12px] text-ink-2">
               {pausedUntil
                 ? `Alerts are paused until ${formatClock(pausedUntil)}. History continues.`
-                : "Alerts after 3 minutes offline or confirmed disk space below 10%. Maintenance pauses alerts for an hour."}
+                : "Alerts when offline for 3 minutes or under 10% disk free."}
             </p>
             {maintenance.isError && <ErrorText error={maintenance.error} className="mt-2" />}
           </div>
@@ -350,7 +355,7 @@ function Monitoring({ m, admin }: { m: MachineView; admin: boolean }) {
                 ? "Saving…"
                 : pausedUntil
                   ? "End maintenance"
-                  : "Maintenance for 1 hour"}
+                  : "Pause alerts for 1 hour"}
             </Button>
           )}
         </div>
@@ -369,8 +374,8 @@ function Monitoring({ m, admin }: { m: MachineView; admin: boolean }) {
 }
 
 const GROUPS: [DiagnosticGroup, string][] = [
-  ["network", "Tailscale & access"],
-  ["power", "Power & availability"],
+  ["network", "Tailscale and access"],
+  ["power", "Power and availability"],
   ["system", "System"],
 ];
 
@@ -380,13 +385,13 @@ function Diagnostics({ m }: { m: MachineView }) {
   const d = m.diagnostics;
   return (
     <Section
-      title="Machine diagnostics"
+      title="Diagnostics"
       action={<span className="text-[12px] text-ink-2">{diagnosticSummary(m)}</span>}
     >
       <p className={`mb-3 text-[12px] ${d?.stale ? "text-warn" : "text-ink-2"}`}>
         {d
-          ? `${d.stale ? "Last successful read" : "Checked"} ${timeAgo(d.asOf, now)}. ${d.stale ? "These findings may have changed. " : ""}Read automatically over SSH; Check now refreshes them.`
-          : "Diagnostics will appear after a successful SSH check."}
+          ? `${d.stale ? "Last checked" : "Checked"} ${timeAgo(d.asOf, now)}.${d.stale ? " May be out of date." : ""}`
+          : "Appears after the first SSH check."}
       </p>
       {d && (
         <GroupedCard
@@ -413,14 +418,21 @@ function Diagnostics({ m }: { m: MachineView }) {
                       {c.value}
                     </dd>
                   </div>
-                  <dd className="mt-1.5 max-w-[60ch] text-[11.5px] leading-relaxed break-words text-ink-2">
-                    {c.status === "warn" && !d.stale && (
-                      <span className="mr-2">
-                        <Pill tone="warn">Warning</Pill>
-                      </span>
-                    )}
-                    {c.detail}
-                  </dd>
+                  {(c.detail || (c.status === "warn" && !d.stale)) && (
+                    <dd className="mt-1.5 max-w-[60ch] text-[11.5px] leading-relaxed break-words text-ink-2">
+                      {c.status === "warn" && !d.stale && (
+                        <span className="mr-2">
+                          <Pill tone="warn">Warning</Pill>
+                        </span>
+                      )}
+                      {c.detail}
+                    </dd>
+                  )}
+                  {c.command && c.status !== "pass" && !d.stale && (
+                    <dd>
+                      <CommandBox command={c.command} className="mt-1.5 w-fit max-w-full" />
+                    </dd>
+                  )}
                 </dl>,
               ]),
           }))}
@@ -448,7 +460,7 @@ function Details({ m }: { m: MachineView }) {
         ? t.online
           ? "Online"
           : `Offline${t.lastSeen ? `, last seen ${timeAgo(t.lastSeen, now)}` : ""}`
-        : "Not found",
+        : "Not on tailnet",
     ],
   ];
   if (t) {
@@ -610,8 +622,8 @@ function RemoveMachine({ m }: { m: MachineView }) {
           </AlertDialog.Title>
           <AlertDialog.Description className="mt-1.5 text-[13px] text-ink-2">
             {inUse
-              ? `Runyard still has ${left.join(", ")} on it. Decommissioning takes it out of ${pools.length ? pools.map((p) => p.name).join(", ") : "its pools"}; then review and run its changes to remove them, and remove the machine after.`
-              : "Runyard stops checking it and deletes its history. Nothing on the machine changes; its page's teardown command removes what setup left there."}
+              ? `${left.join(", ")} ${left.length === 1 ? "is" : "are"} still on this machine. Decommission removes it from ${pools.length ? pools.map((p) => p.name).join(", ") : "its pools"}. Then run its changes to remove ${left.length === 1 ? "it" : "them"}, and remove the machine.`
+              : "Deletes its history and stops checking it. Nothing on the machine changes."}
           </AlertDialog.Description>
           {!inUse && <TeardownCommands m={m} />}
           {(remove.error ?? decommission.error) && (
@@ -625,11 +637,11 @@ function RemoveMachine({ m }: { m: MachineView }) {
                 onClick={() => decommission.mutate()}
                 disabled={decommission.isPending}
               >
-                Decommission
+                Decommission machine
               </Button>
             ) : (
               <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
-                Remove
+                Remove machine
               </Button>
             )}
           </div>
@@ -649,8 +661,7 @@ function TeardownCommands({ m }: { m: MachineView }) {
   if (!origin.startsWith("https://"))
     return (
       <p className="mt-3 text-[12px] text-ink-2">
-        Open the dashboard at its HTTPS address for the command that removes Runyard's key and files
-        from the machine.
+        Open the dashboard over HTTPS to get the cleanup command.
       </p>
     );
   const commands =
@@ -664,7 +675,7 @@ function TeardownCommands({ m }: { m: MachineView }) {
           ...(m.os !== "macos"
             ? [
                 [
-                  "Set up with the fresh-machine command: as root, also removes the runyard account",
+                  "Fresh-machine setup, as root (also removes the runyard account)",
                   `curl -fsSL ${origin}/api/machine-setup/teardown.sh | sudo sh -s -- --prepared`,
                 ],
               ]
@@ -672,7 +683,8 @@ function TeardownCommands({ m }: { m: MachineView }) {
         ];
   return (
     <div className="mt-3 flex flex-col gap-2 text-[12px]">
-      <span className="font-medium">To clean up the machine too, run on it:</span>
+      <span className="font-medium">To clean up, run on the machine:</span>
+
       {commands.map(([label, text]) => (
         <div key={label} className="flex flex-col gap-1">
           <span className="text-ink-2">{label}</span>
@@ -686,5 +698,22 @@ function TeardownCommands({ m }: { m: MachineView }) {
         </div>
       ))}
     </div>
+  );
+}
+
+/** Runyard's summary of an SSH failure, then ssh's own words in small type to copy. */
+function SshDetail({ detail }: { detail: string }) {
+  const [summary, ...raw] = detail.split("\n");
+  return (
+    <>
+      {summary}
+      {raw.length > 0 && (
+        <CopyValue
+          value={raw.join("\n")}
+          label="ssh output"
+          className="mt-1.5 block font-mono text-[11.5px] break-all text-ink-2"
+        />
+      )}
+    </>
   );
 }

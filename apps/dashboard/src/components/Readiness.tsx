@@ -7,12 +7,13 @@ import {
 import { Link } from "@tanstack/react-router";
 import type { Tone } from "../lib/status.ts";
 import { useYard } from "../lib/yard.ts";
+import { CommandBox } from "./CopyValue.tsx";
 import { Callout, GroupedCard, Section, StatusDot } from "./ui.tsx";
 
 const TIERS: [ReadinessTier, string, string][] = [
   ["required", "Required", "Jobs fail without these."],
-  ["label", "Its pools' labels", "What its labels promise jobs."],
-  ["recommended", "Recommended", "Commonly needed by builds."],
+  ["label", "Its pools' labels", ""],
+  ["recommended", "Recommended", ""],
 ];
 
 const tone: Record<ReadinessItem["status"], Tone> = {
@@ -40,10 +41,7 @@ export function RunnerReadiness({ m }: { m: MachineView }) {
       }
     >
       {!r ? (
-        <p className="text-[12px] text-ink-2">
-          Appears after a successful SSH check: the tools jobs commonly need, the clock, and whether
-          the machine reaches your forges.
-        </p>
+        <p className="text-[12px] text-ink-2">Appears after the first SSH check.</p>
       ) : (
         <GroupedCard
           groups={TIERS.map(([tier, title, sub]) => ({
@@ -66,6 +64,9 @@ export function RunnerReadiness({ m }: { m: MachineView }) {
                     <p className="mt-1 max-w-[60ch] text-[11.5px] leading-relaxed break-words text-ink-2">
                       {i.detail}
                     </p>
+                  )}
+                  {i.status !== "ok" && i.command && (
+                    <CommandBox command={i.command} className="mt-1.5 w-fit max-w-full" />
                   )}
                 </div>,
               ]),

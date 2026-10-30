@@ -180,7 +180,7 @@ export function sshFailure(code: number, stderr: string, transport: SshTransport
       "timeout",
     );
   if (code === 127)
-    return new SshError(`Couldn't run ${program}: ${stderr.trim() || "not found"}.`, "noProgram");
+    return new SshError(`Couldn't run ${program}.\n${stderr.trim() || "not found"}`, "noProgram");
   const line = stderr
     .split(/\r?\n/)
     .map((l) => l.trim())
@@ -189,27 +189,27 @@ export function sshFailure(code: number, stderr: string, transport: SshTransport
     ?.replace(/\.$/, "");
   if (/REMOTE HOST IDENTIFICATION HAS CHANGED|Host key for .* has changed/i.test(stderr))
     return new SshError(
-      "The machine's SSH host key changed since it was trusted. That happens after a reinstall, or if something is intercepting the connection. Check before trusting the new key.",
+      "The machine's SSH host key changed. A reinstall does this, and so would something intercepting the connection. Check before trusting the new key.",
       "hostKeyChanged",
     );
   if (/Host key verification failed|No \S+ host key is known/i.test(stderr))
     return new SshError(
-      "The machine's SSH host key isn't trusted yet. Trust it from the machine's setup steps, then check again.",
+      "The machine's SSH host key isn't trusted yet. Trust it in the setup steps on this page.",
       "hostKeyUnknown",
     );
   if (/Too many authentication failures/i.test(stderr))
     return new SshError(
-      "The machine stopped after too many keys were offered, before reaching Runyard's. An SSH agent holding several keys (such as 1Password's) does this: turn on \"Sign in with Runyard's key only\" in this machine's settings.",
+      "Too many keys were offered before Runyard's. Turn on \"Sign in with Runyard's key only\" in this machine's settings.",
       "loginRefused",
     );
   if (/Permission denied/i.test(stderr))
     return new SshError(
-      `SSH refused the login: ${line}. Check the user name and that Runyard's key is authorized.`,
+      `The machine refused the login. Check the user name and that Runyard's key is authorized.\n${line}`,
       "loginRefused",
     );
   if (/Connection refused/i.test(stderr))
     return new SshError(
-      "The machine refused the connection: its SSH server isn't running, or a firewall blocks it.",
+      "The machine refused the connection. Its SSH server isn't running, or a firewall blocks it.",
       "connectionRefused",
     );
   if (
@@ -218,8 +218,8 @@ export function sshFailure(code: number, stderr: string, transport: SshTransport
     )
   )
     return new SshError(
-      `Couldn't reach the machine: ${line}. Check its address and that it's on the network.`,
+      `Couldn't reach the machine. Check its address and that it's on the network.\n${line}`,
       "unreachable",
     );
-  return new SshError(`${program} failed (exit ${code})${line ? `: ${line}` : "."}`, "other");
+  return new SshError(`${program} failed (exit ${code}).${line ? `\n${line}` : ""}`, "other");
 }

@@ -69,7 +69,7 @@ export function ActiveAlerts({
               {alert.muted && <Pill tone="muted">Maintenance</Pill>}
               {alert.stale && (
                 <Pill tone="muted" hollow>
-                  Awaiting fresh data
+                  Stale
                 </Pill>
               )}
             </div>
@@ -80,7 +80,7 @@ export function ActiveAlerts({
               className="mt-1 text-[11px] text-ink-3"
               title={new Date(alert.since).toLocaleString()}
             >
-              First observed {timeAgo(alert.since, now)}
+              Since {timeAgo(alert.since, now)}
             </p>
           </div>
         </div>
@@ -331,9 +331,7 @@ export function EventTimeline({
     >
       <Card className="overflow-hidden">
         {events.error && <ErrorText className="px-4 py-3" error={events.error} />}
-        {events.data?.length === 0 && (
-          <EmptyLine>No events yet. Runyard records them while it runs.</EmptyLine>
-        )}
+        {events.data?.length === 0 && <EmptyLine>No events yet.</EmptyLine>}
         <ul className="divide-y divide-line">
           {page.map((e) => {
             const style = eventStyle[e.kind as keyof typeof eventStyle] ?? {

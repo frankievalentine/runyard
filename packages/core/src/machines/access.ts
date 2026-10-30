@@ -13,6 +13,8 @@ export type AccessStep = {
   title: string;
   state: AccessStepState;
   detail: string;
+  /** What ssh itself said when this step failed, shown small to copy. */
+  output?: string;
   commands: AccessCommand[];
 };
 
@@ -68,13 +70,18 @@ export function accessSteps(m: MachineView, publicKey: string | null): AccessSte
     const i = ids.indexOf(id);
     return i < at ? "done" : i === at ? "current" : "todo";
   };
-  const error = c.state === "error" ? c.detail : c.state === "stale" ? c.reason : null;
+  // An SSH error's first line is Runyard's summary; ssh's own output follows.
+  const [error, ...raw] = (
+    c.state === "error" ? c.detail : c.state === "stale" ? c.reason : ""
+  ).split("\n");
+  const output = raw.length ? { output: raw.join("\n") } : {};
   const user = sshUser(m.sshTarget);
   const os = m.os;
 
   return ids.map((id): AccessStep => {
     const s = state(id);
-    const failing = s === "current" ? error : null;
+    const failing = s === "current" && error ? error : null;
+    const said = failing ? output : {};
     switch (id) {
       case "sshServer":
         return {
@@ -88,6 +95,7 @@ export function accessSteps(m: MachineView, publicKey: string | null): AccessSte
                 (tailscale
                   ? "Tailscale SSH answers on the machine itself, with no keys to manage."
                   : "Remote Login on macOS, OpenSSH Server on Linux and Windows.")),
+          ...said,
           commands: tailscale
             ? [{ label: "On the machine", text: "tailscale set --ssh" }]
             : serverCommands(os),
@@ -100,6 +108,7 @@ export function accessSteps(m: MachineView, publicKey: string | null): AccessSte
           detail:
             failing ??
             "So Runyard knows it's talking to this machine. Strict host key checking stays on.",
+          ...said,
           commands: [],
         };
       case "authorize":
@@ -112,8 +121,11 @@ export function accessSteps(m: MachineView, publicKey: string | null): AccessSte
             (tailscale
               ? `Your tailnet's SSH access rules must let this machine sign in${user ? ` as ${user}` : ""}.`
               : user
-                ? `Runyard signs in as ${user}; that account needs Runyard's key.`
-                : "Runyard signs in as the user your ~/.ssh/config sets for this host, or its own user name. Add user@ to the SSH target to choose."),
+                ? failing
+                  ? `Runyard signs in as ${user}.`
+                  : `Runyard signs in as ${user}; that account needs Runyard's key.`
+                : "Runyard signs in as the user ~/.ssh/config sets for this host. Add user@ to the SSH target to choose one."),
+          ...said,
           commands: tailscale || !publicKey ? [] : authorizeCommands(os, publicKey),
         };
       case "connected":

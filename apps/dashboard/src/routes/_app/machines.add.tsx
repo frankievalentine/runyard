@@ -37,7 +37,7 @@ function AddMachines() {
       <PageHeader
         icon={<Icon name="plus" size={18} />}
         title="Add machines"
-        subtitle="Runyard reads a machine's health over SSH every minute, read-only. Nothing is installed on it, and only machines you add are checked."
+        subtitle="Runyard checks the machines you add over SSH every minute. Read-only; it installs nothing."
       />
       <Section title="From your tailnet">
         <Card className="divide-y divide-line overflow-hidden">
@@ -147,8 +147,7 @@ function PeerRow({ peer, ignored = false }: { peer: PeerView; ignored?: boolean 
             Cancel
           </Button>
           <span className="basis-full text-[12px] text-ink-2">
-            The account Runyard signs in as. Leave it empty and the machine's setup command fills it
-            in.
+            Leave it empty to have the setup command fill it in.
           </span>
         </form>
       )}

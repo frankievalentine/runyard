@@ -76,6 +76,14 @@ function Step({
           {step.title}
         </div>
         {step.state !== "done" && <p className="mt-0.5 text-[12.5px] text-ink-2">{step.detail}</p>}
+        {step.state !== "done" && step.output && (
+          <CopyValue
+            value={step.output}
+            label="ssh output"
+            className="mt-1 block font-mono text-[11.5px] break-all text-ink-3"
+          />
+        )}
+
         {current && admin && step.commands.length > 0 && (
           <div className="mt-2 flex flex-col gap-2">
             {step.commands.map((c) => (
@@ -145,7 +153,7 @@ function TrustHostKey({ m }: { m: MachineView }) {
       {!k && (
         <div>
           <Button small onClick={() => scan.mutate()} disabled={scan.isPending}>
-            {scan.isPending ? "Reading…" : "Read its host key"}
+            {scan.isPending ? "Reading…" : "Read host key"}
           </Button>
         </div>
       )}
@@ -192,7 +200,7 @@ function TrustHostKey({ m }: { m: MachineView }) {
               onClick={() => trust.mutate(k.changed)}
               disabled={trust.isPending}
             >
-              {k.changed ? "Replace the trusted key" : "They match: trust this key"}
+              {k.changed ? "Replace trusted key" : "Trust this key"}
             </Button>
             <Button small variant="ghost" onClick={() => scan.mutate()} disabled={scan.isPending}>
               Read again
@@ -226,13 +234,12 @@ function SetupCommand({ m }: { m: MachineView }) {
   const commands = cmd
     ? [
         ...(m.os !== "windows"
-          ? [{ label: "macOS or Linux, as the account Runyard signs in as", text: cmd.posix }]
+          ? [{ label: "macOS or Linux, as Runyard's account", text: cmd.posix }]
           : []),
         ...(m.os === "linux" || m.os === null
           ? [
               {
-                label:
-                  "A fresh Linux machine (an LXC, a new VPS), as root: also installs the SSH server and creates a runyard account",
+                label: "Fresh Linux, as root (installs the SSH server, adds a runyard account)",
                 text: `${cmd.prepare}${nopasswd ? " --sudo" : ""}`,
               },
             ]
@@ -240,7 +247,7 @@ function SetupCommand({ m }: { m: MachineView }) {
         ...(m.os === "windows" || m.os === null
           ? [
               {
-                label: "Windows PowerShell (administrator PowerShell for an administrator account)",
+                label: "Windows PowerShell (as admin for an admin account)",
                 text: cmd.windows,
               },
             ]
@@ -251,19 +258,17 @@ function SetupCommand({ m }: { m: MachineView }) {
     <div className="border-b border-line px-4 py-3 text-[12.5px]">
       <div className="font-medium text-[13px]">Fastest: one command on the machine</div>
       <p className="mt-0.5 text-ink-2">
-        It checks the SSH server is on, authorizes Runyard's key, and reports the account and host
-        keys back, so the steps below finish on their own. It installs nothing, unless you use the
+        Authorizes Runyard's key and completes the steps below. Installs nothing, except the
         fresh-machine version.
       </p>
       {window.location.protocol !== "https:" ? (
         <p className="mt-2 text-ink-2">
-          Offered only over HTTPS, so the script can't be changed on its way to the machine. Open
-          the dashboard at its tailnet address to use it, or follow the steps below.
+          Open the dashboard over HTTPS to get this command, or follow the steps below.
         </p>
       ) : !cmd || expired ? (
         <div className="mt-2">
           <Button small variant="primary" onClick={() => show.mutate()} disabled={show.isPending}>
-            {expired ? "Show a new command" : "Show the setup command"}
+            {expired ? "Show new command" : "Show setup command"}
           </Button>
         </div>
       ) : (
@@ -289,8 +294,8 @@ function SetupCommand({ m }: { m: MachineView }) {
                 onChange={(e) => setNopasswd(e.target.checked)}
               />
               <span>
-                Give the runyard account passwordless sudo, so reviews don't ask for a password.
-                Without it, the script asks, and otherwise has you set a password.
+                Give the runyard account passwordless sudo. Otherwise the script asks you to set a
+                password.
               </span>
             </label>
           )}

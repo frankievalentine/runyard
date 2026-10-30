@@ -76,7 +76,7 @@ describe("MachineMonitor", () => {
     const view = monitor.view.machines[0]!;
     expect(view.connection).toMatchObject({ state: "stale" });
     expect(view.connection.state === "stale" && view.connection.reason).toContain(
-      "SSH refused the login",
+      "The machine refused the login",
     );
     expect(view.health?.stale).toBe(true);
     expect(listEvents(db, { limit: 10 })[0]?.kind).toBe("sshUnavailable");

@@ -77,9 +77,16 @@ export function Jobs({ filter, showMachine }: { filter: Filter; showMachine?: bo
         {jobs.error && <ErrorText className="px-4 py-3" error={jobs.error} />}
         {jobs.data?.jobs.length === 0 && (
           <EmptyLine>
-            {failures
-              ? "No failures in the last 7 days."
-              : "No jobs in the last 7 days. Jobs show here as they run: from webhooks when they're set up, otherwise from the runners' hooks at the next minute check."}
+            {failures ? (
+              "No failures in the last 7 days."
+            ) : (
+              <>
+                No jobs in the last 7 days.
+                <span className="mt-0.5 block text-[12px]">
+                  Jobs appear here as they run, from webhooks or from the runners' hooks.
+                </span>
+              </>
+            )}
           </EmptyLine>
         )}
         <ul className="divide-y divide-line">

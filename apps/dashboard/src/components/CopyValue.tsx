@@ -107,3 +107,12 @@ export function CopyValue({
     </button>
   );
 }
+
+/** A command to run, in a box that copies it. */
+export function CommandBox({ command, className = "" }: { command: string; className?: string }) {
+  return (
+    <div className={`rounded-md border border-line bg-bg px-2.5 py-1.5 ${className}`}>
+      <CopyValue value={command} label="Command" className="font-mono text-[12px] break-all" />
+    </div>
+  );
+}

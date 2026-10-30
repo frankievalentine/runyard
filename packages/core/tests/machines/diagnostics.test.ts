@@ -53,7 +53,7 @@ describe("evaluateDiagnostics", () => {
     );
     expect(checks["tailscale-state"]?.status).toBe("warn");
     expect(checks["power-sleep"]).toMatchObject({ status: "warn", value: "After 10 minutes" });
-    expect(checks["power-sleep"]?.detail).toContain("Battery: after 1 minutes.");
+    expect(checks["power-sleep"]?.detail).toContain("Battery: after 1 minute.");
     expect(checks["disk-space"]?.status).toBe("warn");
   });
 

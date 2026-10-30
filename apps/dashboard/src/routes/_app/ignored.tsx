@@ -29,7 +29,7 @@ function Ignored() {
       <PageHeader
         icon={<Icon name="eye-off" size={18} />}
         title="Ignored machines"
-        subtitle="Hidden from Other machines. Restore one to list it again."
+        subtitle="Hidden from Tailnet devices. Restore one to list it again."
       />
       <Section title="Machines" count={view.ignored.length}>
         <Card className="divide-y divide-line overflow-hidden">

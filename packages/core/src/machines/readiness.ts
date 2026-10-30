@@ -12,6 +12,8 @@ export type ReadinessItem = {
   value: string;
   /** What it's for, and how to get it when it's missing. */
   detail: string;
+  /** A command that installs or fixes it, shown to copy. */
+  command?: string;
 };
 
 export type Readiness = {
@@ -45,11 +47,11 @@ const POSIX_RECOMMENDED: Tool[] = [
   { fact: "zip", title: "zip", why: "Packaging steps often zip their output." },
   { fact: "xz", title: "xz", why: "Some toolchains ship as .tar.xz.", apt: "xz-utils" },
   { fact: "zstd", title: "zstd", why: "actions/cache compresses with it when present." },
-  { fact: "jq", title: "jq", why: "Workflow scripts commonly parse JSON with it." },
+  { fact: "jq", title: "jq", why: "Scripts parse JSON with it." },
   {
     fact: "gpg",
     title: "gpg",
-    why: "Verifying downloads and signing.",
+    why: "Verifies downloads and signatures.",
     apt: "gnupg",
     brew: "gnupg",
   },
@@ -65,7 +67,7 @@ const POSIX_RECOMMENDED: Tool[] = [
 const NODE: Tool = {
   fact: "node",
   title: "Node.js",
-  why: "forgejo-runner in host mode runs JavaScript actions (like actions/checkout) with the machine's Node.",
+  why: "Forgejo's host mode runs JavaScript actions, like actions/checkout, with it.",
   apt: "nodejs",
   brew: "node",
 };
@@ -78,13 +80,14 @@ const WINDOWS_RECOMMENDED: Tool[] = [
   { fact: "python", title: "Python", why: "Many build tools and scripts need it." },
 ];
 
-function howToInstall(os: OsFamily, tool: Tool): string {
+/** How to get a missing tool: a short note, a command to copy, or both. */
+function howToInstall(os: OsFamily, tool: Tool): { note?: string; command?: string } {
   if (os === "macos")
     return ["git", "cc", "make", "python3"].includes(tool.fact)
-      ? "It comes with the Command Line Tools: xcode-select --install"
-      : `Install it with Homebrew: brew install ${tool.brew ?? tool.fact}`;
-  if (os === "windows") return "Install it with winget or its installer.";
-  return `Install it with your package manager, such as: sudo apt install -y ${tool.apt ?? tool.fact}`;
+      ? { note: "Comes with the Command Line Tools.", command: "xcode-select --install" }
+      : { command: `brew install ${tool.brew ?? tool.fact}` };
+  if (os === "windows") return { note: "Install it with winget or its installer." };
+  return { command: `sudo apt install -y ${tool.apt ?? tool.fact}` };
 }
 
 /**
@@ -103,7 +106,8 @@ export function evaluateReadiness(
   const os = report.os;
   const has = (key: string) => Boolean(facts[key]);
   const items: ReadinessItem[] = [];
-  const tool = (t: Tool, tier: ReadinessTier) =>
+  const tool = (t: Tool, tier: ReadinessTier) => {
+    const fix = has(`tool_${t.fact}`) ? {} : howToInstall(os, t);
     items.push({
       id: `tool-${t.fact}`,
       tier,
@@ -114,8 +118,10 @@ export function evaluateReadiness(
           ? facts.tool_git_version
           : "Installed"
         : "Not found",
-      detail: has(`tool_${t.fact}`) ? t.why : `${t.why} ${howToInstall(os, t)}`,
+      detail: fix.note ? `${t.why} ${fix.note}` : t.why,
+      ...(fix.command ? { command: fix.command } : {}),
     });
+  };
 
   const windows = os === "windows";
   for (const t of windows ? WINDOWS_REQUIRED : POSIX_REQUIRED) tool(t, "required");
@@ -128,7 +134,8 @@ export function evaluateReadiness(
       value: facts.xcode_clt || "Not installed",
       detail: has("xcode_clt")
         ? "git, clang and make for builds on macOS."
-        : "git, clang and make for builds on macOS. Install them with xcode-select --install (it opens a dialog on the Mac).",
+        : "git, clang and make for builds on macOS. Installing opens a dialog on the Mac.",
+      ...(has("xcode_clt") ? {} : { command: "xcode-select --install" }),
     });
   if (needs.forgejoHost) tool(NODE, "required");
 
@@ -144,7 +151,10 @@ export function evaluateReadiness(
       detail:
         drift <= DRIFT_WARN_SECS
           ? "Within a minute of Runyard's clock."
-          : "TLS and runner tokens fail when the clock drifts. Turn on network time (timedatectl set-ntp true on Linux).",
+          : "TLS and runner tokens fail when the clock drifts. Turn on network time.",
+      ...(drift > DRIFT_WARN_SECS && os === "linux"
+        ? { command: "sudo timedatectl set-ntp true" }
+        : {}),
     });
   }
 
@@ -164,7 +174,7 @@ export function evaluateReadiness(
         ? "Checked with curl, which isn't installed."
         : reached
           ? "Runners talk to the forge over HTTPS."
-          : `Runners can't take jobs without reaching ${host} over HTTPS. Check the machine's DNS, firewall and proxy.`,
+          : "Runners can't take jobs without it. Check the machine's DNS, firewall and proxy.",
     });
   }
 
@@ -176,8 +186,8 @@ export function evaluateReadiness(
       status: has("tool_brew") ? "ok" : "warn",
       value: has("tool_brew") ? "Installed" : "Not found",
       detail: has("tool_brew")
-        ? "A pool's review installs missing tools with it."
-        : 'A pool\'s review installs missing tools with it, so install it once first, from brew.sh: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
+        ? "Runyard installs missing tools with it."
+        : "Runyard installs missing tools with it. Install it from brew.sh.",
     });
   for (const t of windows ? WINDOWS_RECOMMENDED : POSIX_RECOMMENDED) tool(t, "recommended");
   const dockerOk = has("docker_server");
@@ -195,7 +205,7 @@ export function evaluateReadiness(
       ? "Container jobs, service containers and Docker builds can run."
       : has("docker_cli")
         ? "The daemon isn't running, or this account isn't in the docker group."
-        : "Needed for container jobs (container:, services:), Docker builds and Forgejo's Docker mode.",
+        : "Needed for container jobs, service containers and Docker builds.",
   });
 
   const capabilities: string[] = [];
@@ -215,7 +225,7 @@ export function evaluateReadiness(
         value: rule.value,
         detail: rule.ok
           ? `A pool gives this machine ${label}, and it has ${rule.what}.`
-          : `A pool gives this machine ${label}, but it doesn't have ${rule.what}. Jobs asking for ${label} would fail here.`,
+          : `Jobs asking for ${label} will fail here.`,
       });
   }
   return { items, capabilities, homebrew: has("tool_brew") };

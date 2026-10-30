@@ -34,9 +34,12 @@ export type Diagnostic = {
   status: DiagnosticStatus;
   value: string;
   detail: string;
+  /** A command that fixes it, shown to copy. */
+  command?: string;
 };
 
-/** A tailnet peer as `tailscale status` reports it. */
+/** A tailnet peer
+ as `tailscale status` reports it. */
 export type TailnetPeer = {
   nodeId: string;
   hostname: string;

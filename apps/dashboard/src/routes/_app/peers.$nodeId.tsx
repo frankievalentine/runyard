@@ -8,10 +8,12 @@ import {
   Card,
   EmptyLine,
   ErrorText,
-  KeyValuePanel,
+  GroupedCard,
+  KeyValueLine,
   PageHeader,
   Pill,
   Section,
+  type KeyValueRow,
 } from "../../components/ui.tsx";
 import { useYard } from "../../lib/yard.ts";
 import { timeAgo } from "../../lib/format.ts";
@@ -40,9 +42,9 @@ function Peer() {
     return (
       <Card>
         <EmptyLine>
-          That device isn't listed under Other machines any more.{" "}
+          This device is no longer listed.{" "}
           <Link to="/" className="text-accent hover:underline">
-            Back to the overview
+            Go to overview
           </Link>
         </EmptyLine>
       </Card>
@@ -82,7 +84,7 @@ function Peer() {
                 disabled={actions.add.isPending}
                 onClick={() => actions.add.mutate()}
               >
-                Add to Runyard
+                Add machine
               </Button>
             </>
           )
@@ -90,31 +92,39 @@ function Peer() {
       />
       {error && <ErrorText className="mt-3" error={error} />}
       <Card className="mt-8 px-4 py-3 text-[12.5px] text-ink-2">
-        Runyard doesn't connect to devices it hasn't been told to check.{" "}
-        {admin
-          ? `Add it to read its health over ${peer.tailscaleSsh ? "Tailscale SSH" : "SSH"} every minute, or Ignore it to hide it here.`
-          : "An admin can add it."}
+        Runyard doesn't connect until you add this device.{admin ? "" : " An admin can add it."}
       </Card>
       <Section title="Details">
-        <div className="grid grid-cols-1 gap-3 min-[1100px]:grid-cols-2">
-          <KeyValuePanel
-            title="Tailnet"
-            rows={[
-              [
-                "Status",
-                peer.online
-                  ? "Online"
-                  : `Offline${peer.lastSeen ? `, last seen ${timeAgo(peer.lastSeen, now)}` : ""}`,
-              ],
-              ["Hostname", peer.name, peer.name],
-              ["Address", peer.address, peer.address],
-              ["Tailscale SSH", peer.tailscaleSsh ? "Advertised" : "Not advertised"],
-              ...(peer.tags.length
-                ? [["Tags", peer.tags.join(", "), peer.tags.join(", ")] as [string, string, string]]
-                : []),
-            ]}
-          />
-        </div>
+        <GroupedCard
+          groups={[
+            {
+              key: "tailnet",
+              title: "Tailnet",
+              rows: (
+                [
+                  [
+                    "Status",
+                    peer.online
+                      ? "Online"
+                      : `Offline${peer.lastSeen ? `, last seen ${timeAgo(peer.lastSeen, now)}` : ""}`,
+                  ],
+                  ["Hostname", peer.name, peer.name],
+                  ["Address", peer.address, peer.address],
+                  ["Tailscale SSH", peer.tailscaleSsh ? "Advertised" : "Not advertised"],
+                  ...(peer.tags.length
+                    ? [
+                        ["Tags", peer.tags.join(", "), peer.tags.join(", ")] as [
+                          string,
+                          string,
+                          string,
+                        ],
+                      ]
+                    : []),
+                ] as KeyValueRow[]
+              ).map((row) => [row[0], <KeyValueLine row={row} />]),
+            },
+          ]}
+        />
       </Section>
     </div>
   );

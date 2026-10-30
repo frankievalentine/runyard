@@ -36,7 +36,8 @@ export const TOOL_PROFILES: Record<
   docker: {
     title: "Docker",
     detail:
-      "Docker Engine from the distribution's packages, running, with the runner's account in the docker group. Linux only.",
+      "Docker Engine from your distribution's packages, with the runner's account in the docker group. Linux only.",
+
     tools: ["docker"],
   },
 };
@@ -77,19 +78,18 @@ export function toolInstallPlan(
     blocked.push({
       tools: clt,
       reason:
-        "These come with the Command Line Tools. Install them on the Mac with xcode-select --install (it opens a dialog).",
+        "Install the Command Line Tools on the Mac: xcode-select --install (it opens a dialog).",
     });
   if (missing.includes("docker"))
     blocked.push({
       tools: ["docker"],
-      reason: "Docker on a Mac needs Docker Desktop, OrbStack or colima; install one by hand.",
+      reason: "Install Docker Desktop, OrbStack or colima.",
     });
   const brewable = missing.filter((t) => !MAC_CLT.has(t) && t !== "docker");
   if (brewable.length && !readiness.homebrew) {
     blocked.push({
       tools: brewable,
-      reason:
-        'Runyard installs these with Homebrew, which isn\'t installed. Install it on the Mac first: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
+      reason: "Runyard installs these with Homebrew. Install it from brew.sh first.",
     });
     return { install: [], blocked };
   }

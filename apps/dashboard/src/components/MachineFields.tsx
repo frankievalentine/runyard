@@ -22,7 +22,7 @@ export function MachineFields(props: {
         placeholder="ci@build-box.tail1234.ts.net"
         spellCheck={false}
         autoCapitalize="off"
-        description="user@host, or a Host alias from this machine's ~/.ssh/config. Once it's added, its page walks you through trusting its host key."
+        description="user@host, or a Host alias from the Runyard host's ~/.ssh/config."
         required
       />
       <label className="flex flex-col gap-1.5">
@@ -32,7 +32,7 @@ export function MachineFields(props: {
           value={props.transport}
           onChange={(e) => props.setTransport(e.target.value as SshTransport)}
         >
-          <option value="openssh">OpenSSH (this machine's ssh and keys)</option>
+          <option value="openssh">OpenSSH (the Runyard host's keys)</option>
           <option value="tailscale">Tailscale SSH</option>
         </select>
       </label>
@@ -60,9 +60,8 @@ export function MachineFields(props: {
           <span>
             <span className="font-medium">Sign in with Runyard's key only</span>
             <span className="block text-[12px] text-ink-2">
-              For machines set up with Runyard's setup command. Leaves your SSH agent and other keys
-              out, so an agent holding many keys (such as 1Password's) can't use up the machine's
-              sign-in attempts. Turn it off for a machine you reach with your own keys.
+              For machines set up with Runyard's setup command. Turn it off if you sign in with your
+              own keys.
             </span>
           </span>
         </label>

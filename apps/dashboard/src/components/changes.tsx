@@ -34,8 +34,8 @@ const ACTION: Record<PlanItem["action"], string> = {
   reconcileLabels: "Set labels",
   remove: "Remove",
   inspect: "Can't check",
-  repairRegistration: "Needs a look",
-  recoverLocal: "Needs a look",
+  repairRegistration: "Check by hand",
+  recoverLocal: "Check by hand",
   preserveService: "Left running",
   inspectOffline: "Offline",
   publicRepo: "Public repository",
@@ -239,7 +239,7 @@ export function MachineChanges({
             </ul>
             <p className="mt-2 text-[12px] text-ink-3">
               {admin
-                ? "Review reads the machine and GitHub to confirm them; nothing changes until you run it."
+                ? "Review to confirm them. Nothing changes until you run it."
                 : "An admin can review and apply them."}
             </p>
           </div>
@@ -247,7 +247,7 @@ export function MachineChanges({
         {!review && !operationId && waiting.length === 0 && (
           <EmptyLine>
             {admin
-              ? "Nothing is known to be waiting. Review compares this machine's pools with the machine and GitHub; it reads only, and nothing changes until you run it."
+              ? "No changes waiting. Reviewing is read-only."
               : "An admin can review and apply this machine's runner changes."}
           </EmptyLine>
         )}
@@ -257,9 +257,8 @@ export function MachineChanges({
         )}
         {review?.preparedBy && (
           <div className="border-b border-line bg-accent/5 px-4 py-2.5 text-[12.5px]">
-            Prepared by an agent, with the access token{" "}
-            <span className="font-medium">{review.preparedBy}</span>. Check it before you run it;
-            agents can't run changes themselves.
+            Prepared by the agent <span className="font-medium">{review.preparedBy}</span>. Agents
+            can't run changes; check it before you run it.
           </div>
         )}
         {review && review.items.length === 0 && (
@@ -307,7 +306,7 @@ export function MachineChanges({
                 {expired
                   ? "This review expired. Review again."
                   : actionable.length
-                    ? `Runyard re-reads the machine and GitHub first and does nothing if anything changed. Expires ${timeUntil(review.expiresAt, now)}.`
+                    ? `Runyard checks again first and stops if anything changed. Expires ${timeUntil(review.expiresAt, now)}.`
                     : "Nothing here can be done automatically."}
               </p>
               <Button
@@ -316,8 +315,9 @@ export function MachineChanges({
                 disabled={!actionable.length || expired || execute.isPending}
               >
                 {execute.isPending
-                  ? "Checking…"
-                  : `Run ${actionable.length} change${actionable.length === 1 ? "" : "s"}`}
+                  ? "Starting…"
+                  : `Run
+ ${actionable.length} change${actionable.length === 1 ? "" : "s"}`}
               </Button>
             </div>
             {execute.error && <ErrorText className="px-4 pb-3" error={execute.error} />}

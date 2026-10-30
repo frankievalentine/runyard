@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { sshKeyQuery } from "../lib/queries.ts";
 import { CopyValue } from "./CopyValue.tsx";
 import { Card } from "./ui.tsx";
@@ -18,14 +19,16 @@ export function SshKeyCard() {
             truncate
           />
           <p className="text-[12px] text-ink-2">
-            {key.fingerprint}. Machines authorize this key so Runyard can sign in to them; a
-            machine's setup command adds it for you. Your own keys and ~/.ssh/config still work too.
+            {key.fingerprint}. The setup command adds this key to a machine. Your own keys still
+            work.
           </p>
         </>
       ) : (
         <p className="text-[12.5px] text-ink-2">
-          Runyard couldn't create its own SSH key, so it uses this machine's keys only. See the SSH
-          key check under Getting started.
+          Runyard couldn't create its SSH key and is using the Runyard host's keys.{" "}
+          <Link to="/settings/account" className="text-accent hover:underline">
+            Fix it in Getting started
+          </Link>
         </p>
       )}
     </Card>

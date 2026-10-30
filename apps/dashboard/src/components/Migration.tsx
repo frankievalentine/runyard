@@ -86,8 +86,8 @@ export function TakeOver({ r }: { r: RunnerView }) {
       <div className="border-b border-line px-4 py-3">
         <div className="text-[14px] font-semibold">Take over this runner</div>
         <p className="mt-0.5 text-[12.5px] text-ink-2">
-          Runyard didn't register it, so it shows it but never changes it. To have Runyard run it
-          instead, a runner from one of its pools replaces it.
+          Runyard didn't register this runner, so it won't change it. To manage it, replace it with
+          a pool runner.
         </p>
       </div>
       <ol className="divide-y divide-line text-[13px]">
@@ -115,7 +115,7 @@ export function TakeOver({ r }: { r: RunnerView }) {
             <span className="text-[12px] text-ink-2">
               {migration
                 ? "Cancel the move to change it."
-                : "It then shows on that machine's page. You can stop here."}
+                : "The runner then shows on that machine's page. Continue only if you want Runyard to manage it."}
             </span>
           </div>
           {place.error && <ErrorText className="mt-2" error={place.error} />}
@@ -145,7 +145,7 @@ export function TakeOver({ r }: { r: RunnerView }) {
                 disabled={move.isPending}
                 onClick={() => move.mutate({ poolId: null })}
               >
-                {retired ? "Dismiss" : "Cancel the move"}
+                {retired ? "Dismiss" : "Cancel move"}
               </Button>
             </div>
           ) : eligible.length === 0 ? (
@@ -177,13 +177,13 @@ export function TakeOver({ r }: { r: RunnerView }) {
                   ))}
                 </select>
                 <Button type="submit" small variant="primary" disabled={move.isPending}>
-                  Start the move
+                  Start move
                 </Button>
               </div>
               <div className="max-w-xl">
                 <TextField
                   label="Its directory (optional)"
-                  description="Only used to fill in the steps for removing its service afterwards."
+                  description="Used only to fill in the steps for removing its service."
                   className="input font-mono"
                   value={path}
                   onChange={(e) => setPath(e.target.value)}
@@ -203,8 +203,8 @@ export function TakeOver({ r }: { r: RunnerView }) {
         >
           {!migration || !status ? (
             <p className="text-[12.5px] text-ink-3">
-              Once the pool's runner on {machine?.name ?? "its machine"} is online and idle, the
-              machine's review retires this one on the forge.
+              Once the pool runner on {machine?.name ?? "its machine"} is online and idle, the
+              machine's review retires this one.
             </p>
           ) : (
             <div className="flex flex-col gap-2">
@@ -229,8 +229,7 @@ export function TakeOver({ r }: { r: RunnerView }) {
                 </div>
               )}
               <p className="text-[12px] text-ink-3">
-                Retiring only deregisters it on the forge. Runyard then shows the steps to remove
-                its service, and never changes its directory.
+                Retiring only deregisters it on the forge. Runyard won't touch its files.
               </p>
             </div>
           )}

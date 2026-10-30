@@ -50,3 +50,31 @@ Split `docs/GUIDE.md` into task pages under `docs/`, with the README as a short 
 - A fresh Mac has no Command Line Tools; `/usr/bin/git`, `cc`, `make`, `python3` and
   `xcodebuild` are stand-ins that open an install dialog when run. Readiness now skips them, so
   the Mac recipe should say the dialog only appears when someone runs `xcode-select --install`.
+
+## Explanations moved out of the dashboard, to cover
+
+The 2026-10-30 copy pass cut these from the dashboard, which now states what happens and what
+to do. The docs should carry the why.
+
+- Machine setup command: what it does (checks the SSH server, authorizes Runyard's key, reports
+  the account and host keys back) and why it is offered over HTTPS only (so the script can't be
+  changed in transit).
+- "Sign in with Runyard's key only": an SSH agent holding many keys (1Password's) can use up a
+  machine's sign-in attempts.
+- A machine's page walks you through trusting its host key once it's added.
+- Diagnostics and the SSH check run automatically every minute; Check now runs them at once.
+- Disk alerts fire only once low disk space is confirmed on a second read.
+- Review re-reads the machine and the forge, and running changes reads them again first.
+- What a tailnet device's page offers (Add to check its health, Ignore to hide it).
+- Runyard's own SSH key: machines authorize it, and your own keys and ~/.ssh/config still work.
+- Linux sleep: Runyard reads systemd's sleep, suspend, hibernate, hybrid-sleep and
+  suspend-then-hibernate targets; unmasked targets don't prove sleep is on, and desktop and
+  logind policies can differ. Logind's setting includes drop-ins and may need a service reload.
+- Where diagnostics come from: `tailscale status`, the RunSSH and ForceDaemon preferences,
+  `pmset` on macOS and the active power plan on Windows, and their caveats (Modern Standby,
+  Mac models without autorestart, wake-on-network not guaranteeing wake over Tailscale).
+- Runners on a Mac are LaunchAgents, which is why automatic login matters.
+- Install commands assume apt on Linux; other distributions need their own package names.
+  Homebrew's install command is on brew.sh.
+- Where run history comes from: webhooks when they're set up, otherwise the runners' hooks at
+  the next minute check.

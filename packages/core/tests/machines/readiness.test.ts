@@ -48,12 +48,12 @@ describe("runner readiness", () => {
       "tool-tar",
       "reach-github.com",
     ]);
-    expect(r?.items.find((i) => i.id === "tool-git")?.detail).toContain("sudo apt install -y git");
+    expect(r?.items.find((i) => i.id === "tool-git")?.command).toBe("sudo apt install -y git");
     expect(r?.items.find((i) => i.id === "tool-cc")).toMatchObject({
       tier: "recommended",
       status: "warn",
     });
-    expect(r?.items.find((i) => i.id === "tool-cc")?.detail).toContain("build-essential");
+    expect(r?.items.find((i) => i.id === "tool-cc")?.command).toContain("build-essential");
   });
 
   test("a ready machine has no problems; a drifting clock is one", () => {
@@ -76,9 +76,7 @@ describe("runner readiness", () => {
     ).toBe("missing");
     const mac = evaluateReadiness(report("macos", posixTools), NOW, none);
     expect(status(mac, "xcode-clt")).toBe("missing");
-    expect(mac?.items.find((i) => i.id === "xcode-clt")?.detail).toContain(
-      "xcode-select --install",
-    );
+    expect(mac?.items.find((i) => i.id === "xcode-clt")?.command).toBe("xcode-select --install");
   });
 
   test("labels are checked against what the machine has", () => {

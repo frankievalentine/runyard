@@ -38,8 +38,10 @@ export function deriveIssues(view: YardView): Issue[] {
     if (c.state === "error") {
       issues.push({
         id: `${m.id}:ssh`,
-        title: `${m.name}: couldn't connect over SSH`,
-        detail: c.detail,
+        title: `${m.name}: SSH failed`,
+        // The first line is Runyard's summary; ssh's own output follows on the next.
+        detail: c.detail.split("\n")[0]!,
+
         machineId: m.id,
       });
     } else if (c.state === "stale") {
@@ -71,7 +73,7 @@ export function deriveIssues(view: YardView): Issue[] {
       issues.push({
         id: `${m.id}:readiness`,
         title: `${m.name}: not ready for its pools' jobs`,
-        detail: `${missing.map((i) => `${i.title}: ${i.value}`).join("; ")}. See Runner readiness on its page.`,
+        detail: missing.map((i) => `${i.title}: ${i.value}`).join("; "),
         machineId: m.id,
       });
     const diskAlert = m.alerts.some((a) => a.kind === "lowDisk");
@@ -80,7 +82,8 @@ export function deriveIssues(view: YardView): Issue[] {
       issues.push({
         id: `${m.id}:${check.id}`,
         title: `${m.name}: ${check.title}`,
-        detail: `${check.value}. ${check.detail}`,
+        detail: check.detail ? `${check.value}. ${check.detail}` : check.value,
+
         machineId: m.id,
       });
     }
