@@ -158,9 +158,10 @@ For 5.2, send the pool page's One-job runners entry and the machine's history.
 - [x] **9.2** A pool serving the account on the LXC, host mode. Review and run. Expect the
       forgejo-runner service active and the runner idle in Forgejo. Readiness asks for Node.js,
       and the review installs it.
-- [ ] **9.3** Run a job using `actions/checkout`. Then switch the pool to Docker mode and run one
+- [x] **9.3** Run a job using `actions/checkout`. Then switch the pool to Docker mode and run one
       in a container.
-- [ ] **9.4** Run history: the runner from 9.2 shows **Record jobs** as a change waiting; run it.
+- [x] **9.4** Run history:
+      the runner from 9.2 shows **Record jobs** as a change waiting; run it.
       Then run the workflow again: expect the job under **Jobs** on the LXC's page and the pool's,
       with its result within a minute or two and **Open on Forgejo** linking to the run.
 
