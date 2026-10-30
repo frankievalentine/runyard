@@ -86,7 +86,21 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   const github = new GithubMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
   const forgejo = new ForgejoMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
   const boat = new BoatMonitor({ secrets, fetch, onChange: () => monitor?.tick() });
-  const history = new JobHistory({ db, github, forgejo, view: () => monitor!.view });
+  // A round can change many jobs; the view is derived again once for all of them.
+  let jobsTick: ReturnType<typeof setTimeout> | undefined;
+  const history = new JobHistory({
+    db,
+    github,
+    forgejo,
+    view: () => monitor!.view,
+    onChange: () => {
+      jobsTick ??= setTimeout(() => {
+        jobsTick = undefined;
+        monitor?.tick();
+      }, 250);
+    },
+  });
+
   monitor = new MachineMonitor({
     db,
     run,
@@ -99,6 +113,8 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     },
 
     lostJobs: () => possiblyLostJobs(db),
+    jobsAt: () => history.changedAt,
+
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),
     boat: () => boat.observation(),
@@ -169,6 +185,8 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   };
   const historyTimers = [
     setInterval(() => void historyRound().catch(() => {}), 60_000),
+    // Forgejo has no job webhooks; its running jobs' results are read every 10 seconds.
+    setInterval(() => void history.fillForgejoResults().catch(() => {}), 10_000),
     setInterval(() => history.prune(), 60 * 60_000),
   ];
   for (const t of historyTimers) t.unref();

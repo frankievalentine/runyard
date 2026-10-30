@@ -42,7 +42,8 @@ export function useJobs(filter: Filter, failures = false) {
       (await call(
         api.jobs.$get({ query: { ...filter, days: "7", ...(failures ? { failures: "1" } : {}) } }),
       )) as unknown as JobsResponse,
-    refetchInterval: 30_000,
+    // The live view says when jobs change; this only covers a dropped stream.
+    refetchInterval: 60_000,
   });
 }
 

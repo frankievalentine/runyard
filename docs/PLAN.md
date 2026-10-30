@@ -238,9 +238,12 @@ jobs page.
 
 ## Planned
 
-- **Forgejo job logs**: Show log for Forgejo jobs, from Forgejo 16's job log endpoint, once tried
-  on a real Forgejo 16 such as Codeberg. Forgejo run history is otherwise built
-  ([docs/plans/run-history.md](plans/run-history.md)).
+- **Forgejo job logs**: Show log for Forgejo jobs, from the job log endpoint Forgejo 16 added,
+  built against the user's instance once it's on Forgejo 17. Forgejo run history is otherwise
+  built ([docs/plans/run-history.md](plans/run-history.md)).
+- **A live job feed**: one SSH session per machine with runners, printing new job lines every
+  2 seconds, so a job shows as Running within seconds of starting instead of at the minute
+  check. Agreed for after Round 9.
 
 - **Forgejo repository scopes**: pools can serve a single Forgejo repository, listed like GitHub
   personal repositories, with the account still offered. Agreed for after Round 9, built against

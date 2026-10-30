@@ -146,6 +146,8 @@ export type YardView = {
   pools: PoolsView;
   /** Jobs whose runner went away mid-job in the last day: machine problems. */
   lostJobs?: JobRecord[];
+  /** When run history last changed, so pages listing jobs know to read them again. */
+  jobsAt?: number;
 };
 
 export type PoolsView = {

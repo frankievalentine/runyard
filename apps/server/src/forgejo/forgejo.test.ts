@@ -321,24 +321,34 @@ describe("Forgejo run history", () => {
       conclusion: null,
       hook: null,
     });
+    // The live view says run history changed, so pages listing jobs read them again.
+    expect(s.monitor.view.jobsAt).toBe(s.clock.now);
 
-    s.fakeForgejo.tasks.set("frankie/app", [
+    const task = (status: string) => [
       {
         id: 7,
         name: "check",
-        status: "success",
+        status,
         run_number: 3,
         workflow_id: "check.yml",
         url: "https://forgejo.test/frankie/app/actions/runs/3",
         run_started_at: now,
         updated_at: now,
       },
-    ]);
-    await s.history.fillResults([]);
+    ];
+    // Still running: no result yet, and the next read (10 seconds later) asks again at once.
+    s.fakeForgejo.tasks.set("frankie/app", task("running"));
+    await s.history.fillForgejoResults();
+    ({ jobs } = await s.call<Jobs>("GET", `/api/jobs?machine=${s.machine.id}`));
+    expect(jobs[0]).toMatchObject({ name: "check", conclusion: null, finishedAt: null });
+
+    s.fakeForgejo.tasks.set("frankie/app", task("success"));
+    await s.history.fillForgejoResults();
     ({ jobs } = await s.call<Jobs>("GET", `/api/jobs?machine=${s.machine.id}`));
     expect(jobs[0]).toMatchObject({
       jobId: 7,
       runId: 3,
+
       name: "check",
       workflow: "check.yml",
       conclusion: "success",

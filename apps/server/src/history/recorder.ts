@@ -20,6 +20,9 @@ export const TEST_WORKFLOW = "Runyard runner check";
 const RESULTS_PER_ROUND = 20;
 /** A job without a result is read again at most this often. */
 const RESULT_RETRY_MS = 2 * 60_000;
+/** A Forgejo job this recent is read on every call until it has a result. */
+const FORGEJO_FAST_MS = 60 * 60_000;
+
 /** After a restart, hook lines are read again from this far back; re-reading only merges. */
 const HOOK_REREAD_MS = 24 * 60 * 60_000;
 /** The end of a job's log kept when it's shown. */
@@ -50,6 +53,10 @@ const time = (iso: string | null | undefined) => (iso ? Date.parse(iso) : null);
  */
 export class JobHistory {
   private tried = new Map<string, number>();
+  /** When a job's record last changed. */
+  changedAt = 0;
+  private readingForgejo = false;
+
   private hookSince = new Map<string, number>();
   private readonly now: () => number;
 
@@ -57,7 +64,10 @@ export class JobHistory {
     private readonly deps: {
       db: Db;
       github: GithubMonitor;
+      /** Called when a job's record changed, so the view can say so. */
+      onChange?: () => void;
       /** Forgejo connections' APIs, for their tasks' results. */
+
       forgejo?: {
         apiFor: (scope: { forgeId: string; kind: "repo"; target: string }) => ForgejoApi | null;
       };
@@ -165,21 +175,11 @@ export class JobHistory {
       ),
     );
     const due = jobsWithoutResult(this.deps.db, 200).filter((j) => {
+      if (this.isForgejo(j.forgeId)) return false;
       if (j.jobId !== null && inProgress.has(j.jobId)) return false;
       return now - (this.tried.get(j.id) ?? 0) > RESULT_RETRY_MS;
     });
-    // Forgejo lists a repository's tasks in one read, so its jobs are read a repository at a time.
-    const forgejoRepos = new Map<string, JobRecord[]>();
-    let reads = 0;
-    for (const j of due) {
-      if (reads >= RESULTS_PER_ROUND) break;
-      if (this.isForgejo(j.forgeId)) {
-        const key = `${j.forgeId}\t${j.repo}`;
-        if (!forgejoRepos.has(key)) reads++;
-        forgejoRepos.set(key, [...(forgejoRepos.get(key) ?? []), j]);
-        continue;
-      }
-      reads++;
+    for (const j of due.slice(0, RESULTS_PER_ROUND)) {
       this.tried.set(j.id, now);
       try {
         await this.readResult(j);
@@ -187,15 +187,44 @@ export class JobHistory {
         // Tried again next round; GitHub may be busy or the run gone.
       }
     }
-    for (const jobs of forgejoRepos.values()) {
+    await this.fillForgejoResults();
+    for (const [id, at] of this.tried) if (now - at > 60 * 60_000) this.tried.delete(id);
+  }
+
+  /**
+   * Results for Forgejo jobs, a repository at a time: one read of its tasks
+   * covers all its jobs, so a job started in the last hour is read again every
+   * call (every 10 seconds) until it finishes, and an older one every 2 minutes.
+   */
+  async fillForgejoResults() {
+    // The 10-second timer and the minute round both call this; one read at a time.
+    if (this.readingForgejo) return;
+    this.readingForgejo = true;
+    try {
+      await this.readForgejoRound();
+    } finally {
+      this.readingForgejo = false;
+    }
+  }
+
+  private async readForgejoRound() {
+    const now = this.now();
+    const byRepo = new Map<string, JobRecord[]>();
+    for (const j of jobsWithoutResult(this.deps.db, 200)) {
+      if (!this.isForgejo(j.forgeId)) continue;
+      const recent = now - (j.startedAt ?? 0) < FORGEJO_FAST_MS;
+      if (!recent && now - (this.tried.get(j.id) ?? 0) <= RESULT_RETRY_MS) continue;
+      const key = `${j.forgeId}\t${j.repo}`;
+      byRepo.set(key, [...(byRepo.get(key) ?? []), j]);
+    }
+    for (const jobs of [...byRepo.values()].slice(0, RESULTS_PER_ROUND)) {
       for (const j of jobs) this.tried.set(j.id, now);
       try {
         await this.readForgejoResults(jobs);
       } catch {
-        // Tried again next round.
+        // Tried again next call.
       }
     }
-    for (const [id, at] of this.tried) if (now - at > 60 * 60_000) this.tried.delete(id);
   }
 
   prune() {
@@ -291,7 +320,7 @@ export class JobHistory {
   /** Adds where the job ran, from the runner's name, and whether it was a test run. */
   private record(o: JobObservation) {
     const place = o.runnerName ? this.placeOf(o.runnerName, o.forgeId) : null;
-    recordJob(
+    const { changed } = recordJob(
       this.deps.db,
       {
         ...o,
@@ -301,6 +330,10 @@ export class JobHistory {
       },
       this.now(),
     );
+    if (changed) {
+      this.changedAt = this.now();
+      this.deps.onChange?.();
+    }
   }
 
   /** The machine and pool of a runner, by name: Runyard's own, one-job, or assigned. */

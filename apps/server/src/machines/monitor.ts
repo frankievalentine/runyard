@@ -73,6 +73,8 @@ type Deps = {
   };
   /** Recent jobs whose runner may have been lost mid-job; the view keeps the ones that were. */
   lostJobs?: () => JobRecord[];
+  /** When run history last changed; carried in the view so pages listing jobs refresh. */
+  jobsAt?: () => number;
   /** Pools and the runners Runyard registered, joined into the yard view. */
   pools?: () => {
     pools: Pool[];
@@ -232,7 +234,12 @@ export class MachineMonitor {
       now,
     });
     const lost = (this.deps.lostJobs?.() ?? []).filter((j) => isLost(j, now));
-    return lost.length ? { ...view, lostJobs: lost } : view;
+    const jobsAt = this.deps.jobsAt?.();
+    return {
+      ...view,
+      ...(lost.length ? { lostJobs: lost } : {}),
+      ...(jobsAt ? { jobsAt } : {}),
+    };
   }
 
   private publish() {

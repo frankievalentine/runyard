@@ -66,10 +66,24 @@ function find(db: Db, o: JobObservation): Row | undefined {
     .get();
 }
 
-/** Merges what a source saw about a job into its record, creating it if new. */
-export function recordJob(db: Db, o: JobObservation, now = Date.now()): JobRecord {
+/**
+ * Merges what a source saw about a job into its record, creating it if new.
+ * `changed` says whether that told Runyard anything new.
+ */
+export function recordJob(
+  db: Db,
+  o: JobObservation,
+  now = Date.now(),
+): JobRecord & { changed: boolean } {
   const existing = find(db, o);
-  const merged = mergeJob(existing ? toRecord(existing) : undefined, o, crypto.randomUUID());
+  const before = existing ? toRecord(existing) : undefined;
+  const merged = mergeJob(before, o, crypto.randomUUID());
+  const same = (a: JobRecord, b: JobRecord) =>
+    (Object.keys(b) as (keyof JobRecord)[]).every(
+      (k) => JSON.stringify(a[k]) === JSON.stringify(b[k]),
+    );
+  if (before && same(before, merged)) return { ...merged, changed: false };
+
   const row = {
     forgeId: merged.forgeId,
     repo: merged.repo,
@@ -94,7 +108,7 @@ export function recordJob(db: Db, o: JobObservation, now = Date.now()): JobRecor
     .values({ id: merged.id, ...row })
     .onConflictDoUpdate({ target: jobs.id, set: row })
     .run();
-  return merged;
+  return { ...merged, changed: true };
 }
 
 export type JobFilter = {

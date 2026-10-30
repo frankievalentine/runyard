@@ -79,7 +79,9 @@ export async function testApp(
     forgejo,
     view: () => monitor!.view,
     now: () => clock.now,
+    onChange: () => monitor?.tick(),
   });
+
   monitor = new MachineMonitor({
     db,
     run: fake.run,
@@ -92,6 +94,7 @@ export async function testApp(
       recordForgejo: (machineId, lines) => history.fromForgejo(machineId, lines),
     },
     lostJobs: () => possiblyLostJobs(db),
+    jobsAt: () => history.changedAt,
 
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),

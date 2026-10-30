@@ -21,14 +21,22 @@ export function useYardStream() {
   const queryClient = useQueryClient();
   useEffect(() => {
     const source = new EventSource("/api/stream");
+    let jobsAt: number | undefined;
     source.addEventListener("yard", (event) => {
-      queryClient.setQueryData(
-        yardQuery.queryKey,
-        JSON.parse((event as MessageEvent<string>).data) as YardView,
-      );
+      const view = JSON.parse((event as MessageEvent<string>).data) as YardView;
+      queryClient.setQueryData(yardQuery.queryKey, view);
       // A changed view may come with new events.
       void queryClient.invalidateQueries({ queryKey: ["events"] });
+      // Run history changed: pages listing jobs read them again.
+      if (view.jobsAt !== jobsAt) {
+        if (jobsAt !== undefined) {
+          void queryClient.invalidateQueries({ queryKey: ["jobs"] });
+          void queryClient.invalidateQueries({ queryKey: ["jobs-summary"] });
+        }
+        jobsAt = view.jobsAt;
+      }
     });
+
     // EventSource reconnects by itself; a failure may also mean the session ended, so re-check it.
     source.addEventListener(
       "error",
