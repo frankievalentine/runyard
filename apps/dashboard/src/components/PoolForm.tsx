@@ -328,7 +328,7 @@ export function PoolForm({
                         onChange={() => toggleScope(scope)}
                       />
                       <span className="min-w-0 flex-1 font-mono text-[12.5px]">{label}</span>
-                      {forge === "forgejo" && <ForgeBadge />}
+                      <ForgeBadge forge={forge} />
                     </label>
                   ))}
                 </div>

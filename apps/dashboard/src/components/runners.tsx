@@ -47,8 +47,12 @@ export function Badge({ children }: { children: ReactNode }) {
   );
 }
 
-export function ForgeBadge() {
-  return <Badge>Forgejo</Badge>;
+/** Which forge something is on: always for Forgejo, and for GitHub too once both are connected. */
+export function ForgeBadge({ forge }: { forge: "github" | "forgejo" }) {
+  const view = useYard();
+  const both = view.github.apps.length > 0 && view.forgejo.connections.length > 0;
+  if (forge === "github" && !both) return null;
+  return <Badge>{forge === "forgejo" ? "Forgejo" : "GitHub"}</Badge>;
 }
 
 /** A runner label as a small monospace chip, click to copy. */
@@ -109,7 +113,7 @@ export function RunnerLine({ r }: { r: RunnerView }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="truncate font-medium">{r.job?.name ?? r.name}</span>
-          {r.forge === "forgejo" && <ForgeBadge />}
+          <ForgeBadge forge={r.forge} />
           {r.onDemand && <Badge>{r.onDemand}</Badge>}
         </div>
         <div className="truncate font-mono text-[12px] text-ink-2">{detail}</div>
@@ -272,7 +276,8 @@ export function JobTitle({ job }: { job: JobView }) {
             <Icon name="external" size={12} />
           </GitHubLink>
         )}
-        {job.forge === "forgejo" && <ForgeBadge />}
+        <ForgeBadge forge={job.forge} />
+
         {job.onDemand && <Badge>{job.onDemand}</Badge>}
       </div>
       <div className="mt-0.5 truncate font-mono text-[12px] text-ink-2">
