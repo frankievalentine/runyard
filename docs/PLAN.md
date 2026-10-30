@@ -237,6 +237,10 @@ jobs page.
 
 - **Run history for Forgejo**: GitHub's is built ([docs/plans/run-history.md](plans/run-history.md));
   Forgejo's finished tasks are still to read.
+- **Forgejo repository scopes**: pools can serve a single Forgejo repository, listed like GitHub
+  personal repositories, with the account still offered. Agreed for after Round 9, built against
+  what a real instance returns rather than the fake.
+
 - **Container runners ("Use this machine for CI")**: a fresh container per job on Runyard's
   own machine, then on SSH machines with Docker. Agreed and designed, not started:
   [docs/plans/container-runners.md](plans/container-runners.md).
