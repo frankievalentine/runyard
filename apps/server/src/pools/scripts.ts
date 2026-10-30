@@ -8,6 +8,7 @@ import startPs1 from "../../scripts/runner-start.ps1" with { type: "text" };
 import startSh from "../../scripts/runner-start.sh" with { type: "text" };
 import runAsRoot from "../../scripts/run-as-root.sh" with { type: "text" };
 import forgejoConfigure from "../../scripts/forgejo-configure.sh" with { type: "text" };
+import forgejoHistory from "../../scripts/forgejo-history.sh" with { type: "text" };
 import forgejoInstall from "../../scripts/forgejo-install.sh" with { type: "text" };
 import forgejoRemove from "../../scripts/forgejo-remove.sh" with { type: "text" };
 import forgejoStart from "../../scripts/forgejo-start.sh" with { type: "text" };
@@ -27,6 +28,7 @@ export type Operation =
   | "forgejo-install"
   | "forgejo-start"
   | "forgejo-configure"
+  | "forgejo-history"
   | "forgejo-remove"
   | "template-install"
   | "template-remove"
@@ -56,8 +58,13 @@ const SCRIPTS: Record<Operation, { posix: string; windows: string }> = {
     posix: forgejoConfigure,
     windows: "throw 'forgejo-runner is only published for Linux'",
   },
+  "forgejo-history": {
+    posix: forgejoHistory,
+    windows: "throw 'forgejo-runner is only published for Linux'",
+  },
   "forgejo-remove": {
     posix: forgejoRemove,
+
     windows: "throw 'forgejo-runner is only published for Linux'",
   },
   // On-demand runners run on Linux and macOS for now; the plan refuses Windows.

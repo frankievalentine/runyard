@@ -70,8 +70,10 @@ export function mergeJob(record: JobRecord | undefined, o: JobObservation, id: s
     forgeId: o.forgeId,
     repo: o.repo,
     jobId: pick("jobId"),
-    runId: o.runId,
+    // 0 is a run not known yet: a Forgejo runner's log names the task, not its run.
+    runId: o.runId || record?.runId || 0,
     runAttempt: o.runAttempt,
+
     name: pick("name"),
     workflow: pick("workflow"),
     runnerName: pick("runnerName"),
@@ -178,4 +180,35 @@ export function parseHookLines(text: string): HookLine[] {
     });
   }
   return out;
+}
+
+/** A Forgejo runner took a task (Forgejo's name for a job), as its own log says. */
+export type ForgejoTaskLine = { at: number; runnerName: string; taskId: number; repo: string };
+
+/**
+ * Lines the machine check prints for Forgejo runners' logs: time (as the
+ * runner logs it), runner, task and repository, tab-separated. Unreadable
+ * lines are skipped. Pure.
+ */
+export function parseForgejoLines(text: string): ForgejoTaskLine[] {
+  const out: ForgejoTaskLine[] = [];
+  for (const line of text.split("\n")) {
+    const [time, runnerName, task, repo] = line.split("\t");
+    const at = Date.parse(time ?? "");
+    const taskId = Number(task);
+    if (!Number.isFinite(at) || !Number.isInteger(taskId) || taskId <= 0) continue;
+    if (!runnerName || !repo?.includes("/")) continue;
+    out.push({ at, runnerName, taskId, repo });
+  }
+  return out;
+}
+
+/** A Forgejo task's status as a result; null while it hasn't finished. */
+export function forgejoConclusion(status: string): JobConclusion | null {
+  return status === "success" ||
+    status === "failure" ||
+    status === "cancelled" ||
+    status === "skipped"
+    ? status
+    : null;
 }

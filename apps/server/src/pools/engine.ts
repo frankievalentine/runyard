@@ -59,6 +59,7 @@ import {
   listTemplates,
   publicOverrides,
   recordCleanup,
+  recordHistory,
   recordRegistration,
   recordTemplate,
 } from "./store.ts";
@@ -753,6 +754,8 @@ export class PoolEngine {
               serviceMode: desired.serviceMode,
               runnerKind: desired.runnerKind,
             });
+            // A new forgejo-runner writes the log run history reads from the start.
+            recordHistory(this.deps.db, desired.key);
           }
           return output;
         } catch (error) {
@@ -767,6 +770,20 @@ export class PoolEngine {
           RF_NAME: item.runnerName,
           RF_SUDO_PASSWORD: sudoPassword,
         });
+      case "recordJobs": {
+        // Busy is checked again at the last moment: the change restarts the runner.
+        const fresh = await this.forgejoRunners(api, item.scope);
+        if (fresh.get(item.runnerName.toLowerCase())?.busy)
+          throw new EngineError("It started a job; not changed.");
+        const output = await this.runScript(ctx, "forgejo-history", {
+          RF_ROOT: item.path,
+          RF_NAME: item.runnerName,
+          RF_SUDO_PASSWORD: sudoPassword,
+        });
+        const desired = ctx.desired.find((d) => d.path === item.path && d.name === item.runnerName);
+        if (desired) recordHistory(this.deps.db, desired.key);
+        return output;
+      }
       case "reconcileLabels":
         return this.runScript(ctx, "forgejo-configure", {
           RF_ROOT: item.path,

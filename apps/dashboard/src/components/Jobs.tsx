@@ -117,6 +117,8 @@ function JobRow({ job, showMachine }: { job: JobRecord; showMachine?: boolean })
     ? view.runners.find((r) => r.name.toLowerCase() === job.runnerName!.toLowerCase())
     : undefined;
   const machine = showMachine ? view.machines.find((m) => m.id === job.machineId) : undefined;
+  // Forgejo serves job logs from version 16; its jobs link to the run instead.
+  const forgejo = view.forgejo.connections.some((c) => c.forgeId === job.forgeId);
   const took =
     job.startedAt && job.finishedAt
       ? `took ${formatElapsed(job.finishedAt - job.startedAt)}`
@@ -197,7 +199,17 @@ function JobRow({ job, showMachine }: { job: JobRecord; showMachine?: boolean })
               {part}
             </span>
           ))}
-        {job.jobId !== null && (
+        {forgejo && job.htmlUrl && (
+          <a
+            href={job.htmlUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="ml-auto font-medium text-accent hover:underline"
+          >
+            Open on Forgejo
+          </a>
+        )}
+        {!forgejo && job.jobId !== null && (
           <button
             type="button"
             onClick={() => setOpen(!open)}

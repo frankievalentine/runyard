@@ -7,9 +7,11 @@ import {
   observed,
   osFromTailnet,
   isLost,
+  parseForgejoLines,
   parseHookLines,
   parseReport,
   type EventKind,
+  type ForgejoTaskLine,
   type HookLine,
   type JobRecord,
   type YardView,
@@ -66,6 +68,8 @@ type Deps = {
   jobLog?: {
     since: (machineId: string) => number;
     record: (machineId: string, lines: HookLine[]) => void;
+    /** Tasks the machine's Forgejo runners took, from their logs. */
+    recordForgejo?: (machineId: string, lines: ForgejoTaskLine[]) => void;
   };
   /** Recent jobs whose runner may have been lost mid-job; the view keeps the ones that were. */
   lostJobs?: () => JobRecord[];
@@ -282,17 +286,18 @@ export class MachineMonitor {
         this.deps.jobLog?.since(machine.id) ?? 0,
       );
       // Job log lines are run history's, not the report's.
-      const jobLines = output
-        .split("\n")
-        .filter((l) => l.startsWith("RFJ\t"))
-        .map((l) => l.slice(4));
+      const lines = output.split("\n");
+      const tagged = (tag: string) =>
+        lines.filter((l) => l.startsWith(`${tag}\t`)).map((l) => l.slice(tag.length + 1));
+      const jobLines = tagged("RFJ");
       if (jobLines.length)
         this.deps.jobLog?.record(machine.id, parseHookLines(jobLines.join("\n")));
+      const taskLines = tagged("RFF");
+      if (taskLines.length)
+        this.deps.jobLog?.recordForgejo?.(machine.id, parseForgejoLines(taskLines.join("\n")));
       const report = parseReport(
-        output
-          .split("\n")
-          .filter((l) => !l.startsWith("RFJ\t"))
-          .join("\n"),
+        lines.filter((l) => !l.startsWith("RFJ\t") && !l.startsWith("RFF\t")).join("\n"),
+
         machine.expectedOs ?? os ?? "other",
       );
       this.observations.set(machine.id, {

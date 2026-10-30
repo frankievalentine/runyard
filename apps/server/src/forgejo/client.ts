@@ -39,6 +39,17 @@ type RawJob = {
   runs_on?: string[] | null;
 };
 export type ForgejoRepo = { id: number; fullName: string; private: boolean; owner: string };
+/** One task (a job's run) as `actions/tasks` lists it; it doesn't name the runner. */
+export type ForgejoTask = {
+  id: number;
+  name: string;
+  status: string;
+  runNumber: number;
+  workflow: string | null;
+  url: string | null;
+  startedAt: string | null;
+  updatedAt: string | null;
+};
 
 /** Forgejo's REST API as one user, with an access token. */
 export class ForgejoApi {
@@ -177,7 +188,35 @@ export class ForgejoApi {
     await this.request("DELETE", `${runnersPath(scope)}/${id}`);
   }
 
+  /** A repository's newest tasks, with their status: Forgejo's record of finished jobs. */
+  async tasks(repo: string, limit = 50): Promise<ForgejoTask[]> {
+    const path = `/repos/${repo.split("/").map(enc).join("/")}/actions/tasks?limit=${limit}`;
+    const raw = (await this.request("GET", path)) as {
+      workflow_runs?: {
+        id: number;
+        name: string;
+        status: string;
+        run_number: number;
+        workflow_id?: string | null;
+        url?: string | null;
+        run_started_at?: string | null;
+        updated_at?: string | null;
+      }[];
+    } | null;
+    return (raw?.workflow_runs ?? []).map((t) => ({
+      id: t.id,
+      name: t.name,
+      status: t.status,
+      runNumber: t.run_number,
+      workflow: t.workflow_id ?? null,
+      url: t.url ?? null,
+      startedAt: t.run_started_at ?? null,
+      updatedAt: t.updated_at ?? null,
+    }));
+  }
+
   /** Jobs for the scope's runners: waiting, and running ones too. */
+
   async jobs(scope: Scope, repoNames: ReadonlyMap<number, string>): Promise<ForgejoJob[]> {
     const raw =
       ((await this.request("GET", `${runnersPath(scope)}/jobs`)) as RawJob[] | null) ?? [];

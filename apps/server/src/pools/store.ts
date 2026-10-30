@@ -148,6 +148,11 @@ export function recordCleanup(db: Db, key: string, cleanup: CleanupMode) {
   db.update(registrations).set({ cleanup, history: true }).where(eq(registrations.key, key)).run();
 }
 
+/** After a runner is set to record its jobs, when that's a step of its own (Forgejo runners). */
+export function recordHistory(db: Db, key: string) {
+  db.update(registrations).set({ history: true }).where(eq(registrations.key, key)).run();
+}
+
 export function forgetRegistration(db: Db, machineId: string, scope: Scope, runnerName: string) {
   db.delete(registrations)
     .where(

@@ -1,12 +1,15 @@
-import type {
-  GithubAppObservation,
-  HookLine,
-  JobConclusion,
-  JobObservation,
-  JobRecord,
-  YardView,
+import {
+  forgejoConclusion,
+  type ForgejoTaskLine,
+  type GithubAppObservation,
+  type HookLine,
+  type JobConclusion,
+  type JobObservation,
+  type JobRecord,
+  type YardView,
 } from "@runyard/core";
 import type { Db } from "../db/index.ts";
+import { ForgejoError, type ForgejoApi } from "../forgejo/client.ts";
 import type { GithubMonitor } from "../github/monitor.ts";
 import { GithubError } from "../github/client.ts";
 import { jobsWithoutResult, pruneJobs, recordJob } from "./store.ts";
@@ -54,6 +57,10 @@ export class JobHistory {
     private readonly deps: {
       db: Db;
       github: GithubMonitor;
+      /** Forgejo connections' APIs, for their tasks' results. */
+      forgejo?: {
+        apiFor: (scope: { forgeId: string; kind: "repo"; target: string }) => ForgejoApi | null;
+      };
       view: () => YardView;
       now?: () => number;
     },
@@ -121,6 +128,32 @@ export class JobHistory {
     }
   }
 
+  /**
+   * Tasks Forgejo runners took, from their logs. A log names the task and
+   * repository but not the run, which the result read fills in; there's no
+   * end line, so a task isn't counted lost.
+   */
+  fromForgejo(machineId: string, lines: ForgejoTaskLine[]) {
+    const since = this.hookSince.get(machineId) ?? this.now() - HOOK_REREAD_MS;
+    for (const line of lines) {
+      if (line.at < since - 1000) continue;
+      const forgeId = this.forgeFor(line.runnerName, line.repo);
+      if (!forgeId) continue;
+      this.record({
+        forgeId,
+        repo: line.repo,
+        jobId: line.taskId,
+        runId: 0,
+        runAttempt: 1,
+        runnerName: line.runnerName,
+        machineId,
+        startedAt: line.at,
+        source: "hook",
+      });
+      this.hookSince.set(machineId, Math.max(this.hookSince.get(machineId) ?? 0, line.at));
+    }
+  }
+
   /** One round: reads results for finished jobs, a few at a time. */
   async fillResults(apps: GithubAppObservation[]) {
     const now = this.now();
@@ -135,12 +168,31 @@ export class JobHistory {
       if (j.jobId !== null && inProgress.has(j.jobId)) return false;
       return now - (this.tried.get(j.id) ?? 0) > RESULT_RETRY_MS;
     });
-    for (const j of due.slice(0, RESULTS_PER_ROUND)) {
+    // Forgejo lists a repository's tasks in one read, so its jobs are read a repository at a time.
+    const forgejoRepos = new Map<string, JobRecord[]>();
+    let reads = 0;
+    for (const j of due) {
+      if (reads >= RESULTS_PER_ROUND) break;
+      if (this.isForgejo(j.forgeId)) {
+        const key = `${j.forgeId}\t${j.repo}`;
+        if (!forgejoRepos.has(key)) reads++;
+        forgejoRepos.set(key, [...(forgejoRepos.get(key) ?? []), j]);
+        continue;
+      }
+      reads++;
       this.tried.set(j.id, now);
       try {
         await this.readResult(j);
       } catch {
         // Tried again next round; GitHub may be busy or the run gone.
+      }
+    }
+    for (const jobs of forgejoRepos.values()) {
+      for (const j of jobs) this.tried.set(j.id, now);
+      try {
+        await this.readForgejoResults(jobs);
+      } catch {
+        // Tried again next round.
       }
     }
     for (const [id, at] of this.tried) if (now - at > 60 * 60_000) this.tried.delete(id);
@@ -152,6 +204,11 @@ export class JobHistory {
 
   /** A job's log from GitHub, fetched when asked for and not kept. */
   async log(job: JobRecord): Promise<string> {
+    if (this.isForgejo(job.forgeId))
+      throw new ForgejoError(
+        "Forgejo doesn't serve job logs before version 16. Open the job on Forgejo.",
+        404,
+      );
     if (job.jobId === null) throw new GithubError("GitHub hasn't named this job yet.");
     const http = this.deps.github.clientFor({
       forgeId: job.forgeId,
@@ -178,6 +235,38 @@ export class JobHistory {
       );
     if (!match || match.status !== "completed") return;
     this.record({ ...this.fromRaw(match, j.repo, j.forgeId), source: "api" });
+  }
+
+  /** The results of one repository's Forgejo tasks, from its newest tasks. */
+  private async readForgejoResults(jobs: JobRecord[]) {
+    const { forgeId, repo } = jobs[0]!;
+    const api = this.deps.forgejo?.apiFor({ forgeId, kind: "repo", target: repo });
+    if (!api) return;
+    const tasks = new Map((await api.tasks(repo)).map((t) => [t.id, t]));
+    for (const j of jobs) {
+      const t = j.jobId === null ? undefined : tasks.get(j.jobId);
+      if (!t) continue;
+      const conclusion = forgejoConclusion(t.status);
+      this.record({
+        forgeId,
+        repo,
+        jobId: t.id,
+        runId: t.runNumber,
+        runAttempt: 1,
+        name: t.name,
+        workflow: t.workflow,
+        runnerName: j.runnerName,
+        startedAt: t.startedAt ? Date.parse(t.startedAt) : null,
+        finishedAt: conclusion && t.updatedAt ? Date.parse(t.updatedAt) : null,
+        conclusion,
+        htmlUrl: t.url,
+        source: "api",
+      });
+    }
+  }
+
+  private isForgejo(forgeId: string): boolean {
+    return this.deps.view().forgejo.connections.some((c) => c.forgeId === forgeId);
   }
 
   private fromRaw(job: RawJob, repo: string, forgeId: string): JobObservation {

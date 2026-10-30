@@ -1,8 +1,9 @@
 # Planned: run history
 
 Status: **built for GitHub** on 2026-10-29: webhooks, runner hooks, the result reads, the Jobs
-sections, the overview's counts, Show log, and lost runners as Needs attention items. Forgejo
-(its finished tasks) is still to do. Decided with the user on 2026-10-29 during live testing.
+sections, the overview's counts, Show log, and lost runners as Needs attention items. **Built for
+Forgejo** on 2026-10-30 (see Forgejo below). Decided with the user on 2026-10-29 during live
+testing.
 
 ## Why
 
@@ -48,8 +49,22 @@ GitHub requests fill it in.
    Runyard asks GitHub once (`GET /repos/{repo}/actions/runs/{run_id}/jobs`), throttled by the
    request budget. Fallback: the runner's diagnostic log line ("Job … completed with result:
    …"); failing that, "Finished (result unknown)".
-4. **Forgejo:** no runner hooks; its API's finished tasks instead, polled for repositories with
-   CI.
+4. **Forgejo:** built 2026-10-30 against a live Forgejo 15.0.3. forgejo-runner has no job hooks,
+   and Forgejo's `GET /repos/{repo}/actions/tasks` lists a repository's tasks (name, status, run
+   number, workflow, link, times) without the runner. The runner logs
+   `task N repo is owner/repo …` when it takes one, so:
+   - Runyard's Forgejo runners write their output to `runner.log` in their directory (systemd
+     `StandardOutput=append:`), readable by the runner's account without sudo; one-job runners'
+     output is already kept in `jobs/.logs`. Chosen over adding the account to `systemd-journal`,
+     which would let it read every system log.
+   - The minute check prints those lines (`RFF`: time, runner, task, repository), and Runyard
+     records each as a job on that runner's machine and pool, with its run still unknown.
+   - The result round reads the repository's newest 50 tasks once for all its unfinished jobs,
+     filling the name, run number, result, end and link.
+   - Only tasks a Runyard runner logged are recorded: the API can't say which runner ran a task.
+   - No Show log (Forgejo 15 has no job log endpoint; 16 adds
+     `/repos/{repo}/actions/jobs/{id}/logs`, to add once tried on a real 16), and no Runner lost
+     (no end line). Runners installed before this get a **Record jobs** review step.
 
 Records from all sources merge on (forge, repository, job id).
 

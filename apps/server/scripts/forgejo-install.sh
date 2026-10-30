@@ -92,6 +92,9 @@ Wants=network-online.target
 User=$(id -un)
 WorkingDirectory=$RF_ROOT
 ExecStart=$RF_ROOT/forgejo-runner daemon --config $RF_ROOT/config.yml
+# Run history reads which tasks it took from here; the account can read it without sudo.
+StandardOutput=append:$RF_ROOT/runner.log
+StandardError=append:$RF_ROOT/runner.log
 Restart=on-failure
 RestartSec=10
 
@@ -101,6 +104,8 @@ UNIT
 run_as_root install -m 644 "$unit_file" "/etc/systemd/system/$unit"
 rm -f "$unit_file"
 printf '%s\n' "$unit" > .service
+printf '1\n' > .runyard-history
+
 run_as_root systemctl daemon-reload
 run_as_root systemctl enable --now "$unit"
 unset RF_SUDO_PASSWORD

@@ -2,6 +2,7 @@ import { countJobs, isLost, type JobCounts } from "@runyard/core";
 import { Hono } from "hono";
 import { requireUser, type AppEnv } from "../auth/identity.ts";
 import type { Db } from "../db/index.ts";
+import { ForgejoError } from "../forgejo/client.ts";
 import { GithubError } from "../github/client.ts";
 import type { JobHistory } from "../history/recorder.ts";
 import { getJob, listJobs } from "../history/store.ts";
@@ -53,13 +54,19 @@ export function historyRoutes({ db, history }: { db: Db; history: JobHistory }) 
       try {
         return c.json({ log: await history.log(job) });
       } catch (error) {
-        const status = error instanceof GithubError && error.status === 404 ? 404 : 502;
+        const status =
+          (error instanceof GithubError || error instanceof ForgejoError) && error.status === 404
+            ? 404
+            : 502;
         const message =
-          status === 404
-            ? "GitHub no longer has this job's log (it keeps them 90 days by default)."
-            : error instanceof Error
-              ? error.message
-              : String(error);
+          error instanceof ForgejoError
+            ? error.message
+            : status === 404
+              ? "GitHub no longer has this job's log (it keeps them 90 days by default)."
+              : error instanceof Error
+                ? error.message
+                : String(error);
+
         return c.json({ error: message }, status);
       }
     });

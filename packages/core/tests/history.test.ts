@@ -1,9 +1,11 @@
 import { expect, test } from "vite-plus/test";
 import {
   countJobs,
+  forgejoConclusion,
   isLost,
   jobResult,
   mergeJob,
+  parseForgejoLines,
   parseHookLines,
   type JobObservation,
   type JobRecord,
@@ -128,4 +130,37 @@ test("hook log lines parse, and malformed ones are skipped", () => {
       workflow: null,
     },
   ]);
+});
+
+test("Forgejo runners' log lines: the task, runner and repository, at the time logged", () => {
+  expect(
+    parseForgejoLines(
+      [
+        "2026-10-30T19:49:30Z\tbox-ci-01\t1\tfrankie/test",
+        "not a time\tbox-ci-01\t2\tfrankie/test",
+        "2026-10-30T19:49:31Z\tbox-ci-01\tx\tfrankie/test",
+        "2026-10-30T19:49:32Z\t\t3\tfrankie/test",
+      ].join("\n"),
+    ),
+  ).toEqual([
+    {
+      at: Date.parse("2026-10-30T19:49:30Z"),
+      runnerName: "box-ci-01",
+      taskId: 1,
+      repo: "frankie/test",
+    },
+  ]);
+  expect(forgejoConclusion("success")).toBe("success");
+  expect(forgejoConclusion("running")).toBeNull();
+});
+
+test("a run not known yet (0, from a Forgejo log line) doesn't replace a known one", () => {
+  const known = mergeJob(
+    undefined,
+    obs({ forgeId: "fj", jobId: 5, runId: 3, source: "api" }),
+    "j1",
+  );
+  expect(
+    mergeJob(known, obs({ forgeId: "fj", jobId: 5, runId: 0, source: "hook" }), "j2").runId,
+  ).toBe(3);
 });

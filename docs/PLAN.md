@@ -238,8 +238,10 @@ jobs page.
 
 ## Planned
 
-- **Run history for Forgejo**: GitHub's is built ([docs/plans/run-history.md](plans/run-history.md));
-  Forgejo's finished tasks are still to read.
+- **Forgejo job logs**: Show log for Forgejo jobs, from Forgejo 16's job log endpoint, once tried
+  on a real Forgejo 16 such as Codeberg. Forgejo run history is otherwise built
+  ([docs/plans/run-history.md](plans/run-history.md)).
+
 - **Forgejo repository scopes**: pools can serve a single Forgejo repository, listed like GitHub
   personal repositories, with the account still offered. Agreed for after Round 9, built against
   what a real instance returns rather than the fake.

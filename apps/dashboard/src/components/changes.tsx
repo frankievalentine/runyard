@@ -46,6 +46,7 @@ const ACTION: Record<PlanItem["action"], string> = {
   retire: "Retire",
   installTools: "Install tools",
   configureCleanup: "Set job hooks",
+  recordJobs: "Record jobs",
 };
 
 /** The machine's runners: the ones GitHub lists for it, and the ones its pools still call for. ported from aarondfrancis/fleet's RunnerTable. */

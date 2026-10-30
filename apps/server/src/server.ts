@@ -86,7 +86,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
   const github = new GithubMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
   const forgejo = new ForgejoMonitor({ db, secrets, fetch, onChange: () => monitor?.tick() });
   const boat = new BoatMonitor({ secrets, fetch, onChange: () => monitor?.tick() });
-  const history = new JobHistory({ db, github, view: () => monitor!.view });
+  const history = new JobHistory({ db, github, forgejo, view: () => monitor!.view });
   monitor = new MachineMonitor({
     db,
     run,
@@ -95,7 +95,9 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     jobLog: {
       since: (machineId) => history.hookSinceSeconds(machineId),
       record: (machineId, lines) => history.fromHooks(machineId, lines),
+      recordForgejo: (machineId, lines) => history.fromForgejo(machineId, lines),
     },
+
     lostJobs: () => possiblyLostJobs(db),
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),

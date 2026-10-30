@@ -35,7 +35,8 @@ export type PlanAction =
   | "removeTemplate"
   | "retire"
   | "installTools"
-  | "configureCleanup";
+  | "configureCleanup"
+  | "recordJobs";
 
 export type PlanItem = {
   action: PlanAction;
@@ -275,8 +276,20 @@ export function planMachine(input: PlanInput): PlanItem[] {
       ];
       items.push(item("reconcileLabels", changes.filter(Boolean).join("; "), false, d.labels));
     }
+    // Forgejo runners set up before run history don't write their log where Runyard reads it.
+    if (d.runnerKind === "forgejo" && local.history === false)
+      items.push(
+        remote.busy
+          ? item(
+              "recordJobs",
+              "It's running a job; this restarts it, so it waits until the runner is idle.",
+              true,
+            )
+          : item("recordJobs", "Record its jobs for run history. Restarts the runner.", false),
+      );
     const wantCleanup = d.cleanup ?? "off";
     // Runners set up before run history lack the hooks (false); undefined where it isn't read.
+
     const needsHooks = hooked && local.history === false;
     if (d.runnerKind === "actions" && ((local.cleanup ?? "off") !== wantCleanup || needsHooks)) {
       items.push(

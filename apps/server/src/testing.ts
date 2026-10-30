@@ -73,7 +73,13 @@ export async function testApp(
     now: () => clock.now,
     onChange: () => monitor?.tick(),
   });
-  const history = new JobHistory({ db, github, view: () => monitor!.view, now: () => clock.now });
+  const history = new JobHistory({
+    db,
+    github,
+    forgejo,
+    view: () => monitor!.view,
+    now: () => clock.now,
+  });
   monitor = new MachineMonitor({
     db,
     run: fake.run,
@@ -83,8 +89,10 @@ export async function testApp(
     jobLog: {
       since: (machineId) => history.hookSinceSeconds(machineId),
       record: (machineId, lines) => history.fromHooks(machineId, lines),
+      recordForgejo: (machineId, lines) => history.fromForgejo(machineId, lines),
     },
     lostJobs: () => possiblyLostJobs(db),
+
     github: () => github.observations(),
     forgejo: () => forgejo.observations(),
     boat: () => boat.observation(),
@@ -189,7 +197,9 @@ export async function testApp(
     forgejo,
     fakeForgejo,
     boat,
+
     fakeBoat,
+
     dispatcher,
     receiver,
     funnel,

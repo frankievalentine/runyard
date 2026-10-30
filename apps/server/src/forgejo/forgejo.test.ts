@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { YardView } from "@runyard/core";
+import type { JobRecord, YardView } from "@runyard/core";
+import { registrations } from "../db/schema.ts";
+
 import { macReport } from "../machines/fake.ts";
 import { createMachine } from "../machines/store.ts";
 import type { OperationView, Review } from "../pools/engine.ts";
@@ -51,8 +53,9 @@ async function setup(os: "linux" | "macos" = "linux", { node = true } = {}) {
   t.fakeForgejo.repos = [
     { id: 1, full_name: "frankie/app", private: true, owner: { login: "frankie" } },
   ];
-  return { ...t, cookie, call, raw, host, machine };
+  return { ...t, cookie, call, raw, host, machine, report };
 }
+
 type Setup = Awaited<ReturnType<typeof setup>>;
 
 async function connect(s: Setup) {
@@ -272,4 +275,83 @@ test("a refresh asked for during another sees changes saved in between", async (
   release();
   await Promise.all([first, second]);
   expect(t.forgejo.observations().map((c) => c.login)).toEqual(["frankie", "other"]);
+});
+
+describe("Forgejo run history", () => {
+  type Jobs = { jobs: JobRecord[] };
+
+  test("a new runner records its jobs from the start; an older one gets a Record jobs step", async () => {
+    const s = await setup();
+    await pool(s, await connect(s));
+    expect((await run(s)).status).toBe("succeeded");
+    expect(listRegistrations(s.deps.db)[0]?.history).toBe(true);
+    const clean = await s.call<Review>("POST", `/api/machines/${s.machine.id}/review`);
+    expect(clean.items.map((i) => i.action)).not.toContain("recordJobs");
+
+    // As if installed before run history: its service doesn't write the log Runyard reads.
+    s.deps.db.update(registrations).set({ history: false }).run();
+    for (const dir of s.host.dirs.values()) dir.history = false;
+    const review = await s.call<Review>("POST", `/api/machines/${s.machine.id}/review`);
+    expect(review.items.map((i) => [i.action, i.blocked])).toContainEqual(["recordJobs", false]);
+
+    expect((await run(s)).status).toBe("succeeded");
+    expect(s.host.received.find((r) => r.op === "record-jobs")?.env.RF_NAME).toBe("box-ci-01");
+    expect(listRegistrations(s.deps.db)[0]?.history).toBe(true);
+  });
+
+  test("a task a runner logged becomes a job, and Forgejo's task list gives its result", async () => {
+    const s = await setup();
+    await pool(s, await connect(s));
+    await run(s);
+    // A real time: the jobs list covers the last 7 days by the wall clock.
+    const now = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+    s.fake.machines.set("ci@box", (stdin) =>
+      stdin.includes("metric os")
+        ? `${s.report}\nRFF\t${now}\tbox-ci-01\t7\tfrankie/app`
+        : s.host.answer(stdin),
+    );
+    await s.monitor.checkMachines();
+    let { jobs } = await s.call<Jobs>("GET", `/api/jobs?machine=${s.machine.id}`);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({
+      jobId: 7,
+      repo: "frankie/app",
+      runnerName: "box-ci-01",
+      machineId: s.machine.id,
+      conclusion: null,
+      hook: null,
+    });
+
+    s.fakeForgejo.tasks.set("frankie/app", [
+      {
+        id: 7,
+        name: "check",
+        status: "success",
+        run_number: 3,
+        workflow_id: "check.yml",
+        url: "https://forgejo.test/frankie/app/actions/runs/3",
+        run_started_at: now,
+        updated_at: now,
+      },
+    ]);
+    await s.history.fillResults([]);
+    ({ jobs } = await s.call<Jobs>("GET", `/api/jobs?machine=${s.machine.id}`));
+    expect(jobs[0]).toMatchObject({
+      jobId: 7,
+      runId: 3,
+      name: "check",
+      workflow: "check.yml",
+      conclusion: "success",
+      htmlUrl: "https://forgejo.test/frankie/app/actions/runs/3",
+    });
+    // Reading the machine's log again doesn't undo what Forgejo said.
+    await s.monitor.checkMachines();
+    ({ jobs } = await s.call<Jobs>("GET", `/api/jobs?machine=${s.machine.id}`));
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({ runId: 3, conclusion: "success" });
+
+    const log = await s.raw("GET", `/api/jobs/${jobs[0]!.id}/log`);
+    expect(log.status).toBe(404);
+    expect(((await log.json()) as { error: string }).error).toContain("Open the job on Forgejo");
+  });
 });

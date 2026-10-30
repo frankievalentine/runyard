@@ -31,7 +31,8 @@ export class FakeRunnerHost {
       | "jit-start"
       | "sweep"
       | "tools-install"
-      | "cleanup-configure";
+      | "cleanup-configure"
+      | "record-jobs";
     env: Record<string, string>;
   }[] = [];
   /** Installed templates by path, with their version. */
@@ -113,6 +114,12 @@ export class FakeRunnerHost {
       else this.templates.delete(env.RF_ROOT!);
       return `${op} ${env.RF_ROOT}`;
     }
+    if (stdin.includes("to record its jobs for run history and restarted")) {
+      this.received.push({ op: "record-jobs", env });
+      const dir = this.dirs.get(env.RF_ROOT!);
+      if (dir) dir.history = true;
+      return `record-jobs ${env.RF_NAME}`;
+    }
     // forgejo-remove carries no token, so its rename of .runner identifies it.
     const op =
       "RF_ASSET_URL" in env || "RF_BINARY_URL" in env
@@ -129,8 +136,15 @@ export class FakeRunnerHost {
       return { code: 1, stdout: "", stderr: output };
     }
     const path = env.RF_ROOT!;
+    // A new forgejo-runner writes the log run history reads from the start.
     if (op === "install")
-      this.dirs.set(path, { configured: true, service: "active", name: env.RF_NAME! });
+      this.dirs.set(path, {
+        configured: true,
+        service: "active",
+        name: env.RF_NAME!,
+        ...("RF_BINARY_URL" in env ? { history: true } : {}),
+      });
+
     if (op === "start") this.dirs.get(path)!.service = "active";
     if (op === "remove")
       this.dirs.set(path, { configured: false, service: "uninstalled", name: null });

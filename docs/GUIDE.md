@@ -236,7 +236,17 @@ Webhooks fill it in within seconds. Without them it still works: each GitHub run
 append a line to `~/runyard-runners/.runyard-jobs.log` when a job starts and ends, the minute
 check reads new lines, and Runyard asks GitHub once per finished job for its result. Runners set
 up before run history show **Set job hooks** as a change waiting; review and run it (it restarts
-each runner while idle). Forgejo jobs aren't recorded yet.
+each runner while idle).
+
+Forgejo jobs are recorded too. A Forgejo runner writes its output to `runner.log` in its
+directory (a one-job runner's is kept in `jobs/.logs`), which logs each task it takes. The minute
+check reads those lines, and Runyard reads the repository's tasks from Forgejo (Forgejo 15 or
+later) for each one's result. Forgejo's API doesn't say which runner ran a task, so only tasks a
+Runyard runner logged are recorded. Forgejo jobs link to their run with **Open on Forgejo**:
+Forgejo serves job logs only from version 16. They're never marked **Runner lost**, since the
+runner doesn't log a task's end. Forgejo runners set up before run history show **Record jobs**
+as a change waiting; it points the service's output at `runner.log` and restarts the runner while
+idle, so the runner's output is in that file rather than the journal.
 
 ### On-demand pools
 

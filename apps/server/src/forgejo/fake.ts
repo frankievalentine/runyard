@@ -33,6 +33,8 @@ export class FakeForgejo {
   repos: Repo[] = [];
   runners = new Map<string, Runner[]>();
   jobs = new Map<string, Job[]>();
+  /** Each repository's tasks, as `actions/tasks` answers, by full name. */
+  tasks = new Map<string, Record<string, unknown>[]>();
   /** Runner tokens handed out at registration. */
   issued: { scope: string; name: string; token: string }[] = [];
   deleted: { scope: string; id: number }[] = [];
@@ -82,6 +84,11 @@ export class FakeForgejo {
       ),
     );
     app.get("/api/v1/user/repos", (c) => this.page(c, this.repos));
+    app.get("/api/v1/repos/:owner/:repo/actions/tasks", (c) => {
+      const tasks = this.tasks.get(`${c.req.param("owner")}/${c.req.param("repo")}`) ?? [];
+      return c.json({ workflow_runs: tasks, total_count: tasks.length });
+    });
+
     app.get("/api/v1/orgs/:org/repos", (c) =>
       this.page(
         c,

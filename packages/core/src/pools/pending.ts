@@ -53,7 +53,12 @@ export function pendingChanges(view: YardView, machineId: string): string[] {
       out.push(`Install ${d.name}`);
       continue;
     }
+    if (d.runnerKind === "forgejo" && remote && registration.history !== true) {
+      out.push(`Record jobs on ${d.name}`);
+      continue;
+    }
     if (!remote || d.runnerKind !== "actions") continue;
+
     if (!remote.stale) {
       const drift = labelDrift(d.labels, remote.labels);
       if (drift.missing.length || drift.unexpected.length) out.push(`Update labels on ${d.name}`);

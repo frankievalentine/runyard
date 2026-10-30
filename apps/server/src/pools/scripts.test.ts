@@ -260,6 +260,34 @@ describe("forgejo-runner scripts", () => {
   });
 });
 
+describe("run history's reading of Forgejo runners' logs", () => {
+  test("prints each task a runner took, named by its .runner or its one-job directory", async () => {
+    const runner = join(home, "runyard-runners/ci/forgejo-frankie/01");
+    await mkdir(runner, { recursive: true });
+    await writeFile(join(runner, ".runner"), '{\n  "id": 3,\n  "name": "box-ci-01"\n}\n');
+    await writeFile(
+      join(runner, "runner.log"),
+      [
+        'time="2026-10-30T19:49:29Z" level=info msg="[poller] launched"',
+        'time="2026-10-30T19:49:30Z" level=info msg="task 1 repo is frankie/runyard-forgejo-test https://data.forgejo.org https://forgejo.v3homelab.party"',
+      ].join("\n"),
+    );
+    const kept = join(home, "runyard-runners/od/jobs/.logs");
+    await mkdir(kept, { recursive: true });
+    await writeFile(
+      join(kept, "box-od-7f3a.log"),
+      'time="2026-10-30T20:01:02Z" level=info msg="task 12 repo is acme/web https://data.forgejo.org https://forgejo.test"\n',
+    );
+    const jobs = await Bun.file(new URL("../../scripts/machine-jobs.sh", import.meta.url)).text();
+    const { stdout, code } = await bash(jobs);
+    expect(code).toBe(0);
+    expect(stdout.trim().split("\n").sort()).toEqual([
+      "RFF\t2026-10-30T19:49:30Z\tbox-ci-01\t1\tfrankie/runyard-forgejo-test",
+      "RFF\t2026-10-30T20:01:02Z\tbox-od-7f3a\t12\tacme/web",
+    ]);
+  });
+});
+
 describe("on-demand scripts", () => {
   const tpl = "~/runyard-runners/jit/template-actions";
   test("template install refuses paths outside a pool's template-* and unexpected downloads", async () => {
