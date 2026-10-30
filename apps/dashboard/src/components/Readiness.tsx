@@ -7,7 +7,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import type { Tone } from "../lib/status.ts";
 import { useYard } from "../lib/yard.ts";
-import { Callout, Card, Section, StatusDot } from "./ui.tsx";
+import { Callout, GroupedCard, Section, StatusDot } from "./ui.tsx";
 
 const TIERS: [ReadinessTier, string, string][] = [
   ["required", "Required", "Jobs fail without these."],
@@ -45,38 +45,32 @@ export function RunnerReadiness({ m }: { m: MachineView }) {
           the machine reaches your forges.
         </p>
       ) : (
-        <div className="grid grid-cols-1 items-start gap-3 min-[1100px]:grid-cols-3">
-          {TIERS.map(([tier, title, sub]) => {
-            const items = r.items.filter((i) => i.tier === tier);
-            if (!items.length) return null;
-            return (
-              <Card key={tier} className="min-w-0 overflow-hidden">
-                <div className="border-b border-line bg-sunken/40 px-4 py-2.5">
-                  <div className="text-[12px] font-medium">{title}</div>
-                  <div className="text-[11.5px] text-ink-2">{sub}</div>
-                </div>
-                <ul className="divide-y divide-line">
-                  {items.map((i) => (
-                    <li key={i.id} className="px-4 py-2.5">
-                      <div className="flex flex-wrap items-start justify-between gap-2 text-[12px]">
-                        <span className="flex min-w-0 items-center gap-2 text-ink-2">
-                          <StatusDot tone={tone[i.status]} hollow={i.status === "unknown"} />
-                          <span className="break-words">{i.title}</span>
-                        </span>
-                        <span className="font-medium break-words">{i.value}</span>
-                      </div>
-                      {i.status !== "ok" && (
-                        <p className="mt-1 text-[11.5px] leading-relaxed break-words text-ink-2">
-                          {i.detail}
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            );
-          })}
-        </div>
+        <GroupedCard
+          groups={TIERS.map(([tier, title, sub]) => ({
+            key: tier,
+            title,
+            sub,
+            rows: r.items
+              .filter((i) => i.tier === tier)
+              .map((i) => [
+                i.id,
+                <div className="px-4 py-2.5">
+                  <div className="flex items-start justify-between gap-3 text-[12px]">
+                    <span className="flex min-w-0 items-center gap-2 text-ink-2">
+                      <StatusDot tone={tone[i.status]} hollow={i.status === "unknown"} />
+                      <span className="break-words">{i.title}</span>
+                    </span>
+                    <span className="min-w-0 text-right font-medium break-words">{i.value}</span>
+                  </div>
+                  {i.status !== "ok" && (
+                    <p className="mt-1 max-w-[60ch] text-[11.5px] leading-relaxed break-words text-ink-2">
+                      {i.detail}
+                    </p>
+                  )}
+                </div>,
+              ]),
+          }))}
+        />
       )}
     </Section>
   );

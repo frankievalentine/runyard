@@ -59,6 +59,15 @@ class Checks {
   }
 
   tailscale() {
+    const backend = this.get("tailscale_backend");
+    this.add(
+      "tailscale-state",
+      "network",
+      "Tailscale connection",
+      backend === "Running" ? "pass" : backend ? "warn" : "unknown",
+      backend ?? "Unknown",
+      "Local daemon state from tailscale status.",
+    );
     const installation = this.get("tailscale_install");
     const variant =
       (
@@ -87,15 +96,6 @@ class Checks {
       "Tailscale version",
       this.get("tailscale_version"),
       "Version reported by the local Tailscale daemon.",
-    );
-    const backend = this.get("tailscale_backend");
-    this.add(
-      "tailscale-state",
-      "network",
-      "Tailscale connection",
-      backend === "Running" ? "pass" : backend ? "warn" : "unknown",
-      backend ?? "Unknown",
-      "Local daemon state from tailscale status.",
     );
 
     const os = this.report.os;

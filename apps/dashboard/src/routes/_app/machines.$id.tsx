@@ -25,7 +25,8 @@ import {
   Card,
   EmptyLine,
   ErrorText,
-  KeyValuePanel,
+  GroupedCard,
+  KeyValueLine,
   Meter,
   PageHeader,
   Pill,
@@ -388,51 +389,42 @@ function Diagnostics({ m }: { m: MachineView }) {
           : "Diagnostics will appear after a successful SSH check."}
       </p>
       {d && (
-        <div className="grid grid-cols-1 items-start gap-3 min-[1100px]:grid-cols-2">
-          {GROUPS.map(([group, title]) => {
-            const checks = d.checks.filter((c) => c.group === group);
-            if (!checks.length) return null;
-            return (
-              <Card key={group} className="min-w-0 overflow-hidden">
-                <div className="border-b border-line bg-sunken/40 px-4 py-2.5 text-[12px] font-medium">
-                  {title}
-                </div>
-                <dl className="divide-y divide-line">
-                  {checks.map((c) => {
-                    const status = diagnosticTone[c.status];
-                    return (
-                      <div key={c.id} className={`px-4 py-3 ${d.stale ? "opacity-60" : ""}`}>
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <dt className="flex min-w-0 items-center gap-2 text-[12px] text-ink-2">
-                            {/* Plain facts (the account, the architecture) are just listed. */}
-                            {c.status !== "info" && (
-                              <StatusDot
-                                tone={d.stale ? "muted" : status.tone}
-                                hollow={c.status === "unknown" || d.stale}
-                              />
-                            )}
-                            <span className="break-words">{c.title}</span>
-                          </dt>
-                          <dd className="max-w-full text-[12px] font-medium break-words">
-                            {c.value}
-                          </dd>
-                        </div>
-                        <dd className="mt-1.5 text-[11.5px] leading-relaxed break-words text-ink-2">
-                          {c.status === "warn" && !d.stale && (
-                            <span className="mr-2">
-                              <Pill tone="warn">Warning</Pill>
-                            </span>
-                          )}
-                          {c.detail}
-                        </dd>
-                      </div>
-                    );
-                  })}
-                </dl>
-              </Card>
-            );
-          })}
-        </div>
+        <GroupedCard
+          groups={GROUPS.map(([group, title]) => ({
+            key: group,
+            title,
+            rows: d.checks
+              .filter((c) => c.group === group)
+              .map((c) => [
+                c.id,
+                <dl className={`h-full px-4 py-3 ${d.stale ? "opacity-60" : ""}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <dt className="flex min-w-0 items-center gap-2 text-[12px] text-ink-2">
+                      {/* Plain facts (the account, the architecture, the disk) are just listed. */}
+                      {c.status !== "info" && c.id !== "disk-space" && (
+                        <StatusDot
+                          tone={d.stale ? "muted" : diagnosticTone[c.status].tone}
+                          hollow={c.status === "unknown" || d.stale}
+                        />
+                      )}
+                      <span className="break-words">{c.title}</span>
+                    </dt>
+                    <dd className="min-w-0 text-right text-[12px] font-medium break-words">
+                      {c.value}
+                    </dd>
+                  </div>
+                  <dd className="mt-1.5 max-w-[60ch] text-[11.5px] leading-relaxed break-words text-ink-2">
+                    {c.status === "warn" && !d.stale && (
+                      <span className="mr-2">
+                        <Pill tone="warn">Warning</Pill>
+                      </span>
+                    )}
+                    {c.detail}
+                  </dd>
+                </dl>,
+              ]),
+          }))}
+        />
       )}
     </Section>
   );
@@ -485,10 +477,15 @@ function Details({ m }: { m: MachineView }) {
   }
   return (
     <Section title="Details">
-      <div className="grid grid-cols-1 gap-3 min-[1100px]:grid-cols-2">
-        <KeyValuePanel title="Connection" rows={connection} />
-        <KeyValuePanel title="Tailnet" rows={tailnet} />
-      </div>
+      <GroupedCard
+        groups={[
+          { key: "connection", title: "Connection", rows: connection },
+          { key: "tailnet", title: "Tailnet", rows: tailnet },
+        ].map((g) => ({
+          ...g,
+          rows: g.rows.map((row) => [row[0], <KeyValueLine row={row} />] as [string, ReactNode]),
+        }))}
+      />
       {disks.length > 1 && (
         <Card className="mt-3 divide-y divide-line">
           {disks.map((d) => (

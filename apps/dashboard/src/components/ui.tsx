@@ -250,6 +250,61 @@ export function TimeAgo({ at }: { at: number | null }) {
 
 export type KeyValueRow = [label: string, value: ReactNode, copyValue?: string];
 
+export type RowGroup = { key: string; title: string; sub?: string; rows: [string, ReactNode][] };
+
+/**
+ * One card of grouped rows: each group under a header band, its rows in two
+ * columns on wide screens, so groups of different lengths stay one even block.
+ * A group of one row spans both columns.
+ */
+export function GroupedCard({ groups }: { groups: RowGroup[] }) {
+  return (
+    <Card className="overflow-hidden">
+      {groups
+        .filter((g) => g.rows.length)
+        .map((g, i) => (
+          <div key={g.key} className={i ? "border-t border-line" : ""}>
+            <div className="bg-sunken/40 px-4 py-2.5">
+              <div className="text-[12px] font-medium">{g.title}</div>
+              {g.sub && <div className="text-[11.5px] text-ink-2">{g.sub}</div>}
+            </div>
+            <div className="grid grid-cols-1 min-[1100px]:grid-cols-2">
+              {g.rows.map(([key, row]) => (
+                <div
+                  key={key}
+                  className="min-w-0 border-t border-line min-[1100px]:even:border-l min-[1100px]:only:col-span-2"
+                >
+                  {row}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+    </Card>
+  );
+}
+
+/** A label and its value on one row, for a GroupedCard. */
+export function KeyValueLine({ row: [label, value, copyValue] }: { row: KeyValueRow }) {
+  return (
+    <div className="grid grid-cols-[minmax(70px,35%)_1fr] items-baseline gap-3 px-4 py-2 text-[13px]">
+      <dt className="text-ink-2">{label}</dt>
+      <dd
+        className="min-w-0 truncate text-ink"
+        title={copyValue ?? (typeof value === "string" ? value : undefined)}
+      >
+        {copyValue ? (
+          <CopyValue value={copyValue} label={label} truncate>
+            {value}
+          </CopyValue>
+        ) : (
+          value
+        )}
+      </dd>
+    </div>
+  );
+}
+
 export function KeyValuePanel({
   title,
   rows,
@@ -265,25 +320,8 @@ export function KeyValuePanel({
         {title}
       </div>
       <dl className="divide-y divide-line">
-        {rows.map(([label, value, copyValue]) => (
-          <div
-            key={label}
-            className="grid grid-cols-[minmax(70px,35%)_1fr] items-baseline gap-3 px-4 py-2 text-[13px]"
-          >
-            <dt className="text-ink-2">{label}</dt>
-            <dd
-              className="min-w-0 truncate text-ink"
-              title={copyValue ?? (typeof value === "string" ? value : undefined)}
-            >
-              {copyValue ? (
-                <CopyValue value={copyValue} label={label} truncate>
-                  {value}
-                </CopyValue>
-              ) : (
-                value
-              )}
-            </dd>
-          </div>
+        {rows.map((row) => (
+          <KeyValueLine key={row[0]} row={row} />
         ))}
       </dl>
       {footer && (
