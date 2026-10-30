@@ -21,13 +21,14 @@ test -f "$unit_path" || { echo "no service file at $unit_path" >&2; exit 3; }
 if ! grep -q '^StandardOutput=append:' "$unit_path"; then
   # Written as this user, then installed by root, as at install.
   unit_file="$(mktemp "${TMPDIR:-/tmp}/runyard-unit.XXXXXX")"
-  awk -v log="$RF_ROOT/runner.log" '
+  awk -v out="$RF_ROOT/runner.log" '
     { print }
     /^ExecStart=/ {
       print "# Run history reads which tasks it took from here; the account can read it without sudo."
-      print "StandardOutput=append:" log
-      print "StandardError=append:" log
+      print "StandardOutput=append:" out
+      print "StandardError=append:" out
     }' "$unit_path" > "$unit_file"
+
   run_as_root install -m 644 "$unit_file" "$unit_path"
   rm -f "$unit_file"
   run_as_root systemctl daemon-reload
