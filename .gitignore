@@ -38,3 +38,4 @@ docker/runyard.key
 # Planning and live-test notes, kept locally
 docs/PLAN.md
 docs/LIVE-TESTING.md
+docs/plans/
