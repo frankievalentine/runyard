@@ -6,18 +6,22 @@ import type { TailscaleCli } from "./tailscale.ts";
 type Fetch = (req: Request, server: Bun.Server<undefined>) => Response | Promise<Response>;
 
 const CHECK_MS = 5 * 60 * 1000;
+// Until it serves: Tailscale may still be logging in, such as when both start at boot or
+// together in Docker.
+const WAITING_MS = 15 * 1000;
 
 /**
  * Serves HTTPS on this machine's tailnet addresses with its `*.ts.net`
- * certificate. Every few minutes it re-reads Tailscale: it starts once
- * Tailscale is up, restarts when the address, name or certificate changes
+ * certificate. It re-reads Tailscale every few seconds until it serves, then
+ * every few minutes: it starts once Tailscale is up, restarts when the address, name or certificate changes
  * (`tailscale cert` renews near expiry), and stops if Tailscale goes away.
  */
 export class TailnetListener {
   private servers: Bun.Server<undefined>[] = [];
   private current = "";
   private lastProblem = "";
-  private timer: ReturnType<typeof setInterval> | undefined;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private stopped = false;
 
   constructor(
     private readonly options: {
@@ -31,13 +35,22 @@ export class TailnetListener {
 
   async start() {
     await this.check();
-    this.timer = setInterval(() => void this.check(), CHECK_MS);
-    this.timer.unref();
+    this.schedule();
   }
 
   stop() {
-    clearInterval(this.timer);
+    this.stopped = true;
+    clearTimeout(this.timer);
     this.close();
+  }
+
+  private schedule() {
+    if (this.stopped) return;
+    this.timer = setTimeout(
+      () => void this.check().then(() => this.schedule()),
+      this.servers.length > 0 ? CHECK_MS : WAITING_MS,
+    );
+    this.timer.unref();
   }
 
   /** The URL the dashboard is reachable at, once serving. */
