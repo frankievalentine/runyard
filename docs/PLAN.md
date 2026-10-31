@@ -253,8 +253,9 @@ jobs page.
   and the Docker compose file for the control
   plane, from published builds. No Mac app for now. To plan after live testing:
   [docs/plans/release.md](plans/release.md).
-- **Live testing still to run**: Forgejo (Round 9), Windows and Docker (Round 11), boat.dev
-  (Round 11b) and taking it all down (Round 12).
+- **Live testing still to run**: Show log on Forgejo 17 (9.5), Runyard itself on Windows and in
+  Docker (11.2, 11.3), Update PATH and cleanup on Windows (11.5, 11.6), and taking it all down
+  (Round 12).
 
 Dropped on 2026-10-31: a live job feed (a kept-open SSH session per machine streaming job lines
 every 2 seconds). Jobs already show as Running within a minute, or seconds with GitHub webhooks,
