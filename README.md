@@ -119,12 +119,9 @@ Don't change my Tailscale settings, open ports, or connect to any other machine.
   [without it](docs/operating.md#without-tailscale), you connect machines by hand.
 - **Forges:** GitHub, and Forgejo 15 or later.
 - **Runner machines:** anything Runyard reaches over SSH.
-
-| Runs on a runner machine                 | macOS | Linux | Windows |
-| ---------------------------------------- | ----- | ----- | ------- |
-| GitHub runners                           | Yes   | Yes   | Yes     |
-| Forgejo runners                          | No    | Yes   | No      |
-| On-demand pools (a fresh runner per job) | Yes   | Yes   | No      |
+  - **Linux:** GitHub and Forgejo runners, persistent or on demand.
+  - **macOS:** GitHub runners, persistent or on demand.
+  - **Windows:** GitHub runners, persistent.
 
 ## How it works
 
