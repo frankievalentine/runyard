@@ -112,20 +112,46 @@ Don't change my Tailscale settings, open ports, or connect to any other machine.
 
 ## Requirements
 
-- **The Runyard host:** macOS on Apple silicon, Linux (x64 or arm64, glibc) or Windows x64, or
-  Docker, with the OpenSSH client. [Tailscale](https://tailscale.com) is optional and
-  recommended: it gives the HTTPS address, device discovery, sign-in by tailnet identity and
-  the one-line machine setup. [Without Tailscale](docs/operating.md#without-tailscale), Runyard
-  serves on `127.0.0.1` and you connect machines by hand.
-- **Runner machines:** anything reachable over SSH.
+### The Runyard host
 
-  | System  | GitHub runners | Forgejo runners | On-demand pools |
-  | ------- | -------------- | --------------- | --------------- |
-  | macOS   | Yes            | No              | Yes             |
-  | Linux   | Yes            | Yes             | Yes             |
-  | Windows | Yes            | No              | No              |
+One machine runs Runyard and its dashboard. It can be:
 
-- **Forges:** GitHub (personal accounts and organizations) and Forgejo 15 or later.
+- A Mac with Apple silicon
+- A Linux machine, x64 or arm64, on a glibc distribution such as Debian, Ubuntu or Fedora (not
+  Alpine)
+- A Windows x64 machine
+- Docker, on any of these
+
+It needs the OpenSSH client (`ssh`), which comes with macOS, Windows 10 and 11, and most Linux
+distributions.
+
+### Tailscale (recommended)
+
+With [Tailscale](https://tailscale.com) on the Runyard host, you get:
+
+- An HTTPS address for the dashboard on your tailnet
+- Your tailnet's devices, ready to add as machines
+- Sign-in with your Tailscale login
+- A one-line setup command for each machine
+
+Turn on **MagicDNS** and **HTTPS Certificates** for your tailnet. Docker needs Tailscale.
+[Without Tailscale](docs/operating.md#without-tailscale), the dashboard is at
+`http://127.0.0.1:7420` on the Runyard host only, and you connect each machine by hand.
+
+### Runner machines
+
+Any machine Runyard can reach over SSH. What each system can run:
+
+| System  | GitHub runners | Forgejo runners | On-demand pools |
+| ------- | -------------- | --------------- | --------------- |
+| macOS   | Yes            | No              | Yes             |
+| Linux   | Yes            | Yes             | Yes             |
+| Windows | Yes            | No              | No              |
+
+### Forges
+
+- GitHub, for personal accounts and organizations
+- Forgejo 15 or later
 
 ## How it works
 
