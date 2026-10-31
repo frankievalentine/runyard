@@ -369,13 +369,14 @@ function RunnerRow({
   r: RunnerView;
   selected: boolean;
   nested?: boolean;
-  /** Nested under a row with an icon rather than a status dot, so the line sits under the icon. */
+  /** Nested under a row with an icon rather than a status dot: the line sits under the icon, and the
+   * row steps in past the wider icon so its label stays 4px inside its parent's. */
   underIcon?: boolean;
   showScope?: boolean;
 }) {
   const status = runnerStatus(r);
   return (
-    <div className={nested ? `tree-child ${underIcon ? "under-icon" : ""}` : undefined}>
+    <div className={nested ? `tree-child ${underIcon ? "under-icon pl-2" : ""}` : undefined}>
       <Row
         item={{ path: "/runners/$key", params: { key: r.key } }}
         selected={selected}
