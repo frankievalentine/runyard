@@ -14,6 +14,31 @@ $commands = [ordered]@{
   git = 'git'; curl = 'curl'; tar = 'tar'; unzip = '7z'; zip = '7z'; xz = 'xz'; zstd = 'zstd'
   jq = 'jq'; gpg = 'gpg'; cc = 'gcc'; make = 'make'; python3 = 'python'; node = 'node'
 }
+# Whether the runner's account can read and run a file: an Allow rule with read and execute
+# for an identity it belongs to (Everyone, Authenticated Users, Users, NETWORK SERVICE).
+# Links (WinGet\Links) are judged by the file they point to.
+$runnerSids = @('S-1-1-0', 'S-1-5-11', 'S-1-5-32-545', 'S-1-5-20')
+$readAndExecute = [Security.AccessControl.FileSystemRights]::ReadAndExecute
+function Get-LinkTarget([string]$File) {
+  $item = Get-Item -LiteralPath $File -Force
+  if (-not $item.LinkType -or -not $item.Target) { return $File }
+  $target = @($item.Target)[0]
+  if ([IO.Path]::IsPathRooted($target)) { return $target }
+  return Join-Path (Split-Path $File) $target
+}
+function Test-RunnerCanRead([string]$File) {
+  try { $rules = (Get-Acl -LiteralPath $File).Access } catch { return $true }
+  foreach ($rule in $rules) {
+    if ($rule.AccessControlType -ne 'Allow') { continue }
+    try { $sid = $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value } catch { continue }
+    if ($runnerSids -contains $sid -and ($rule.FileSystemRights -band $readAndExecute) -eq $readAndExecute) { return $true }
+  }
+  return $false
+}
+# Folders whose permissions a review may reset (tools-install.ps1's RF_REPAIR): winget's
+# packages and Runyard's Python.
+$repairable = @((Join-Path $env:ProgramFiles 'WinGet\Packages\'), (Join-Path $env:ProgramData 'Runyard\python\'))
+
 $paths = @{}
 foreach ($tool in $commands.Keys) {
   $exe = "$($commands[$tool]).exe"
@@ -24,6 +49,15 @@ foreach ($tool in $commands.Keys) {
   }
   $paths[$tool] = $found
   Fact "tool_$tool" $found
+  if ($found) {
+    try {
+      $target = Get-LinkTarget $found
+      if (-not (Test-RunnerCanRead $target)) {
+        $how = if ($repairable | Where-Object { $target.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) }) { 'fix' } else { 'manual' }
+        Fact "tool_$($tool)_runner" "$($how):$target"
+      }
+    } catch {}
+  }
   if (-not $found) {
     # Every match: the first is often a WindowsApps alias that hides a real one behind it.
     $own = Get-Command $exe -All -ErrorAction SilentlyContinue | Where-Object { $_.Source -notlike '*\WindowsApps\*' } | Select-Object -First 1

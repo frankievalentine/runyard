@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
 import {
   ACCOUNT_ONLY,
+  RUNNER_CANT,
   desiredRunners,
   labelDrift,
   migrationViews,
@@ -519,6 +520,43 @@ describe("installing a pool's tools", () => {
       ["installTools", false, ["cc", "make", "python3"]],
     ]);
     expect(items[0]?.serviceMode).toBe("windows-service");
+  });
+
+  test("Windows fixes a tool the runner can't read in Runyard's folders, and leaves the rest to a person", () => {
+    const cant = (id: string, repairable: boolean) => ({
+      id,
+      tier: "recommended" as const,
+      title: id,
+      status: "warn" as const,
+      value: RUNNER_CANT,
+      detail: "",
+      ...(repairable ? { repairable } : {}),
+    });
+    const r: Readiness = {
+      ...readiness(["tool-git", "tool-unzip", "tool-zip", "tool-zstd"]),
+      items: [
+        ...readiness(["tool-git", "tool-unzip", "tool-zip", "tool-zstd"]).items,
+        cant("tool-jq", true),
+        cant("tool-xz", false),
+      ],
+    };
+    const items = planMachine({
+      machineId: "m1",
+      desired: [],
+      registrations: [],
+      local: new Map(),
+      github: new Map(),
+      policies: new Map(),
+      machineError: null,
+      githubErrors: new Map(),
+      tools: { wanted: profileTools(["essentials"]), os: "windows", readiness: r, scope: org },
+    });
+    expect(items.map((i) => [i.action, i.blocked, i.tools, i.repair ?? false])).toEqual([
+      ["installTools", false, ["jq"], true],
+      ["installTools", true, ["xz"], false],
+      ["installTools", true, ["curl", "tar"], false],
+    ]);
+    expect(items[0]?.reason).toContain("Let the runner run jq");
   });
 
   test("a Windows runner gets the machine's PATH when its copy is stale or tools install, once idle", () => {

@@ -30,7 +30,7 @@ function readyMac(s: Awaited<ReturnType<typeof setup>>) {
  * A Windows machine whose machine PATH has git, curl and tar, with jq only on
  * the signed-in account's PATH. It answers Runyard's scripts as the fake host.
  */
-async function readyWindows(s: Awaited<ReturnType<typeof setup>>) {
+async function readyWindows(s: Awaited<ReturnType<typeof setup>>, extra: string[] = []) {
   const report = [
     "RFM\tos\twindows",
     "RFM\tdisk\tC:\\\t100\t50",
@@ -40,6 +40,7 @@ async function readyWindows(s: Awaited<ReturnType<typeof setup>>) {
     "RFM\tdiag:tool_curl\tC:\\Windows\\System32\\curl.exe",
     "RFM\tdiag:tool_tar\tC:\\Windows\\System32\\tar.exe",
     "RFM\tdiag:tool_jq_account\tC:\\Users\\ci\\AppData\\Local\\Microsoft\\WinGet\\Links\\jq.exe",
+    ...extra,
     `RFM\tdiag:epoch\t${Math.floor(Date.now() / 1000)}`,
     "RFM\tdiag:readiness_complete\t1",
     "RFM\tdiag:complete\t1",
@@ -218,6 +219,35 @@ describe("a pool's tool profiles", () => {
     expect(events.find((e) => e.kind === "changesFailed")?.detail).toBe(
       "Installed win-win-01; set job hooks on win-win-01; couldn't install 7-Zip, xz, zstd: Couldn't install TukaaniProject.XZUtils (its download failed) (by admin).",
     );
+  });
+
+  test("a tool the runner can't read is fixed in place, not installed again", async () => {
+    const s = await setup({ account: "acme", type: "Organization", repos: [] });
+    const win = await readyWindows(s, [
+      "RFM\tdiag:tool_make\tC:\\Program Files\\WinGet\\Links\\make.exe",
+      "RFM\tdiag:tool_make_runner\tfix:C:\\Program Files\\WinGet\\Packages\\ezwinports.make_x\\bin\\make.exe",
+    ]);
+    await s.raw("POST", "/api/pools", {
+      name: "win",
+      labels: ["runyard-windows"],
+      machines: [{ machineId: win.id, slots: 1 }],
+      scopes: [{ forgeId: s.forgeId, kind: "org", target: "acme" }],
+      toolProfiles: ["build"],
+    });
+    const review = await s.call<Review>("POST", `/api/machines/${win.id}/review`);
+    expect(review.items.slice(0, 2).map((i) => [i.action, i.tools, i.repair ?? false])).toEqual([
+      ["installTools", ["make"], true],
+      ["installTools", ["cc", "python3"], false],
+    ]);
+    await finish(s, await s.call<OperationView>("POST", `/api/reviews/${review.id}/execute`, {}));
+    expect(
+      s.host.received
+        .filter((r) => r.op === "tools-install")
+        .map((r) => [r.env.RF_TOOLS, r.env.RF_REPAIR ?? ""]),
+    ).toEqual([
+      ["", "make"],
+      ["cc python3", ""],
+    ]);
   });
 
   test("Windows scripts carry the same winget packages as core", () => {

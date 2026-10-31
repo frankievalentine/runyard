@@ -37,10 +37,37 @@ function Test-NetworkFailure([int]$Code) {
 }
 
 $tools = "$env:RF_TOOLS".Split(" ", [StringSplitOptions]::RemoveEmptyEntries)
-foreach ($tool in $tools) {
+$repairs = "$env:RF_REPAIR".Split(" ", [StringSplitOptions]::RemoveEmptyEntries)
+foreach ($tool in $tools + $repairs) {
     if (-not $packages.ContainsKey($tool)) { throw "Unknown tool: $tool" }
 }
-if (-not $tools) { Write-Output "Nothing to install."; exit 0 }
+
+# RF_REPAIR: tools that are installed but only readable by the account that installed them.
+# Each one's folder (a winget package, or Runyard's Python) gets its parent's permissions back.
+if ($repairs) {
+    $roots = @((Join-Path $env:ProgramFiles "WinGet\Packages"), (Join-Path $env:ProgramData "Runyard\python"))
+    $machineDirs = [Environment]::GetEnvironmentVariable("Path", "Machine") -split ";" | Where-Object { $_ }
+    $unfixed = @()
+    foreach ($tool in $repairs) {
+        $file = $machineDirs | ForEach-Object { Join-Path $_ "$($commands[$tool]).exe" } |
+            Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+        if ($file) {
+            $item = Get-Item -LiteralPath $file -Force
+            if ($item.LinkType -and $item.Target) {
+                $target = @($item.Target)[0]
+                $file = if ([IO.Path]::IsPathRooted($target)) { $target } else { Join-Path (Split-Path $file) $target }
+            }
+        }
+        $root = $roots | Where-Object { $file -and $file.StartsWith($_ + "\", [StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1
+        if (-not $root) { $unfixed += $commands[$tool]; continue }
+        # The package's own folder under winget's; all of Runyard's Python.
+        $folder = if ($root -like "*\WinGet\Packages") { Join-Path $root $file.Substring($root.Length + 1).Split("\")[0] } else { $root }
+        & icacls.exe $folder /reset /T /C /Q | Out-Null
+        Write-Output "Let the runner run $($commands[$tool]): reset the permissions of $folder"
+    }
+    if ($unfixed) { throw "Couldn't fix $(($unfixed | Select-Object -Unique) -join ', '): not in a folder Runyard manages." }
+}
+if (-not $tools) { if (-not $repairs) { Write-Output "Nothing to install." }; exit 0 }
 if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
     throw "winget isn't available. It comes with App Installer on Windows 10 and 11."
 }

@@ -157,7 +157,11 @@ curl and tar come with Windows 10 and 11. gpg and Docker aren't installed on Win
 at the machine PATH only, leaving out folders inside user profiles (such as the WindowsApps
 aliases), which the runner's service can't use: a tool installed for just the signed-in account shows **Only for this
 account**, because the runner's service can't see it, and stays for you to reinstall for every
-account. A Windows runner reads its PATH from the `.env` file in its directory when it starts,
+account. It also checks that the runner's account can read each tool it finds (following
+winget's command links to the real file): one that only its installer's account can read shows
+**Runner can't run it**. When it's in winget's package folder or Runyard's Python, the review
+fixes it by resetting that folder's permissions; anywhere else, Readiness gives the `icacls`
+command to run. A Windows runner reads its PATH from the `.env` file in its directory when it starts,
 not from Windows, so whenever the machine PATH changes (a tool install, or your own change), its
 review shows **Update PATH**, which rewrites that file and restarts the runner once it's idle.
 

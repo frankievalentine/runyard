@@ -90,6 +90,35 @@ describe("runner readiness", () => {
     });
   });
 
+  test("Windows says when the runner can't read a tool, and whether a review can fix it", () => {
+    const r = (installs: string[]) =>
+      evaluateReadiness(
+        report("windows", {
+          tool_jq: "C:\\Program Files\\WinGet\\Links\\jq.exe",
+          tool_jq_runner: "fix:C:\\Program Files\\WinGet\\Packages\\jqlang.jq_x\\jq.exe",
+          tool_xz: "C:\\Tools\\xz.exe",
+          tool_xz_runner: "manual:C:\\Tools\\xz.exe",
+        }),
+        NOW,
+        { ...none, installs },
+      );
+    const item = (installs: string[], id: string) => r(installs)?.items.find((i) => i.id === id);
+    expect(item(["jq"], "tool-jq")).toMatchObject({
+      status: "warn",
+      value: "Runner can't run it",
+      repairable: true,
+      detail: expect.stringContaining("This machine's review fixes it."),
+    });
+    expect(item(["jq"], "tool-jq")?.command).toBeUndefined();
+    // Not in a pool's tools: the person gets the command.
+    expect(item([], "tool-jq")?.command).toContain('icacls "C:\\Program Files\\WinGet\\Packages');
+    expect(item([], "tool-xz")).toMatchObject({
+      value: "Runner can't run it",
+      command: expect.stringContaining("icacls"),
+    });
+    expect(item([], "tool-xz")?.repairable).toBeUndefined();
+  });
+
   test("Windows needs a PowerShell policy that lets the runner run its script files", () => {
     const policy = (ps_policy: string, ps_policy_source: string) =>
       evaluateReadiness(report("windows", { ps_policy, ps_policy_source }), NOW, none)?.items.find(

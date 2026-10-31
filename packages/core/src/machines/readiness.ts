@@ -1,4 +1,4 @@
-import { ACCOUNT_ONLY, wingetCommand, type ToolId } from "../pools/tools.ts";
+import { ACCOUNT_ONLY, RUNNER_CANT, wingetCommand, type ToolId } from "../pools/tools.ts";
 import type { MachineReport, OsFamily } from "./model.ts";
 
 /** How much an item matters: jobs fail without required ones; labels are what a pool promises. */
@@ -15,6 +15,8 @@ export type ReadinessItem = {
   detail: string;
   /** A command that installs or fixes it, shown to copy. */
   command?: string;
+  /** Windows: found, but the runner can't run it, and a review can fix that. */
+  repairable?: boolean;
 };
 
 export type Readiness = {
@@ -143,6 +145,28 @@ export function evaluateReadiness(
             : "install it for every account."
         }`,
         ...(command ? { command } : {}),
+      });
+      return;
+    }
+    // Windows: found, but the runner's account can't read it ("fix:" in a folder a review can
+    // reset, "manual:" anywhere else).
+    const blocked = /^(fix|manual):(.+)$/.exec(facts[`tool_${t.fact}_runner`] ?? "");
+    if (has(`tool_${t.fact}`) && blocked) {
+      const [, how, path] = blocked as unknown as [string, string, string];
+      const repairable = how === "fix";
+      items.push({
+        id: `tool-${t.fact}`,
+        tier,
+        title: t.title,
+        status: tier === "required" ? "missing" : "warn",
+        value: RUNNER_CANT,
+        detail: `${t.why} The runner's account can't read ${path}.${
+          repairable && installs.has(t.fact) ? " This machine's review fixes it." : ""
+        }`,
+        ...(repairable && installs.has(t.fact)
+          ? {}
+          : { command: `icacls "${path}" /grant "*S-1-5-32-545:(RX)"` }),
+        ...(repairable ? { repairable } : {}),
       });
       return;
     }

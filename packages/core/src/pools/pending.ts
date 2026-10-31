@@ -39,7 +39,8 @@ export function pendingChanges(view: YardView, machineId: string): string[] {
   ];
 
   if (wantedTools.length && machine.readiness && machine.os) {
-    const install = toolInstallPlan(machine.os, machine.readiness, wantedTools).install;
+    const { install, repair } = toolInstallPlan(machine.os, machine.readiness, wantedTools);
+    if (repair.length) out.push(`Let the runner run ${toolList(repair, machine.os)}`);
     if (install.length) out.push(`Install ${toolList(install, machine.os)}`);
   }
 

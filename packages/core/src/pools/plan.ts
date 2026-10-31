@@ -57,6 +57,8 @@ export type PlanItem = {
   forgejoMode?: ForgejoMode;
   /** For installTools: the tools it installs (or, blocked, the ones a person must). */
   tools?: ToolId[];
+  /** For installTools on Windows: instead of installing them, let the runner read them. */
+  repair?: boolean;
   /** For configureCleanup: what the runner should clear after each job. */
   cleanup?: CleanupMode;
 };
@@ -412,8 +414,20 @@ function planTools(input: PlanInput): PlanItem[] {
         true,
       ),
     ];
-  const { install, blocked } = toolInstallPlan(t.os, t.readiness, t.wanted);
+  const { install, blocked, repair } = toolInstallPlan(t.os, t.readiness, t.wanted);
   return [
+    ...(repair.length
+      ? [
+          {
+            ...item(
+              repair,
+              `Let the runner run ${toolList(repair, t.os)}: reset their folders' permissions, which only the account that installed them can read.`,
+              false,
+            ),
+            repair: true,
+          },
+        ]
+      : []),
     ...(install.length
       ? [
           item(

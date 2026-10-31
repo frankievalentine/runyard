@@ -151,7 +151,8 @@ export function poolTools(
  * Whether the last readiness check found a tool. Docker counts only when it's
  * usable; another tool counts once found, even with a warning (an old Node.js),
  * since installing it again wouldn't change that. One found only for the
- * signed-in Windows account doesn't count: the runner's service can't use it.
+ * signed-in Windows account doesn't count, nor one the runner's account can't
+ * read: the runner's service can't use either.
  */
 export function hasTool(readiness: Readiness, tool: ToolId): boolean {
   const id = tool === "docker" ? "docker" : `tool-${tool}`;
@@ -159,7 +160,10 @@ export function hasTool(readiness: Readiness, tool: ToolId): boolean {
   if (!item) return false;
   return (
     item.status === "ok" ||
-    (tool !== "docker" && item.value !== "Not found" && item.value !== ACCOUNT_ONLY)
+    (tool !== "docker" &&
+      item.value !== "Not found" &&
+      item.value !== ACCOUNT_ONLY &&
+      item.value !== RUNNER_CANT)
   );
 }
 
@@ -167,19 +171,27 @@ export function hasTool(readiness: Readiness, tool: ToolId): boolean {
 const MAC_CLT: ReadonlySet<ToolId> = new Set(["git", "cc", "make", "python3"]);
 
 /** How a machine's missing tools can be installed: what Runyard can do, and what needs a person. */
+export type ToolInstallPlan = {
+  install: ToolId[];
+  blocked: { tools: ToolId[]; reason: string }[];
+  /** Windows: installed, but only readable by the account that installed them; a review resets their folders. */
+  repair: ToolId[];
+};
+
 export function toolInstallPlan(
   os: OsFamily,
   readiness: Readiness,
   wanted: readonly ToolId[],
-): { install: ToolId[]; blocked: { tools: ToolId[]; reason: string }[] } {
+): ToolInstallPlan {
   const missing = wanted.filter((t) => !hasTool(readiness, t));
-  if (missing.length === 0) return { install: [], blocked: [] };
-  if (os === "linux") return { install: missing, blocked: [] };
+  if (missing.length === 0) return { install: [], blocked: [], repair: [] };
+  if (os === "linux") return { install: missing, blocked: [], repair: [] };
   if (os === "windows") return windowsInstallPlan(readiness, missing);
   if (os !== "macos")
     return {
       install: [],
       blocked: [{ tools: missing, reason: "Runyard installs tools on Linux, macOS and Windows." }],
+      repair: [],
     };
   const blocked: { tools: ToolId[]; reason: string }[] = [];
   const clt = missing.filter((t) => MAC_CLT.has(t));
@@ -200,20 +212,31 @@ export function toolInstallPlan(
       tools: brewable,
       reason: "Runyard installs these with Homebrew. Install it from brew.sh first.",
     });
-    return { install: [], blocked };
+    return { install: [], blocked, repair: [] };
   }
-  return { install: brewable, blocked };
+  return { install: brewable, blocked, repair: [] };
 }
 
 /** A readiness value for a tool found only on the signed-in account's PATH, which the runner's service doesn't see. */
 export const ACCOUNT_ONLY = "Only for this account";
 
-function windowsInstallPlan(
-  readiness: Readiness,
-  missing: ToolId[],
-): { install: ToolId[]; blocked: { tools: ToolId[]; reason: string }[] } {
+/** A readiness value for a Windows tool the runner's account can't read. */
+export const RUNNER_CANT = "Runner can't run it";
+
+function windowsInstallPlan(readiness: Readiness, missing: ToolId[]): ToolInstallPlan {
   const blocked: { tools: ToolId[]; reason: string }[] = [];
   missing = missing.filter((t) => !WINDOWS_LEAVES_OUT.has(t));
+  const unreadable = (t: ToolId) =>
+    readiness.items.find((i) => i.id === `tool-${t}` && i.value === RUNNER_CANT);
+  const repair = missing.filter((t) => unreadable(t)?.repairable);
+  const manual = missing.filter((t) => unreadable(t) && !unreadable(t)?.repairable);
+  if (manual.length)
+    blocked.push({
+      tools: manual,
+      reason:
+        "The runner's account can't read it, and it's outside the folders Runyard manages. Give Users read and execute on it.",
+    });
+  missing = missing.filter((t) => !unreadable(t));
   // uv's Python sits beside an account's own copy, so that one doesn't stand in the way.
   const accountOnly = missing.filter(
     (t) =>
@@ -231,7 +254,7 @@ function windowsInstallPlan(
   if (builtIn.length) blocked.push({ tools: builtIn, reason: "It comes with Windows 10 and 11." });
   if (rest.includes("docker"))
     blocked.push({ tools: ["docker"], reason: "Runyard installs Docker on Linux only." });
-  return { install: rest.filter((t) => WINDOWS_TOOLS[t].winget), blocked };
+  return { install: rest.filter((t) => WINDOWS_TOOLS[t].winget), blocked, repair };
 }
 
 /** How a review installs Windows tools, for its line: "with winget, and Python 3.13 with uv". */

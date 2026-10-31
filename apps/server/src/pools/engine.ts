@@ -324,7 +324,9 @@ export class PoolEngine {
     if (item.action === "retire") return this.retire(item, ctx);
     if (item.action === "installTools")
       return this.runScript(ctx, "tools-install", {
-        RF_TOOLS: (item.tools ?? []).join(" "),
+        ...(item.repair
+          ? { RF_TOOLS: "", RF_REPAIR: (item.tools ?? []).join(" ") }
+          : { RF_TOOLS: (item.tools ?? []).join(" ") }),
         RF_SUDO_PASSWORD: sudoPassword,
       });
     if (item.runnerKind === "forgejo") return this.applyForgejo(item, ctx, sudoPassword);
@@ -930,6 +932,8 @@ function describeStep(item: PlanItem, infinitive = false): string {
       syncPath: ["updated the PATH of", "update the PATH of"],
     } as Partial<Record<PlanItem["action"], [string, string]>>
   )[item.action] ?? [item.action, item.action];
+  // The same in both moods: "let the runner run jq", "couldn't let the runner run jq".
+  if (item.action === "installTools" && item.repair) return `let the runner run ${tools}`;
   if (item.action === "installTools") return `${infinitive ? "install" : "installed"} ${tools}`;
   return `${infinitive ? base : past} ${item.runnerName}`;
 }
