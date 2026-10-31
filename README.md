@@ -112,46 +112,19 @@ Don't change my Tailscale settings, open ports, or connect to any other machine.
 
 ## Requirements
 
-### The Runyard host
+- **Runyard host:** a Mac (Apple silicon), Linux (x64 or arm64, glibc), Windows x64 or Docker,
+  with `ssh`.
+- **Tailscale (recommended):** gives the HTTPS dashboard, device discovery, Tailscale sign-in and
+  one-line machine setup. Turn on MagicDNS and HTTPS Certificates. Docker needs it;
+  [without it](docs/operating.md#without-tailscale), you connect machines by hand.
+- **Forges:** GitHub, and Forgejo 15 or later.
+- **Runner machines:** anything Runyard reaches over SSH.
 
-One machine runs Runyard and its dashboard. It can be:
-
-- A Mac with Apple silicon
-- A Linux machine, x64 or arm64, on a glibc distribution such as Debian, Ubuntu or Fedora (not
-  Alpine)
-- A Windows x64 machine
-- Docker, on any of these
-
-It needs the OpenSSH client (`ssh`), which comes with macOS, Windows 10 and 11, and most Linux
-distributions.
-
-### Tailscale (recommended)
-
-With [Tailscale](https://tailscale.com) on the Runyard host, you get:
-
-- An HTTPS address for the dashboard on your tailnet
-- Your tailnet's devices, ready to add as machines
-- Sign-in with your Tailscale login
-- A one-line setup command for each machine
-
-Turn on **MagicDNS** and **HTTPS Certificates** for your tailnet. Docker needs Tailscale.
-[Without Tailscale](docs/operating.md#without-tailscale), the dashboard is at
-`http://127.0.0.1:7420` on the Runyard host only, and you connect each machine by hand.
-
-### Runner machines
-
-Any machine Runyard can reach over SSH. What each system can run:
-
-| System  | GitHub runners | Forgejo runners | On-demand pools |
-| ------- | -------------- | --------------- | --------------- |
-| macOS   | Yes            | No              | Yes             |
-| Linux   | Yes            | Yes             | Yes             |
-| Windows | Yes            | No              | No              |
-
-### Forges
-
-- GitHub, for personal accounts and organizations
-- Forgejo 15 or later
+| Runs on a runner machine                 | macOS | Linux | Windows |
+| ---------------------------------------- | ----- | ----- | ------- |
+| GitHub runners                           | Yes   | Yes   | Yes     |
+| Forgejo runners                          | No    | Yes   | No      |
+| On-demand pools (a fresh runner per job) | Yes   | Yes   | No      |
 
 ## How it works
 
