@@ -77,14 +77,14 @@ const NODE: Tool = {
   apt: "nodejs",
   brew: "node",
 };
-/** The same tools on Windows, named for what stands in for them there. */
+/** The same tools on Windows, named for what stands in for them there; gpg isn't installed there. */
 const WINDOWS_TITLES: Record<string, string> = {
   unzip: "unzip (7-Zip)",
   zip: "zip (7-Zip)",
   cc: "C compiler (gcc)",
   python3: "Python 3 (python, from uv)",
 };
-const WINDOWS_RECOMMENDED: Tool[] = POSIX_RECOMMENDED.map((t) => ({
+const WINDOWS_RECOMMENDED: Tool[] = POSIX_RECOMMENDED.filter((t) => t.fact !== "gpg").map((t) => ({
   ...t,
   title: WINDOWS_TITLES[t.fact] ?? t.title,
 }));

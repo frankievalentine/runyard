@@ -108,13 +108,13 @@ describe("a pool's tool profiles", () => {
     expect(res.status).toBe(201);
     const review = await s.call<Review>("POST", `/api/machines/${win.id}/review`);
     expect(review.items.map((i) => [i.action, i.blocked, i.tools ?? null])).toEqual([
-      ["installTools", false, ["unzip", "zip", "xz", "zstd", "gpg", "cc", "make", "python3"]],
+      ["installTools", false, ["unzip", "zip", "xz", "zstd", "cc", "make", "python3"]],
       ["installTools", true, ["jq"]],
       ["install", false, null],
       ["configureCleanup", false, null],
     ]);
     expect(review.items[0]?.reason).toBe(
-      "Install 7-Zip, xz, zstd, gpg, gcc, make with winget, and Python 3.13 with uv.",
+      "Install 7-Zip, xz, zstd, gcc, make with winget, and Python 3.13 with uv.",
     );
     expect(review.items[1]?.reason).toContain("Installed for one account only");
     const op = await finish(
@@ -128,7 +128,7 @@ describe("a pool's tool profiles", () => {
       "cleanup-configure",
     ]);
     expect(s.host.received.find((r) => r.op === "tools-install")?.env.RF_TOOLS).toBe(
-      "unzip zip xz zstd gpg cc make python3",
+      "unzip zip xz zstd cc make python3",
     );
     // The new runner's hooks are in place: it records jobs (the pool clears nothing after them).
     expect(s.host.received.find((r) => r.op === "cleanup-configure")?.env).toMatchObject({
@@ -200,7 +200,7 @@ describe("a pool's tool profiles", () => {
       toolProfiles: ["essentials"],
     });
     const review = await s.call<Review>("POST", `/api/machines/${win.id}/review`);
-    s.host.failNext = "Couldn't install GnuPG.GnuPG (its download failed).";
+    s.host.failNext = "Couldn't install TukaaniProject.XZUtils (its download failed).";
     const op = await finish(
       s,
       await s.call<OperationView>("POST", `/api/reviews/${review.id}/execute`, {}),
@@ -216,7 +216,7 @@ describe("a pool's tool profiles", () => {
       `/api/events?machine=${win.id}`,
     );
     expect(events.find((e) => e.kind === "changesFailed")?.detail).toBe(
-      "Installed win-win-01; set job hooks on win-win-01; couldn't install 7-Zip, xz, zstd, gpg: Couldn't install GnuPG.GnuPG (its download failed) (by admin).",
+      "Installed win-win-01; set job hooks on win-win-01; couldn't install 7-Zip, xz, zstd: Couldn't install TukaaniProject.XZUtils (its download failed) (by admin).",
     );
   });
 

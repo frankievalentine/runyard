@@ -72,7 +72,8 @@ export const WINDOWS_TOOLS: Record<ToolId, { winget: string | null; command: str
   xz: { winget: "TukaaniProject.XZUtils", command: "xz" },
   zstd: { winget: "Meta.Zstandard", command: "zstd" },
   jq: { winget: "jqlang.jq", command: "jq" },
-  gpg: { winget: "GnuPG.GnuPG", command: "gpg" },
+  // Left out on Windows: no apt keys to import, and Git for Windows carries its own for signing.
+  gpg: { winget: null, command: "gpg" },
   cc: { winget: "BrechtSanders.WinLibs.POSIX.UCRT", command: "gcc" },
   make: { winget: "ezwinports.make", command: "make" },
   python3: { winget: "astral-sh.uv", command: "python" },
@@ -127,6 +128,9 @@ export function poolRequiredTools(
     : [{ tool: "docker", title: "Docker", why: "for Forgejo jobs in containers" }];
 }
 
+/** Profile tools Windows machines go without: see WINDOWS_TOOLS. */
+const WINDOWS_LEAVES_OUT: ReadonlySet<ToolId> = new Set(["gpg"]);
+
 /** Every tool a pool's machines' reviews install where missing: its profiles' and its runners' needs. */
 export function poolTools(
   pool: Pick<Pool, "scopes" | "forgejoMode" | "toolProfiles">,
@@ -135,7 +139,9 @@ export function poolTools(
 ): ToolId[] {
   return [
     ...new Set([
-      ...profileTools(pool.toolProfiles),
+      ...profileTools(pool.toolProfiles).filter(
+        (t) => os !== "windows" || !WINDOWS_LEAVES_OUT.has(t),
+      ),
       ...poolRequiredTools(pool, forgeKinds, os).map((r) => r.tool),
     ]),
   ];
@@ -207,6 +213,7 @@ function windowsInstallPlan(
   missing: ToolId[],
 ): { install: ToolId[]; blocked: { tools: ToolId[]; reason: string }[] } {
   const blocked: { tools: ToolId[]; reason: string }[] = [];
+  missing = missing.filter((t) => !WINDOWS_LEAVES_OUT.has(t));
   // uv's Python sits beside an account's own copy, so that one doesn't stand in the way.
   const accountOnly = missing.filter(
     (t) =>

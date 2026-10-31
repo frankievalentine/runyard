@@ -13,20 +13,18 @@ $packages = @{
     xz      = "TukaaniProject.XZUtils"
     zstd    = "Meta.Zstandard"
     jq      = "jqlang.jq"
-    gpg     = "GnuPG.GnuPG"
     cc      = "BrechtSanders.WinLibs.POSIX.UCRT"
     make    = "ezwinports.make"
     python3 = "astral-sh.uv"
     node    = "OpenJS.NodeJS.LTS"
 }
 $commands = @{
-    git = "git"; unzip = "7z"; zip = "7z"; xz = "xz"; zstd = "zstd"; jq = "jq"; gpg = "gpg"
+    git = "git"; unzip = "7z"; zip = "7z"; xz = "xz"; zstd = "zstd"; jq = "jq"
     cc = "gcc"; make = "make"; python3 = "python"; node = "node"
 }
 # Installers that leave their directory off PATH; added to the machine PATH when present.
 $directories = @{
     "7zip.7zip"   = @("$env:ProgramFiles\7-Zip")
-    "GnuPG.GnuPG" = @("$env:ProgramFiles\GnuPG\bin", "${env:ProgramFiles(x86)}\GnuPG\bin")
 }
 # Exit codes that leave the package installed: already there, or needing a restart to finish.
 $installed = @(0, -1978335135, -1978334963, -1978334967)
@@ -78,6 +76,10 @@ foreach ($id in ($tools | ForEach-Object { $packages[$_] } | Select-Object -Uniq
         $failed += "$id ($why)"
         continue
     }
+    # winget extracts portable packages under the installing account, then moves them in,
+    # keeping that account's permissions: let them inherit, so the runner's account can run them.
+    Get-ChildItem -LiteralPath (Join-Path $env:ProgramFiles "WinGet\Packages") -Directory -Filter "$($id)_*" -ErrorAction SilentlyContinue |
+        ForEach-Object { & icacls.exe $_.FullName /reset /T /C /Q | Out-Null }
     foreach ($dir in $directories[$id]) {
         if ($dir -and (Test-Path -LiteralPath $dir)) { Add-MachinePath $dir; break }
     }
@@ -101,7 +103,10 @@ if (($tools -contains "python3") -and -not ($failed | Where-Object { $_.StartsWi
         $env:Path = "$env:UV_PYTHON_BIN_DIR;$env:Path"
         & $uv python install 3.13 --default --preview-features python-install-default
         if ($LASTEXITCODE -ne 0) { $failed += "Python 3.13 (uv exit code $LASTEXITCODE)" }
-        else { Add-MachinePath $env:UV_PYTHON_BIN_DIR }
+        else {
+            & icacls.exe $pythonRoot /reset /T /C /Q | Out-Null
+            Add-MachinePath $env:UV_PYTHON_BIN_DIR
+        }
     }
 }
 

@@ -188,10 +188,10 @@ For 5.2, send the pool page's One-job runners entry and the machine's history.
 - [ ] **11.3** Docker: `docker/compose.yaml` with a real `TS_AUTHKEY`. Expect the dashboard on
       its tailnet address and the setup code in `docker compose logs runyard`.
 - [ ] **11.4** Windows tools: a pool with **Essentials** and **Build tools** on the Windows machine.
-      Expect its review to show "Install 7-Zip, xz, zstd, gpg, gcc, make with winget, and Python 3.13 with uv"
+      Expect its review to show "Install 7-Zip, xz, zstd, gcc, make with winget, and Python 3.13 with uv"
       (less what's there), then the runner install. Run it; expect Readiness to show them all
       found, and a job running `7z`, `xz --version`, `zstd --version`, `jq --version`,
-      `gpg --version`, `gcc --version`, `make --version` and `python --version` to pass.
+      `gcc --version`, `make --version` and `python --version` to pass.
 - [ ] **11.5** Update PATH: with the runner idle, add a folder to the machine PATH by hand. Expect
       the next review to show **Update PATH** for the runner, and a job after running it to see
       the folder in `$env:Path`.

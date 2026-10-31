@@ -463,7 +463,7 @@ describe("installing a pool's tools", () => {
     ]);
   });
 
-  test("Windows installs with winget, but not what comes with Windows, Docker, or a tool one account has", () => {
+  test("Windows installs with winget, but not gpg, what comes with Windows, Docker, or a tool one account has", () => {
     const accountJq: Readiness = {
       ...readiness(["tool-git"]),
       items: [
@@ -479,7 +479,7 @@ describe("installing a pool's tools", () => {
       ],
     };
     expect(plan("windows", accountJq, ["essentials", "build", "docker"])).toEqual([
-      ["installTools", false, ["unzip", "zip", "xz", "zstd", "gpg", "cc", "make", "python3"]],
+      ["installTools", false, ["unzip", "zip", "xz", "zstd", "cc", "make", "python3"]],
       ["installTools", true, ["jq"]],
       ["installTools", true, ["curl", "tar"]],
       ["installTools", true, ["docker"]],
