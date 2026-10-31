@@ -144,6 +144,11 @@ export class FakeRunnerHost {
     }
     if ("RF_TOOLS" in env) {
       this.received.push({ op: "tools-install", env });
+      if (this.failNext) {
+        const output = this.failNext;
+        this.failNext = null;
+        return { code: 1, stdout: "", stderr: output };
+      }
       return `Installed: ${env.RF_TOOLS}`;
     }
     if ("RF_JOB_DIR" in env) {

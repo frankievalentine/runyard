@@ -179,6 +179,36 @@ describe("a pool's tool profiles", () => {
     expect(s.host.dirs.get(path)?.pathCurrent).toBe(true);
   });
 
+  test("tools that fail to install don't hold up the runners, and the run says so", async () => {
+    const s = await setup({ account: "acme", type: "Organization", repos: [] });
+    const win = await readyWindows(s);
+    await s.raw("POST", "/api/pools", {
+      name: "win",
+      labels: ["runyard-windows"],
+      machines: [{ machineId: win.id, slots: 1 }],
+      scopes: [{ forgeId: s.forgeId, kind: "org", target: "acme" }],
+      toolProfiles: ["essentials"],
+    });
+    const review = await s.call<Review>("POST", `/api/machines/${win.id}/review`);
+    s.host.failNext = "Couldn't install GnuPG.GnuPG (its download failed).";
+    const op = await finish(
+      s,
+      await s.call<OperationView>("POST", `/api/reviews/${review.id}/execute`, {}),
+    );
+    expect(op.status).toBe("failed");
+    expect(op.steps.map((st) => [st.action, st.status])).toEqual([
+      ["installTools", "failed"],
+      ["install", "succeeded"],
+    ]);
+    const events = await s.call<{ kind: string; detail: string }[]>(
+      "GET",
+      `/api/events?machine=${win.id}`,
+    );
+    expect(events.find((e) => e.kind === "changesFailed")?.detail).toBe(
+      "Installed win-win-01; couldn't install 7-Zip, xz, zstd, gpg: Couldn't install GnuPG.GnuPG (its download failed) (by admin).",
+    );
+  });
+
   test("Windows scripts carry the same winget packages as core", () => {
     const script = operationScript("tools-install", true, { RF_TOOLS: "jq" });
     for (const [tool, w] of Object.entries(WINDOWS_TOOLS))

@@ -260,24 +260,26 @@ export class PoolEngine {
     return op;
   }
 
-  /** A run of a machine's changes, in its history: each step done, or where it stopped. */
+  /** A run of a machine's changes, in its history: each step done, and each that failed. */
   private recordRun(op: OperationView, steps: PlanItem[], machineName: string, by?: string) {
     const done = steps.flatMap((item, i) =>
       op.steps[i]?.status === "succeeded" ? [describeStep(item)] : [],
     );
-    const failedAt = op.steps.findIndex((s) => s.status === "failed");
-    const failed =
-      failedAt >= 0
-        ? `couldn't ${describeStep(steps[failedAt]!, true)}: ${op.steps[failedAt]!.output.split("\n").at(-1) ?? "failed"}`
-        : null;
-    const parts = [...done, ...(failed ? [failed] : [])];
+    const failed = steps.flatMap((item, i) =>
+      op.steps[i]?.status === "failed"
+        ? [
+            `couldn't ${describeStep(item, true)}: ${(op.steps[i]!.output.split("\n").at(-1) ?? "failed").replace(/\.$/, "")}`,
+          ]
+        : [],
+    );
+    const parts = [...done, ...failed];
     if (parts.length === 0) return;
     const text = parts.join("; ");
     appendEvents(this.deps.db, [
       {
         machineId: op.machineId,
         machineName,
-        kind: failed ? "changesFailed" : "changesRun",
+        kind: failed.length ? "changesFailed" : "changesRun",
         detail: `${text.charAt(0).toUpperCase()}${text.slice(1)}${by ? ` (by ${by})` : ""}.`,
         at: this.now(),
       },
@@ -301,14 +303,16 @@ export class PoolEngine {
       } catch (error) {
         step.status = "failed";
         step.output = error instanceof Error ? error.message : String(error);
-        op.status = "failed";
-        op.error = `${item.runnerName}: ${step.output.split("\n").at(-1) ?? "failed"}`;
+        op.error ??= `${item.runnerName}: ${step.output.split("\n").at(-1) ?? "failed"}`;
+        // Tools are recommended, not required: the runners still go ahead without them.
+        if (item.action === "installTools") continue;
         for (const rest of op.steps.slice(i + 1)) rest.status = "skipped";
         break;
       }
     }
     this.live.delete(ctx.machine.id);
-    if (op.status === "running") op.status = "succeeded";
+    // Failed only once every step that can run has: runners still install after failed tools.
+    op.status = op.steps.some((s) => s.status === "failed") ? "failed" : "succeeded";
     op.finishedAt = this.now();
     void this.deps.github.pollRunners();
   }
