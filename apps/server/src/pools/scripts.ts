@@ -18,6 +18,8 @@ import jitLog from "../../scripts/jit-log.sh" with { type: "text" };
 import templateInstall from "../../scripts/template-install.sh" with { type: "text" };
 import templateRemove from "../../scripts/template-remove.sh" with { type: "text" };
 import toolsInstall from "../../scripts/tools-install.sh" with { type: "text" };
+import toolsInstallPs1 from "../../scripts/tools-install.ps1" with { type: "text" };
+import pathPs1 from "../../scripts/runner-path.ps1" with { type: "text" };
 import cleanupConfigure from "../../scripts/cleanup-configure.sh" with { type: "text" };
 import jobHooks from "../../scripts/job-hooks.sh" with { type: "text" };
 
@@ -36,6 +38,7 @@ export type Operation =
   | "jit-sweep"
   | "jit-log"
   | "tools-install"
+  | "path-sync"
   | "cleanup-configure";
 
 /** Values that are paths on the machine: a leading `~/` becomes the remote home directory. */
@@ -79,7 +82,12 @@ const SCRIPTS: Record<Operation, { posix: string; windows: string }> = {
   "jit-start": { posix: jitStart, windows: "throw 'on-demand runners need Linux or macOS'" },
   "jit-sweep": { posix: jitSweep, windows: "throw 'on-demand runners need Linux or macOS'" },
   "jit-log": { posix: jitLog, windows: "throw 'on-demand runners need Linux or macOS'" },
-  "tools-install": { posix: toolsInstall, windows: "throw 'tool profiles need Linux or macOS'" },
+  "tools-install": { posix: toolsInstall, windows: toolsInstallPs1 },
+  // Linux and macOS runners keep the PATH they start with; only Windows runners get theirs from .env.
+  "path-sync": {
+    posix: "echo 'Only Windows runners take PATH from .env' >&2; exit 2",
+    windows: pathPs1,
+  },
   "cleanup-configure": {
     posix: cleanupConfigure,
     windows: "throw 'cleanup after each job needs Linux or macOS'",
@@ -147,7 +155,7 @@ export function probeScript(
       (t, i) => `$path = ${psQuote(t.path)}
 $configured = Test-Path -LiteralPath (Join-Path $path '.runner')
 $state = if ($configured) { 'uninstalled' } else { 'missing' }
-$version = $null; $agent = $null
+$version = $null; $agent = $null; $pathCurrent = $null
 if ($configured) {
   $agent = (Get-Content -LiteralPath (Join-Path $path '.runner') -Raw | ConvertFrom-Json).agentName
   $needle = $path.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
@@ -155,12 +163,17 @@ if ($configured) {
   if ($service) { $state = $service.State.ToLowerInvariant() }
   $listener = Join-Path $path 'bin\\Runner.Listener.exe'
   if (Test-Path -LiteralPath $listener) { $version = (& $listener --version 2>$null | Select-Object -Last 1) }
+  $envFile = Join-Path $path '.env'
+  $envPath = if (Test-Path -LiteralPath $envFile) { Get-Content -LiteralPath $envFile | Where-Object { $_ -like 'PATH=*' } | Select-Object -Last 1 }
+  $pathCurrent = $envPath -eq "PATH=$machinePath"
 }
-$rows += [pscustomobject]@{ index = ${i}; configured = $configured; service = $state; version = $version; agent = $agent }`,
+$rows += [pscustomobject]@{ index = ${i}; configured = $configured; service = $state; version = $version; agent = $agent; pathCurrent = $pathCurrent }`,
     );
     return [
       "$ErrorActionPreference = 'Stop'",
       "$rows = @()",
+      // As runner-path.ps1 writes it into a runner's .env.
+      `$machinePath = (([Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';') | ForEach-Object { $_.Trim().TrimEnd('\\') } | Where-Object { $_ }) -join ';'`,
       ...rows,
       "ConvertTo-Json -Compress -Depth 3 -InputObject @($rows)",
       "Write-Output 'RF_PROBE_END'",
@@ -222,6 +235,7 @@ export function parseProbe(
     agent: string | null;
     cleanup?: CleanupMode | null;
     history?: boolean;
+    pathCurrent?: boolean;
   }[] = [];
   if (windows) {
     const json = output.slice(0, output.lastIndexOf("RF_PROBE_END")).trim();
@@ -233,8 +247,16 @@ export function parseProbe(
         service: string;
         version: string | null;
         agent: string | null;
+        pathCurrent?: boolean | null;
       };
-      rows.push({ ...row, version: row.version || null, agent: row.agent || null });
+      rows.push({
+        index: row.index,
+        configured: row.configured,
+        service: row.service,
+        version: row.version || null,
+        agent: row.agent || null,
+        ...(typeof row.pathCurrent === "boolean" ? { pathCurrent: row.pathCurrent } : {}),
+      });
     }
   } else {
     for (const line of output.split(/\r?\n/)) {
@@ -267,6 +289,7 @@ export function parseProbe(
       agentName: row.agent,
       cleanup: row.cleanup ?? null,
       ...(row.history !== undefined ? { history: row.history } : {}),
+      ...(row.pathCurrent !== undefined ? { pathCurrent: row.pathCurrent } : {}),
     });
   }
   if (result.size !== targets.length)

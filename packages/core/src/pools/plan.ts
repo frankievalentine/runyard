@@ -2,7 +2,7 @@ import type { Readiness } from "../machines/readiness.ts";
 import type { OsFamily } from "../machines/model.ts";
 import { scopeKey } from "../scope.ts";
 import type { RunnerKind, Scope } from "../model.ts";
-import { toolInstallPlan, toolName, type ToolId } from "./tools.ts";
+import { toolInstallPlan, toolList, type ToolId } from "./tools.ts";
 import {
   isActive,
   serviceModeFor,
@@ -36,7 +36,8 @@ export type PlanAction =
   | "retire"
   | "installTools"
   | "configureCleanup"
-  | "recordJobs";
+  | "recordJobs"
+  | "syncPath";
 
 export type PlanItem = {
   action: PlanAction;
@@ -140,6 +141,7 @@ export function labelDrift(desired: string[], actual: string[]) {
 export function planMachine(input: PlanInput): PlanItem[] {
   const items: PlanItem[] = [];
   const desiredKeys = new Set(input.desired.map((d) => d.key));
+  const installsTools = planTools(input).some((i) => !i.blocked);
 
   for (const d of input.desired) {
     const sk = scopeKey(d.scope);
@@ -287,6 +289,22 @@ export function planMachine(input: PlanInput): PlanItem[] {
             )
           : item("recordJobs", "Record its jobs for run history. Restarts the runner.", false),
       );
+    // Windows runners take PATH from their .env when they start: refresh it when the
+    // machine's has changed, or this run installs tools that change it.
+    if (d.serviceMode === "windows-service" && (local.pathCurrent === false || installsTools))
+      items.push(
+        remote.busy
+          ? item(
+              "syncPath",
+              "It's running a job; this restarts it, so it waits until the runner is idle.",
+              true,
+            )
+          : item(
+              "syncPath",
+              "Give it the machine's PATH, so jobs find installed tools. Restarts the runner.",
+              false,
+            ),
+      );
     const wantCleanup = d.cleanup ?? "off";
     // Runners set up before run history lack the hooks (false); undefined where it isn't read.
 
@@ -382,7 +400,8 @@ function planTools(input: PlanInput): PlanItem[] {
     path: "",
     reason,
     blocked,
-    serviceMode: t.os === "macos" ? "launchagent" : "systemd",
+    serviceMode:
+      t.os === "macos" ? "launchagent" : t.os === "windows" ? "windows-service" : "systemd",
     runnerKind: "actions",
     tools,
   });
@@ -401,13 +420,13 @@ function planTools(input: PlanInput): PlanItem[] {
       ? [
           item(
             install,
-            `Install ${install.map(toolName).join(", ")} with ${t.os === "macos" ? "Homebrew" : "the package manager"}.`,
+            `Install ${toolList(install, t.os)} with ${t.os === "macos" ? "Homebrew" : t.os === "windows" ? "winget" : "the package manager"}.`,
 
             false,
           ),
         ]
       : []),
-    ...blocked.map((b) => item(b.tools, `${b.tools.map(toolName).join(", ")}: ${b.reason}`, true)),
+    ...blocked.map((b) => item(b.tools, `${toolList(b.tools, t.os)}: ${b.reason}`, true)),
   ];
 }
 

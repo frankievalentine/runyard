@@ -1,3 +1,4 @@
+import { ACCOUNT_ONLY, wingetCommand, type ToolId } from "../pools/tools.ts";
 import type { MachineReport, OsFamily } from "./model.ts";
 
 /** How much an item matters: jobs fail without required ones; labels are what a pool promises. */
@@ -42,7 +43,7 @@ const DRIFT_BAD_SECS = 300;
 
 type Tool = { fact: string; title: string; why: string; apt?: string; brew?: string };
 
-const POSIX_REQUIRED: Tool[] = [
+const REQUIRED: Tool[] = [
   { fact: "git", title: "git", why: "Checkout and most build scripts use it." },
   { fact: "curl", title: "curl", why: "Actions and setup steps download with it." },
   { fact: "tar", title: "tar", why: "Caches, artifacts and tool downloads are tarballs." },
@@ -76,14 +77,17 @@ const NODE: Tool = {
   apt: "nodejs",
   brew: "node",
 };
-const WINDOWS_REQUIRED: Tool[] = [
-  { fact: "git", title: "git", why: "Checkout and most build scripts use it." },
-  { fact: "curl", title: "curl", why: "Actions and setup steps download with it." },
-  { fact: "tar", title: "tar", why: "Caches, artifacts and tool downloads are tarballs." },
-];
-const WINDOWS_RECOMMENDED: Tool[] = [
-  { fact: "python", title: "Python", why: "Many build tools and scripts need it." },
-];
+/** The same tools on Windows, named for what stands in for them there. */
+const WINDOWS_TITLES: Record<string, string> = {
+  unzip: "unzip (7-Zip)",
+  zip: "zip (7-Zip)",
+  cc: "C compiler (gcc)",
+  python3: "Python 3 (python)",
+};
+const WINDOWS_RECOMMENDED: Tool[] = POSIX_RECOMMENDED.map((t) => ({
+  ...t,
+  title: WINDOWS_TITLES[t.fact] ?? t.title,
+}));
 
 /** How to get a missing tool: a short note, a command to copy, or both. */
 function howToInstall(os: OsFamily, tool: Tool): { note?: string; command?: string } {
@@ -91,7 +95,10 @@ function howToInstall(os: OsFamily, tool: Tool): { note?: string; command?: stri
     return ["git", "cc", "make", "python3"].includes(tool.fact)
       ? { note: "Comes with the Command Line Tools.", command: "xcode-select --install" }
       : { command: `brew install ${tool.brew ?? tool.fact}` };
-  if (os === "windows") return { note: "Install it with winget or its installer." };
+  if (os === "windows") {
+    const command = wingetCommand(tool.fact as ToolId);
+    return command ? { command } : { note: "It comes with Windows 10 and 11." };
+  }
   return { command: `sudo apt install -y ${tool.apt ?? tool.fact}` };
 }
 
@@ -119,6 +126,20 @@ export function evaluateReadiness(
       : installs.has(t.fact)
         ? { note: reviewInstalls }
         : howToInstall(os, t);
+    // Windows: on the signed-in account's PATH only, where the runner's service can't see it.
+    if (!has(`tool_${t.fact}`) && has(`tool_${t.fact}_account`)) {
+      const command = wingetCommand(t.fact as ToolId);
+      items.push({
+        id: `tool-${t.fact}`,
+        tier,
+        title: t.title,
+        status: "warn",
+        value: ACCOUNT_ONLY,
+        detail: `${t.why} The runner's service can't see it: install it for every account.`,
+        ...(command ? { command } : {}),
+      });
+      return;
+    }
     items.push({
       id: `tool-${t.fact}`,
       tier,
@@ -135,7 +156,7 @@ export function evaluateReadiness(
   };
 
   const windows = os === "windows";
-  for (const t of windows ? WINDOWS_REQUIRED : POSIX_REQUIRED) tool(t, "required");
+  for (const t of REQUIRED) tool(t, "required");
   if (os === "macos")
     items.push({
       id: "xcode-clt",

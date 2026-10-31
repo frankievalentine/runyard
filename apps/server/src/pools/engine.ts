@@ -5,7 +5,7 @@ import {
   planFingerprint,
   planMachine,
   poolTools,
-  toolName,
+  toolList,
   retireCleanup,
   scopeKey,
   type DesiredRunner,
@@ -369,6 +369,13 @@ export class PoolEngine {
           RF_SERVICE_MODE: item.serviceMode,
           RF_SUDO_PASSWORD: sudoPassword,
         });
+      case "syncPath": {
+        // Busy is checked again at the last moment: the change restarts the runner.
+        const fresh = await this.remoteRunners(http, item.scope);
+        if (fresh.get(item.runnerName.toLowerCase())?.busy)
+          throw new EngineError("It started a job; PATH not changed.");
+        return this.runScript(ctx, "path-sync", { RF_ROOT: item.path, RF_NAME: item.runnerName });
+      }
       case "configureCleanup": {
         // Busy is checked again at the last moment: the change restarts the runner.
         const fresh = await this.remoteRunners(http, item.scope);
@@ -901,7 +908,10 @@ export function forgejoLabels(labels: string[], mode: ForgejoMode): string {
 
 /** A step of a run, for the machine's history: "installed box-ci-01", or the verb alone. */
 function describeStep(item: PlanItem, infinitive = false): string {
-  const tools = (item.tools ?? []).map(toolName).join(", ");
+  const tools = toolList(
+    item.tools ?? [],
+    item.serviceMode === "windows-service" ? "windows" : null,
+  );
   const [past, base]: [string, string] = (
     {
       install: ["installed", "install"],
@@ -913,6 +923,7 @@ function describeStep(item: PlanItem, infinitive = false): string {
       removeTemplate: ["removed the runner software for", "remove the runner software for"],
       configureCleanup: ["set job hooks on", "set job hooks on"],
       recordJobs: ["set job recording on", "set job recording on"],
+      syncPath: ["updated the PATH of", "update the PATH of"],
     } as Partial<Record<PlanItem["action"], [string, string]>>
   )[item.action] ?? [item.action, item.action];
   if (item.action === "installTools") return `${infinitive ? "install" : "installed"} ${tools}`;

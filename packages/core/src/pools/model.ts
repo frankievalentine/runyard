@@ -129,6 +129,8 @@ export type LocalRunner = {
   cleanup?: CleanupMode | null;
   /** Runyard's job hooks record its jobs for run history; undefined where that isn't read. */
   history?: boolean;
+  /** Windows: its `.env` gives it the machine's current PATH; undefined elsewhere. */
+  pathCurrent?: boolean;
 };
 
 /** What GitHub reports for a runner with the desired name in the desired scope. */

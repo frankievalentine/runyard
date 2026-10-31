@@ -56,6 +56,36 @@ describe("runner readiness", () => {
     expect(r?.items.find((i) => i.id === "tool-cc")?.command).toContain("build-essential");
   });
 
+  test("Windows names what stands in for each tool, installs with winget, and flags one account's tools", () => {
+    const r = evaluateReadiness(
+      report("windows", {
+        tool_git: "C:\\Program Files\\Git\\cmd\\git.exe",
+        tool_curl: "C:\\Windows\\System32\\curl.exe",
+        tool_jq_account: "C:\\Users\\ci\\AppData\\Local\\Microsoft\\WinGet\\Links\\jq.exe",
+      }),
+      NOW,
+      none,
+    );
+    const item = (id: string) => r?.items.find((i) => i.id === id);
+    expect(item("tool-tar")).toMatchObject({
+      status: "missing",
+      detail: expect.stringContaining("comes with Windows"),
+    });
+    expect(item("tool-tar")?.command).toBeUndefined();
+    expect(item("tool-unzip")).toMatchObject({
+      title: "unzip (7-Zip)",
+      command: "winget install -e --id 7zip.7zip --scope machine",
+    });
+    expect(item("tool-cc")?.title).toBe("C compiler (gcc)");
+    expect(item("tool-python3")?.command).toContain("Python.Python.3.13");
+    expect(item("tool-jq")).toMatchObject({
+      status: "warn",
+      value: "Only for this account",
+      detail: expect.stringContaining("install it for every account"),
+      command: "winget install -e --id jqlang.jq --scope machine",
+    });
+  });
+
   test("a ready machine has no problems; a drifting clock is one", () => {
     const ready = report("linux", {
       ...posixTools,

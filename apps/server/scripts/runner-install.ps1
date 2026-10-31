@@ -58,6 +58,10 @@ try {
     Remove-Item -LiteralPath $archive -Force -ErrorAction SilentlyContinue
 }
 
+# The runner reads .env when it starts: give it the machine's PATH, as runner-path.ps1 does.
+$machinePath = (([Environment]::GetEnvironmentVariable("Path", "Machine") -split ";") | ForEach-Object { $_.Trim().TrimEnd("\") } | Where-Object { $_ }) -join ";"
+[IO.File]::WriteAllLines((Join-Path $root ".env"), [string[]]@("PATH=$machinePath"))
+
 Set-Location -LiteralPath $root
 $arguments = @("--unattended", "--url", $env:RF_URL, "--token", $env:RF_TOKEN, "--name", $env:RF_NAME, "--labels", $env:RF_LABELS, "--runasservice")
 if ($env:RF_RUNNER_GROUP) { $arguments += @("--runnergroup", $env:RF_RUNNER_GROUP) }

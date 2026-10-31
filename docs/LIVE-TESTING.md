@@ -165,7 +165,7 @@ For 5.2, send the pool page's One-job runners entry and the machine's history.
       Then run the workflow again: expect the job under **Jobs** on the LXC's page and the pool's,
       with its result within a minute or two and **Open on Forgejo** linking to the run.
 - [ ] **9.5** On Forgejo 17: a job's **Show log** shows its output.
-- [ ] **9.6** Repository scopes: a new pool lists the account's repositories under it; choosing
+- [x] **9.6** Repository scopes: a new pool lists the account's repositories under it; choosing
       the account greys them out. A pool serving one private repository registers its runner on
       that repository in Forgejo (Settings ▸ Actions ▸ Runners of the repository), and a public
       repository elsewhere on the account doesn't hold it up. Its service is named after its
@@ -187,6 +187,14 @@ For 5.2, send the pool page's One-job runners entry and the machine's history.
 - [ ] **11.2** `install.ps1` and `runyard service install` on Windows.
 - [ ] **11.3** Docker: `docker/compose.yaml` with a real `TS_AUTHKEY`. Expect the dashboard on
       its tailnet address and the setup code in `docker compose logs runyard`.
+- [ ] **11.4** Windows tools: a pool with **Essentials** and **Build tools** on the Windows machine.
+      Expect its review to show "Install 7-Zip, xz, zstd, gpg, gcc, make, Python 3 with winget"
+      (less what's there), then the runner install. Run it; expect Readiness to show them all
+      found, and a job running `7z`, `xz --version`, `zstd --version`, `jq --version`,
+      `gpg --version`, `gcc --version`, `make --version` and `python --version` to pass.
+- [ ] **11.5** Update PATH: with the runner idle, add a folder to the machine PATH by hand. Expect
+      the next review to show **Update PATH** for the runner, and a job after running it to see
+      the folder in `$env:Path`.
 
 ## Round 11b: boat.dev (optional)
 

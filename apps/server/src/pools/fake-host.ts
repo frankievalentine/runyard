@@ -7,13 +7,16 @@ type Dir = {
   configured: boolean;
   service: "active" | "inactive" | "uninstalled";
   name: string | null;
+  /** Windows: its .env has the machine's PATH, as runner-install.ps1 and runner-path.ps1 leave it. */
+  pathCurrent?: boolean;
 };
 
 /**
  * A stand-in for a machine that runs Runyard's runner scripts. It reads the
  * real scripts sent over SSH stdin: answers probes for the paths they list,
  * and applies install, start and remove to an in-memory set of directories.
- * Records each script's RF_* values so tests can check what was sent.
+ * Records each script's RF_* values so tests can check what was sent. Windows
+ * scripts arrive as one Base64 line, decoded as PowerShell would.
  */
 export class FakeRunnerHost {
   dirs = new Map<string, Dir>();
@@ -31,6 +34,7 @@ export class FakeRunnerHost {
       | "jit-start"
       | "sweep"
       | "tools-install"
+      | "path-sync"
       | "cleanup-configure"
       | "record-jobs";
     env: Record<string, string>;
@@ -45,6 +49,8 @@ export class FakeRunnerHost {
   failNext: string | null = null;
 
   answer = (stdin: string): string | CommandResult => {
+    if (/^[A-Za-z0-9+/]+=*\n?$/.test(stdin))
+      return this.answerWindows(Buffer.from(stdin.trim(), "base64").toString("utf8"));
     if (stdin.includes("RT_END")) {
       this.received.push({ op: "template-probe", env: {} });
       const paths = [...stdin.matchAll(/^path=(.+)$/gm)].map((m) => unquote(m[1]!));
@@ -79,6 +85,54 @@ export class FakeRunnerHost {
     const env = Object.fromEntries(
       [...stdin.matchAll(/^export (RF_[A-Z_]+)=(.+)$/gm)].map((m) => [m[1]!, unquote(m[2]!)]),
     );
+    return this.operate(stdin, env);
+  };
+
+  private answerWindows(script: string): string | CommandResult {
+    if (script.includes("RF_PROBE_END")) {
+      this.received.push({ op: "probe", env: {} });
+      const paths = [...script.matchAll(/^\$path = '(.*)'$/gm)].map((m) =>
+        m[1]!.replace(/''/g, "'"),
+      );
+      const rows = paths.map((path, index) => {
+        const d = this.dirs.get(path);
+        return {
+          index,
+          configured: Boolean(d?.configured),
+          service: !d?.configured
+            ? "missing"
+            : d.service === "active"
+              ? "running"
+              : d.service === "inactive"
+                ? "stopped"
+                : d.service,
+          version: d?.configured ? "2.329.0" : null,
+          agent: d?.name ?? null,
+          pathCurrent: d?.configured ? Boolean(d.pathCurrent) : null,
+        };
+      });
+      return `${JSON.stringify(rows)}\r\nRF_PROBE_END\r\n`;
+    }
+    const env = Object.fromEntries(
+      [...script.matchAll(/^\$env:(RF_[A-Z_]+) = '(.*)'$/gm)].map((m) => [
+        m[1]!,
+        m[2]!.replace(/''/g, "'"),
+      ]),
+    );
+    if (script.includes("the machine's PATH and restarted")) {
+      this.received.push({ op: "path-sync", env });
+      const dir = this.dirs.get(env.RF_ROOT!);
+      if (dir) dir.pathCurrent = true;
+      return `path-sync ${env.RF_NAME}`;
+    }
+    const result = this.operate(script, env);
+    // runner-install.ps1 writes the machine's PATH into the new runner's .env.
+    const installed = this.dirs.get(env.RF_ROOT ?? "");
+    if (installed && "RF_ASSET_URL" in env) installed.pathCurrent = true;
+    return result;
+  }
+
+  private operate(stdin: string, env: Record<string, string>): string | CommandResult {
     if ("RF_CLEANUP" in env) {
       this.received.push({ op: "cleanup-configure", env });
       const dir = this.dirs.get(env.RF_ROOT!);
@@ -149,7 +203,7 @@ export class FakeRunnerHost {
     if (op === "remove")
       this.dirs.set(path, { configured: false, service: "uninstalled", name: null });
     return `${op} ${env.RF_NAME}`;
-  };
+  }
 }
 
 /** `"$HOME"/'a/b'` → `~/a/b`, and `'x'` → `x`, matching how Runyard quotes values. */

@@ -3,7 +3,7 @@ import type { YardView } from "../machines/derive.ts";
 import { scopeKey } from "../scope.ts";
 import type { ForgeKind, Scope } from "../model.ts";
 import { labelDrift } from "./plan.ts";
-import { poolTools, toolInstallPlan, toolName } from "./tools.ts";
+import { poolTools, toolInstallPlan, toolList } from "./tools.ts";
 
 /** Which forge each connection in the view is. */
 export function forgeKindsOf(view: Pick<YardView, "github" | "forgejo">): Map<string, ForgeKind> {
@@ -40,7 +40,7 @@ export function pendingChanges(view: YardView, machineId: string): string[] {
 
   if (wantedTools.length && machine.readiness && machine.os) {
     const install = toolInstallPlan(machine.os, machine.readiness, wantedTools).install;
-    if (install.length) out.push(`Install ${install.map(toolName).join(", ")}`);
+    if (install.length) out.push(`Install ${toolList(install, machine.os)}`);
   }
 
   const desired = p.desired.filter((d) => d.machineId === machineId);

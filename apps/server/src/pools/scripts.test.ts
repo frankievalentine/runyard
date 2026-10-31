@@ -247,6 +247,24 @@ describe("forgejo-runner scripts", () => {
     expect(await Bun.file(join(dir, ".runner.removed")).exists()).toBe(true);
   });
 
+  test("the Windows probe says whether each runner's .env has the machine's PATH", () => {
+    const targets = [
+      { path: "C:\\runyard-runners\\win\\01" },
+      { path: "C:\\runyard-runners\\win\\02" },
+    ];
+    const out = parseProbe(
+      `[{"index":0,"configured":true,"service":"running","version":"2.329.0","agent":"win-01","pathCurrent":false},` +
+        `{"index":1,"configured":false,"service":"missing","version":null,"agent":null,"pathCurrent":null}]\r\nRF_PROBE_END\r\n`,
+      true,
+      targets,
+    );
+    expect(out.get(targets[0]!.path)?.pathCurrent).toBe(false);
+    expect(out.get(targets[1]!.path)).not.toHaveProperty("pathCurrent");
+    expect(probeScript(true, [{ ...targets[0]!, serviceMode: "windows-service" }])).toContain(
+      "GetEnvironmentVariable('Path', 'Machine')",
+    );
+  });
+
   test("the probe reads a forgejo-runner's name", async () => {
     await forgejoRunner("runyard-runners/ci/forgejo-frankie/01", "box-ci-01");
     const targets = [

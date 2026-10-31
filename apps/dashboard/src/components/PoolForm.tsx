@@ -8,7 +8,7 @@ import {
   readinessProblems,
   TOOL_PROFILES,
   toolInstallPlan,
-  toolName,
+  toolList,
   type ToolId,
   type CleanupMode,
   type ForgeKind,
@@ -779,10 +779,10 @@ function MachineChoice({
           ) : install && (install.install.length || install.blocked.length) ? (
             <>
               {install.install.length > 0 &&
-                `Runyard will install ${install.install.map(toolName).join(", ")}.`}
+                `Runyard will install ${toolList(install.install, m.os)}.`}
               {install.blocked.map((b) => (
                 <span key={b.reason} className="block text-warn">
-                  Needs {b.tools.map(toolName).join(", ")} by hand: {b.reason}
+                  Needs {toolList(b.tools, m.os)} by hand: {b.reason}
                 </span>
               ))}
             </>

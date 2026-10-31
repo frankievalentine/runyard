@@ -28,12 +28,13 @@ export const TOOL_PROFILES: Record<
 > = {
   essentials: {
     title: "Essentials",
-    detail: "git, curl, tar, unzip, zip, xz, zstd, jq and gpg.",
+    detail:
+      "git, curl, tar, unzip, zip, xz, zstd, jq and gpg. On Windows, 7-Zip stands in for zip and unzip.",
     tools: ["git", "curl", "tar", "unzip", "zip", "xz", "zstd", "jq", "gpg"],
   },
   build: {
     title: "Build tools",
-    detail: "A C compiler, make and Python 3.",
+    detail: "A C compiler, make and Python 3. On Windows, gcc (WinLibs) and python.",
     tools: ["cc", "make", "python3"],
   },
   docker: {
@@ -55,8 +56,48 @@ export function profileTools(profiles: readonly ToolProfile[]): ToolId[] {
   return [...new Set(profiles.flatMap((p) => TOOL_PROFILES[p]?.tools ?? []))];
 }
 
-/** A tool as people know it, for review lines: Node.js rather than its command. */
-export const toolName = (tool: ToolId): string => (tool === "node" ? "Node.js" : tool);
+/**
+ * How Windows provides each tool: the winget package Runyard installs (null when
+ * Windows ships it, or Runyard doesn't install it there) and the command the
+ * readiness check looks for. tools-install.ps1 carries the same packages.
+ */
+export const WINDOWS_TOOLS: Record<ToolId, { winget: string | null; command: string }> = {
+  git: { winget: "Git.Git", command: "git" },
+  curl: { winget: null, command: "curl" },
+  tar: { winget: null, command: "tar" },
+  unzip: { winget: "7zip.7zip", command: "7z" },
+  zip: { winget: "7zip.7zip", command: "7z" },
+  xz: { winget: "TukaaniProject.XZUtils", command: "xz" },
+  zstd: { winget: "Meta.Zstandard", command: "zstd" },
+  jq: { winget: "jqlang.jq", command: "jq" },
+  gpg: { winget: "GnuPG.GnuPG", command: "gpg" },
+  cc: { winget: "BrechtSanders.WinLibs.POSIX.UCRT", command: "gcc" },
+  make: { winget: "ezwinports.make", command: "make" },
+  python3: { winget: "Python.Python.3.13", command: "python" },
+  docker: { winget: null, command: "docker" },
+  node: { winget: "OpenJS.NodeJS.LTS", command: "node" },
+};
+
+/** The winget command that installs a tool for every account on a Windows machine. */
+export function wingetCommand(tool: ToolId): string | null {
+  const id = WINDOWS_TOOLS[tool].winget;
+  return id ? `winget install -e --id ${id} --scope machine` : null;
+}
+
+/** A tool as people know it, for review lines: Node.js rather than its command, and on Windows what stands in for it. */
+export function toolName(tool: ToolId, os?: OsFamily | null): string {
+  if (tool === "node") return "Node.js";
+  if (os !== "windows") return tool;
+  if (tool === "unzip" || tool === "zip") return "7-Zip";
+  if (tool === "cc") return "gcc";
+  if (tool === "python3") return "Python 3";
+  return tool;
+}
+
+/** Tools as one list for a sentence, each name once: "jq, 7-Zip, gcc". */
+export function toolList(tools: readonly ToolId[], os?: OsFamily | null): string {
+  return [...new Set(tools.map((t) => toolName(t, os)))].join(", ");
+}
 
 /** A tool a pool's runners can't do without, and why. */
 
@@ -98,13 +139,17 @@ export function poolTools(
 /**
  * Whether the last readiness check found a tool. Docker counts only when it's
  * usable; another tool counts once found, even with a warning (an old Node.js),
- * since installing it again wouldn't change that.
+ * since installing it again wouldn't change that. One found only for the
+ * signed-in Windows account doesn't count: the runner's service can't use it.
  */
 export function hasTool(readiness: Readiness, tool: ToolId): boolean {
   const id = tool === "docker" ? "docker" : `tool-${tool}`;
   const item = readiness.items.find((i) => i.id === id);
   if (!item) return false;
-  return item.status === "ok" || (tool !== "docker" && item.value !== "Not found");
+  return (
+    item.status === "ok" ||
+    (tool !== "docker" && item.value !== "Not found" && item.value !== ACCOUNT_ONLY)
+  );
 }
 
 /** Tools that come with the Command Line Tools on a Mac rather than Homebrew. */
@@ -119,10 +164,11 @@ export function toolInstallPlan(
   const missing = wanted.filter((t) => !hasTool(readiness, t));
   if (missing.length === 0) return { install: [], blocked: [] };
   if (os === "linux") return { install: missing, blocked: [] };
+  if (os === "windows") return windowsInstallPlan(readiness, missing);
   if (os !== "macos")
     return {
       install: [],
-      blocked: [{ tools: missing, reason: "Tool profiles install on Linux and macOS for now." }],
+      blocked: [{ tools: missing, reason: "Runyard installs tools on Linux, macOS and Windows." }],
     };
   const blocked: { tools: ToolId[]; reason: string }[] = [];
   const clt = missing.filter((t) => MAC_CLT.has(t));
@@ -146,4 +192,29 @@ export function toolInstallPlan(
     return { install: [], blocked };
   }
   return { install: brewable, blocked };
+}
+
+/** A readiness value for a tool found only on the signed-in account's PATH, which the runner's service doesn't see. */
+export const ACCOUNT_ONLY = "Only for this account";
+
+function windowsInstallPlan(
+  readiness: Readiness,
+  missing: ToolId[],
+): { install: ToolId[]; blocked: { tools: ToolId[]; reason: string }[] } {
+  const blocked: { tools: ToolId[]; reason: string }[] = [];
+  const accountOnly = missing.filter(
+    (t) => readiness.items.find((i) => i.id === `tool-${t}`)?.value === ACCOUNT_ONLY,
+  );
+  if (accountOnly.length)
+    blocked.push({
+      tools: accountOnly,
+      reason:
+        "Installed for one account only, where the runner's service can't see it. Uninstall it, and Runyard installs it for every account.",
+    });
+  const rest = missing.filter((t) => !accountOnly.includes(t));
+  const builtIn = rest.filter((t) => t !== "docker" && !WINDOWS_TOOLS[t].winget);
+  if (builtIn.length) blocked.push({ tools: builtIn, reason: "It comes with Windows 10 and 11." });
+  if (rest.includes("docker"))
+    blocked.push({ tools: ["docker"], reason: "Runyard installs Docker on Linux only." });
+  return { install: rest.filter((t) => WINDOWS_TOOLS[t].winget), blocked };
 }

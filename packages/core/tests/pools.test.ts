@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vite-plus/test";
 import {
+  ACCOUNT_ONLY,
   desiredRunners,
   labelDrift,
   migrationViews,
@@ -15,6 +16,7 @@ import {
   type Migration,
   type PlanInput,
   type Readiness,
+  type ToolId,
   type ToolProfile,
   type Pool,
   type RemoteRunner,
@@ -455,11 +457,99 @@ describe("installing a pool's tools", () => {
     expect(plan("linux", readiness([...all, "docker"]))).toEqual([]);
   });
 
-  test("waits for a check, and never guesses on Windows", () => {
+  test("waits for a check", () => {
     expect(plan("linux", null)).toEqual([
       ["installTools", true, profileTools(["essentials", "docker"])],
     ]);
-    expect(plan("windows", readiness([]))[0]?.[1]).toBe(true);
+  });
+
+  test("Windows installs with winget, but not what comes with Windows, Docker, or a tool one account has", () => {
+    const accountJq: Readiness = {
+      ...readiness(["tool-git"]),
+      items: [
+        ...readiness(["tool-git"]).items,
+        {
+          id: "tool-jq",
+          tier: "recommended",
+          title: "jq",
+          status: "warn",
+          value: ACCOUNT_ONLY,
+          detail: "",
+        },
+      ],
+    };
+    expect(plan("windows", accountJq, ["essentials", "build", "docker"])).toEqual([
+      ["installTools", false, ["unzip", "zip", "xz", "zstd", "gpg", "cc", "make", "python3"]],
+      ["installTools", true, ["jq"]],
+      ["installTools", true, ["curl", "tar"]],
+      ["installTools", true, ["docker"]],
+    ]);
+    const items = planMachine({
+      machineId: "m1",
+      desired: [],
+      registrations: [],
+      local: new Map(),
+      github: new Map(),
+      policies: new Map(),
+      machineError: null,
+      githubErrors: new Map(),
+      tools: {
+        wanted: ["unzip", "zip", "cc"],
+        os: "windows",
+        readiness: readiness([]),
+        scope: org,
+      },
+    });
+    expect(items[0]?.reason).toBe("Install 7-Zip, gcc with winget.");
+    expect(items[0]?.serviceMode).toBe("windows-service");
+  });
+
+  test("a Windows runner gets the machine's PATH when its copy is stale or tools install, once idle", () => {
+    const [d] = desiredRunners([pool({ machines: [{ machineId: "m2", slots: 1 }] })], machines) as [
+      DesiredRunner,
+    ];
+    const input = (pathCurrent: boolean, busy: boolean, wanted: ToolId[] = []): PlanInput => ({
+      machineId: "m2",
+      desired: [d],
+      registrations: [],
+      local: new Map([
+        [
+          d.path,
+          {
+            path: d.path,
+            configured: true,
+            service: "running",
+            version: "2.329.0",
+            agentName: d.name,
+            cleanup: null,
+            pathCurrent,
+          },
+        ],
+      ]),
+      github: new Map([
+        [
+          scopeKey(org),
+          new Map([
+            [
+              d.name.toLowerCase(),
+              { id: 1, name: d.name, status: "online", busy, labels: d.labels },
+            ],
+          ]),
+        ],
+      ]),
+      policies: new Map([[scopeKey(org), { ok: true }]]),
+      machineError: null,
+      githubErrors: new Map(),
+      tools: { wanted, os: "windows", readiness: readiness(["tool-git"]), scope: org },
+    });
+    const actions = (i: PlanInput) => planMachine(i).map((p) => [p.action, p.blocked]);
+    expect(actions(input(true, false))).toEqual([]);
+    expect(actions(input(false, false))).toEqual([["syncPath", false]]);
+    expect(actions(input(false, true))).toEqual([["syncPath", true]]);
+    expect(actions(input(true, false, ["jq"]))).toEqual([
+      ["installTools", false],
+      ["syncPath", false],
+    ]);
   });
 
   test("a Mac installs with Homebrew, and leaves the Command Line Tools and Docker to a person", () => {

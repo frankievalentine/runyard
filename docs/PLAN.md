@@ -217,7 +217,9 @@ container:
    item show under Needs attention and on the pool page; the pool form suggests labels.
 2. **Baseline install (done, against fakes and a Debian container):** tool profiles per pool (Essentials, Build tools, Docker) installed as a
    reviewed plan item with the package manager; Docker from distribution packages; blocked with
-   the command on Macs without Homebrew, and on Windows. A pool also installs what its runners
+   the command on Macs without Homebrew. Windows installs with winget at machine scope, with
+   Windows stand-ins (7-Zip, WinLibs GCC, `python`), and gives runners the machine PATH through
+   their `.env` (**Update PATH**, waiting for idle runners). A pool also installs what its runners
    need whatever its profiles: Node.js for Forgejo host mode, Docker for Forgejo Docker mode
    (Linux only, where forgejo-runner runs); readiness warns on Node.js older than 20.
 

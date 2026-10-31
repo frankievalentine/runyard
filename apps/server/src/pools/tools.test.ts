@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { WINDOWS_TOOLS } from "@runyard/core";
 import { macReport } from "../machines/fake.ts";
+import { createMachine } from "../machines/store.ts";
 import type { OperationView, Review } from "./engine.ts";
 import { operationScript } from "./scripts.ts";
 import { finish, setup } from "./test-helpers.ts";
@@ -22,6 +24,40 @@ function readyMac(s: Awaited<ReturnType<typeof setup>>) {
       ? macReport().replace("RFM\tdiag:complete", facts)
       : s.host.answer(stdin),
   );
+}
+
+/**
+ * A Windows machine whose machine PATH has git, curl and tar, with jq only on
+ * the signed-in account's PATH. It answers Runyard's scripts as the fake host.
+ */
+async function readyWindows(s: Awaited<ReturnType<typeof setup>>) {
+  const report = [
+    "RFM\tos\twindows",
+    "RFM\tdisk\tC:\\\t100\t50",
+    "RFM_END",
+    "RFM\tdiag:architecture\tAMD64",
+    "RFM\tdiag:tool_git\tC:\\Program Files\\Git\\cmd\\git.exe",
+    "RFM\tdiag:tool_curl\tC:\\Windows\\System32\\curl.exe",
+    "RFM\tdiag:tool_tar\tC:\\Windows\\System32\\tar.exe",
+    "RFM\tdiag:tool_jq_account\tC:\\Users\\ci\\AppData\\Local\\Microsoft\\WinGet\\Links\\jq.exe",
+    `RFM\tdiag:epoch\t${Math.floor(Date.now() / 1000)}`,
+    "RFM\tdiag:readiness_complete\t1",
+    "RFM\tdiag:complete\t1",
+    "",
+  ].join("\r\n");
+  s.fake.machines.set("ci@win", (stdin) =>
+    Buffer.from(stdin.trim(), "base64").toString("utf8").includes("readiness_complete")
+      ? report
+      : s.host.answer(stdin),
+  );
+  const machine = createMachine(s.deps.db, {
+    name: "Win",
+    sshTarget: "ci@win",
+    transport: "openssh",
+    expectedOs: "windows",
+  });
+  await s.monitor.checkMachines();
+  return machine;
 }
 
 describe("a pool's tool profiles", () => {
@@ -57,6 +93,97 @@ describe("a pool's tool profiles", () => {
     expect(s.host.received.find((r) => r.op === "tools-install")?.env.RF_TOOLS).toBe(
       "unzip zip xz zstd jq gpg",
     );
+  });
+
+  test("Windows installs with winget, and leaves a tool only one account has to a person", async () => {
+    const s = await setup({ account: "acme", type: "Organization", repos: [] });
+    const win = await readyWindows(s);
+    const res = await s.raw("POST", "/api/pools", {
+      name: "win",
+      labels: ["runyard-windows"],
+      machines: [{ machineId: win.id, slots: 1 }],
+      scopes: [{ forgeId: s.forgeId, kind: "org", target: "acme" }],
+      toolProfiles: ["essentials", "build"],
+    });
+    expect(res.status).toBe(201);
+    const review = await s.call<Review>("POST", `/api/machines/${win.id}/review`);
+    expect(review.items.map((i) => [i.action, i.blocked, i.tools ?? null])).toEqual([
+      ["installTools", false, ["unzip", "zip", "xz", "zstd", "gpg", "cc", "make", "python3"]],
+      ["installTools", true, ["jq"]],
+      ["install", false, null],
+    ]);
+    expect(review.items[0]?.reason).toBe(
+      "Install 7-Zip, xz, zstd, gpg, gcc, make, Python 3 with winget.",
+    );
+    expect(review.items[1]?.reason).toContain("Installed for one account only");
+    const op = await finish(
+      s,
+      await s.call<OperationView>("POST", `/api/reviews/${review.id}/execute`, {}),
+    );
+    expect(op.status).toBe("succeeded");
+    expect(s.host.received.filter((r) => r.op !== "probe").map((r) => r.op)).toEqual([
+      "tools-install",
+      "install",
+    ]);
+    expect(s.host.received.find((r) => r.op === "tools-install")?.env.RF_TOOLS).toBe(
+      "unzip zip xz zstd gpg cc make python3",
+    );
+  });
+
+  test("a Windows runner gets the machine's PATH when it's stale, once it's idle", async () => {
+    const s = await setup({ account: "acme", type: "Organization", repos: [] });
+    const win = await readyWindows(s);
+    const res = await s.raw("POST", "/api/pools", {
+      name: "win",
+      labels: ["runyard-windows"],
+      machines: [{ machineId: win.id, slots: 1 }],
+      scopes: [{ forgeId: s.forgeId, kind: "org", target: "acme" }],
+      toolProfiles: [],
+    });
+    expect(res.status).toBe(201);
+    const first = await s.call<Review>("POST", `/api/machines/${win.id}/review`);
+    await finish(s, await s.call<OperationView>("POST", `/api/reviews/${first.id}/execute`, {}));
+    const path = first.items[0]!.path;
+    expect(s.host.dirs.get(path)?.pathCurrent).toBe(true);
+    const runner = {
+      id: 7,
+      name: first.items[0]!.runnerName,
+      os: "Windows",
+      status: "online" as const,
+      labels: first.items[0]!.labels ?? [],
+    };
+    s.fakeGithub.runners.set("acme", [{ ...runner, busy: false }]);
+    await s.github.pollRunners();
+    expect((await s.call<Review>("POST", `/api/machines/${win.id}/review`)).items).toEqual([]);
+
+    // Something changed the machine PATH: the runner's copy is stale.
+    s.host.dirs.get(path)!.pathCurrent = false;
+    s.fakeGithub.runners.set("acme", [{ ...runner, busy: true }]);
+    await s.github.pollRunners();
+    const busy = await s.call<Review>("POST", `/api/machines/${win.id}/review`);
+    expect(busy.items.map((i) => [i.action, i.blocked])).toEqual([["syncPath", true]]);
+
+    s.fakeGithub.runners.set("acme", [{ ...runner, busy: false }]);
+    await s.github.pollRunners();
+    const idle = await s.call<Review>("POST", `/api/machines/${win.id}/review`);
+    expect(idle.items.map((i) => [i.action, i.blocked])).toEqual([["syncPath", false]]);
+    const op = await finish(
+      s,
+      await s.call<OperationView>("POST", `/api/reviews/${idle.id}/execute`, {}),
+    );
+    expect(op.status).toBe("succeeded");
+    expect(s.host.received.at(-1)).toEqual({
+      op: "path-sync",
+      env: { RF_ROOT: path, RF_NAME: runner.name },
+    });
+    expect(s.host.dirs.get(path)?.pathCurrent).toBe(true);
+  });
+
+  test("Windows scripts carry the same winget packages as core", () => {
+    const script = operationScript("tools-install", true, { RF_TOOLS: "jq" });
+    for (const [tool, w] of Object.entries(WINDOWS_TOOLS))
+      if (w.winget)
+        expect(script).toMatch(new RegExp(`\\b${tool}\\s*= "${w.winget.replace(/\./g, "\\.")}"`));
   });
 
   test("every operation puts Homebrew on PATH on a Mac, so runners keep it", () => {

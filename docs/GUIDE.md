@@ -139,7 +139,28 @@ runners, and carries it out with the package manager (apt, dnf, zypper or pacman
 review's sudo) or Homebrew on a Mac. Docker comes from the distribution's own packages and the
 runner's account joins the `docker` group; on a Mac, Docker and the Command Line Tools stay
 manual, and Homebrew must already be installed (readiness shows whether it is). Runyard also puts Homebrew's directories on the
-PATH its Mac runners start with, so jobs find what it installs. A pool also installs what its own
+PATH its Mac runners start with, so jobs find what it installs.
+
+On **Windows**, the review installs with winget, for every account (`--scope machine`), so the
+runner's service finds the tools on the machine PATH. Windows gets these instead of the Unix tools:
+
+| Tool              | Windows gets                                                            | Command in jobs                               |
+| ----------------- | ----------------------------------------------------------------------- | --------------------------------------------- |
+| unzip, zip        | 7-Zip (`7zip.7zip`)                                                     | `7z`, or Windows' own `tar -xf` for zip files |
+| xz, zstd, jq, gpg | `TukaaniProject.XZUtils`, `Meta.Zstandard`, `jqlang.jq`, `GnuPG.GnuPG`  | the same names                                |
+| C compiler        | GCC from WinLibs (`BrechtSanders.WinLibs.POSIX.UCRT`, a few hundred MB) | `gcc`, not `cc`                               |
+| make              | `ezwinports.make`                                                       | `make`                                        |
+| Python 3          | `Python.Python.3.13`                                                    | `python`, not `python3`                       |
+| git               | `Git.Git`                                                               | `git`                                         |
+
+curl and tar come with Windows 10 and 11, and Docker isn't installed on Windows. Readiness looks
+at the machine PATH only: a tool installed for just the signed-in account shows **Only for this
+account**, because the runner's service can't see it, and stays for you to reinstall for every
+account. A Windows runner reads its PATH from the `.env` file in its directory when it starts,
+not from Windows, so whenever the machine PATH changes (a tool install, or your own change), its
+review shows **Update PATH**, which rewrites that file and restarts the runner once it's idle.
+
+A pool also installs what its own
 runners need, whatever you pick: a Forgejo pool that runs jobs on the machine installs Node.js
 (JavaScript actions such as `actions/checkout` run with it), and one that runs them in Docker
 installs Docker. The Tools step lists these as always included. Readiness warns when Node.js is
