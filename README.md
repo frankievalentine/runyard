@@ -48,6 +48,68 @@ here):
 To remove Runyard later, decommission its machines in the dashboard first, then run
 `runyard uninstall --purge`; [Uninstalling](docs/operating.md#uninstalling) has the full order.
 
+## Docker
+
+Runyard also runs in Docker, beside the official Tailscale container, and serves HTTPS on your
+tailnet only. You need:
+
+- Docker with Compose, on Linux, macOS (Docker Desktop or OrbStack) or Windows.
+- A tailnet with **MagicDNS** and **HTTPS Certificates** turned on (the admin console's DNS page).
+- A Tailscale auth key from the admin console's **Settings ▸ Keys**. It doesn't need to be
+  reusable. Leave **Ephemeral** off, or Runyard leaves your tailnet whenever it stops. Turn on
+  **Pre-approved** if your tailnet requires device approval.
+
+```sh
+git clone https://github.com/frankievalentine/runyard && cd runyard
+cp docker/.env.example docker/.env                  # set TS_AUTHKEY and RUNYARD_HOSTNAME
+openssl rand -base64 32 > docker/runyard.key && chmod 600 docker/runyard.key
+docker compose -f docker/compose.yaml up -d
+docker compose -f docker/compose.yaml logs runyard  # the address and setup code
+```
+
+> Images aren't published yet. Until they are, build one with [Vite+](https://viteplus.dev)
+> and [Bun](https://bun.sh): `vp install && vp run release`, then
+> `docker compose -f docker/compose.yaml -f docker/compose.build.yaml up -d --build`.
+
+Open `https://<RUNYARD_HOSTNAME>.<tailnet>.ts.net:7443/`, enter the setup code, and continue from
+step 1 of the Quick start. Back up `docker/runyard.key` somewhere other than this machine: it
+decrypts the credentials Runyard stores. Upgrades, backups and webhooks are in
+[Docker](docs/operating.md#docker).
+
+### Set it up with an agent
+
+Paste this into Claude Code or another coding agent on the machine that will run Runyard:
+
+```text
+Set up Runyard in Docker on this machine, following the Docker section of the README in
+https://github.com/frankievalentine/runyard and docs/operating.md#docker.
+
+1. Check that Docker with Compose v2 is running. Stop and tell me if it isn't.
+2. Clone the repository and work from its root.
+3. Copy docker/.env.example to docker/.env. Ask me for Runyard's machine name on my tailnet
+   (default: runyard) and set RUNYARD_HOSTNAME to it.
+4. Ask me to create a Tailscale auth key (admin console, Settings > Keys: not reusable, not
+   ephemeral, pre-approved if my tailnet requires device approval) and to paste it into
+   docker/.env after TS_AUTHKEY= myself. Never ask for the key in this chat, and never print
+   docker/.env. Wait until I say it's done.
+5. If docker/runyard.key doesn't exist, create it with
+   `openssl rand -base64 32 > docker/runyard.key && chmod 600 docker/runyard.key`.
+   Never overwrite an existing one.
+6. Start it with `docker compose -f docker/compose.yaml up -d`. If the image can't be pulled
+   because it isn't published yet, check that vp (Vite+) and bun are installed, run
+   `vp install && vp run release`, then
+   `docker compose -f docker/compose.yaml -f docker/compose.build.yaml up -d --build`.
+7. Wait until `docker compose -f docker/compose.yaml ps` shows runyard as healthy and its log
+   shows "listening on https://...ts.net:7443/ (tailnet)". If the log says the tailnet can't
+   issue HTTPS certificates, tell me to turn on MagicDNS and HTTPS Certificates on the DNS
+   page of the Tailscale admin console, then check again.
+8. Tell me the dashboard address and the setup code from
+   `docker compose -f docker/compose.yaml logs runyard`, and remind me to back up
+   docker/runyard.key somewhere other than this machine.
+
+Don't change my Tailscale settings, open ports, or connect to any other machine.
+```
+
 ## Requirements
 
 - **The Runyard host:** macOS on Apple silicon, Linux (x64 or arm64, glibc) or Windows x64, or

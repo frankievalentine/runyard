@@ -35,9 +35,11 @@ version. Open dashboard tabs say when the server is serving a newer dashboard th
 
 `docker/compose.yaml` runs Runyard beside the official Tailscale container. Runyard shares that
 container's network and serves HTTPS only on your tailnet, at
-`https://<RUNYARD_HOSTNAME>.<tailnet>.ts.net:7443/`. You need a Tailscale auth key (Tailscale's
-admin console, **Settings ▸ Keys**), and MagicDNS and HTTPS Certificates turned on for your
-tailnet.
+`https://<RUNYARD_HOSTNAME>.<tailnet>.ts.net:7443/`. You need MagicDNS and HTTPS Certificates
+turned on for your tailnet, and a Tailscale auth key (Tailscale's admin console, **Settings ▸
+Keys**). The key is used once, so it doesn't need to be reusable. Leave **Ephemeral** off, or
+Runyard leaves your tailnet whenever its container stops, and turn on **Pre-approved** if your
+tailnet requires device approval.
 
 ```sh
 cp docker/.env.example docker/.env                 # set TS_AUTHKEY and RUNYARD_HOSTNAME
