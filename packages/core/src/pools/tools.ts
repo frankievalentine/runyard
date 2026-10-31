@@ -60,6 +60,8 @@ export function profileTools(profiles: readonly ToolProfile[]): ToolId[] {
  * How Windows provides each tool: the winget package Runyard installs (null when
  * Windows ships it, or Runyard doesn't install it there) and the command the
  * readiness check looks for. tools-install.ps1 carries the same packages.
+ * Python comes from uv (installed with winget where it's missing), which puts
+ * Python 3.13 in C:\\ProgramData\\Runyard\\python beside any copy an account has.
  */
 export const WINDOWS_TOOLS: Record<ToolId, { winget: string | null; command: string }> = {
   git: { winget: "Git.Git", command: "git" },
@@ -73,16 +75,19 @@ export const WINDOWS_TOOLS: Record<ToolId, { winget: string | null; command: str
   gpg: { winget: "GnuPG.GnuPG", command: "gpg" },
   cc: { winget: "BrechtSanders.WinLibs.POSIX.UCRT", command: "gcc" },
   make: { winget: "ezwinports.make", command: "make" },
-  python3: { winget: "Python.Python.3.13", command: "python" },
+  python3: { winget: "astral-sh.uv", command: "python" },
   docker: { winget: null, command: "docker" },
   node: { winget: "OpenJS.NodeJS.LTS", command: "node" },
 };
 
-/** The winget command that installs a tool for every account on a Windows machine. */
+/** The winget command that installs a tool for every account on a Windows machine; none for Python, which uv installs. */
 export function wingetCommand(tool: ToolId): string | null {
   const id = WINDOWS_TOOLS[tool].winget;
-  return id ? `winget install -e --id ${id} --scope machine` : null;
+  return id && !UV_INSTALLS.has(tool) ? `winget install -e --id ${id} --scope machine` : null;
 }
+
+/** Tools Runyard installs on Windows with uv, beside any copy one account has. */
+const UV_INSTALLS: ReadonlySet<ToolId> = new Set(["python3"]);
 
 /** A tool as people know it, for review lines: Node.js rather than its command, and on Windows what stands in for it. */
 export function toolName(tool: ToolId, os?: OsFamily | null): string {
@@ -90,7 +95,7 @@ export function toolName(tool: ToolId, os?: OsFamily | null): string {
   if (os !== "windows") return tool;
   if (tool === "unzip" || tool === "zip") return "7-Zip";
   if (tool === "cc") return "gcc";
-  if (tool === "python3") return "Python 3";
+  if (tool === "python3") return "Python 3.13";
   return tool;
 }
 
@@ -202,8 +207,11 @@ function windowsInstallPlan(
   missing: ToolId[],
 ): { install: ToolId[]; blocked: { tools: ToolId[]; reason: string }[] } {
   const blocked: { tools: ToolId[]; reason: string }[] = [];
+  // uv's Python sits beside an account's own copy, so that one doesn't stand in the way.
   const accountOnly = missing.filter(
-    (t) => readiness.items.find((i) => i.id === `tool-${t}`)?.value === ACCOUNT_ONLY,
+    (t) =>
+      !UV_INSTALLS.has(t) &&
+      readiness.items.find((i) => i.id === `tool-${t}`)?.value === ACCOUNT_ONLY,
   );
   if (accountOnly.length)
     blocked.push({
@@ -217,4 +225,15 @@ function windowsInstallPlan(
   if (rest.includes("docker"))
     blocked.push({ tools: ["docker"], reason: "Runyard installs Docker on Linux only." });
   return { install: rest.filter((t) => WINDOWS_TOOLS[t].winget), blocked };
+}
+
+/** How a review installs Windows tools, for its line: "with winget, and Python 3.13 with uv". */
+export function windowsInstallSentence(tools: readonly ToolId[]): string {
+  const winget = tools.filter((t) => !UV_INSTALLS.has(t));
+  const uv = tools.filter((t) => UV_INSTALLS.has(t));
+  const parts = [
+    ...(winget.length ? [`${toolList(winget, "windows")} with winget`] : []),
+    ...(uv.length ? [`${toolList(uv, "windows")} with uv`] : []),
+  ];
+  return `Install ${parts.join(", and ")}.`;
 }

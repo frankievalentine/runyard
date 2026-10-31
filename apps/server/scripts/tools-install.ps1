@@ -1,7 +1,8 @@
 # Installs the tools a machine's pools call for and its last check found
 # missing: RF_TOOLS, space-separated, from Runyard's fixed list. Uses winget
 # with machine scope, so the runner's service account finds them on the
-# machine PATH. The packages match WINDOWS_TOOLS in packages/core.
+# machine PATH. The packages match WINDOWS_TOOLS in packages/core. Python comes
+# from uv, into C:\ProgramData\Runyard\python beside any copy an account has.
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
@@ -15,7 +16,7 @@ $packages = @{
     gpg     = "GnuPG.GnuPG"
     cc      = "BrechtSanders.WinLibs.POSIX.UCRT"
     make    = "ezwinports.make"
-    python3 = "Python.Python.3.13"
+    python3 = "astral-sh.uv"
     node    = "OpenJS.NodeJS.LTS"
 }
 $commands = @{
@@ -82,6 +83,25 @@ foreach ($id in ($tools | ForEach-Object { $packages[$_] } | Select-Object -Uniq
     }
 }
 
+# Python 3.13 from uv, with python.exe and python3.exe in its bin folder on the machine PATH.
+if (($tools -contains "python3") -and -not ($failed | Where-Object { $_.StartsWith("astral-sh.uv ") })) {
+    $uv = Join-Path $env:ProgramFiles "WinGet\Links\uv.exe"
+    if (-not (Test-Path -LiteralPath $uv)) {
+        $uv = (Get-Command uv.exe -All -ErrorAction SilentlyContinue | Where-Object { $_.Source -notlike "*\WindowsApps\*" } | Select-Object -First 1).Source
+    }
+    if (-not $uv) {
+        $failed += "Python 3.13 (uv isn't on this machine)"
+    } else {
+        $pythonRoot = Join-Path $env:ProgramData "Runyard\python"
+        $env:UV_PYTHON_INSTALL_DIR = $pythonRoot
+        $env:UV_PYTHON_BIN_DIR = Join-Path $pythonRoot "bin"
+        Write-Output "Installing Python 3.13 with uv into $pythonRoot"
+        & $uv python install 3.13 --default
+        if ($LASTEXITCODE -ne 0) { $failed += "Python 3.13 (uv exit code $LASTEXITCODE)" }
+        else { Add-MachinePath $env:UV_PYTHON_BIN_DIR }
+    }
+}
+
 # What the runner's service will see: the machine PATH, less folders inside user profiles
 # (as machine-readiness.ps1 counts them).
 $profiles = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList").ProfilesDirectory.TrimEnd("\") + "\"
@@ -90,6 +110,7 @@ $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine") -split "
 $unseen = @()
 foreach ($tool in $tools) {
     if ($failed | Where-Object { $_.StartsWith("$($packages[$tool]) ") }) { continue }
+    if ($tool -eq "python3" -and ($failed | Where-Object { $_.StartsWith("Python 3.13 ") })) { continue }
     $found = $machinePath | Where-Object { Test-Path -LiteralPath (Join-Path $_ "$($commands[$tool]).exe") } | Select-Object -First 1
     if (-not $found) { $unseen += $commands[$tool] }
 }
@@ -97,4 +118,4 @@ $problems = @()
 if ($failed) { $problems += "Couldn't install $($failed -join ', ')." }
 if ($unseen) { $problems += "Installed, but not on the machine PATH: $(($unseen | Select-Object -Unique) -join ', ')." }
 if ($problems) { throw ($problems -join " ") }
-Write-Output "Installed with winget: $(($tools | ForEach-Object { $packages[$_] } | Select-Object -Unique) -join ', ')"
+Write-Output "Installed: $(($tools | ForEach-Object { if ($_ -eq 'python3') { 'Python 3.13 (uv)' } else { $packages[$_] } } | Select-Object -Unique) -join ', ')"

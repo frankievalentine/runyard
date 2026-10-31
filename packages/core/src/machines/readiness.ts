@@ -82,7 +82,7 @@ const WINDOWS_TITLES: Record<string, string> = {
   unzip: "unzip (7-Zip)",
   zip: "zip (7-Zip)",
   cc: "C compiler (gcc)",
-  python3: "Python 3 (python)",
+  python3: "Python 3 (python, from uv)",
 };
 const WINDOWS_RECOMMENDED: Tool[] = POSIX_RECOMMENDED.map((t) => ({
   ...t,
@@ -96,6 +96,8 @@ function howToInstall(os: OsFamily, tool: Tool): { note?: string; command?: stri
       ? { note: "Comes with the Command Line Tools.", command: "xcode-select --install" }
       : { command: `brew install ${tool.brew ?? tool.fact}` };
   if (os === "windows") {
+    if (tool.fact === "python3")
+      return { note: "A pool with Build tools installs Python 3.13 with uv for every account." };
     const command = wingetCommand(tool.fact as ToolId);
     return command ? { command } : { note: "It comes with Windows 10 and 11." };
   }
@@ -135,7 +137,11 @@ export function evaluateReadiness(
         title: t.title,
         status: "warn",
         value: ACCOUNT_ONLY,
-        detail: `${t.why} The runner's service can't see it: install it for every account.`,
+        detail: `${t.why} The runner's service can't see it: ${
+          fix.note
+            ? fix.note.charAt(0).toLowerCase() + fix.note.slice(1)
+            : "install it for every account."
+        }`,
         ...(command ? { command } : {}),
       });
       return;

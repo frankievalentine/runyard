@@ -144,14 +144,14 @@ PATH its Mac runners start with, so jobs find what it installs.
 On **Windows**, the review installs with winget, for every account (`--scope machine`), so the
 runner's service finds the tools on the machine PATH. Windows gets these instead of the Unix tools:
 
-| Tool              | Windows gets                                                            | Command in jobs                               |
-| ----------------- | ----------------------------------------------------------------------- | --------------------------------------------- |
-| unzip, zip        | 7-Zip (`7zip.7zip`)                                                     | `7z`, or Windows' own `tar -xf` for zip files |
-| xz, zstd, jq, gpg | `TukaaniProject.XZUtils`, `Meta.Zstandard`, `jqlang.jq`, `GnuPG.GnuPG`  | the same names                                |
-| C compiler        | GCC from WinLibs (`BrechtSanders.WinLibs.POSIX.UCRT`, a few hundred MB) | `gcc`, not `cc`                               |
-| make              | `ezwinports.make`                                                       | `make`                                        |
-| Python 3          | `Python.Python.3.13`                                                    | `python`, not `python3`                       |
-| git               | `Git.Git`                                                               | `git`                                         |
+| Tool              | Windows gets                                                                                            | Command in jobs                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| unzip, zip        | 7-Zip (`7zip.7zip`)                                                                                     | `7z`, or Windows' own `tar -xf` for zip files |
+| xz, zstd, jq, gpg | `TukaaniProject.XZUtils`, `Meta.Zstandard`, `jqlang.jq`, `GnuPG.GnuPG`                                  | the same names                                |
+| C compiler        | GCC from WinLibs (`BrechtSanders.WinLibs.POSIX.UCRT`, a few hundred MB)                                 | `gcc`, not `cc`                               |
+| make              | `ezwinports.make`                                                                                       | `make`                                        |
+| Python 3          | Python 3.13 from uv (`astral-sh.uv`) in `C:\ProgramData\Runyard\python`, beside any copy an account has | `python` or `python3`                         |
+| git               | `Git.Git`                                                                                               | `git`                                         |
 
 curl and tar come with Windows 10 and 11, and Docker isn't installed on Windows. Readiness looks
 at the machine PATH only, leaving out folders inside user profiles (such as the WindowsApps

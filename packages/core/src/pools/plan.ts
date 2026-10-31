@@ -2,7 +2,7 @@ import type { Readiness } from "../machines/readiness.ts";
 import type { OsFamily } from "../machines/model.ts";
 import { scopeKey } from "../scope.ts";
 import type { RunnerKind, Scope } from "../model.ts";
-import { toolInstallPlan, toolList, type ToolId } from "./tools.ts";
+import { toolInstallPlan, toolList, windowsInstallSentence, type ToolId } from "./tools.ts";
 import {
   isActive,
   serviceModeFor,
@@ -418,7 +418,9 @@ function planTools(input: PlanInput): PlanItem[] {
       ? [
           item(
             install,
-            `Install ${toolList(install, t.os)} with ${t.os === "macos" ? "Homebrew" : t.os === "windows" ? "winget" : "the package manager"}.`,
+            t.os === "windows"
+              ? windowsInstallSentence(install)
+              : `Install ${toolList(install, t.os)} with ${t.os === "macos" ? "Homebrew" : "the package manager"}.`,
 
             false,
           ),

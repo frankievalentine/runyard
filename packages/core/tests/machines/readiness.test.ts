@@ -77,7 +77,11 @@ describe("runner readiness", () => {
       command: "winget install -e --id 7zip.7zip --scope machine",
     });
     expect(item("tool-cc")?.title).toBe("C compiler (gcc)");
-    expect(item("tool-python3")?.command).toContain("Python.Python.3.13");
+    expect(item("tool-python3")).toMatchObject({
+      title: "Python 3 (python, from uv)",
+      detail: expect.stringContaining("installs Python 3.13 with uv"),
+    });
+    expect(item("tool-python3")?.command).toBeUndefined();
     expect(item("tool-jq")).toMatchObject({
       status: "warn",
       value: "Only for this account",

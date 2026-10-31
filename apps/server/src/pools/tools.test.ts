@@ -114,7 +114,7 @@ describe("a pool's tool profiles", () => {
       ["configureCleanup", false, null],
     ]);
     expect(review.items[0]?.reason).toBe(
-      "Install 7-Zip, xz, zstd, gpg, gcc, make, Python 3 with winget.",
+      "Install 7-Zip, xz, zstd, gpg, gcc, make with winget, and Python 3.13 with uv.",
     );
     expect(review.items[1]?.reason).toContain("Installed for one account only");
     const op = await finish(

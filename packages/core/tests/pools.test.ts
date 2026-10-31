@@ -501,6 +501,23 @@ describe("installing a pool's tools", () => {
       },
     });
     expect(items[0]?.reason).toBe("Install 7-Zip, gcc with winget.");
+    // uv's Python sits beside a copy one account has, so that copy doesn't block it.
+    const accountPython: Readiness = {
+      ...readiness([]),
+      items: [
+        {
+          id: "tool-python3",
+          tier: "recommended",
+          title: "Python 3",
+          status: "warn",
+          value: ACCOUNT_ONLY,
+          detail: "",
+        },
+      ],
+    };
+    expect(plan("windows", accountPython, ["build"])).toEqual([
+      ["installTools", false, ["cc", "make", "python3"]],
+    ]);
     expect(items[0]?.serviceMode).toBe("windows-service");
   });
 
