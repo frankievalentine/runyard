@@ -185,8 +185,9 @@ For 5.2, send the pool page's One-job runners entry and the machine's history.
       administrator PowerShell, add a persistent pool, review and run. Expect a Windows service
       runner online.
 - [ ] **11.2** `install.ps1` and `runyard service install` on Windows.
-- [ ] **11.3** Docker: `docker/compose.yaml` with a real `TS_AUTHKEY`. Expect the dashboard on
-      its tailnet address and the setup code in `docker compose logs runyard`.
+- [x] **11.3** Docker: `docker/compose.yaml` with a real `TS_AUTHKEY`. Expect the dashboard on
+      its tailnet address and the setup code in `docker compose logs runyard`. _Passed 2026-10-31
+      in OrbStack, with a Forgejo connection and the LXC added (connect only)._
 - [x] **11.4** Windows tools: a pool with **Essentials** and **Build tools** on the Windows machine.
       Expect its review to show "Install 7-Zip, xz, zstd, gcc, make with winget, and Python 3.13 with uv"
       (less what's there), then the runner install. Run it; expect Readiness to show them all
@@ -221,13 +222,23 @@ This is also a test: follow the guide's Uninstalling order and check each step.
 
 - [ ] **12.1** Try **Remove** on the LXC: expect **Decommission first**, naming its runners and
       runner software. Decommission it, review and run: expect every runner deregistered on
-      GitHub and the runner software deleted. Then **Remove** works.
+      GitHub and Forgejo and the runner software deleted. Then **Remove** works.
 - [ ] **12.2** Run the teardown command from the Remove dialog on the LXC as root with
       `--prepared`: expect the `runyard` account, its sudoers file and home gone, and SSH as
       `runyard` refused afterwards.
-- [ ] **12.3** Remove the GitHub App in Runyard, then delete it on GitHub. Revoke the test
-      tokens.
-- [ ] **12.4** `runyard uninstall --dry-run --purge`, read it, then without `--dry-run`. Expect
+- [ ] **12.3** The Mac runner machine: decommission, review and run, **Remove**, then its teardown
+      command as the runners' account. Expect the LaunchAgents and runner folder gone, and
+      Runyard's key gone from `authorized_keys`. Tools Homebrew installed stay.
+- [ ] **12.4** The Windows machine: decommission, review and run (expect the Windows services
+      gone), **Remove**, then its teardown command in an administrator PowerShell. Expect
+      `C:\ProgramData\Runyard\runners` gone and Runyard's key gone from
+      `administrators_authorized_keys`. `C:\ProgramData\Runyard\python` (uv's Python) and the
+      winget tools stay.
+- [ ] **12.5** Connections: remove the Forgejo connection and the GitHub App in Runyard, then
+      delete the GitHub App on GitHub and revoke the Forgejo tokens. **Disconnect** boat.dev and
+      delete its key. Run `tailscale funnel reset`. Expect Runyard to refuse any of these while
+      runners remain, naming them.
+- [ ] **12.6** `runyard uninstall --dry-run --purge`, read it, then without `--dry-run`. Expect
       the LaunchAgent gone, `runyard` gone from `~/.local/bin` and the data directory deleted.
 
 Then destroy the LXC and update docs/PLAN.md's Pending live verification with what passed.
