@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, test } from "bun:test";
 import type { JobCounts, JobRecord } from "@runyard/core";
 import { inspectionScript } from "../machines/ssh.ts";
+import { createMachine } from "../machines/store.ts";
 import { setup, type Setup } from "../pools/test-helpers.ts";
 
 type Jobs = { counts: JobCounts; jobs: JobRecord[] };
@@ -189,6 +190,39 @@ describe("run history", () => {
   test("the minute check asks only for log lines since the last one read", () => {
     expect(inspectionScript(false, [], 1_800_000_000)).toContain("RUNYARD_JOBS_SINCE=1800000000");
     expect(inspectionScript(false, [], 1_800_000_000)).toContain(".runyard-jobs.log");
-    expect(inspectionScript(true, [], 1)).not.toContain("RUNYARD_JOBS_SINCE");
+    expect(inspectionScript(true, [], 1_800_000_000)).toContain("$RunyardJobsSince = 1800000000");
+    expect(inspectionScript(true, [], 1)).toContain("Runyard\\runners\\.runyard-jobs.log");
+  });
+
+  test("a Windows machine's job log reaches run history through the minute check", async () => {
+    const s = await setup({ account: "acme", type: "Organization", repos: ["acme/app"] });
+    const at = Math.floor(Date.now() / 1000);
+    s.fake.machines.set(
+      "ci@win",
+      [
+        "RFM\tos\twindows",
+        "RFM\tdisk\tC:\\\t100\t50",
+        "RFM_END",
+        "RFM\tdiag:complete\t1",
+        `RFJ\t${at}\tstarted\twin-win-01\tacme/app\t91\t1\tCI`,
+        `RFJ\t${at + 60}\tcompleted\twin-win-01\tacme/app\t91\t1\tCI`,
+        "",
+      ].join("\r\n"),
+    );
+    const win = createMachine(s.deps.db, {
+      name: "Win",
+      sshTarget: "ci@win",
+      transport: "openssh",
+      expectedOs: "windows",
+    });
+    await s.monitor.checkMachines();
+    const { jobs } = await s.call<Jobs>("GET", `/api/jobs?machine=${win.id}`);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({
+      runnerName: "win-win-01",
+      repo: "acme/app",
+      workflow: "CI",
+      hook: "completed",
+    });
   });
 });

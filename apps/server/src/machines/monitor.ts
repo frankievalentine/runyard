@@ -293,7 +293,7 @@ export class MachineMonitor {
         this.deps.jobLog?.since(machine.id) ?? 0,
       );
       // Job log lines are run history's, not the report's.
-      const lines = output.split("\n");
+      const lines = output.split(/\r?\n/);
       const tagged = (tag: string) =>
         lines.filter((l) => l.startsWith(`${tag}\t`)).map((l) => l.slice(tag.length + 1));
       const jobLines = tagged("RFJ");

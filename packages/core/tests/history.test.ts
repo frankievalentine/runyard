@@ -98,6 +98,17 @@ test("counts for the summary line", () => {
   ).toEqual({ passed: 2, failed: 2, cancelled: 1, running: 1, unknown: 1 });
 });
 
+test("hook log lines from Windows parse without their carriage returns", () => {
+  expect(
+    parseHookLines(
+      "1800000000\tstarted\twin-01\tacme/app\t9001\t1\tCI\r\n1800000030\tcompleted\twin-01\tacme/app\t9001\t1\t\r\n",
+    ),
+  ).toMatchObject([
+    { event: "started", workflow: "CI" },
+    { event: "completed", workflow: null },
+  ]);
+});
+
 test("hook log lines parse, and malformed ones are skipped", () => {
   expect(
     parseHookLines(

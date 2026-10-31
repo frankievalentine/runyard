@@ -169,6 +169,31 @@ export function evaluateReadiness(
         : "git, clang and make for builds on macOS. Installing opens a dialog on the Mac.",
       ...(has("xcode_clt") ? {} : { command: "xcode-select --install" }),
     });
+  if (windows && facts.ps_policy) {
+    const policy = facts.ps_policy;
+    const ok = ["RemoteSigned", "Unrestricted", "Bypass"].includes(policy);
+    const source = facts.ps_policy_source;
+    items.push({
+      id: "powershell-scripts",
+      tier: "required",
+      title: "PowerShell scripts",
+      status: ok ? "ok" : "missing",
+      value:
+        source === "group"
+          ? `${policy} (Group Policy)`
+          : source === "default"
+            ? `${policy} (Windows default)`
+            : policy,
+      detail: ok
+        ? "The runner's PowerShell steps and hooks can run."
+        : source === "group"
+          ? "The runner runs PowerShell steps and hooks as script files, which this blocks. Group Policy sets it, so change it there."
+          : "The runner runs PowerShell steps and hooks as script files, which this blocks. Allow local scripts in an administrator PowerShell.",
+      ...(ok || source === "group"
+        ? {}
+        : { command: "Set-ExecutionPolicy RemoteSigned -Scope LocalMachine" }),
+    });
+  }
   if (needs.forgejoHost) {
     tool(NODE, "required");
     const version = facts.tool_node_version ?? "";

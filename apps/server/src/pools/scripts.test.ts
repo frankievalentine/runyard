@@ -249,8 +249,8 @@ describe("forgejo-runner scripts", () => {
 
   test("the Windows probe says whether each runner's .env has the machine's PATH", () => {
     const targets = [
-      { path: "C:\\runyard-runners\\win\\01" },
-      { path: "C:\\runyard-runners\\win\\02" },
+      { path: "C:\\ProgramData\\Runyard\\runners\\win\\01" },
+      { path: "C:\\ProgramData\\Runyard\\runners\\win\\02" },
     ];
     const out = parseProbe(
       `[{"index":0,"configured":true,"service":"running","version":"2.329.0","agent":"win-01","pathCurrent":false},` +

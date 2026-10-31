@@ -167,11 +167,11 @@ export function planMachine(input: PlanInput): PlanItem[] {
       ...(labels ? { labels } : {}),
     });
     const cleanupItem = (mode: CleanupMode, blocked: boolean): PlanItem => {
-      if (d.serviceMode === "windows-service" && mode !== "off")
+      if (d.serviceMode === "windows-service" && mode === "docker")
         return {
           ...item(
             "unsupportedPlatform",
-            "Cleanup after each job runs on Linux and macOS runners for now.",
+            "Pruning Docker data after each job runs on Linux and macOS runners.",
             true,
           ),
           cleanup: mode,
@@ -187,8 +187,8 @@ export function planMachine(input: PlanInput): PlanItem[] {
         cleanup: mode,
       };
     };
-    // Runyard's job hooks record every job for run history; Linux and macOS GitHub runners.
-    const hooked = d.runnerKind === "actions" && d.serviceMode !== "windows-service";
+    // Runyard's job hooks record every job for run history, on every GitHub runner.
+    const hooked = d.runnerKind === "actions";
 
     if (d.runnerKind === "forgejo" && d.serviceMode !== "systemd") {
       items.push(item("unsupportedPlatform", "forgejo-runner is only published for Linux.", true));
@@ -233,9 +233,7 @@ export function planMachine(input: PlanInput): PlanItem[] {
         ),
       );
       // A new runner starts without Runyard's hooks; set them up right after the install.
-      // (On Windows only a cleanup asked for is noted, as not supported there yet.)
-      if (hooked || (d.cleanup && d.cleanup !== "off"))
-        items.push(cleanupItem(d.cleanup ?? "off", false));
+      if (hooked) items.push(cleanupItem(d.cleanup ?? "off", false));
       continue;
     }
     if (!remote && configured) {

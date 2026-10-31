@@ -21,6 +21,7 @@ import toolsInstall from "../../scripts/tools-install.sh" with { type: "text" };
 import toolsInstallPs1 from "../../scripts/tools-install.ps1" with { type: "text" };
 import pathPs1 from "../../scripts/runner-path.ps1" with { type: "text" };
 import cleanupConfigure from "../../scripts/cleanup-configure.sh" with { type: "text" };
+import cleanupConfigurePs1 from "../../scripts/cleanup-configure.ps1" with { type: "text" };
 import jobHooks from "../../scripts/job-hooks.sh" with { type: "text" };
 
 export type Operation =
@@ -88,10 +89,7 @@ const SCRIPTS: Record<Operation, { posix: string; windows: string }> = {
     posix: "echo 'Only Windows runners take PATH from .env' >&2; exit 2",
     windows: pathPs1,
   },
-  "cleanup-configure": {
-    posix: cleanupConfigure,
-    windows: "throw 'cleanup after each job needs Linux or macOS'",
-  },
+  "cleanup-configure": { posix: cleanupConfigure, windows: cleanupConfigurePs1 },
 };
 
 /**
@@ -155,7 +153,7 @@ export function probeScript(
       (t, i) => `$path = ${psQuote(t.path)}
 $configured = Test-Path -LiteralPath (Join-Path $path '.runner')
 $state = if ($configured) { 'uninstalled' } else { 'missing' }
-$version = $null; $agent = $null; $pathCurrent = $null
+$version = $null; $agent = $null; $pathCurrent = $null; $cleanup = ''; $history = $false
 if ($configured) {
   $agent = (Get-Content -LiteralPath (Join-Path $path '.runner') -Raw | ConvertFrom-Json).agentName
   $needle = $path.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
@@ -166,8 +164,11 @@ if ($configured) {
   $envFile = Join-Path $path '.env'
   $envPath = if (Test-Path -LiteralPath $envFile) { Get-Content -LiteralPath $envFile | Where-Object { $_ -like 'PATH=*' } | Select-Object -Last 1 }
   $pathCurrent = $envPath -eq "PATH=$machinePath"
+  $cleanupFile = Join-Path $path '.runyard-cleanup'
+  if (Test-Path -LiteralPath $cleanupFile) { $cleanup = (Get-Content -LiteralPath $cleanupFile -Raw).Trim() }
+  $history = Test-Path -LiteralPath (Join-Path $path '.runyard-history')
 }
-$rows += [pscustomobject]@{ index = ${i}; configured = $configured; service = $state; version = $version; agent = $agent; pathCurrent = $pathCurrent }`,
+$rows += [pscustomobject]@{ index = ${i}; configured = $configured; service = $state; version = $version; agent = $agent; pathCurrent = $pathCurrent; cleanup = $cleanup; history = $history }`,
     );
     return [
       "$ErrorActionPreference = 'Stop'",
@@ -248,6 +249,8 @@ export function parseProbe(
         version: string | null;
         agent: string | null;
         pathCurrent?: boolean | null;
+        cleanup?: string | null;
+        history?: boolean | null;
       };
       rows.push({
         index: row.index,
@@ -255,6 +258,9 @@ export function parseProbe(
         service: row.service,
         version: row.version || null,
         agent: row.agent || null,
+        ...(row.configured
+          ? { cleanup: cleanupMode(row.cleanup ?? undefined), history: row.history === true }
+          : {}),
         ...(typeof row.pathCurrent === "boolean" ? { pathCurrent: row.pathCurrent } : {}),
       });
     }

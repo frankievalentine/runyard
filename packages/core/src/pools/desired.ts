@@ -28,7 +28,7 @@ export function runnerLabel(name: string): string {
 
 /** The directory every Runyard runner lives under; the install script refuses anything else. */
 export function runnerRoot(os: OsFamily): string {
-  return os === "windows" ? "C:\\runyard-runners" : "~/runyard-runners";
+  return os === "windows" ? "C:\\ProgramData\\Runyard\\runners" : "~/runyard-runners";
 }
 
 /**

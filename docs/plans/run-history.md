@@ -2,7 +2,8 @@
 
 Status: **built for GitHub** on 2026-10-29: webhooks, runner hooks, the result reads, the Jobs
 sections, the overview's counts, Show log, and lost runners as Needs attention items. **Built for
-Forgejo** on 2026-10-30 (see Forgejo below). Decided with the user on 2026-10-29 during live
+Forgejo** on 2026-10-30 (see Forgejo below). **Windows** GitHub runners got the hooks as `.ps1`
+scripts on 2026-10-30, logging to `C:\ProgramData\Runyard\runners\.runyard-jobs.log`. Decided with the user on 2026-10-29 during live
 testing.
 
 ## Why

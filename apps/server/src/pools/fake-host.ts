@@ -109,6 +109,8 @@ export class FakeRunnerHost {
           version: d?.configured ? "2.329.0" : null,
           agent: d?.name ?? null,
           pathCurrent: d?.configured ? Boolean(d.pathCurrent) : null,
+          cleanup: d?.cleanup ?? "",
+          history: Boolean(d?.history),
         };
       });
       return `${JSON.stringify(rows)}\r\nRF_PROBE_END\r\n`;

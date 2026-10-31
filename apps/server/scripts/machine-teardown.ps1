@@ -3,13 +3,13 @@
 # review first). Run as the account Runyard used (an administrator account
 # needs an administrator PowerShell):
 #   irm <runyard>/api/machine-setup/teardown.ps1 | iex
-# It deletes C:\runyard-runners and Runyard's key from the file Windows OpenSSH
+# It deletes C:\ProgramData\Runyard\runners (and Runyard's folder there, once empty) and Runyard's key from the file Windows OpenSSH
 # reads for this account, and refuses while any runner is still configured.
 $ErrorActionPreference = 'Stop'
 $key = '__RUNYARD_KEY__'
 $body = ($key -split ' ')[1]
 
-$root = 'C:\runyard-runners'
+$root = Join-Path $env:ProgramData 'Runyard\runners'
 if (Test-Path $root) {
   $configured = Get-ChildItem -Path $root -Recurse -Force -Filter '.runner' -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($configured) {
@@ -19,6 +19,8 @@ if (Test-Path $root) {
   Remove-Item -Recurse -Force $root
   Write-Host "Removed $root."
 }
+$parent = Join-Path $env:ProgramData 'Runyard'
+if ((Test-Path $parent) -and -not (Get-ChildItem -Force $parent | Select-Object -First 1)) { Remove-Item -Force $parent }
 
 $isAdminMember = (& whoami /groups) -match 'S-1-5-32-544'
 $files = @(Join-Path $HOME '.ssh\authorized_keys')

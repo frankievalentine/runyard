@@ -86,7 +86,7 @@ describe("desiredRunners", () => {
       machines,
     );
     expect(runners.map((r) => [r.path, r.serviceMode])).toEqual([
-      ["C:\\runyard-runners\\mac\\01", "windows-service"],
+      ["C:\\ProgramData\\Runyard\\runners\\mac\\01", "windows-service"],
     ]);
   });
 
@@ -592,23 +592,29 @@ describe("installing a pool's tools", () => {
   });
 });
 
-test("cleanup applies to GitHub runners, and waits on Windows", () => {
-  const p = pool({ cleanup: "workspace", machines: [{ machineId: "m2", slots: 1 }] });
-  const [d] = desiredRunners([p], machines) as [DesiredRunner];
-  expect(d.cleanup).toBe("workspace");
-  const items = planMachine({
-    machineId: "m2",
-    desired: [d],
-    registrations: [],
-    local: new Map(),
-    github: new Map(),
-    policies: new Map([[scopeKey(org), { ok: true }]]),
-    machineError: null,
-    githubErrors: new Map(),
-  });
-  expect(items.map((i) => [i.action, i.blocked])).toEqual([
-    ["install", false],
-    ["unsupportedPlatform", true],
+test("cleanup applies to GitHub runners; Windows clears workspaces but can't prune Docker", () => {
+  const plan = (cleanup: "workspace" | "docker") => {
+    const p = pool({ cleanup, machines: [{ machineId: "m2", slots: 1 }] });
+    const [d] = desiredRunners([p], machines) as [DesiredRunner];
+    expect(d.cleanup).toBe(cleanup);
+    return planMachine({
+      machineId: "m2",
+      desired: [d],
+      registrations: [],
+      local: new Map(),
+      github: new Map(),
+      policies: new Map([[scopeKey(org), { ok: true }]]),
+      machineError: null,
+      githubErrors: new Map(),
+    }).map((i) => [i.action, i.blocked, i.cleanup]);
+  };
+  expect(plan("workspace")).toEqual([
+    ["install", false, undefined],
+    ["configureCleanup", false, "workspace"],
+  ]);
+  expect(plan("docker")).toEqual([
+    ["install", false, undefined],
+    ["unsupportedPlatform", true, "docker"],
   ]);
 });
 

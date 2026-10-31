@@ -204,7 +204,7 @@ sidebar ("2 changes"), under Needs attention, and on its button: **Review 2 chan
 that out from its own records and the forges' runner lists; the review itself reads the machine
 again and may find more, such as a runner changed by hand.
 
-Runners live under `~/runyard-runners` (`C:\runyard-runners` on
+Runners live under `~/runyard-runners` (`C:\ProgramData\Runyard\runners` on
 Windows), as a LaunchAgent on macOS (it starts after the user logs in), a systemd service on
 Linux, or a Windows service.
 
@@ -233,11 +233,16 @@ but lets one job affect the next. A persistent pool's **After each job** setting
 job's workspace, or the workspace and unused Docker data (stopped containers, dangling images,
 unused networks and anonymous volumes). Runyard sets it up through GitHub's job hooks, the same
 ones that record run history: the review's **Set job hooks** step writes
-`runyard-job-started.sh` and `runyard-job-completed.sh` into each runner's directory, points the
-runner's `.env` at them and restarts the runner, only while it's idle. The cleanup deletes only
-inside the job's workspace under that runner's `_work` directory and never fails a job. It's for
-GitHub runners on Linux and macOS; forgejo-runner has no job hooks, and on-demand runners start
-clean anyway.
+`runyard-job-started.sh` and `runyard-job-completed.sh` (`.ps1` on Windows) into each runner's
+directory, points the runner's `.env` at them and restarts the runner, only while it's idle. The
+cleanup deletes only inside the job's workspace under that runner's `_work` directory and never
+fails a job. It's for GitHub runners; Windows clears the workspace but doesn't prune Docker data,
+forgejo-runner has no job hooks, and on-demand runners start clean anyway.
+
+On Windows, the runner runs PowerShell steps and hooks as script files, which Windows' default
+execution policy (Restricted on Windows 10 and 11) blocks. Readiness shows the policy the runner
+gets as **PowerShell scripts**; allow local scripts in an administrator PowerShell with
+`Set-ExecutionPolicy RemoteSigned -Scope LocalMachine`. Runyard doesn't change it for you.
 
 ### Run history
 

@@ -28,6 +28,18 @@ foreach ($tool in $commands.Keys) {
 }
 if ($paths.git) { try { Fact tool_git_version ((& $paths.git --version 2>$null) | Select-Object -First 1) } catch {} }
 if ($paths.node) { try { Fact tool_node_version ((& $paths.node --version 2>$null) | Select-Object -First 1) } catch {} }
+# The runner runs each PowerShell step and hook as a script file, so the policy
+# it gets must allow local scripts: Group Policy first, then the machine's own,
+# else Windows' default (Restricted on Windows 10 and 11, RemoteSigned on Server).
+$groupPolicy = Get-ExecutionPolicy -Scope MachinePolicy
+$machinePolicy = Get-ExecutionPolicy -Scope LocalMachine
+if ("$groupPolicy" -ne 'Undefined') { Fact ps_policy "$groupPolicy"; Fact ps_policy_source 'group' }
+elseif ("$machinePolicy" -ne 'Undefined') { Fact ps_policy "$machinePolicy"; Fact ps_policy_source 'machine' }
+else {
+  $workstation = (Get-CimInstance Win32_OperatingSystem).ProductType -eq 1
+  Fact ps_policy $(if ($workstation) { 'Restricted' } else { 'RemoteSigned' })
+  Fact ps_policy_source 'default'
+}
 if (Get-Command docker.exe -ErrorAction SilentlyContinue) {
   Fact docker_cli 'present'
   try { Fact docker_server ((& docker version --format '{{.Server.Version}}' 2>$null) | Select-Object -First 1) } catch {}

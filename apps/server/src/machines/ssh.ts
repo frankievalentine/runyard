@@ -5,6 +5,7 @@ import posixDiagnostics from "../../scripts/machine-diagnostics.sh" with { type:
 import windowsHealth from "../../scripts/machine-health.ps1" with { type: "text" };
 import posixHealth from "../../scripts/machine-health.sh" with { type: "text" };
 import posixJobs from "../../scripts/machine-jobs.sh" with { type: "text" };
+import windowsJobs from "../../scripts/machine-jobs.ps1" with { type: "text" };
 import windowsReadiness from "../../scripts/machine-readiness.ps1" with { type: "text" };
 import posixReadiness from "../../scripts/machine-readiness.sh" with { type: "text" };
 import type { CommandRunner } from "../command.ts";
@@ -106,7 +107,7 @@ export function inspectionScript(
   const hosts = [...new Set(forgeHosts.filter((h) => FORGE_HOST.test(h)))];
   const since = Number.isInteger(jobsSince) && jobsSince >= 0 ? jobsSince : 0;
   return windows
-    ? `${windowsHealth}\n& {\n${windowsDiagnostics}\n$RunyardForgeHosts = @(${hosts.map((h) => `'${h}'`).join(", ")})\n${windowsReadiness}\n}\n`
+    ? `${windowsHealth}\n& {\n${windowsDiagnostics}\n$RunyardForgeHosts = @(${hosts.map((h) => `'${h}'`).join(", ")})\n${windowsReadiness}\n}\n& {\n$RunyardJobsSince = ${since}\n${windowsJobs}\n}\n`
     : `${posixHealth}\n(\n${posixDiagnostics}\nRUNYARD_FORGE_HOSTS='${hosts.join(" ")}'\n${posixReadiness}\n)\n(\nRUNYARD_JOBS_SINCE=${since}\n${posixJobs}\n)\n`;
 }
 

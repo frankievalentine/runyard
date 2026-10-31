@@ -37,11 +37,11 @@ try {
     "service-unregister.ps1": uninstallPlan(ctx).commands[0]!.argv.at(-1)!,
     "service-status.ps1": statusCommand(ctx).at(-1)!,
     "runner-probe.ps1": probeScript(true, [
-      { path: "C:\\runyard-runners\\ci\\01", serviceMode: "windows-service" },
+      { path: "C:\\ProgramData\\Runyard\\runners\\ci\\01", serviceMode: "windows-service" },
     ]),
   };
   const env = {
-    RF_ROOT: "C:\\runyard-runners\\ci\\01",
+    RF_ROOT: "C:\\ProgramData\\Runyard\\runners\\ci\\01",
     RF_NAME: "win-ci-01",
     RF_URL: "https://github.com/acme",
     RF_LABELS: "x",

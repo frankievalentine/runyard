@@ -67,7 +67,10 @@ export function pendingChanges(view: YardView, machineId: string): string[] {
     // missing on runners set up before run history.
     const applied = registration.cleanup;
     const cleanupChanged = applied != null && applied !== (d.cleanup ?? "off");
-    const hooksMissing = d.serviceMode !== "windows-service" && registration.history !== true;
+    // Windows can't prune Docker data, so a pool asking for it leaves its runners' hooks unset there.
+    const hooksMissing =
+      registration.history !== true &&
+      !(d.serviceMode === "windows-service" && d.cleanup === "docker");
     if (cleanupChanged || hooksMissing) out.push(`Set job hooks on ${d.name}`);
   }
   const wanted = new Set(desired.map((d) => d.key));

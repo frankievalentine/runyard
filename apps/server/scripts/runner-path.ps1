@@ -6,10 +6,10 @@ $ErrorActionPreference = "Stop"
 foreach ($required in @("RF_ROOT", "RF_NAME")) {
     if (-not [Environment]::GetEnvironmentVariable($required)) { throw "Missing $required" }
 }
-$allowedRoot = [IO.Path]::GetFullPath("C:\runyard-runners")
+$allowedRoot = [IO.Path]::GetFullPath("C:\ProgramData\Runyard\runners")
 $root = [IO.Path]::GetFullPath($env:RF_ROOT)
 if (-not $root.StartsWith($allowedRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "Refusing root outside C:\runyard-runners: $root"
+    throw "Refusing root outside C:\ProgramData\Runyard\runners: $root"
 }
 $configured = Get-Content -LiteralPath (Join-Path $root ".runner") -Raw | ConvertFrom-Json
 if ($configured.agentName -ne $env:RF_NAME) { throw "Runner name at exact path is '$($configured.agentName)', expected '$env:RF_NAME'" }

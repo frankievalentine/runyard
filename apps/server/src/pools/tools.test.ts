@@ -111,6 +111,7 @@ describe("a pool's tool profiles", () => {
       ["installTools", false, ["unzip", "zip", "xz", "zstd", "gpg", "cc", "make", "python3"]],
       ["installTools", true, ["jq"]],
       ["install", false, null],
+      ["configureCleanup", false, null],
     ]);
     expect(review.items[0]?.reason).toBe(
       "Install 7-Zip, xz, zstd, gpg, gcc, make, Python 3 with winget.",
@@ -124,10 +125,19 @@ describe("a pool's tool profiles", () => {
     expect(s.host.received.filter((r) => r.op !== "probe").map((r) => r.op)).toEqual([
       "tools-install",
       "install",
+      "cleanup-configure",
     ]);
     expect(s.host.received.find((r) => r.op === "tools-install")?.env.RF_TOOLS).toBe(
       "unzip zip xz zstd gpg cc make python3",
     );
+    // The new runner's hooks are in place: it records jobs (the pool clears nothing after them).
+    expect(s.host.received.find((r) => r.op === "cleanup-configure")?.env).toMatchObject({
+      RF_ROOT: "C:\\ProgramData\\Runyard\\runners\\win\\01",
+      RF_CLEANUP: "off",
+    });
+    expect(
+      (await s.call<Review>("POST", `/api/machines/${win.id}/review`)).items.map((i) => i.action),
+    ).not.toContain("configureCleanup");
   });
 
   test("a Windows runner gets the machine's PATH when it's stale, once it's idle", async () => {
@@ -199,13 +209,14 @@ describe("a pool's tool profiles", () => {
     expect(op.steps.map((st) => [st.action, st.status])).toEqual([
       ["installTools", "failed"],
       ["install", "succeeded"],
+      ["configureCleanup", "succeeded"],
     ]);
     const events = await s.call<{ kind: string; detail: string }[]>(
       "GET",
       `/api/events?machine=${win.id}`,
     );
     expect(events.find((e) => e.kind === "changesFailed")?.detail).toBe(
-      "Installed win-win-01; couldn't install 7-Zip, xz, zstd, gpg: Couldn't install GnuPG.GnuPG (its download failed) (by admin).",
+      "Installed win-win-01; set job hooks on win-win-01; couldn't install 7-Zip, xz, zstd, gpg: Couldn't install GnuPG.GnuPG (its download failed) (by admin).",
     );
   });
 

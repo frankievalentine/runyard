@@ -161,7 +161,8 @@ export type HookLine = {
  */
 export function parseHookLines(text: string): HookLine[] {
   const out: HookLine[] = [];
-  for (const line of text.split("\n")) {
+  // Windows machines end their lines with \r\n.
+  for (const line of text.split(/\r?\n/)) {
     const [at, event, runnerName, repo, runId, runAttempt, workflow] = line.split("\t");
     if (event !== "started" && event !== "completed") continue;
     if (!runnerName || !repo?.includes("/")) continue;

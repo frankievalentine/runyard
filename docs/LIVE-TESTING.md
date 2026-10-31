@@ -195,6 +195,10 @@ For 5.2, send the pool page's One-job runners entry and the machine's history.
 - [ ] **11.5** Update PATH: with the runner idle, add a folder to the machine PATH by hand. Expect
       the next review to show **Update PATH** for the runner, and a job after running it to see
       the folder in `$env:Path`.
+- [ ] **11.6** Windows run history and cleanup: set the pool's **After each job** to clear the
+      workspace, and expect its review to show **Set job hooks**. Run it, then a job. Expect the job
+      under **Jobs** on the Windows machine's page with its result, and a "Runyard: cleared …" line
+      at the end of the job's log. Readiness shows **PowerShell scripts** as RemoteSigned.
 
 ## Round 11b: boat.dev (optional)
 

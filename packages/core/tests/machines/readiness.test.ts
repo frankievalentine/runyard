@@ -86,6 +86,31 @@ describe("runner readiness", () => {
     });
   });
 
+  test("Windows needs a PowerShell policy that lets the runner run its script files", () => {
+    const policy = (ps_policy: string, ps_policy_source: string) =>
+      evaluateReadiness(report("windows", { ps_policy, ps_policy_source }), NOW, none)?.items.find(
+        (i) => i.id === "powershell-scripts",
+      );
+    expect(policy("RemoteSigned", "machine")).toMatchObject({
+      status: "ok",
+      value: "RemoteSigned",
+    });
+    expect(policy("Restricted", "default")).toMatchObject({
+      tier: "required",
+      status: "missing",
+      value: "Restricted (Windows default)",
+      command: "Set-ExecutionPolicy RemoteSigned -Scope LocalMachine",
+    });
+    const group = policy("AllSigned", "group");
+    expect(group).toMatchObject({ status: "missing", value: "AllSigned (Group Policy)" });
+    expect(group?.command).toBeUndefined();
+    expect(
+      evaluateReadiness(report("linux", {}), NOW, none)?.items.some(
+        (i) => i.id === "powershell-scripts",
+      ),
+    ).toBe(false);
+  });
+
   test("a ready machine has no problems; a drifting clock is one", () => {
     const ready = report("linux", {
       ...posixTools,

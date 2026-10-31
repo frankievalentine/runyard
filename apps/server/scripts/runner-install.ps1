@@ -18,10 +18,10 @@ if ($assetUri.Scheme -ne "https" -or $assetUri.Host -ne "github.com" -or -not $a
     throw "Refusing unexpected runner asset URL: $env:RF_ASSET_URL"
 }
 
-$allowedRoot = [IO.Path]::GetFullPath("C:\runyard-runners")
+$allowedRoot = [IO.Path]::GetFullPath("C:\ProgramData\Runyard\runners")
 $root = [IO.Path]::GetFullPath($env:RF_ROOT)
 if (-not $root.StartsWith($allowedRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "Refusing root outside C:\runyard-runners: $root"
+    throw "Refusing root outside C:\ProgramData\Runyard\runners: $root"
 }
 
 $runnerFile = Join-Path $root ".runner"
