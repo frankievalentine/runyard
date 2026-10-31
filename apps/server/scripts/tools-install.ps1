@@ -96,7 +96,10 @@ if (($tools -contains "python3") -and -not ($failed | Where-Object { $_.StartsWi
         $env:UV_PYTHON_INSTALL_DIR = $pythonRoot
         $env:UV_PYTHON_BIN_DIR = Join-Path $pythonRoot "bin"
         Write-Output "Installing Python 3.13 with uv into $pythonRoot"
-        & $uv python install 3.13 --default
+        # On this session's PATH too, so uv doesn't warn that it isn't; and --default opted
+        # into as the preview feature it is, so uv doesn't warn about that either.
+        $env:Path = "$env:UV_PYTHON_BIN_DIR;$env:Path"
+        & $uv python install 3.13 --default --preview-features python-install-default
         if ($LASTEXITCODE -ne 0) { $failed += "Python 3.13 (uv exit code $LASTEXITCODE)" }
         else { Add-MachinePath $env:UV_PYTHON_BIN_DIR }
     }
