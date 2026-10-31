@@ -197,6 +197,24 @@ vp run -r build && bun apps/server/scripts/demo.ts # a fictional yard, nothing r
 vp run @runyard/server#check-powershell           # parse the PowerShell scripts (needs Docker)
 ```
 
+## Built with
+
+- **Runtime and language:** [Bun](https://bun.sh) and [TypeScript](https://www.typescriptlang.org).
+  The CLI is a single binary compiled with `bun build --compile`, with the dashboard embedded.
+- **Server:** [Hono](https://hono.dev), [Drizzle ORM](https://orm.drizzle.team) on Bun's SQLite,
+  [Zod](https://zod.dev), [SimpleWebAuthn](https://simplewebauthn.dev) for passkeys and the
+  [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) for agents.
+- **Dashboard:** [React](https://react.dev), [TanStack Router](https://tanstack.com/router) and
+  [Query](https://tanstack.com/query), [Base UI](https://base-ui.com) and
+  [Tailwind CSS](https://tailwindcss.com).
+- **Toolchain:** [Vite+](https://viteplus.dev): Vite, Vitest, Oxlint and Oxfmt, with Bun's test
+  runner for the server.
+- **On your machines:** OpenSSH and [Tailscale](https://tailscale.com), GitHub's
+  [actions/runner](https://github.com/actions/runner) and
+  [Forgejo Runner](https://code.forgejo.org/forgejo/runner). Tools install with Homebrew on
+  macOS, the system package manager on Linux, and winget and [uv](https://docs.astral.sh/uv/)
+  on Windows.
+
 ## Credits
 
 Runyard builds on [fleet](https://github.com/aarondfrancis/fleet) by Aaron Francis: its SSH
