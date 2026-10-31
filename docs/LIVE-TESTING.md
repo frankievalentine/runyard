@@ -204,15 +204,15 @@ For 5.2, send the pool page's One-job runners entry and the machine's history.
 
 Needs a boat.dev account with CI set up for a test repository (its GitHub app installed there).
 
-- [ ] **11b.1** Push a workflow with `runs-on: boat` and run it. Expect it under Queued jobs as
+- [x] **11b.1** Push a workflow with `runs-on: boat` and run it. Expect it under Queued jobs as
       **Starts on boat.dev**, then on the sidebar's **boat.dev** row while it runs, and never
       offered to a pool.
-- [ ] **11b.2** On the boat.dev page, connect with a key limited to `sandbox.read` and
+- [x] **11b.2** On the boat.dev page, connect with a key limited to `sandbox.read` and
       `account.read`. Expect the running job's VM size and cost so far, and your plan's limits.
       Send what a running job shows; the cost fields and VM names are only known from boat's docs.
-- [ ] **11b.3** Start a VM outside CI (a sandbox from boat's dashboard or CLI) and leave it.
+- [x] **11b.3** Start a VM outside CI (a sandbox from boat's dashboard or CLI) and leave it.
       Expect a Needs attention item for a VM running outside CI, with its cost. Stop it there.
-- [ ] **11b.4** Whether boat's runners appear in GitHub's runner list: send what Unassigned
+- [x] **11b.4** Whether boat's runners appear in GitHub's runner list: send what Unassigned
       runners shows while a boat job runs. **Disconnect**, and expect the key forgotten.
 
 ## Round 12: taking it all down
