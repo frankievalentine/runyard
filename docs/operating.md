@@ -79,6 +79,30 @@ from `tailscale cert`, renewed on its own. No `tailscale serve` setup is needed.
 **MagicDNS** and **HTTPS Certificates** turned on in the Tailscale admin console. Until they are,
 or while Tailscale is down, Runyard serves on `127.0.0.1` only and says why.
 
+## Without Tailscale
+
+Runyard runs without Tailscale, serving the dashboard at `http://127.0.0.1:7420` on the Runyard
+host only. Pools, reviews, runners, jobs and forges work the same. You lose:
+
+- **The setup command.** It's offered only over HTTPS. Connect each machine with the by-hand
+  steps on its page instead: authorize Runyard's key, then **Read host key** and **Trust this
+  key**.
+- **Picking machines from your tailnet.** Enter each SSH target, such as `runner@10.0.0.5`.
+- **Signing in by Tailscale login.** Sign in with a username and password, or a passkey.
+- **The offline alert** and the Tailscale rows in Diagnostics. SSH failures are still recorded.
+
+To use the dashboard from another device:
+
+- **An SSH tunnel:** `ssh -L 7420:127.0.0.1:7420 <runyard-host>`, then open
+  `http://localhost:7420`.
+- **A reverse proxy that serves HTTPS,** such as Caddy or nginx on the Runyard host, forwarding
+  to `127.0.0.1:7420`. Set `RUNYARD_ORIGIN` to its address (`https://runyard.example.com`), and
+  the setup command works again for machines that can reach that address.
+
+Don't serve the dashboard on your network with `RUNYARD_HOST=0.0.0.0` alone: it's plain HTTP, so
+passwords and sign-ins travel unencrypted. The Docker compose file needs Tailscale; without it,
+install Runyard directly.
+
 ## Users and passkeys
 
 On your tailnet, Runyard knows who's connecting from their Tailscale login. People whose login

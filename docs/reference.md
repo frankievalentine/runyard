@@ -8,7 +8,8 @@
 - The OpenSSH client: `ssh`, `ssh-keygen` and `ssh-keyscan`.
 - Optional, recommended: [Tailscale](https://tailscale.com), with MagicDNS and HTTPS Certificates
   turned on, for the HTTPS dashboard address, device discovery, sign-in by Tailscale login, and
-  the one-command machine setup.
+  the one-command machine setup. See [Without Tailscale](operating.md#without-tailscale) for what
+  changes without it.
 
 **Machines that run runners:** anything Runyard can reach over SSH.
 

@@ -53,7 +53,8 @@ To remove Runyard later, decommission its machines in the dashboard first, then 
 - **The Runyard host:** macOS on Apple silicon, Linux (x64 or arm64, glibc) or Windows x64, or
   Docker, with the OpenSSH client. [Tailscale](https://tailscale.com) is optional and
   recommended: it gives the HTTPS address, device discovery, sign-in by tailnet identity and
-  the one-line machine setup.
+  the one-line machine setup. [Without Tailscale](docs/operating.md#without-tailscale), Runyard
+  serves on `127.0.0.1` and you connect machines by hand.
 - **Runner machines:** anything reachable over SSH.
 
   | System  | GitHub runners | Forgejo runners | On-demand pools |

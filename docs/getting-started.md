@@ -19,8 +19,8 @@ install/install.sh`. To run it in Docker instead, see [Docker](operating.md#dock
 
 With [Tailscale](https://tailscale.com) on the Runyard host, with MagicDNS and HTTPS Certificates
 turned on for your tailnet, Runyard serves the dashboard at
-`https://<machine>.<tailnet>.ts.net:7443`. Without it, it serves `http://127.0.0.1:7420` only.
-Tailscale is optional, but the one-command machine setup needs the HTTPS address.
+`https://<machine>.<tailnet>.ts.net:7443`. Without it, it serves `http://127.0.0.1:7420` only, and
+you connect machines by hand; see [Without Tailscale](operating.md#without-tailscale).
 
 ## 2. Claim it
 

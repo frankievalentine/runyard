@@ -12,7 +12,7 @@
   pool.
 - [Forges](forges.md): GitHub and its webhooks, Forgejo, and boat.dev.
 - [AI agents](ai-agents.md): connecting an agent over MCP, and what its token can do.
-- [Running Runyard](operating.md): as a service, logs, upgrading, Docker, Tailscale, users and
-  passkeys, and uninstalling.
+- [Running Runyard](operating.md): as a service, logs, upgrading, Docker, with or without
+  Tailscale, users and passkeys, and uninstalling.
 - [Security](security.md): what Runyard will and won't do.
 - [Reference](reference.md): requirements, configuration and troubleshooting.
