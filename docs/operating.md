@@ -33,23 +33,44 @@ version. Open dashboard tabs say when the server is serving a newer dashboard th
 
 ## Docker
 
-`docker/compose.yaml` runs Runyard beside the official Tailscale container. Runyard shares the
-sidecar's network and serves HTTPS only on your tailnet, at
-`https://<RUNYARD_HOSTNAME>.<tailnet>.ts.net:7443/`. The image is built from a local release:
+`docker/compose.yaml` runs Runyard beside the official Tailscale container. Runyard shares that
+container's network and serves HTTPS only on your tailnet, at
+`https://<RUNYARD_HOSTNAME>.<tailnet>.ts.net:7443/`. You need a Tailscale auth key (Tailscale's
+admin console, **Settings ▸ Keys**), and MagicDNS and HTTPS Certificates turned on for your
+tailnet.
 
 ```sh
-vp run release
-cp docker/.env.example docker/.env                 # set TS_AUTHKEY
+cp docker/.env.example docker/.env                 # set TS_AUTHKEY and RUNYARD_HOSTNAME
 openssl rand -base64 32 > docker/runyard.key && chmod 600 docker/runyard.key
-docker compose -f docker/compose.yaml up -d --build
+docker compose -f docker/compose.yaml up -d
 docker compose -f docker/compose.yaml logs runyard # the setup code
 ```
 
-Runyard's SSH key and `known_hosts` live in the `runyard-data` volume, so machines set up from the
-dashboard need nothing mounted. Your `~/.ssh` (or `RUNYARD_SSH_DIR`) is mounted read-only, for
-machines you already reach with your own keys. The container runs as root, because `tailscale
-cert` through the sidecar needs it. Back up `docker/runyard.key` separately from the
-`runyard-data` volume.
+The compose file pulls `ghcr.io/frankievalentine/runyard`. Until images are published, build one
+from a local release instead:
+
+```sh
+vp run release
+docker compose -f docker/compose.yaml -f docker/compose.build.yaml up -d --build
+```
+
+- **Health:** `docker compose -f docker/compose.yaml ps` shows Runyard as healthy once it
+  answers on `/api/health`.
+- **Logs:** `docker compose -f docker/compose.yaml logs runyard`.
+- **Upgrading:** set `RUNYARD_VERSION` in `docker/.env` to the new version (or leave `latest`),
+  then `docker compose -f docker/compose.yaml pull` and `up -d`. Runyard updates its database
+  when it starts.
+- **Backups:** the `runyard-data` volume holds the database, Runyard's SSH key and its known
+  hosts. Keep a copy of `docker/runyard.key` somewhere else: it decrypts the stored credentials,
+  and a backup is only safe while the two are apart.
+- **SSH:** Runyard's own key lives in the volume, so machines set up from the dashboard need
+  nothing mounted. Your `~/.ssh` (or `RUNYARD_SSH_DIR`) is mounted read-only too, for machines you
+  already reach with your own keys.
+- **Webhooks:** make the listener public through the Tailscale container with
+  `docker compose -f docker/compose.yaml exec tailscale tailscale funnel --bg
+  http://127.0.0.1:7444`, then follow [Webhooks](forges.md#webhooks) from step 3.
+- The container runs as root, because getting a certificate through the Tailscale container needs
+  it.
 
 ## Over Tailscale
 

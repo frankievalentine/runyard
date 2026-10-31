@@ -25,7 +25,10 @@ installer package for now.
   tag.
 - Versions: a scheme, a changelog, and how an install upgrades (re-run the installer, `brew
   upgrade`, a new image tag; migrations already run on start).
-- The image registry, such as `ghcr.io`, and which architectures it carries.
+- The image: decided 2026-10-31 as `ghcr.io/frankievalentine/runyard`, tagged with each version
+  and `latest`; `docker/compose.yaml` already pulls it, and `docker/compose.build.yaml` builds
+  one locally until then. Still to decide: building it for amd64 and arm64 (`docker buildx`,
+  from the release binaries the Dockerfile already picks per architecture) and pushing it.
 - Whether the macOS binary is signed and notarized. Not needed for curl or Homebrew installs.
 - Making the repository public: a security contact, the social preview image, and a check that
   no test data or tokens are in the history.

@@ -1,0 +1,9 @@
+# Builds Runyard's image from a local release (`vp run release`) instead of
+# pulling a published one:
+#   docker compose -f docker/compose.yaml -f docker/compose.build.yaml up -d --build
+services:
+  runyard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: runyard:local

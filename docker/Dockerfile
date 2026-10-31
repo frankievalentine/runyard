@@ -8,7 +8,7 @@ FROM tailscale/tailscale:v1.104.2 AS tailscale
 FROM debian:bookworm-slim
 ARG TARGETARCH
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssh-client ca-certificates \
+  && apt-get install -y --no-install-recommends openssh-client ca-certificates curl \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=tailscale /usr/local/bin/tailscale /usr/local/bin/tailscale
 # Mounted rather than copied, so the other architecture's binary never lands in a layer.
@@ -27,5 +27,8 @@ ENV RUNYARD_DATA_DIR=/data \
   RUNYARD_SSH=/usr/bin/ssh \
   RUNYARD_TAILSCALE=/usr/local/bin/tailscale
 VOLUME /data
+# Loopback inside the container (or the Tailscale sidecar's network it shares).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -fsS "http://127.0.0.1:${RUNYARD_PORT:-7420}/api/health" >/dev/null || exit 1
 ENTRYPOINT ["runyard-entrypoint"]
 CMD ["runyard"]

@@ -2,9 +2,13 @@
 # its tailscaled socket, and serves HTTPS on the tailnet itself (port 7443).
 #
 #   cp docker/.env.example docker/.env    # then set TS_AUTHKEY
-#   vp run release
-#   docker compose -f docker/compose.yaml up -d --build
+#   openssl rand -base64 32 > docker/runyard.key && chmod 600 docker/runyard.key
+#   docker compose -f docker/compose.yaml up -d
 #   docker compose -f docker/compose.yaml logs runyard    # the setup code
+#
+# Until images are published, build one from a local release instead:
+#   vp run release
+#   docker compose -f docker/compose.yaml -f docker/compose.build.yaml up -d --build
 services:
   tailscale:
     image: tailscale/tailscale:v1.104.2
@@ -26,10 +30,7 @@ services:
     restart: unless-stopped
 
   runyard:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    image: runyard:local
+    image: ghcr.io/frankievalentine/runyard:${RUNYARD_VERSION:-latest}
     network_mode: service:tailscale
     depends_on:
       - tailscale
