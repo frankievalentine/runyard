@@ -25,7 +25,8 @@ foreach ($tool in $commands.Keys) {
   $paths[$tool] = $found
   Fact "tool_$tool" $found
   if (-not $found) {
-    $own = Get-Command $exe -ErrorAction SilentlyContinue | Where-Object { $_.Source -notlike '*\WindowsApps\*' } | Select-Object -First 1
+    # Every match: the first is often a WindowsApps alias that hides a real one behind it.
+    $own = Get-Command $exe -All -ErrorAction SilentlyContinue | Where-Object { $_.Source -notlike '*\WindowsApps\*' } | Select-Object -First 1
     if ($own) { Fact "tool_$($tool)_account" $own.Source }
   }
 }
