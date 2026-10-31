@@ -194,6 +194,10 @@ the accounts or repositories it serves. Create one under **Pools ▸ +** in thre
    and Build tools installed where missing, the workspace cleared after each job), each with
    **Change**, and the runners it registers.
 
+Each pool's page has **Use it in a workflow**: the `runs-on` line that sends jobs to it, and a
+file to start from. [Writing workflows](WORKFLOWS.md) explains labels, the tools jobs can use, and
+Windows and Forgejo specifics.
+
 An organization gets one runner per slot; a personal GitHub account's repositories each get
 their own, because GitHub can't share a personal account's runner across repositories.
 

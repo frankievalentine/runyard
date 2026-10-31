@@ -41,6 +41,8 @@ admin, and follow **Getting started** on the overview:
    `runyard` account.
 3. **Create a pool:** labels, machines and the repositories it serves.
 4. **Review and run** the machine's changes. Its runners start taking jobs.
+5. **Point a workflow at the pool:** its page shows the `runs-on` line and a file to start
+   from. [Writing workflows](docs/WORKFLOWS.md) covers labels, Windows and Forgejo.
 
 To remove Runyard later, decommission its machines in the dashboard first, then run
 `runyard uninstall --purge`; the [guide](docs/GUIDE.md#uninstalling) has the full order.

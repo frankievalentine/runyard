@@ -2,6 +2,7 @@ import type { OsFamily } from "../machines/model.ts";
 import { runnerKindFor, type ForgeKind } from "../model.ts";
 import { scopeKey } from "../scope.ts";
 import { serviceModeFor, type DesiredRunner, type DesiredTemplate, type Pool } from "./model.ts";
+import { poolLabel } from "./workflow.ts";
 
 export const POOL_NAME = /^[a-z0-9](?:[a-z0-9-]{0,22}[a-z0-9])?$/;
 /** GitHub limits runner names to 64 characters. */
@@ -79,7 +80,7 @@ export function desiredRunners(
               ...new Set([
                 ...pool.labels,
                 "runyard",
-                `runyard-pool-${pool.name}`,
+                poolLabel(pool),
                 // GitHub runners also carry their own, so a test job can target exactly one.
                 ...(kind === "actions" ? [runnerLabel(name)] : []),
               ]),
@@ -126,7 +127,7 @@ export function desiredTemplates(
           runnerKind: kind,
           path: [runnerRoot(os), pool.name, `template-${kind}`].join(sep),
           scopes,
-          labels: [...new Set([...pool.labels, "runyard", `runyard-pool-${pool.name}`])],
+          labels: [...new Set([...pool.labels, "runyard", poolLabel(pool)])],
           ...(kind === "forgejo" ? { forgejoMode: pool.forgejoMode } : {}),
         });
       }
