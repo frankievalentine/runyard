@@ -240,10 +240,6 @@ jobs page.
 
 ## Planned
 
-- **A live job feed**: one SSH session per machine with runners, printing new job lines every
-  2 seconds, so a job shows as Running within seconds of starting instead of at the minute
-  check. Agreed for after Round 9.
-
 - **Container runners ("Use this machine for CI")**: a fresh container per job on Runyard's
   own machine, then on SSH machines with Docker. Agreed and designed, not started:
   [docs/plans/container-runners.md](plans/container-runners.md).
@@ -259,6 +255,10 @@ jobs page.
   [docs/plans/release.md](plans/release.md).
 - **Live testing still to run**: Forgejo (Round 9), Windows and Docker (Round 11), boat.dev
   (Round 11b) and taking it all down (Round 12).
+
+Dropped on 2026-10-31: a live job feed (a kept-open SSH session per machine streaming job lines
+every 2 seconds). Jobs already show as Running within a minute, or seconds with GitHub webhooks,
+which the user found fast enough for the extra connections and failure modes it would add.
 
 ## Link previews
 
