@@ -164,10 +164,15 @@ code,
 .tree-child::before {
   content: "";
   position: absolute;
-  left: 11px;
+  /* Under the center of the machine's status dot (8px in from the row, 8px wide). */
+  left: 11.5px;
   top: 0;
   bottom: 0;
   border-left: 1px solid var(--border-strong);
+}
+/* Under the center of a row's icon (centered in its 16px slot, 8px in from the row). */
+.tree-child.under-icon::before {
+  left: 15.5px;
 }
 
 /* Tailwind v4 gives buttons the default cursor; anything clickable gets a pointer.

@@ -174,6 +174,7 @@ export function Sidebar({
                     hollow={status.hollow}
                   />
                 }
+                dot
                 label={m.name}
                 title={machineTooltip(m)}
                 trailing={
@@ -274,6 +275,7 @@ export function Sidebar({
                 key={r.key}
                 r={r}
                 nested
+                underIcon
                 showScope
                 selected={is({ path: "/runners/$key", params: { key: r.key } })}
               />
@@ -328,6 +330,7 @@ export function Sidebar({
                     item={item}
                     selected={is(item)}
                     icon={<StatusDot tone={p.online ? "ok" : "muted"} hollow />}
+                    dot
                     label={p.name}
                     title={`${p.name}\n${p.address}\nOn your tailnet, not added to Runyard`}
                     trailing={p.online ? osLabel[p.os] : "Offline"}
@@ -360,16 +363,19 @@ function RunnerRow({
   r,
   selected,
   nested,
+  underIcon,
   showScope,
 }: {
   r: RunnerView;
   selected: boolean;
   nested?: boolean;
+  /** Nested under a row with an icon rather than a status dot, so the line sits under the icon. */
+  underIcon?: boolean;
   showScope?: boolean;
 }) {
   const status = runnerStatus(r);
   return (
-    <div className={nested ? "tree-child" : undefined}>
+    <div className={nested ? `tree-child ${underIcon ? "under-icon" : ""}` : undefined}>
       <Row
         item={{ path: "/runners/$key", params: { key: r.key } }}
         selected={selected}
@@ -401,9 +407,12 @@ function Row({
   trailing,
   title,
   indent,
+  dot,
 }: {
   item: NavItem;
   indent?: boolean;
+  /** The icon is an 8px status dot: its slot is its own width, so the name sits close to it. */
+  dot?: boolean;
   selected: boolean;
   icon?: ReactNode;
   label: string;
@@ -424,7 +433,9 @@ function Row({
         className={`flex min-w-0 flex-1 items-center gap-2 pr-2 pl-2 text-left ${selected ? "font-medium" : ""}`}
       >
         {icon && (
-          <span className="flex size-4 shrink-0 items-center justify-center text-ink-2">
+          <span
+            className={`flex h-4 shrink-0 items-center justify-center text-ink-2 ${dot ? "w-2" : "w-4"}`}
+          >
             {icon}
           </span>
         )}
