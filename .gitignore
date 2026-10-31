@@ -34,3 +34,7 @@ dist-ssr
 docker/.env
 docker/runyard.key
 *.bun-build
+
+# Planning and live-test notes, kept locally
+docs/PLAN.md
+docs/LIVE-TESTING.md

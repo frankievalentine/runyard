@@ -180,10 +180,7 @@ All settings are in [Configuration](docs/reference.md#configuration).
 
 ## Development
 
-Runyard is in early development: it's built and tested against fakes, and what's still to try on
-real forges and machines is listed in [docs/PLAN.md](docs/PLAN.md), with a step-by-step
-[live testing checklist](docs/LIVE-TESTING.md). It needs
-[Vite+](https://viteplus.dev) (`vp`) and [Bun](https://bun.sh).
+It needs [Vite+](https://viteplus.dev) (`vp`) and [Bun](https://bun.sh).
 
 ```sh
 vp install
