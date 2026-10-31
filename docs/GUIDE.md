@@ -154,7 +154,8 @@ runner's service finds the tools on the machine PATH. Windows gets these instead
 | git               | `Git.Git`                                                               | `git`                                         |
 
 curl and tar come with Windows 10 and 11, and Docker isn't installed on Windows. Readiness looks
-at the machine PATH only: a tool installed for just the signed-in account shows **Only for this
+at the machine PATH only, leaving out folders inside user profiles (such as the WindowsApps
+aliases), which the runner's service can't use: a tool installed for just the signed-in account shows **Only for this
 account**, because the runner's service can't see it, and stays for you to reinstall for every
 account. A Windows runner reads its PATH from the `.env` file in its directory when it starts,
 not from Windows, so whenever the machine PATH changes (a tool install, or your own change), its

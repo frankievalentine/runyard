@@ -82,8 +82,11 @@ foreach ($id in ($tools | ForEach-Object { $packages[$_] } | Select-Object -Uniq
     }
 }
 
-# What the runner's service will see: the machine PATH alone.
-$machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine") -split ";" | Where-Object { $_ }
+# What the runner's service will see: the machine PATH, less folders inside user profiles
+# (as machine-readiness.ps1 counts them).
+$profiles = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList").ProfilesDirectory.TrimEnd("\") + "\"
+$machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine") -split ";" |
+    Where-Object { $_ -and -not ([Environment]::ExpandEnvironmentVariables($_) + "\").StartsWith($profiles, [StringComparison]::OrdinalIgnoreCase) }
 $unseen = @()
 foreach ($tool in $tools) {
     if ($failed | Where-Object { $_.StartsWith("$($packages[$tool]) ") }) { continue }

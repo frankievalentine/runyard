@@ -4,9 +4,12 @@
 
 # Tools by the names Runyard gives them, found by the command Windows has for
 # each (WINDOWS_TOOLS in packages/core). Found on the machine PATH, which is all
-# the runner's service sees; one only this account has is reported apart. The
-# WindowsApps stubs (python.exe opening the Store) don't count.
-$machineDirs = [Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';' | Where-Object { $_ }
+# the runner's service sees; one only this account has is reported apart. Folders
+# inside user profiles don't count even on the machine PATH: the service's account
+# can't use them, nor the WindowsApps aliases there (python.exe opening the Store).
+$profiles = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList').ProfilesDirectory.TrimEnd('\') + '\'
+$machineDirs = [Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';' |
+  Where-Object { $_ -and -not ([Environment]::ExpandEnvironmentVariables($_) + '\').StartsWith($profiles, [StringComparison]::OrdinalIgnoreCase) }
 $commands = [ordered]@{
   git = 'git'; curl = 'curl'; tar = 'tar'; unzip = '7z'; zip = '7z'; xz = 'xz'; zstd = 'zstd'
   jq = 'jq'; gpg = 'gpg'; cc = 'gcc'; make = 'make'; python3 = 'python'; node = 'node'
