@@ -1,7 +1,11 @@
-# Planned: documentation audit
+# Documentation audit
 
-Status: **agreed, not started.** Decided with the user on 2026-10-29: after live testing (Rounds
-7 to 12) and before release, so labels stop moving first.
+Status: **split done 2026-10-31**, brought forward at the user's request before Rounds 11b and 12.
+`docs/GUIDE.md` is now an index of task pages, written with the better-writing skill; the
+bolded dashboard labels were checked against the dashboard's source, and live testing's findings
+below are in the pages (machines.md's recipes, reference.md's troubleshooting). Still to do:
+revisit the pages after Rounds 11b and 12 and the rest of the copy pass, which may rename
+labels.
 
 ## Shape
 

@@ -52,7 +52,7 @@ checked on each machine, and a machine that can't honor it shows under **Needs a
 
 A runner sees what's installed on its machine. Each machine's **Runner readiness** lists what's
 there, and a pool's **Tools to install where they're missing** fills the gaps (see
-[Runner readiness](GUIDE.md#runner-readiness)). On Windows, some tools go by other names:
+[Runner readiness](machines.md#runner-readiness)). On Windows, some tools go by other names:
 
 | Ask for      | Linux and macOS | Windows                                 |
 | ------------ | --------------- | --------------------------------------- |

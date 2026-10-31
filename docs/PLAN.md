@@ -247,9 +247,9 @@ jobs page.
 - **Container runners ("Use this machine for CI")**: a fresh container per job on Runyard's
   own machine, then on SSH machines with Docker. Agreed and designed, not started:
   [docs/plans/container-runners.md](plans/container-runners.md).
-- **Documentation audit**: the guide split into task pages, every step checked against the
-  dashboard, with live testing's findings. Agreed, after live testing and before release:
-  [docs/plans/docs-audit.md](plans/docs-audit.md).
+- **Documentation audit**: done on 2026-10-31: the guide split into task pages under `docs/`
+  (indexed by `docs/GUIDE.md`), labels checked against the dashboard, live testing's findings in.
+  Revisit after Rounds 11b and 12: [docs/plans/docs-audit.md](plans/docs-audit.md).
 - **The rest of the copy pass**: pools and runners, settings, and core's waiting and plan
   reasons, compacted the way the machine pages were, plus a check on jobs that stay Running:
   [docs/plans/copy-pass.md](plans/copy-pass.md).

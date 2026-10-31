@@ -33,7 +33,8 @@ runyard service install                                # keep it running
 
 Runyard prints its address (`https://<machine>.<tailnet>.ts.net:7443` with Tailscale, otherwise
 `http://127.0.0.1:7420`) and a one-time setup code. Open it, enter the code to create the first
-admin, and follow **Getting started** on the overview:
+admin, and follow **Getting started** on the overview (or [Getting started](docs/getting-started.md)
+here):
 
 1. **Connect GitHub or Forgejo:** Runyard creates its own GitHub App, or takes a Forgejo token.
 2. **Add a machine** and run the one-line setup command its page shows. On a fresh Linux LXC
@@ -42,24 +43,24 @@ admin, and follow **Getting started** on the overview:
 3. **Create a pool:** labels, machines and the repositories it serves.
 4. **Review and run** the machine's changes. Its runners start taking jobs.
 5. **Point a workflow at the pool:** its page shows the `runs-on` line and a file to start
-   from. [Writing workflows](docs/WORKFLOWS.md) covers labels, Windows and Forgejo.
+   from. [Writing workflows](docs/workflows.md) covers labels, Windows and Forgejo.
 
 To remove Runyard later, decommission its machines in the dashboard first, then run
-`runyard uninstall --purge`; the [guide](docs/GUIDE.md#uninstalling) has the full order.
+`runyard uninstall --purge`; [Uninstalling](docs/operating.md#uninstalling) has the full order.
 
 ## Requirements
 
-- **Runyard's machine:** macOS on Apple silicon, Linux (x64 or arm64, glibc) or Windows x64, or
+- **The Runyard host:** macOS on Apple silicon, Linux (x64 or arm64, glibc) or Windows x64, or
   Docker, with the OpenSSH client. [Tailscale](https://tailscale.com) is optional and
   recommended: it gives the HTTPS address, device discovery, sign-in by tailnet identity and
   the one-line machine setup.
 - **Runner machines:** anything reachable over SSH.
 
-  | OS      | GitHub runners | Forgejo runners | One per job |
-  | ------- | -------------- | --------------- | ----------- |
-  | macOS   | Yes            | No              | Yes         |
-  | Linux   | Yes            | Yes             | Yes         |
-  | Windows | Yes            | No              | Not yet     |
+  | System  | GitHub runners | Forgejo runners | On-demand pools |
+  | ------- | -------------- | --------------- | --------------- |
+  | macOS   | Yes            | No              | Yes             |
+  | Linux   | Yes            | Yes             | Yes             |
+  | Windows | Yes            | No              | No              |
 
 - **Forges:** GitHub (personal accounts and organizations) and Forgejo 15 or later.
 
@@ -79,7 +80,8 @@ To remove Runyard later, decommission its machines in the dashboard first, then 
 - **boat.dev.** Jobs for boat.dev's VMs show alongside, with each VM's cost.
 - **Webhooks** (optional) make Runyard notice queued GitHub jobs in seconds instead of about 45.
   They need a public address for Runyard's webhook listener, such as Tailscale Funnel, which is
-  off by default and has to be turned on for your tailnet first (see the guide's GitHub webhooks).
+  off by default and has to be turned on for your tailnet first (see
+  [Webhooks](docs/forges.md#webhooks)).
 - **AI agents.** Agents read everything and can prepare pools and reviews; only you run a
   review. Create a token under **Settings ▸ Account**, then, for Claude Code:
 
@@ -88,9 +90,9 @@ To remove Runyard later, decommission its machines in the dashboard first, then 
     --header "Authorization: Bearer <token>"
   ```
 
-The [guide](docs/GUIDE.md) covers each in detail, along with Docker, running as a service,
-Tailscale, users and passkeys, runner machines (Proxmox LXC, VPS, Mac, Windows), and moving
-existing runners into a pool.
+The [documentation](docs/GUIDE.md) covers each in detail, along with Docker, running as a
+service, Tailscale, users and passkeys, recipes for runner machines (Proxmox LXC, VPS, Mac,
+Windows), and taking over existing runners.
 
 ## Safety
 
@@ -115,7 +117,7 @@ Runyard needs no configuration to start. The most useful settings:
 | `RUNYARD_TAILNET`         | `off` to skip the tailnet HTTPS listener.                                     |
 | `RUNYARD_ORIGIN`          | The public URL, only behind a TLS-terminating reverse proxy.                  |
 
-All settings are in the [guide](docs/GUIDE.md#configuration).
+All settings are in [Configuration](docs/reference.md#configuration).
 
 ## Development
 
