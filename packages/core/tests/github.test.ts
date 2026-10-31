@@ -176,6 +176,9 @@ describe("on-demand runners and runners GitHub doesn't list", () => {
   test("boat jobs are queued work that starts on demand, matched by exact label", () => {
     expect(onDemandService(["boat-large"])).toBe("boat.dev");
     expect(onDemandService(["boats"])).toBeNull();
+    // boat.dev's options after the size: a snapshot to start from, keeping a failed VM.
+    expect(onDemandService(["boat-large/from=ci-base/debug"])).toBe("boat.dev");
+    expect(onDemandService(["boats/debug"])).toBeNull();
     const view = deriveGithub(
       [
         app([
