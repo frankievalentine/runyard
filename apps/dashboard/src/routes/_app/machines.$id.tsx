@@ -913,7 +913,7 @@ function AccountCommand() {
   const origin = window.location.origin;
   const command = origin.startsWith("https://")
     ? `curl -fsSL ${origin}/api/machine-setup/teardown.sh | sudo sh -s -- --prepared`
-    : "sudo loginctl disable-linger runyard; sudo pkill -u runyard; sudo userdel -r runyard && sudo rm -f /etc/sudoers.d/runyard";
+    : "sudo loginctl disable-linger runyard; sudo loginctl terminate-user runyard; sleep 2; sudo pkill -KILL -u runyard; sleep 1; sudo userdel -r runyard && sudo rm -f /etc/sudoers.d/runyard";
   return (
     <div className="mt-3 flex flex-col gap-1 text-[12px]">
       <span className="font-medium">To delete the runyard account too, run on the machine:</span>

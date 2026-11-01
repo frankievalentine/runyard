@@ -60,8 +60,20 @@ if [ "$prepared" = yes ]; then
   home="$(getent passwd runyard | cut -d: -f6)"
   check_runners "$home"
   rm -f /etc/sudoers.d/runyard
-  if command -v loginctl >/dev/null 2>&1; then loginctl disable-linger runyard >/dev/null 2>&1 || true; fi
+  # userdel refuses while any of the account's processes are left, and its systemd user
+  # manager takes a moment to stop: end its sessions, wait, then force what's still there.
+  if command -v loginctl >/dev/null 2>&1; then
+    loginctl disable-linger runyard >/dev/null 2>&1 || true
+    loginctl terminate-user runyard >/dev/null 2>&1 || true
+  fi
   pkill -u runyard >/dev/null 2>&1 || true
+  waited=0
+  while pgrep -u runyard >/dev/null 2>&1 && [ "$waited" -lt 10 ]; do
+    sleep 1
+    waited=$((waited + 1))
+  done
+  pkill -KILL -u runyard >/dev/null 2>&1 || true
+  sleep 1
   userdel -r runyard 2>/dev/null || userdel runyard
   echo "Removed the runyard account, its home, its sudoers file and lingering."
 else
