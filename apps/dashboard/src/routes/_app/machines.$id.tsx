@@ -143,7 +143,7 @@ function Machine() {
         <ConnectionNotice m={m} />
       )}
       <MachineRunners m={m} />
-      <MachineChanges m={m} admin={admin} reviewId={reviewId} />
+      <MachineChanges key={reviewId} m={m} admin={admin} reviewId={reviewId} />
       <Jobs filter={{ machine: m.id }} />
       <Monitoring m={m} admin={admin} />
       <RunnerReadiness m={m} />
@@ -613,28 +613,50 @@ function RemoveMachine({ m }: { m: MachineView }) {
       });
     },
   });
+  const [open, setOpen] = useState(false);
+  // Decommissioning only takes the machine out of its pools; its review removes what's left.
+  // So it prepares that review and opens it under Changes, ready to run.
   const decommission = useMutation({
-    mutationFn: () => call(api.machines[":id"].decommission.$post({ param: { id: m.id } })),
-    onSuccess: async () => {
+    mutationFn: async () => {
+      if (pools.length) await call(api.machines[":id"].decommission.$post({ param: { id: m.id } }));
       await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
-      void navigate({ to: "/machines/$id", params: { id: m.id }, hash: "changes" });
+      return (await call(api.machines[":id"].review.$post({ param: { id: m.id } }))) as unknown as {
+        id: string;
+      };
+    },
+    onSuccess: (review) => {
+      setOpen(false);
+      void navigate({
+        to: "/machines/$id",
+        params: { id: m.id },
+        search: { review: review.id },
+        hash: "changes",
+      });
     },
   });
   const inUse = left.length > 0;
+  // Out of every pool already: only running its changes is left.
+  const decommissioned = inUse && pools.length === 0;
   const cleanUpFailed = remove.error instanceof ApiError && remove.error.code === "cleanUp";
   return (
-    <AlertDialog.Root>
+    <AlertDialog.Root open={open} onOpenChange={setOpen}>
       <AlertDialog.Trigger render={<Button small variant="danger" />}>Remove</AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
         <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 p-5">
           <AlertDialog.Title className="text-[15px] font-semibold">
-            {inUse ? `Decommission ${m.name} first` : `Remove ${m.name}?`}
+            {decommissioned
+              ? `Run ${m.name}'s changes first`
+              : inUse
+                ? `Decommission ${m.name} first`
+                : `Remove ${m.name}?`}
           </AlertDialog.Title>
           <AlertDialog.Description className="mt-1.5 text-[13px] text-ink-2">
-            {inUse
-              ? `Runyard still has ${left.length === 1 ? "this" : "these"} on the machine:`
-              : "Runyard deletes its history and stops checking it."}
+            {decommissioned
+              ? `It's out of its pools. Running its changes removes ${left.length === 1 ? "this" : "these"}:`
+              : inUse
+                ? `Runyard still has ${left.length === 1 ? "this" : "these"} on the machine:`
+                : "Runyard deletes its history and stops checking it."}
           </AlertDialog.Description>
           {inUse && (
             <>
@@ -643,14 +665,19 @@ function RemoveMachine({ m }: { m: MachineView }) {
                   <li key={name}>{name}</li>
                 ))}
               </ul>
-              <ol className="mt-3 flex list-decimal flex-col gap-1 pl-5 text-[13px] text-ink-2">
-                <li>
-                  Decommission takes {left.length === 1 ? "it" : "them"} out of{" "}
-                  {pools.length ? pools.map((p) => p.name).join(", ") : "its pools"}.
-                </li>
-                <li>Run the machine's changes to remove {left.length === 1 ? "it" : "them"}.</li>
-                <li>Remove the machine.</li>
-              </ol>
+              {!decommissioned && (
+                <ol className="mt-3 flex list-decimal flex-col gap-1 pl-5 text-[13px] text-ink-2">
+                  <li>
+                    Decommission takes {left.length === 1 ? "it" : "them"} out of{" "}
+                    {pools.length ? pools.map((p) => p.name).join(", ") : "its pools"}.
+                  </li>
+                  <li>
+                    Its review opens under Changes: run it to remove{" "}
+                    {left.length === 1 ? "it" : "them"}.
+                  </li>
+                  <li>Remove the machine.</li>
+                </ol>
+              )}
             </>
           )}
           {!inUse && !connected && (
@@ -694,11 +721,17 @@ function RemoveMachine({ m }: { m: MachineView }) {
             <AlertDialog.Close render={<Button />}>Cancel</AlertDialog.Close>
             {inUse ? (
               <Button
-                variant="danger"
+                variant={decommissioned ? "primary" : "danger"}
                 onClick={() => decommission.mutate()}
                 disabled={decommission.isPending}
               >
-                Decommission machine
+                {decommission.isPending
+                  ? decommissioned
+                    ? "Reviewing…"
+                    : "Decommissioning…"
+                  : decommissioned
+                    ? "Review changes"
+                    : "Decommission and review"}
               </Button>
             ) : cleanUpFailed ? (
               <>

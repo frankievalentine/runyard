@@ -122,8 +122,8 @@ Take things down in this order, so nothing stays registered where Runyard can no
 it:
 
 1. **Machines.** On each machine's page, click **Remove**. While Runyard has runners there, the
-   dialog offers **Decommission machine**, which takes the machine out of every pool. Review and
-   run its changes to remove the runners, then **Remove** the machine. With **Also clean up**,
+   dialog offers **Decommission and review**, which takes the machine out of every pool and opens
+   its review. Run it to remove the runners, then **Remove** the machine. With **Also clean up**,
    Runyard deletes its runner folder and its key on the machine as it goes. On a machine set up
    with the fresh-machine command, run the root command shown afterwards to delete the `runyard`
    account. Runyard refuses to remove a machine, a GitHub App or a Forgejo connection that still

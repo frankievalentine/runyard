@@ -77,7 +77,7 @@ describe("runyard uninstall", () => {
       (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
     expect(refused).toContain("in the dashboard at\nhttp://127.0.0.1:7420/:");
-    expect(refused).toContain("Box (1 runner): Decommission machine, run its changes, then Remove");
+    expect(refused).toContain("Box (1 runner): Decommission and review, run it, then Remove");
     expect(refused).toContain("Spare: Remove");
     expect(refused).toContain("Funnel serves webhooks at https://me.ts.net");
     expect(lines).toEqual([]);

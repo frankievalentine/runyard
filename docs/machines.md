@@ -190,8 +190,9 @@ instead. History is kept for 30 days, up to 5,000 events.
 ## Remove a machine
 
 **Remove** on a machine's page takes it out of Runyard. While Runyard still has runners there,
-the dialog offers **Decommission machine** instead: it takes the machine out of every pool, so
-its next review removes the runners. Run that review, then remove the machine.
+the dialog offers **Decommission and review** instead: it takes the machine out of every pool and
+opens its review under **Changes**, which removes the runners. Run that review, then remove the
+machine.
 
 When the machine is connected, **Also clean up** (on by default) first deletes Runyard's runner
 folder there, then Runyard's key, over SSH. Tools a pool installed stay. If the cleanup fails,

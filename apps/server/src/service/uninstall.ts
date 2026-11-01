@@ -89,7 +89,7 @@ export function leftoverLines(left: OutThere, when: "before" | "after"): string[
     if (when === "after") lines.push(`    ${m.name}${what}`);
     else
       lines.push(
-        `    ${m.name}${what}: ${has.length ? "Decommission machine, run its changes, then Remove" : "Remove"}`,
+        `    ${m.name}${what}: ${has.length ? "Decommission and review, run it, then Remove" : "Remove"}`,
       );
   }
   const before = when === "before";
