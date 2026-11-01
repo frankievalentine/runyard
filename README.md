@@ -24,15 +24,26 @@ https://github.com/user-attachments/assets/c089671d-8b51-4d2c-9823-d7363ed98225
 
 ## Quick start
 
+Install Runyard once, on the machine that will run its dashboard and control plane: the
+Runyard host. Your runner machines don't need it; you add them from the dashboard later, and
+each gets its own one-line setup command.
+
+**macOS or Linux:**
+
 ```sh
-curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh   # macOS or Linux
-runyard service install                                                 # keep it running
+curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh
+runyard service install   # keep it running
 ```
 
-On Windows, in PowerShell: `irm https://frankievalentine.github.io/runyard/install.ps1 | iex`,
-then `runyard service install`. The installers download the latest
-[release](https://github.com/frankievalentine/runyard/releases) and check its checksum;
-`RUNYARD_VERSION=0.1.0` pins a version.
+**Windows, in PowerShell:**
+
+```powershell
+irm https://frankievalentine.github.io/runyard/install.ps1 | iex
+runyard service install   # keep it running
+```
+
+The installers download the latest [release](https://github.com/frankievalentine/runyard/releases)
+and check its checksum; `RUNYARD_VERSION=0.1.0` pins a version.
 
 > The first release isn't out yet. Until it is, build one: clone this repository, run
 > `vp install && vp run release`, then

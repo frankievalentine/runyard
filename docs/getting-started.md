@@ -5,18 +5,26 @@ details.
 
 ## 1. Install Runyard
 
-Install it on the machine that will run the dashboard, the Runyard host. It reaches your other
-machines from there, over SSH.
+Install Runyard once, on the machine that will run its dashboard and control plane: the
+Runyard host. Your runner machines don't need it; Runyard reaches them from the host over
+SSH, and you add each one from the dashboard with its own one-line setup command (step 4).
+
+**macOS or Linux:**
 
 ```sh
-curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh   # macOS or Linux
-runyard service install                                                 # keep it running
+curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh
+runyard service install   # keep it running
 ```
 
-On Windows, in PowerShell: `irm https://frankievalentine.github.io/runyard/install.ps1 | iex`,
-then `runyard service install`. The installers download the latest
-[release](https://github.com/frankievalentine/runyard/releases) and check its checksum;
-`RUNYARD_VERSION=0.1.0` pins a version.
+**Windows, in PowerShell:**
+
+```powershell
+irm https://frankievalentine.github.io/runyard/install.ps1 | iex
+runyard service install   # keep it running
+```
+
+The installers download the latest [release](https://github.com/frankievalentine/runyard/releases)
+and check its checksum; `RUNYARD_VERSION=0.1.0` pins a version.
 
 The first release isn't out yet. Until it is, build one: clone this repository, run
 `vp install && vp run release`, then `RUNYARD_BASE_URL=file://$PWD/apps/cli/dist/release sh

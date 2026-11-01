@@ -21,7 +21,7 @@ describe("Runyard's SSH key", () => {
       ),
     ).toBeNull();
     expect(parsePublicKey("not a key")).toBeNull();
-    expect(keyComment("Frankie's Macbook Air")).toBe("runyard@Frankie-s-Macbook-Air");
+    expect(keyComment("Sam's MacBook Air")).toBe("runyard@Sam-s-MacBook-Air");
     expect(parsePublicKey("ssh-ed25519 $(reboot)")).toBeNull();
   });
 

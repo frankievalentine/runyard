@@ -93,8 +93,8 @@ test("health names this machine's tailnet host only while serving there", async 
   const { body, send } = await import("./testing.ts");
   const t = await testApp();
   expect(await body(send(t.app, "GET", "/api/health"))).toMatchObject({ tailnetHost: null });
-  t.tailnet.state = { kind: "serving", url: "https://studio-mini.taile9f9a8.ts.net:7443/" };
+  t.tailnet.state = { kind: "serving", url: "https://studio-mini.tail1234.ts.net:7443/" };
   expect(await body(send(t.app, "GET", "/api/health"))).toMatchObject({
-    tailnetHost: "studio-mini.taile9f9a8.ts.net",
+    tailnetHost: "studio-mini.tail1234.ts.net",
   });
 });

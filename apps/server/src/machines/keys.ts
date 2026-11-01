@@ -49,7 +49,7 @@ export async function ensureRunyardKey(
 /**
  * The key's comment, naming this Runyard install in authorized_keys. Kept to
  * characters that are safe inside the quoted setup commands: computer names
- * such as "Frankie's Macbook Air" carry quotes and spaces.
+ * such as "Sam's MacBook Air" carry quotes and spaces.
  */
 export function keyComment(host: string): string {
   const safe = host.replace(/[^A-Za-z0-9.-]+/g, "-").replace(/^-+|-+$/g, "");

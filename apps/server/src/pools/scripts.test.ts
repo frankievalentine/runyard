@@ -287,7 +287,7 @@ describe("run history's reading of Forgejo runners' logs", () => {
       join(runner, "runner.log"),
       [
         'time="2026-10-30T19:49:29Z" level=info msg="[poller] launched"',
-        'time="2026-10-30T19:49:30Z" level=info msg="task 1 repo is frankie/runyard-forgejo-test https://data.forgejo.org https://forgejo.v3homelab.party"',
+        'time="2026-10-30T19:49:30Z" level=info msg="task 1 repo is frankie/runyard-forgejo-test https://data.forgejo.org https://forgejo.example.com"',
       ].join("\n"),
     );
     const kept = join(home, "runyard-runners/od/jobs/.logs");
