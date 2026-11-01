@@ -8,7 +8,7 @@ import type {
   SshTransport,
 } from "@runyard/core";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { api, ApiError, call } from "../../api.ts";
 import { RunnerReadiness } from "../../components/Readiness.tsx";
@@ -873,25 +873,38 @@ const removedMachines = (() => {
 
 /** Where a removed machine's page lands: what Runyard did there, and what's left to do by hand. */
 function Removed({ removed }: { removed: RemovedMachine }) {
+  const navigate = useNavigate();
+  const leftToDo = !removed.cleanedUp || removed.prepared;
   return (
-    <Card className="max-w-xl px-4 py-4">
-      <h2 className="text-[15px] font-semibold">Removed {removed.name}</h2>
-      <p className="mt-1.5 text-[13px] text-ink-2">
-        {removed.cleanedUp
-          ? removed.prepared
-            ? "Runyard deleted its runner folder there and removed its key. The runyard account it signed in as is still there."
-            : "Runyard deleted its runner folder there and removed its key. Nothing of Runyard's is left on it."
-          : "Runyard stopped checking it. Nothing on the machine changed."}
-      </p>
-      {removed.cleanedUp ? (
-        removed.prepared && <AccountCommand />
-      ) : (
-        <TeardownCommands os={removed.os} />
-      )}
-      <Link to="/" className="mt-4 inline-block text-[13px] text-accent hover:underline">
-        Go to overview
-      </Link>
-    </Card>
+    <div className="mx-auto mt-[12vh] max-w-md">
+      <Card className="px-6 py-6">
+        <div className="flex flex-col items-center text-center">
+          <span
+            className={`flex size-9 items-center justify-center rounded-full ${leftToDo ? "bg-warn/15 text-warn" : "bg-ok/15 text-ok"}`}
+          >
+            <Icon name="check" size={16} />
+          </span>
+          <h2 className="mt-3 text-[15px] font-semibold">Removed {removed.name}</h2>
+          <p className="mt-1.5 text-[13px] text-ink-2">
+            {removed.cleanedUp
+              ? removed.prepared
+                ? "Runyard deleted its runner folder there and removed its key. The runyard account it signed in as is still there."
+                : "Runyard deleted its runner folder there and removed its key. Nothing of Runyard's is left on it."
+              : "Runyard stopped checking it. Nothing on the machine changed."}
+          </p>
+        </div>
+        {removed.cleanedUp ? (
+          removed.prepared && <AccountCommand />
+        ) : (
+          <TeardownCommands os={removed.os} />
+        )}
+        <div className="mt-5 flex justify-center">
+          <Button variant="primary" onClick={() => void navigate({ to: "/" })}>
+            Go to overview
+          </Button>
+        </div>
+      </Card>
+    </div>
   );
 }
 
