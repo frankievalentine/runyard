@@ -1,8 +1,9 @@
 {
   "name": "runyard",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Self-hosted dashboard and control service for GitHub Actions and Forgejo runners",
+  "license": "MIT",
   "workspaces": [
     "packages/*",
     "apps/*",

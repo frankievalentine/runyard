@@ -211,15 +211,6 @@ vp run @runyard/server#check-powershell           # parse the PowerShell scripts
 
 GitHub Actions runs `vp run ci` on every push and pull request.
 
-**Releasing:** set the version in `apps/server/package.json` (the one `runyard version` prints),
-commit, then tag and push it: `git tag v0.1.0 && git push origin v0.1.0`. The release workflow
-builds the binaries for every platform, pushes the Docker image to
-`ghcr.io/frankievalentine/runyard` (tagged `0.1.0`, `0.1` and `latest`), and drafts a GitHub
-Release with the binaries, checksums and installers. Publishing the draft makes it the latest
-release, which the installers download, and updates the installers on GitHub Pages. A tag with a
-suffix, such as `v0.2.0-rc.1`, makes a pre-release instead. Run the workflow by hand from the
-Actions tab for a dry run that builds everything and publishes nothing.
-
 ## Built with
 
 - **Runtime and language:** [Bun](https://bun.sh) and [TypeScript](https://www.typescriptlang.org).
@@ -243,3 +234,7 @@ Actions tab for a dry run that builds everything and publishes nothing.
 Runyard builds on [fleet](https://github.com/aarondfrancis/fleet) by Aaron Francis: its SSH
 hardening, machine health scripts, alert rules, plan-and-apply safety rules and runner scripts
 are ported from fleet.
+
+## License
+
+[MIT](LICENSE).

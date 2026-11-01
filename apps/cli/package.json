@@ -1,8 +1,9 @@
 {
   "name": "@runyard/cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Builds the single runyard binary: the control service with the dashboard embedded",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "bun scripts/build.ts",

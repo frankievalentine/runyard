@@ -1,8 +1,9 @@
 {
   "name": "@runyard/server",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Runyard control service: forge and machine polling, desired-state engine, and the HTTP API that serves the dashboard",
+  "license": "MIT",
   "type": "module",
   "exports": {
     "./app": "./src/app.ts",
