@@ -4,7 +4,8 @@ Design and roadmap: [docs/PLAN.md](docs/PLAN.md). Follow its decisions and safet
 change to them before implementing it.
 
 - **Verify loop:** `vp run ci`: `vp run ready` (`vp check`, then `vp run -r test` and `vp run -r build`), then a
-  smoke test of the compiled binary. CI runs locally only for now; there are no GitHub Actions workflows.
+  smoke test of the compiled binary. GitHub Actions runs the same on every push and pull request
+  (`.github/workflows/ci.yml`); run it locally before pushing.
 - **Tests:** `packages/core` and `apps/dashboard` use `vp test` (Vitest, imported from
   `vite-plus/test`). `apps/server` uses `bun test`, because it depends on Bun APIs such as
   `bun:sqlite` that don't load under Vitest's Node workers. Keep logic that needs no I/O in
