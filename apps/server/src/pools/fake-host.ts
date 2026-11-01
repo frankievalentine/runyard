@@ -36,7 +36,8 @@ export class FakeRunnerHost {
       | "tools-install"
       | "path-sync"
       | "cleanup-configure"
-      | "record-jobs";
+      | "record-jobs"
+      | "teardown";
     env: Record<string, string>;
   }[] = [];
   /** Installed templates by path, with their version. */
@@ -51,6 +52,7 @@ export class FakeRunnerHost {
   answer = (stdin: string): string | CommandResult => {
     if (/^[A-Za-z0-9+/]+=*\n?$/.test(stdin))
       return this.answerWindows(Buffer.from(stdin.trim(), "base64").toString("utf8"));
+    if (stdin.includes("Runyard machine teardown")) return this.tearDown(stdin, false);
     if (stdin.includes("RT_END")) {
       this.received.push({ op: "template-probe", env: {} });
       const paths = [...stdin.matchAll(/^path=(.+)$/gm)].map((m) => unquote(m[1]!));
@@ -88,7 +90,28 @@ export class FakeRunnerHost {
     return this.operate(stdin, env);
   };
 
+  /** The machine teardown: refuses while a runner is configured, else deletes every runner folder. */
+  private tearDown(script: string, windows: boolean): string | CommandResult {
+    const key = /^\$?key\s*=\s*'([^']*)'/m.exec(script)?.[1] ?? "";
+    this.received.push({ op: "teardown", env: { RUNYARD_KEY: key } });
+    const configured = [...this.dirs].find(([, d]) => d.configured);
+    if (configured)
+      return {
+        code: 1,
+        stdout: "",
+        stderr: `A runner is still configured at ${configured[0]}.\nDecommission the machine in Runyard and run its review first, so the runner is deregistered.\n`,
+      };
+    this.dirs.clear();
+    this.templates.clear();
+    const root = windows ? "C:\\ProgramData\\Runyard\\runners" : "/home/runner/runyard-runners";
+    const keys = windows
+      ? "C:\\ProgramData\\ssh\\administrators_authorized_keys"
+      : "/home/runner/.ssh/authorized_keys";
+    return `Removed ${root}.\nRemoved Runyard's key from ${keys}.\nDone. Runyard no longer has access here.\n`;
+  }
+
   private answerWindows(script: string): string | CommandResult {
+    if (script.includes("Runyard machine teardown")) return this.tearDown(script, true);
     if (script.includes("RF_PROBE_END")) {
       this.received.push({ op: "probe", env: {} });
       const paths = [...script.matchAll(/^\$path = '(.*)'$/gm)].map((m) =>

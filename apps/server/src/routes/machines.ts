@@ -1,4 +1,5 @@
 import { isValidScopeTarget, scopeKey, type Scope } from "@runyard/core";
+import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
@@ -11,6 +12,7 @@ import {
   listAssignments,
   startMigration,
 } from "../machines/assignments.ts";
+import { runyardPublicKey, type RunyardSsh } from "../machines/keys.ts";
 import type { MachineMonitor } from "../machines/monitor.ts";
 import { validateTarget } from "../machines/ssh.ts";
 import {
@@ -38,7 +40,15 @@ const name = z.string().trim().min(1, "Name the machine.").max(80);
 const description = z.string().trim().max(500);
 
 /** Machines, the tailnet's other peers, events and the live view stream. */
-export function machineRoutes({ db, monitor }: { db: Db; monitor: MachineMonitor }) {
+export function machineRoutes({
+  db,
+  monitor,
+  ssh,
+}: {
+  db: Db;
+  monitor: MachineMonitor;
+  ssh: RunyardSsh;
+}) {
   // Mounted at the API root, so sign-in is required per route: unknown paths stay 404.
   const user = requireUser();
   return (
@@ -150,27 +160,54 @@ export function machineRoutes({ db, monitor }: { db: Db; monitor: MachineMonitor
           return c.json(getMachine(db, id)!);
         },
       )
-      .delete("/machines/:id", requireAdmin(), (c) => {
-        const id = c.req.param("id");
-        const machine = getMachine(db, id);
-        if (!machine) return c.json({ error: "No such machine." }, 404);
-        const left = dependents(db, { machineId: id });
-        if (left.length)
-          return c.json(
-            {
-              error: stillInUse(
-                machine.name,
-                left,
-                "Decommission it and run its review first, so they're removed rather than left behind.",
-              ),
-              code: "inUse",
-            },
-            409,
-          );
-        deleteMachine(db, id);
-        monitor.configChanged(id);
-        return c.json({ ok: true });
-      })
+      // With ?cleanUp=1, first runs the teardown over SSH: Runyard's runner folder, then its key.
+      // A failed cleanup leaves the machine in place, so it can be retried or skipped.
+      .delete(
+        "/machines/:id",
+        requireAdmin(),
+        zValidator("query", z.object({ cleanUp: z.literal("1").optional() })),
+        async (c) => {
+          const id = c.req.param("id");
+          const machine = getMachine(db, id);
+          if (!machine) return c.json({ error: "No such machine." }, 404);
+          const left = dependents(db, { machineId: id });
+          if (left.length)
+            return c.json(
+              {
+                error: stillInUse(
+                  machine.name,
+                  left,
+                  "Decommission it and run its review first, so they're removed rather than left behind.",
+                ),
+                code: "inUse",
+              },
+              409,
+            );
+          let cleanedUp: string | null = null;
+          if (c.req.valid("query").cleanUp) {
+            const key = await runyardPublicKey(ssh);
+            if (!key)
+              return c.json(
+                { error: "Runyard has no SSH key of its own to remove.", code: "cleanUp" },
+                400,
+              );
+            try {
+              cleanedUp = await monitor.tearDown(id, key.line);
+            } catch (error) {
+              return c.json(
+                {
+                  error: error instanceof Error ? error.message : String(error),
+                  code: "cleanUp",
+                },
+                502,
+              );
+            }
+          }
+          deleteMachine(db, id);
+          monitor.configChanged(id);
+          return c.json({ ok: true, cleanedUp });
+        },
+      )
       // Takes a machine out of every pool; its next review removes what Runyard put there.
       .post("/machines/:id/decommission", requireAdmin(), (c) => {
         const id = c.req.param("id");

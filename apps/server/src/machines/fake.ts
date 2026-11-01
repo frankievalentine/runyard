@@ -1,7 +1,10 @@
 import type { CommandResult, CommandRunner } from "../command.ts";
 import { TailscaleCli } from "../tailscale.ts";
 
-type Answer = string | CommandResult | ((stdin: string) => string | CommandResult);
+type Answer =
+  | string
+  | CommandResult
+  | ((stdin: string) => string | CommandResult | Promise<string | CommandResult>);
 
 /**
  * A fake for everything the monitor runs: `tailscale status` answers with
@@ -53,7 +56,7 @@ export class FakeMachines {
     const answer = target === undefined ? undefined : this.machines.get(target);
     if (answer === undefined)
       return { code: 255, stdout: "", stderr: `ssh: Could not resolve hostname ${target}` };
-    const value = typeof answer === "function" ? answer(options?.stdin ?? "") : answer;
+    const value = typeof answer === "function" ? await answer(options?.stdin ?? "") : answer;
     return typeof value === "string" ? { code: 0, stdout: value, stderr: "" } : value;
   };
 

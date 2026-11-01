@@ -34,6 +34,7 @@ import type { CommandRunner } from "../command.ts";
 import type { Db } from "../db/index.ts";
 import type { TailscaleCli } from "../tailscale.ts";
 import { inspect, SshError, type SshPrograms } from "./ssh.ts";
+import { tearDown } from "./teardown.ts";
 import {
   appendEvents,
   getMachine,
@@ -329,6 +330,19 @@ export class MachineMonitor {
     const machine = getMachine(this.deps.db, machineId);
     if (!machine) return [];
     return findPeer(machine, this.tailnet.snapshot?.peers ?? [])?.sshHostKeys ?? [];
+  }
+
+  /** Runs the machine teardown over SSH: Runyard's runner folder, then its key. */
+  async tearDown(machineId: string, keyLine: string): Promise<string> {
+    const machine = getMachine(this.deps.db, machineId);
+    if (!machine) throw new Error("No such machine.");
+    const os = this.expectedOs(
+      machine,
+      this.observations.get(machineId) ?? { report: null, error: null },
+    );
+    if (!os || os === "other")
+      throw new Error("Runyard doesn't know this machine's operating system yet.");
+    return tearDown(this.deps.run, this.deps.programs, machine, os, keyLine);
   }
 
   /** The OS to talk to: configured, else what Tailscale reports, else what the machine reported last. */

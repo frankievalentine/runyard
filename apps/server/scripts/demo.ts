@@ -225,6 +225,13 @@ fake.machines.set(
   "linux-builder.demo.ts.net",
   runnerHost(() => linux(22), githubFor, "Linux", "linux-builder.demo.ts.net"),
 );
+// Set up with the fresh-machine command and taken out of its pools: ready to remove and clean up.
+const spare = runnerHost(() => linux(40), githubFor, "Linux", "runyard@spare-lxc.demo.ts.net");
+// The cleanup takes a moment over real SSH; so it does here, to show the dialog while it runs.
+fake.machines.set("runyard@spare-lxc.demo.ts.net", async (stdin) => {
+  if (stdin.includes("Runyard machine teardown")) await Bun.sleep(2500);
+  return spare(stdin);
+});
 fake.machines.set("admin@lab-server.internal", {
   code: 255,
   stdout: "",
@@ -542,6 +549,15 @@ if (listMachines(db).length === 0) {
     name: "Lab server",
     sshTarget: "admin@lab-server.internal",
     transport: "openssh",
+  });
+}
+if (!listMachines(db).some((m) => m.sshTarget === "runyard@spare-lxc.demo.ts.net")) {
+  createMachine(db, {
+    name: "Spare LXC",
+    sshTarget: "runyard@spare-lxc.demo.ts.net",
+    transport: "openssh",
+    expectedOs: "linux",
+    description: "Decommissioned; ready to remove",
   });
 }
 // An on-demand pool on Linux builder, its runner software already installed,

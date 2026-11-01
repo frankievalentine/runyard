@@ -2,7 +2,6 @@ import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { Jobs } from "../../components/Jobs.tsx";
 import type {
   DiagnosticGroup,
-  YardView,
   HealthView,
   MachineView,
   OsFamily,
@@ -10,8 +9,8 @@ import type {
 } from "@runyard/core";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent, type ReactNode } from "react";
-import { api, call } from "../../api.ts";
+import { useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
+import { api, ApiError, call } from "../../api.ts";
 import { RunnerReadiness } from "../../components/Readiness.tsx";
 import { AccessPanel } from "../../components/AccessPanel.tsx";
 import { CommandBox, CopyValue } from "../../components/CopyValue.tsx";
@@ -77,7 +76,9 @@ function Machine() {
   const { data: session } = useSuspenseQuery(sessionQuery);
   const [editing, setEditing] = useState(false);
   const m = view.machines.find((x) => x.id === id);
+  const removed = useSyncExternalStore(removedMachines.subscribe, () => removedMachines.get(id));
   if (!m) {
+    if (removed) return <Removed removed={removed} />;
     return (
       <Card>
         <EmptyLine>
@@ -592,15 +593,24 @@ function RemoveMachine({ m }: { m: MachineView }) {
       .map((t) => `${t.poolName} runner software`),
   ];
   const pools = view.pools.pools.filter((p) => p.machines.some((x) => x.machineId === m.id));
+  const connected = m.connection.state === "connected";
+  const [cleanUp, setCleanUp] = useState(connected);
   const remove = useMutation({
-    mutationFn: () => call(api.machines[":id"].$delete({ param: { id: m.id } })),
-    onSuccess: async () => {
-      queryClient.setQueryData<YardView>(
-        yardQuery.queryKey,
-        (v) => v && { ...v, machines: v.machines.filter((x) => x.id !== m.id) },
+    // Recorded here rather than in onSuccess: the live view drops the machine, and this dialog
+    // with it, as soon as the server removes it. The page then shows what happened.
+    mutationFn: async (withCleanUp: boolean) => {
+      const res = await call(
+        api.machines[":id"].$delete({
+          param: { id: m.id },
+          query: withCleanUp ? { cleanUp: "1" } : {},
+        }),
       );
-      await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
-      void navigate({ to: "/" });
+      removedMachines.set(m.id, {
+        name: m.name,
+        os: m.os,
+        cleanedUp: res.cleanedUp !== null,
+        prepared: m.os === "linux" && m.sshTarget.startsWith("runyard@"),
+      });
     },
   });
   const decommission = useMutation({
@@ -611,23 +621,74 @@ function RemoveMachine({ m }: { m: MachineView }) {
     },
   });
   const inUse = left.length > 0;
+  const cleanUpFailed = remove.error instanceof ApiError && remove.error.code === "cleanUp";
   return (
     <AlertDialog.Root>
       <AlertDialog.Trigger render={<Button small variant="danger" />}>Remove</AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
-        <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 p-5">
+        <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 p-5">
           <AlertDialog.Title className="text-[15px] font-semibold">
             {inUse ? `Decommission ${m.name} first` : `Remove ${m.name}?`}
           </AlertDialog.Title>
           <AlertDialog.Description className="mt-1.5 text-[13px] text-ink-2">
             {inUse
-              ? `${left.join(", ")} ${left.length === 1 ? "is" : "are"} still on this machine. Decommission removes it from ${pools.length ? pools.map((p) => p.name).join(", ") : "its pools"}. Then run its changes to remove ${left.length === 1 ? "it" : "them"}, and remove the machine.`
-              : "Deletes its history and stops checking it. Nothing on the machine changes."}
+              ? `Runyard still has ${left.length === 1 ? "this" : "these"} on the machine:`
+              : "Runyard deletes its history and stops checking it."}
           </AlertDialog.Description>
-          {!inUse && <TeardownCommands m={m} />}
-          {(remove.error ?? decommission.error) && (
-            <ErrorText className="mt-2" error={remove.error ?? decommission.error} />
+          {inUse && (
+            <>
+              <ul className="mt-2 flex flex-col gap-1 rounded-md border border-line bg-bg px-3 py-2 font-mono text-[12px]">
+                {left.map((name) => (
+                  <li key={name}>{name}</li>
+                ))}
+              </ul>
+              <ol className="mt-3 flex list-decimal flex-col gap-1 pl-5 text-[13px] text-ink-2">
+                <li>
+                  Decommission takes {left.length === 1 ? "it" : "them"} out of{" "}
+                  {pools.length ? pools.map((p) => p.name).join(", ") : "its pools"}.
+                </li>
+                <li>Run the machine's changes to remove {left.length === 1 ? "it" : "them"}.</li>
+                <li>Remove the machine.</li>
+              </ol>
+            </>
+          )}
+          {!inUse && !connected && (
+            <div className="mt-3 rounded-md border border-line bg-bg px-3 py-2.5 text-[12.5px]">
+              <span className="font-medium">{m.name} won't be cleaned up</span>
+              <p className="mt-0.5 text-[12px] text-ink-2">
+                It isn't connected, so its runner folder and Runyard's key stay there.
+              </p>
+              <TeardownCommands os={m.os} />
+            </div>
+          )}
+          {!inUse && connected && !cleanUpFailed && (
+            <label className="mt-3 flex items-start gap-2 text-[12.5px]">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={cleanUp}
+                onChange={(e) => setCleanUp(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium">Also clean up {m.name}</span>
+                <span className="block text-[12px] text-ink-2">
+                  Deletes Runyard's runner folder there, then Runyard's key, over SSH. Tools pools
+                  installed stay.
+                </span>
+              </span>
+            </label>
+          )}
+          {!inUse && connected && (cleanUpFailed || !cleanUp) && <TeardownCommands os={m.os} />}
+          {cleanUpFailed ? (
+            <ErrorText
+              className="mt-3"
+              error={`Runyard couldn't clean up ${m.name}: ${remove.error?.message}`}
+            />
+          ) : (
+            (remove.error ?? decommission.error) && (
+              <ErrorText className="mt-2" error={remove.error ?? decommission.error} />
+            )
           )}
           <div className="mt-5 flex justify-end gap-2">
             <AlertDialog.Close render={<Button />}>Cancel</AlertDialog.Close>
@@ -639,9 +700,26 @@ function RemoveMachine({ m }: { m: MachineView }) {
               >
                 Decommission machine
               </Button>
+            ) : cleanUpFailed ? (
+              <>
+                <Button onClick={() => remove.mutate(true)} disabled={remove.isPending}>
+                  Try again
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => remove.mutate(false)}
+                  disabled={remove.isPending}
+                >
+                  Remove without cleaning up
+                </Button>
+              </>
             ) : (
-              <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>
-                Remove machine
+              <Button
+                variant="danger"
+                onClick={() => remove.mutate(cleanUp && connected)}
+                disabled={remove.isPending}
+              >
+                {remove.isPending && cleanUp ? "Cleaning up…" : "Remove machine"}
               </Button>
             )}
           </div>
@@ -651,12 +729,78 @@ function RemoveMachine({ m }: { m: MachineView }) {
   );
 }
 
+type RemovedMachine = { name: string; os: OsFamily | null; cleanedUp: boolean; prepared: boolean };
+
+/**
+ * Machines removed in this tab, so the machine's page can say what the removal did. A store
+ * the page subscribes to: the live view may drop the machine before the removal's answer lands.
+ */
+const removedMachines = (() => {
+  const entries = new Map<string, RemovedMachine>();
+  const listeners = new Set<() => void>();
+  return {
+    get: (id: string) => entries.get(id),
+    set: (id: string, removed: RemovedMachine) => {
+      entries.set(id, removed);
+      for (const l of listeners) l();
+    },
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+})();
+
+/** Where a removed machine's page lands: what Runyard did there, and what's left to do by hand. */
+function Removed({ removed }: { removed: RemovedMachine }) {
+  return (
+    <Card className="max-w-xl px-4 py-4">
+      <h2 className="text-[15px] font-semibold">Removed {removed.name}</h2>
+      <p className="mt-1.5 text-[13px] text-ink-2">
+        {removed.cleanedUp
+          ? removed.prepared
+            ? "Runyard deleted its runner folder there and removed its key. The runyard account it signed in as is still there."
+            : "Runyard deleted its runner folder there and removed its key. Nothing of Runyard's is left on it."
+          : "Runyard stopped checking it. Nothing on the machine changed."}
+      </p>
+      {removed.cleanedUp ? (
+        removed.prepared && <AccountCommand />
+      ) : (
+        <TeardownCommands os={removed.os} />
+      )}
+      <Link to="/" className="mt-4 inline-block text-[13px] text-accent hover:underline">
+        Go to overview
+      </Link>
+    </Card>
+  );
+}
+
+/** After a cleanup on a machine set up with --prepare: the root command that deletes the runyard account. */
+function AccountCommand() {
+  const origin = window.location.origin;
+  const command = origin.startsWith("https://")
+    ? `curl -fsSL ${origin}/api/machine-setup/teardown.sh | sudo sh -s -- --prepared`
+    : "sudo loginctl disable-linger runyard; sudo pkill -u runyard; sudo userdel -r runyard && sudo rm -f /etc/sudoers.d/runyard";
+  return (
+    <div className="mt-3 flex flex-col gap-1 text-[12px]">
+      <span className="font-medium">To delete the runyard account too, run on the machine:</span>
+      <div className="rounded-md border border-line bg-bg px-2 py-1.5">
+        <CopyValue
+          value={command}
+          label="Account removal command"
+          className="font-mono text-[11.5px] break-all"
+        />
+      </div>
+    </div>
+  );
+}
+
 /**
  * The commands that remove what Runyard's setup left on a machine: its key,
- * ~/runyard-runners, and with --prepared the runyard account. Run on the
- * machine by a person; Runyard never runs them. Served over HTTPS only.
+ * ~/runyard-runners, and with --prepared the runyard account. For a machine
+ * Runyard can't reach or didn't clean up itself. Served over HTTPS only.
  */
-function TeardownCommands({ m }: { m: MachineView }) {
+function TeardownCommands({ os }: { os: OsFamily | null }) {
   const origin = window.location.origin;
   if (!origin.startsWith("https://"))
     return (
@@ -665,14 +809,14 @@ function TeardownCommands({ m }: { m: MachineView }) {
       </p>
     );
   const commands =
-    m.os === "windows"
+    os === "windows"
       ? [["As the account Runyard used", `irm ${origin}/api/machine-setup/teardown.ps1 | iex`]]
       : [
           [
             "As the account Runyard used",
             `curl -fsSL ${origin}/api/machine-setup/teardown.sh | sh`,
           ],
-          ...(m.os !== "macos"
+          ...(os !== "macos"
             ? [
                 [
                   "Fresh-machine setup, as root (also removes the runyard account)",

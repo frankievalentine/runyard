@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { getMachine } from "../machines/store.ts";
+import { FIXTURE_KEY } from "../machines/key-fixture.ts";
 import type { OperationView, Review } from "./engine.ts";
 import { listPools, listRegistrations } from "./store.ts";
 import { finish, pool, setup } from "./test-helpers.ts";
@@ -38,5 +40,37 @@ describe("taking a machine out of service", () => {
 
     expect((await s.raw("DELETE", `/api/machines/${s.machine.id}`)).status).toBe(200);
     expect((await s.raw("DELETE", `/api/github/apps/${s.forgeId}`)).status).toBe(200);
+  });
+
+  test("removal can clean up the machine over SSH: runner folder, then Runyard's key", async () => {
+    const s = await setup({ account: "acme", type: "Organization", repos: [] });
+    await Bun.write(`${s.deps.ssh.identity}.pub`, `${FIXTURE_KEY}\n`);
+    const res = await s.raw("DELETE", `/api/machines/${s.machine.id}?cleanUp=1`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      cleanedUp: expect.stringContaining("Runyard no longer has access here"),
+    });
+    const teardown = s.host.received.find((r) => r.op === "teardown");
+    expect(teardown?.env.RUNYARD_KEY).toStartWith(FIXTURE_KEY.split(" ").slice(0, 2).join(" "));
+    expect(getMachine(s.deps.db, s.machine.id)).toBeUndefined();
+  });
+
+  test("a failed cleanup leaves the machine, and removing without it still works", async () => {
+    const s = await setup({ account: "acme", type: "Organization", repos: [] });
+    await Bun.write(`${s.deps.ssh.identity}.pub`, `${FIXTURE_KEY}\n`);
+    // A runner Runyard doesn't know about: the teardown refuses.
+    s.host.dirs.set("~/runyard-runners/other/runner-1", {
+      configured: true,
+      service: "active",
+      name: "other",
+    });
+    const refused = await s.raw("DELETE", `/api/machines/${s.machine.id}?cleanUp=1`);
+    expect(refused.status).toBe(502);
+    expect(await refused.json()).toMatchObject({
+      code: "cleanUp",
+      error: expect.stringContaining("A runner is still configured"),
+    });
+    expect(getMachine(s.deps.db, s.machine.id)).toBeDefined();
+    expect((await s.raw("DELETE", `/api/machines/${s.machine.id}`)).status).toBe(200);
   });
 });
