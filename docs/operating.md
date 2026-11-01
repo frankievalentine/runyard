@@ -123,17 +123,23 @@ it:
 
 1. **Machines.** On each machine's page, click **Remove**. While Runyard has runners there, the
    dialog offers **Decommission machine**, which takes the machine out of every pool. Review and
-   run its changes to remove the runners, then **Remove** the machine. Runyard refuses to remove a
-   machine, a GitHub App or a Forgejo connection that still has runners, and names them.
-2. **What setup left on each machine.** The Remove dialog shows a teardown command to run on the
+   run its changes to remove the runners, then **Remove** the machine. With **Also clean up**,
+   Runyard deletes its runner folder and its key on the machine as it goes. On a machine set up
+   with the fresh-machine command, run the root command shown afterwards to delete the `runyard`
+   account. Runyard refuses to remove a machine, a GitHub App or a Forgejo connection that still
+   has runners, and names them.
+2. **Machines Runyard can't reach.** The Remove dialog shows a teardown command to run on the
    machine. It deletes Runyard's runner folder and its key from `authorized_keys`; with
    `--prepared`, run as root, it also removes the `runyard` account, its sudoers file and
    lingering. It refuses while a runner there is still configured. Tools a pool installed stay.
 3. **Connections.** Remove each GitHub App and Forgejo connection under **Settings ▸
-   Connections**, then delete the GitHub App in its settings on GitHub. If you made webhooks
-   public with Funnel, run `tailscale funnel reset`.
+   Connections**, then delete the GitHub App in its settings on GitHub and revoke the Forgejo
+   token. **Disconnect** boat.dev and delete its API key. If you made webhooks public with
+   Funnel, run `tailscale funnel reset`; it turns off every Serve and Funnel setting on that
+   machine.
 4. **Runyard itself.** `runyard uninstall` stops and removes the service and the binary;
    `--purge` also deletes the data directory (the database, Runyard's SSH key and known hosts, and
-   a generated secret key). It refuses while Runyard still has runners on machines, unless you
-   add `--force`. `--dry-run` shows every step. With Docker, run
+   a generated secret key). While Runyard still has machines or connections, it refuses and lists
+   each one with what to do, and the dashboard's address. `--force` uninstalls anyway and lists
+   what stays behind. `--dry-run` shows every step. With Docker, run
    `docker compose -f docker/compose.yaml down -v`.

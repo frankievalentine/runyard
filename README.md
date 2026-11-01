@@ -45,8 +45,9 @@ here):
 5. **Point a workflow at the pool:** its page shows the `runs-on` line and a file to start
    from. [Writing workflows](docs/workflows.md) covers labels, Windows and Forgejo.
 
-To remove Runyard later, decommission its machines in the dashboard first, then run
-`runyard uninstall --purge`; [Uninstalling](docs/operating.md#uninstalling) has the full order.
+To remove Runyard later, run `runyard uninstall --purge`. It lists the machines and connections
+to remove in the dashboard first; [Uninstalling](docs/operating.md#uninstalling) has the full
+order.
 
 ## Docker
 

@@ -2,9 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { purgeProblem, remainingOutThere, uninstall } from "./uninstall.ts";
+import { outThere, purgeProblem, uninstall } from "./uninstall.ts";
 import { openDatabase } from "../db/index.ts";
 import { recordRegistration } from "../pools/store.ts";
+import { FakeMachines } from "../machines/fake.ts";
 import { createMachine } from "../machines/store.ts";
 import type { ServiceContext } from "./plan.ts";
 
@@ -21,7 +22,7 @@ describe("runyard uninstall", () => {
     expect(purgeProblem(custom, home)).toBeNull();
   });
 
-  test("refuses while runners are still out there, unless --force; --dry-run changes nothing", async () => {
+  test("refuses while machines are still out there, naming each and what to do, unless --force; --dry-run changes nothing", async () => {
     const home = await mkdtemp(join(tmpdir(), "home-"));
     const dataDir = join(home, "runyard");
     await mkdir(dataDir);
@@ -41,7 +42,21 @@ describe("runyard uninstall", () => {
       serviceMode: "systemd",
       runnerKind: "actions",
     });
-    expect(remainingOutThere(dataDir)).toEqual(["box-mac-01"]);
+    createMachine(db, {
+      name: "Spare",
+      sshTarget: "runyard@spare",
+      transport: "openssh",
+      expectedOs: "linux",
+    });
+    expect(outThere(dataDir)?.machines).toEqual([
+      { name: "Box", runners: 1, software: 0, running: 0 },
+      { name: "Spare", runners: 0, software: 0, running: 0 },
+    ]);
+    const fake = new FakeMachines();
+    fake.funnel = JSON.stringify({
+      Web: { "me.ts.net:443": { Handlers: { "/": { Proxy: "http://127.0.0.1:7444" } } } },
+      AllowFunnel: { "me.ts.net:443": true },
+    });
     const binary = join(home, "runyard-bin");
     await writeFile(binary, "binary");
     const ctx = {
@@ -56,12 +71,19 @@ describe("runyard uninstall", () => {
     } as unknown as ServiceContext;
     const lines: string[] = [];
     const log = (l: string) => lines.push(l);
-    const refused = await uninstall(ctx, { purge: true, force: false, dryRun: true, log }).then(
+    const options = { purge: true, dryRun: true, log, tailscale: fake.tailscale };
+    const refused = await uninstall(ctx, { ...options, force: false }).then(
       () => null,
       (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
-    expect(refused).toContain("box-mac-01");
-    await uninstall(ctx, { purge: true, force: true, dryRun: true, log });
+    expect(refused).toContain("in the dashboard at\nhttp://127.0.0.1:7420/:");
+    expect(refused).toContain("Box (1 runner): Decommission machine, run its changes, then Remove");
+    expect(refused).toContain("Spare: Remove");
+    expect(refused).toContain("Funnel serves webhooks at https://me.ts.net");
+    expect(lines).toEqual([]);
+    await uninstall(ctx, { ...options, force: true });
+    expect(lines.join("\n")).toContain("these stay until you remove them by hand:");
+    expect(lines.join("\n")).toContain("    Box (1 runner)\n    Spare\n");
     expect(lines.join("\n")).toContain(`remove ${binary}`);
     expect(lines.join("\n")).toContain("Nothing was changed");
     expect(await Bun.file(binary).exists()).toBe(true);

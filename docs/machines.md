@@ -193,5 +193,11 @@ instead. History is kept for 30 days, up to 5,000 events.
 the dialog offers **Decommission machine** instead: it takes the machine out of every pool, so
 its next review removes the runners. Run that review, then remove the machine.
 
-Removing a machine leaves Runyard's key and runner folders on it. The Remove dialog shows a
-teardown command that deletes them; see [Uninstalling](operating.md#uninstalling).
+When the machine is connected, **Also clean up** (on by default) first deletes Runyard's runner
+folder there, then Runyard's key, over SSH. Tools a pool installed stay. If the cleanup fails,
+the machine stays and the dialog says why, with **Try again** and **Remove without cleaning
+up**. On a machine set up with the fresh-machine command, the `runyard` account stays; the page
+then shows the root command that deletes it.
+
+For a machine Runyard can't reach, or one removed without cleaning up, the dialog shows teardown
+commands to run on the machine instead; see [Uninstalling](operating.md#uninstalling).

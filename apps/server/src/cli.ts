@@ -16,7 +16,7 @@ Usage:
   runyard version
 
 Add --dry-run to install or uninstall to print what would change. uninstall refuses while
-Runyard still has runners on your machines (decommission them first), unless --force.
+Runyard still has machines or connections, listing each and what to do, unless --force.
 Settings come from RUNYARD_* environment variables; install carries them into the service.`;
 
 /** The runyard command line. With no command it serves. */
