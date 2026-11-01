@@ -87,10 +87,7 @@ export function leftoverLines(left: OutThere, when: "before" | "after"): string[
     ].filter(Boolean);
     const what = has.length ? ` (${has.join(", ")})` : "";
     if (when === "after") lines.push(`    ${m.name}${what}`);
-    else
-      lines.push(
-        `    ${m.name}${what}: ${has.length ? "Decommission and review, run it, then Remove" : "Remove"}`,
-      );
+    else lines.push(`    ${m.name}${what}: Remove${has.length ? " (it removes them first)" : ""}`);
   }
   const before = when === "before";
   const connections = [

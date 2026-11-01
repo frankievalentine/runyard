@@ -8,7 +8,7 @@ import type {
   SshTransport,
 } from "@runyard/core";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { api, ApiError, call } from "../../api.ts";
 import { RunnerReadiness } from "../../components/Readiness.tsx";
@@ -581,30 +581,85 @@ function EditMachine({ m, close }: { m: MachineView; close: () => void }) {
   );
 }
 
+type RemoveStep = "pools" | "runners" | "cleanUp" | "remove";
+type Operation = { status: "running" | "succeeded" | "failed"; error: string | null };
+
+/**
+ * Removing a machine, from one confirmation: takes it out of its pools, runs the
+ * review that removes its runners, cleans it up over SSH, then forgets it. Each
+ * step is skipped once done, so trying again picks up where it stopped.
+ */
 function RemoveMachine({ m }: { m: MachineView }) {
   const view = useYard();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  // What Runyard still has there: removing the machine first would leave it behind.
+  // What Runyard still has there, removed before the machine.
+  const runners = view.pools.registrations.filter((r) => r.machineId === m.id);
   const left = [
-    ...view.pools.registrations.filter((r) => r.machineId === m.id).map((r) => r.runnerName),
+    ...runners.map((r) => r.runnerName),
     ...view.pools.templateRecords
       .filter((t) => t.machineId === m.id)
       .map((t) => `${t.poolName} runner software`),
   ];
+  const software = left.length - runners.length;
+  const leftSummary = [
+    runners.length && `${runners.length} runner${runners.length === 1 ? "" : "s"}`,
+    software && "runner software",
+  ]
+    .filter(Boolean)
+    .join(" and ");
   const pools = view.pools.pools.filter((p) => p.machines.some((x) => x.machineId === m.id));
   const connected = m.connection.state === "connected";
+  const [open, setOpen] = useState(false);
   const [cleanUp, setCleanUp] = useState(connected);
+  const [sudo, setSudo] = useState("");
+  const [step, setStep] = useState<RemoveStep | null>(null);
+  // The second look: what's about to happen, before anything does.
+  const [confirming, setConfirming] = useState(false);
+  // The steps as they stood at the click: the live view drops each as it's done.
+  const [plan, setPlan] = useState<{ key: RemoveStep; label: string }[]>([]);
+  // A one-job runner mid-job can't be removed; the machine waits for it.
+  const busy = view.pools.dispatches
+    .filter((d) => d.machineId === m.id && (d.state === "starting" || d.state === "running"))
+    .map((d) => d.runnerName);
   const remove = useMutation({
-    // Recorded here rather than in onSuccess: the live view drops the machine, and this dialog
-    // with it, as soon as the server removes it. The page then shows what happened.
     mutationFn: async (withCleanUp: boolean) => {
+      if (pools.length) {
+        setStep("pools");
+        await call(api.machines[":id"].decommission.$post({ param: { id: m.id } }));
+      }
+      if (left.length) {
+        setStep("runners");
+        const review = (await call(
+          api.machines[":id"].review.$post({ param: { id: m.id } }),
+        )) as unknown as { id: string; items: unknown[] };
+        if (review.items.length) {
+          const started = (await call(
+            api.reviews[":id"].execute.$post({
+              param: { id: review.id },
+              json: sudo ? { sudoPassword: sudo } : {},
+            }),
+          )) as unknown as { id: string };
+          let op: Operation;
+          do {
+            await new Promise((r) => setTimeout(r, 1000));
+            op = (await call(
+              api.operations[":id"].$get({ param: { id: started.id } }),
+            )) as unknown as Operation;
+          } while (op.status === "running");
+          if (op.status === "failed")
+            throw new Error(`Runyard couldn't remove its runners: ${op.error ?? "a step failed"}`);
+        }
+        await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
+      }
+      setStep(withCleanUp ? "cleanUp" : "remove");
       const res = await call(
         api.machines[":id"].$delete({
           param: { id: m.id },
           query: withCleanUp ? { cleanUp: "1" } : {},
         }),
       );
+      // Recorded here rather than in onSuccess: the live view drops the machine, and this dialog
+      // with it, as soon as the server removes it. The page then shows what happened.
       removedMachines.set(m.id, {
         name: m.name,
         os: m.os,
@@ -612,75 +667,103 @@ function RemoveMachine({ m }: { m: MachineView }) {
         prepared: m.os === "linux" && m.sshTarget.startsWith("runyard@"),
       });
     },
+    onSettled: () => setSudo(""),
   });
-  const [open, setOpen] = useState(false);
-  // Decommissioning only takes the machine out of its pools; its review removes what's left.
-  // So it prepares that review and opens it under Changes, ready to run.
-  const decommission = useMutation({
-    mutationFn: async () => {
-      if (pools.length) await call(api.machines[":id"].decommission.$post({ param: { id: m.id } }));
-      await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
-      return (await call(api.machines[":id"].review.$post({ param: { id: m.id } }))) as unknown as {
-        id: string;
-      };
-    },
-    onSuccess: (review) => {
-      setOpen(false);
-      void navigate({
-        to: "/machines/$id",
-        params: { id: m.id },
-        search: { review: review.id },
-        hash: "changes",
-      });
-    },
-  });
-  const inUse = left.length > 0;
-  // Out of every pool already: only running its changes is left.
-  const decommissioned = inUse && pools.length === 0;
   const cleanUpFailed = remove.error instanceof ApiError && remove.error.code === "cleanUp";
+  // Removing runners needs the machine; without it they'd stay registered.
+  const blocked = (left.length > 0 && !connected) || busy.length > 0;
+  const steps: { key: RemoveStep; label: string }[] = [
+    ...(pools.length
+      ? [{ key: "pools" as const, label: `Take it out of ${pools.map((p) => p.name).join(", ")}` }]
+      : []),
+    ...(left.length
+      ? [
+          {
+            key: "runners" as const,
+            label: left.length === 1 ? `Remove ${left[0]}` : `Remove ${leftSummary}`,
+          },
+        ]
+      : []),
+    ...(cleanUp && connected
+      ? [{ key: "cleanUp" as const, label: "Delete Runyard's runner folder and key there" }]
+      : []),
+    { key: "remove", label: "Remove it from Runyard" },
+  ];
+  const at = step ? plan.findIndex((s) => s.key === step) : -1;
+  const start = (withCleanUp: boolean) => {
+    setConfirming(false);
+    setPlan(steps.filter((s) => s.key !== "cleanUp" || withCleanUp));
+    remove.mutate(withCleanUp);
+  };
   return (
-    <AlertDialog.Root open={open} onOpenChange={setOpen}>
+    <AlertDialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next && !remove.isPending) {
+          remove.reset();
+          setConfirming(false);
+          setStep(null);
+          setCleanUp(connected);
+        }
+      }}
+    >
       <AlertDialog.Trigger render={<Button small variant="danger" />}>Remove</AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
-        <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 p-5">
+        <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,460px)] -translate-x-1/2 -translate-y-1/2 p-5">
           <AlertDialog.Title className="text-[15px] font-semibold">
-            {decommissioned
-              ? `Run ${m.name}'s changes first`
-              : inUse
-                ? `Decommission ${m.name} first`
-                : `Remove ${m.name}?`}
+            {plan.length && (remove.isPending || remove.error)
+              ? `Removing ${m.name}`
+              : confirming
+                ? `Are you sure you want to remove ${m.name}?`
+                : `Remove ${m.name}`}
           </AlertDialog.Title>
           <AlertDialog.Description className="mt-1.5 text-[13px] text-ink-2">
-            {decommissioned
-              ? `It's out of its pools. Running its changes removes ${left.length === 1 ? "this" : "these"}:`
-              : inUse
-                ? `Runyard still has ${left.length === 1 ? "this" : "these"} on the machine:`
-                : "Runyard deletes its history and stops checking it."}
+            {plan.length && (remove.isPending || remove.error)
+              ? remove.error
+                ? "It stopped here. Nothing after this step ran."
+                : plan.some((s) => s.key === "runners")
+                  ? "This can take a minute while each runner is removed."
+                  : "This takes a few seconds."
+              : confirming
+                ? "Runyard does these in order. It can't be undone."
+                : left.length
+                  ? `Runyard removes ${left.length === 1 ? "its runner" : "what it has there"} first, then deletes the machine's history and stops checking it.`
+                  : "Runyard deletes its history and stops checking it."}
           </AlertDialog.Description>
-          {inUse && (
-            <>
-              <ul className="mt-2 flex flex-col gap-1 rounded-md border border-line bg-bg px-3 py-2 font-mono text-[12px]">
-                {left.map((name) => (
-                  <li key={name}>{name}</li>
-                ))}
-              </ul>
-              {!decommissioned && (
-                <ol className="mt-3 flex list-decimal flex-col gap-1 pl-5 text-[13px] text-ink-2">
-                  <li>
-                    Decommission takes {left.length === 1 ? "it" : "them"} out of{" "}
-                    {pools.length ? pools.map((p) => p.name).join(", ") : "its pools"}.
-                  </li>
-                  <li>
-                    Its review opens under Changes: run it to remove{" "}
-                    {left.length === 1 ? "it" : "them"}.
-                  </li>
-                  <li>Remove the machine.</li>
-                </ol>
-              )}
-            </>
+          {left.length > 0 && !confirming && !remove.isPending && !remove.error && (
+            <ul className="mt-2 flex flex-col gap-1 rounded-md border border-line bg-bg px-3 py-2 font-mono text-[12px]">
+              {left.map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
           )}
-          {!inUse && !connected && (
+          {blocked && (
+            <p className="mt-3 text-[12.5px] text-ink-2">
+              {busy.length
+                ? `${busy.join(", ")} ${busy.length === 1 ? "is" : "are"} running a job. Remove the machine once ${busy.length === 1 ? "it finishes" : "they finish"}.`
+                : `${m.name} isn't connected, so Runyard can't remove ${left.length === 1 ? "its runner" : "them"}. Connect it, then remove it again.`}
+            </p>
+          )}
+          {(confirming || remove.isPending || remove.error) && (
+            <ol className="mt-3 flex flex-col gap-1.5 text-[12.5px]">
+              {(confirming ? steps.filter((s) => s.key !== "cleanUp" || cleanUp) : plan).map(
+                (s, i) => (
+                  <li key={s.key} className="flex items-center gap-2">
+                    <StatusDot
+                      tone={i < at ? "ok" : i === at ? (remove.error ? "bad" : "busy") : "muted"}
+                      hollow={i > at}
+                    />
+                    <span className={i > at && !confirming ? "text-ink-3" : undefined}>
+                      {s.label}
+                    </span>
+                  </li>
+                ),
+              )}
+            </ol>
+          )}
+          {!blocked && !left.length && !connected && !confirming && !remove.error && (
             <div className="mt-3 rounded-md border border-line bg-bg px-3 py-2.5 text-[12.5px]">
               <span className="font-medium">{m.name} won't be cleaned up</span>
               <p className="mt-0.5 text-[12px] text-ink-2">
@@ -689,7 +772,7 @@ function RemoveMachine({ m }: { m: MachineView }) {
               <TeardownCommands os={m.os} />
             </div>
           )}
-          {!inUse && connected && !cleanUpFailed && (
+          {!blocked && connected && !confirming && !remove.isPending && !remove.error && (
             <label className="mt-3 flex items-start gap-2 text-[12.5px]">
               <input
                 type="checkbox"
@@ -706,53 +789,57 @@ function RemoveMachine({ m }: { m: MachineView }) {
               </span>
             </label>
           )}
-          {!inUse && connected && (cleanUpFailed || !cleanUp) && <TeardownCommands os={m.os} />}
+          {!blocked &&
+            runners.length > 0 &&
+            m.os === "linux" &&
+            !confirming &&
+            !remove.isPending && (
+              <div className="mt-3">
+                <TextField
+                  label="Sudo password (if needed)"
+                  type="password"
+                  autoComplete="off"
+                  value={sudo}
+                  onChange={(e) => setSudo(e.target.value)}
+                  description="Removing runner services needs root. Used once, never stored."
+                />
+              </div>
+            )}
+          {connected && !cleanUp && !confirming && !remove.error && <TeardownCommands os={m.os} />}
           {cleanUpFailed ? (
-            <ErrorText
-              className="mt-3"
-              error={`Runyard couldn't clean up ${m.name}: ${remove.error?.message}`}
-            />
+            <>
+              <ErrorText
+                className="mt-3"
+                error={`Runyard couldn't clean up ${m.name}: ${remove.error?.message}`}
+              />
+              <TeardownCommands os={m.os} />
+            </>
           ) : (
-            (remove.error ?? decommission.error) && (
-              <ErrorText className="mt-2" error={remove.error ?? decommission.error} />
-            )
+            remove.error && <ErrorText className="mt-3" error={remove.error} />
           )}
           <div className="mt-5 flex justify-end gap-2">
             <AlertDialog.Close render={<Button />}>Cancel</AlertDialog.Close>
-            {inUse ? (
-              <Button
-                variant={decommissioned ? "primary" : "danger"}
-                onClick={() => decommission.mutate()}
-                disabled={decommission.isPending}
-              >
-                {decommission.isPending
-                  ? decommissioned
-                    ? "Reviewing…"
-                    : "Decommissioning…"
-                  : decommissioned
-                    ? "Review changes"
-                    : "Decommission and review"}
-              </Button>
-            ) : cleanUpFailed ? (
+            {cleanUpFailed ? (
               <>
-                <Button onClick={() => remove.mutate(true)} disabled={remove.isPending}>
-                  Try again
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => remove.mutate(false)}
-                  disabled={remove.isPending}
-                >
+                <Button onClick={() => start(true)}>Try again</Button>
+                <Button variant="danger" onClick={() => start(false)}>
                   Remove without cleaning up
+                </Button>
+              </>
+            ) : confirming ? (
+              <>
+                <Button onClick={() => setConfirming(false)}>Back</Button>
+                <Button variant="danger" onClick={() => start(cleanUp && connected)}>
+                  Yes, remove {m.name}
                 </Button>
               </>
             ) : (
               <Button
                 variant="danger"
-                onClick={() => remove.mutate(cleanUp && connected)}
-                disabled={remove.isPending}
+                onClick={() => (remove.error ? start(cleanUp && connected) : setConfirming(true))}
+                disabled={blocked || remove.isPending}
               >
-                {remove.isPending && cleanUp ? "Cleaning up…" : "Remove machine"}
+                {remove.isPending ? "Removing…" : remove.error ? "Try again" : "Remove machine"}
               </Button>
             )}
           </div>

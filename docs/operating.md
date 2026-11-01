@@ -121,13 +121,11 @@ were added from.
 Take things down in this order, so nothing stays registered where Runyard can no longer reach
 it:
 
-1. **Machines.** On each machine's page, click **Remove**. While Runyard has runners there, the
-   dialog offers **Decommission and review**, which takes the machine out of every pool and opens
-   its review. Run it to remove the runners, then **Remove** the machine. With **Also clean up**,
+1. **Machines.** On each machine's page, click **Remove** and confirm. Runyard takes the machine
+   out of every pool, removes its runners, then removes the machine. With **Also clean up**,
    Runyard deletes its runner folder and its key on the machine as it goes. On a machine set up
    with the fresh-machine command, run the root command shown afterwards to delete the `runyard`
-   account. Runyard refuses to remove a machine, a GitHub App or a Forgejo connection that still
-   has runners, and names them.
+   account. A machine that isn't connected keeps its runners until it is.
 2. **Machines Runyard can't reach.** The Remove dialog shows a teardown command to run on the
    machine. It deletes Runyard's runner folder and its key from `authorized_keys`; with
    `--prepared`, run as root, it also removes the `runyard` account, its sudoers file and

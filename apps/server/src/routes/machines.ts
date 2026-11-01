@@ -177,7 +177,7 @@ export function machineRoutes({
                 error: stillInUse(
                   machine.name,
                   left,
-                  "Decommission it and run its review first, so they're removed rather than left behind.",
+                  "Removing it from its page removes them first; a runner running a job has to finish.",
                 ),
                 code: "inUse",
               },
