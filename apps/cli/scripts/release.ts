@@ -1,12 +1,13 @@
 /**
  * Cross-compiles runyard for every published platform into dist/release, with
- * SHA256SUMS beside the binaries. Nothing is uploaded: the install scripts take
- * the base URL these files end up at.
+ * SHA256SUMS, VERSION and the installers beside the binaries. Nothing is
+ * uploaded here: the release workflow attaches the directory to a GitHub Release.
+ * The version is apps/server/package.json's, the one `runyard version` prints.
  */
 import { $ } from "bun";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import pkg from "../package.json" with { type: "json" };
+import pkg from "../../server/package.json" with { type: "json" };
 import { root, writeEntry } from "./entry.ts";
 
 /** Bun's compile target, and the name the install scripts ask for. */
@@ -17,7 +18,7 @@ export const TARGETS = [
   { bun: "bun-windows-x64", name: "windows-x64" },
 ] as const;
 
-const version = process.env.RUNYARD_VERSION ?? pkg.version;
+const version = pkg.version;
 const out = join(root, "dist", "release");
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });

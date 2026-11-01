@@ -1,17 +1,23 @@
 #!/bin/sh
-# Installs runyard from a release directory (the files `vp run release` writes),
-# checking the binary against that directory's SHA256SUMS. The checksum catches
-# a corrupt or swapped download only when SHA256SUMS comes from a source you trust.
+# Installs runyard from its latest GitHub release, checking the binary against
+# the release's SHA256SUMS. The checksum catches a corrupt or swapped download
+# only when SHA256SUMS comes from a source you trust.
 #
-#   RUNYARD_BASE_URL=https://example.com/runyard/0.1.0 sh install.sh
+#   curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh
 #
+# RUNYARD_VERSION=0.1.0 installs that release instead of the latest.
+# RUNYARD_BASE_URL installs from another release directory (the files
+# `vp run release` writes), such as file://$PWD/apps/cli/dist/release.
 # RUNYARD_INSTALL_DIR overrides where it goes (default ~/.local/bin).
 set -eu
 
-base="${RUNYARD_BASE_URL:-${1:-}}"
-if [ -z "$base" ]; then
-  echo "Set RUNYARD_BASE_URL to the release directory's address." >&2
-  exit 2
+releases=https://github.com/frankievalentine/runyard/releases
+if [ -n "${RUNYARD_BASE_URL:-${1:-}}" ]; then
+  base="${RUNYARD_BASE_URL:-$1}"
+elif [ -n "${RUNYARD_VERSION:-}" ]; then
+  base="$releases/download/v${RUNYARD_VERSION#v}"
+else
+  base="$releases/latest/download"
 fi
 case "$base" in
   https://* | file://*) ;;

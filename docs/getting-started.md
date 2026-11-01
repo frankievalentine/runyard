@@ -9,11 +9,16 @@ Install it on the machine that will run the dashboard, the Runyard host. It reac
 machines from there, over SSH.
 
 ```sh
-curl -fsSL https://<runyard-domain>/install.sh | sh   # macOS or Linux; install.ps1 on Windows
-runyard service install                                # keep it running
+curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh   # macOS or Linux
+runyard service install                                                 # keep it running
 ```
 
-Releases aren't published yet. Until they are, build one: clone this repository, run
+On Windows, in PowerShell: `irm https://frankievalentine.github.io/runyard/install.ps1 | iex`,
+then `runyard service install`. The installers download the latest
+[release](https://github.com/frankievalentine/runyard/releases) and check its checksum;
+`RUNYARD_VERSION=0.1.0` pins a version.
+
+The first release isn't out yet. Until it is, build one: clone this repository, run
 `vp install && vp run release`, then `RUNYARD_BASE_URL=file://$PWD/apps/cli/dist/release sh
 install/install.sh`. To run it in Docker instead, see [Docker](operating.md#docker).
 

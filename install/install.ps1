@@ -1,15 +1,20 @@
-# Installs runyard.exe from a release directory (the files `vp run release` writes),
-# checking it against that directory's SHA256SUMS. The checksum catches a corrupt or
-# swapped download only when SHA256SUMS comes from a source you trust.
+# Installs runyard.exe from its latest GitHub release, checking it against the
+# release's SHA256SUMS. The checksum catches a corrupt or swapped download only when
+# SHA256SUMS comes from a source you trust.
 #
-#   $env:RUNYARD_BASE_URL = 'https://example.com/runyard/0.1.0'; .\install.ps1
+#   irm https://frankievalentine.github.io/runyard/install.ps1 | iex
 #
+# RUNYARD_VERSION=0.1.0 installs that release instead of the latest. RUNYARD_BASE_URL
+# installs from another release directory (the files `vp run release` writes).
 # RUNYARD_INSTALL_DIR overrides where it goes (default %LOCALAPPDATA%\Programs\Runyard).
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$base = if ($env:RUNYARD_BASE_URL) { $env:RUNYARD_BASE_URL } elseif ($args.Count -gt 0) { $args[0] } else { $null }
-if (-not $base) { throw "Set RUNYARD_BASE_URL to the release directory's address." }
+$releases = 'https://github.com/frankievalentine/runyard/releases'
+$base = if ($env:RUNYARD_BASE_URL) { $env:RUNYARD_BASE_URL }
+  elseif ($args.Count -gt 0) { $args[0] }
+  elseif ($env:RUNYARD_VERSION) { "$releases/download/v$($env:RUNYARD_VERSION.TrimStart('v'))" }
+  else { "$releases/latest/download" }
 if ($base -notmatch '^(https|file)://') { throw 'RUNYARD_BASE_URL must start with https:// or file://' }
 $base = $base.TrimEnd('/')
 if (-not [Environment]::Is64BitOperatingSystem) { throw 'Runyard needs 64-bit Windows.' }

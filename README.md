@@ -25,11 +25,16 @@ https://github.com/user-attachments/assets/c089671d-8b51-4d2c-9823-d7363ed98225
 ## Quick start
 
 ```sh
-curl -fsSL https://<runyard-domain>/install.sh | sh   # macOS or Linux; install.ps1 on Windows
-runyard service install                                # keep it running
+curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh   # macOS or Linux
+runyard service install                                                 # keep it running
 ```
 
-> Releases aren't published yet. Until they are, build one: clone this repository, run
+On Windows, in PowerShell: `irm https://frankievalentine.github.io/runyard/install.ps1 | iex`,
+then `runyard service install`. The installers download the latest
+[release](https://github.com/frankievalentine/runyard/releases) and check its checksum;
+`RUNYARD_VERSION=0.1.0` pins a version.
+
+> The first release isn't out yet. Until it is, build one: clone this repository, run
 > `vp install && vp run release`, then
 > `RUNYARD_BASE_URL=file://$PWD/apps/cli/dist/release sh install/install.sh`.
 
@@ -192,6 +197,17 @@ vp run ci                                          # checks, tests, build and a 
 vp run -r build && bun apps/server/scripts/demo.ts # a fictional yard, nothing real contacted
 vp run @runyard/server#check-powershell           # parse the PowerShell scripts (needs Docker)
 ```
+
+GitHub Actions runs `vp run ci` on every push and pull request.
+
+**Releasing:** set the version in `apps/server/package.json` (the one `runyard version` prints),
+commit, then tag and push it: `git tag v0.1.0 && git push origin v0.1.0`. The release workflow
+builds the binaries for every platform, pushes the Docker image to
+`ghcr.io/frankievalentine/runyard` (tagged `0.1.0`, `0.1` and `latest`), and drafts a GitHub
+Release with the binaries, checksums and installers. Publishing the draft makes it the latest
+release, which the installers download, and updates the installers on GitHub Pages. A tag with a
+suffix, such as `v0.2.0-rc.1`, makes a pre-release instead. Run the workflow by hand from the
+Actions tab for a dry run that builds everything and publishes nothing.
 
 ## Built with
 

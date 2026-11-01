@@ -29,7 +29,8 @@ A fresh install prints its setup code there.
 ## Upgrading
 
 Run the installer again, then `runyard service install`, which restarts the service on the new
-version. Open dashboard tabs say when the server is serving a newer dashboard than they loaded.
+version. The installer takes the latest release; set `RUNYARD_VERSION` to install a particular
+one, such as an earlier version to roll back. Open dashboard tabs say when the server is serving a newer dashboard than they loaded.
 
 ## Docker
 
