@@ -9,7 +9,8 @@ change to them before implementing it.
 - **Releasing:** set the version in `apps/server/package.json` (the one `runyard version` prints;
   keep the other package.json files in step), commit, then push a `v<version>` tag. The release
   workflow builds the binaries and the Docker image and drafts a GitHub Release; publishing it
-  deploys the installers to GitHub Pages. A manual run of the workflow is a dry run.
+  makes it the one the installers download. GitHub Pages serves the installers and redeploys when
+  `install/` changes on main. A manual run of the release workflow is a dry run.
 - **Tests:** `packages/core` and `apps/dashboard` use `vp test` (Vitest, imported from
   `vite-plus/test`). `apps/server` uses `bun test`, because it depends on Bun APIs such as
   `bun:sqlite` that don't load under Vitest's Node workers. Keep logic that needs no I/O in

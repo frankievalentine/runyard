@@ -26,9 +26,7 @@ runyard service install   # keep it running
 The installers download the latest [release](https://github.com/frankievalentine/runyard/releases)
 and check its checksum; `RUNYARD_VERSION=0.1.0` pins a version.
 
-The first release isn't out yet. Until it is, build one: clone this repository, run
-`vp install && vp run release`, then `RUNYARD_BASE_URL=file://$PWD/apps/cli/dist/release sh
-install/install.sh`. To run it in Docker instead, see [Docker](operating.md#docker).
+To run it in Docker instead, see [Docker](operating.md#docker).
 
 With [Tailscale](https://tailscale.com) on the Runyard host, with MagicDNS and HTTPS Certificates
 turned on for your tailnet, Runyard serves the dashboard at

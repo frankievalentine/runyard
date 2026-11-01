@@ -1,12 +1,14 @@
-# Publishes the installers at https://frankievalentine.github.io/runyard/ whenever a release is
-# published, so `curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh` works.
-# The installers download the binaries from the latest GitHub Release. Needs Pages turned on
-# with GitHub Actions as its source (Settings > Pages).
+# Publishes the installers at https://frankievalentine.github.io/runyard/, so
+# `curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh` works. The installers
+# download the binaries from the latest GitHub Release themselves, so this only redeploys when
+# they change on main (the github-pages environment deploys from main only). Needs Pages turned
+# on with GitHub Actions as its source (Settings > Pages).
 name: Pages
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
+    paths: [install/**, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:

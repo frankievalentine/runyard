@@ -6,7 +6,7 @@
 #   docker compose -f docker/compose.yaml up -d
 #   docker compose -f docker/compose.yaml logs runyard    # the setup code
 #
-# Until images are published, build one from a local release instead:
+# To run a build of your own instead, such as changes not released yet:
 #   vp run release
 #   docker compose -f docker/compose.yaml -f docker/compose.build.yaml up -d --build
 services:

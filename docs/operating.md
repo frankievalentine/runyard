@@ -49,8 +49,10 @@ docker compose -f docker/compose.yaml up -d
 docker compose -f docker/compose.yaml logs runyard # the setup code
 ```
 
-The compose file pulls `ghcr.io/frankievalentine/runyard`. Until images are published, build one
-from a local release instead:
+The compose file pulls `ghcr.io/frankievalentine/runyard` (for amd64 and arm64): `latest`, or
+the version `RUNYARD_VERSION` names in `docker/.env`. To run a build of your own instead, such as
+changes not released yet, make a local release with [Vite+](https://viteplus.dev) and
+[Bun](https://bun.sh):
 
 ```sh
 vp run release

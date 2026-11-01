@@ -45,10 +45,6 @@ runyard service install   # keep it running
 The installers download the latest [release](https://github.com/frankievalentine/runyard/releases)
 and check its checksum; `RUNYARD_VERSION=0.1.0` pins a version.
 
-> The first release isn't out yet. Until it is, build one: clone this repository, run
-> `vp install && vp run release`, then
-> `RUNYARD_BASE_URL=file://$PWD/apps/cli/dist/release sh install/install.sh`.
-
 Runyard prints its address (`https://<machine>.<tailnet>.ts.net:7443` with Tailscale, otherwise
 `http://127.0.0.1:7420`) and a one-time setup code. Open it, enter the code to create the first
 admin, and follow **Getting started** on the overview (or [Getting started](docs/getting-started.md)
@@ -86,10 +82,6 @@ docker compose -f docker/compose.yaml up -d
 docker compose -f docker/compose.yaml logs runyard  # the address and setup code
 ```
 
-> Images aren't published yet. Until they are, build one with [Vite+](https://viteplus.dev)
-> and [Bun](https://bun.sh): `vp install && vp run release`, then
-> `docker compose -f docker/compose.yaml -f docker/compose.build.yaml up -d --build`.
-
 Open `https://<RUNYARD_HOSTNAME>.<tailnet>.ts.net:7443/`, enter the setup code, and continue from
 step 1 of the Quick start. Back up `docker/runyard.key` somewhere other than this machine: it
 decrypts the credentials Runyard stores. Upgrades, backups and webhooks are in
@@ -114,10 +106,7 @@ https://github.com/frankievalentine/runyard and docs/operating.md#docker.
 5. If docker/runyard.key doesn't exist, create it with
    `openssl rand -base64 32 > docker/runyard.key && chmod 600 docker/runyard.key`.
    Never overwrite an existing one.
-6. Start it with `docker compose -f docker/compose.yaml up -d`. If the image can't be pulled
-   because it isn't published yet, check that vp (Vite+) and bun are installed, run
-   `vp install && vp run release`, then
-   `docker compose -f docker/compose.yaml -f docker/compose.build.yaml up -d --build`.
+6. Start it with `docker compose -f docker/compose.yaml up -d`.
 7. Wait until `docker compose -f docker/compose.yaml ps` shows runyard as healthy and its log
    shows "listening on https://...ts.net:7443/ (tailnet)". If the log says the tailnet can't
    issue HTTPS certificates, tell me to turn on MagicDNS and HTTPS Certificates on the DNS
