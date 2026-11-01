@@ -84,6 +84,9 @@ describe("runyard uninstall", () => {
     await uninstall(ctx, { ...options, force: true });
     expect(lines.join("\n")).toContain("these stay until you remove them by hand:");
     expect(lines.join("\n")).toContain("    Box (1 runner)\n    Spare\n");
+    expect(lines.join("\n")).toContain(
+      "\n  Funnel serves webhooks at https://me.ts.net: run `tailscale funnel reset`\n",
+    );
     expect(lines.join("\n")).toContain(`remove ${binary}`);
     expect(lines.join("\n")).toContain("Nothing was changed");
     expect(await Bun.file(binary).exists()).toBe(true);

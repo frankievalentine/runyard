@@ -186,7 +186,7 @@ export async function uninstall(
 
   const after = [
     ...(left ? leftoverLines(left, "after") : []),
-    ...(funnelLine ? [funnelLine] : []),
+    ...(funnel ? [funnelLine("")] : []),
   ];
   log(
     [
