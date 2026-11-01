@@ -39,3 +39,6 @@ docker/runyard.key
 docs/PLAN.md
 docs/LIVE-TESTING.md
 docs/plans/
+
+# Recorded by docs/assets/demo/record.sh; the README links the uploaded copy.
+docs/assets/demo/*.mp4

@@ -4,6 +4,7 @@
  * and screenshots: `bun apps/server/scripts/demo.ts`, then open the URL and
  * enter the setup code it prints. Data lives in a fresh temporary directory.
  */
+import { existsSync } from "node:fs";
 import { chmod, mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -17,6 +18,7 @@ import { listConnections, saveConnection } from "../src/forgejo/store.ts";
 import { FakeGithub } from "../src/github/fake.ts";
 import { listGithubApps, saveGithubApp } from "../src/github/store.ts";
 import { FakeMachines, macReport } from "../src/machines/fake.ts";
+import { sshKeygenProgram } from "../src/machines/keys.ts";
 import { FakeRunnerHost } from "../src/pools/fake-host.ts";
 import type { FakeGithub as FakeGithubType } from "../src/github/fake.ts";
 import { start } from "../src/server.ts";
@@ -25,6 +27,23 @@ const GIB = 1_073_741_824;
 const demoDir = (process.env.RUNYARD_DATA_DIR ??= await mkdtemp(join(tmpdir(), "runyard-demo-")));
 await mkdir(demoDir, { recursive: true, mode: 0o700 });
 process.env.RUNYARD_TAILNET = "off";
+// Runyard's key names the computer it was made on; the demo's names the demo instead, for screenshots.
+const identity = join(demoDir, "ssh", "id_ed25519");
+if (!existsSync(identity)) {
+  await mkdir(join(demoDir, "ssh"), { recursive: true, mode: 0o700 });
+  Bun.spawnSync([
+    sshKeygenProgram(),
+    "-q",
+    "-t",
+    "ed25519",
+    "-N",
+    "",
+    "-C",
+    "runyard@demo",
+    "-f",
+    identity,
+  ]);
+}
 process.env.RUNYARD_DEMO = "1";
 
 const fake = new FakeMachines();
@@ -232,6 +251,12 @@ fake.machines.set("runyard@spare-lxc.demo.ts.net", async (stdin) => {
   if (stdin.includes("Runyard machine teardown")) await Bun.sleep(2500);
   return spare(stdin);
 });
+// On the tailnet but not added yet: adding it from Add machines connects at once, as if its
+// setup command had already run.
+fake.machines.set(
+  "lab-pi.demo.ts.net",
+  runnerHost(() => linux(180), githubFor, "Linux", "lab-pi.demo.ts.net"),
+);
 fake.machines.set("admin@lab-server.internal", {
   code: 255,
   stdout: "",
