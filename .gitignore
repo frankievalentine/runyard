@@ -42,3 +42,7 @@ docs/plans/
 
 # Recorded by docs/assets/demo/record.sh; the README links the uploaded copy.
 docs/assets/demo/*.mp4
+
+# Local agent skills (installed with `bunx skills add`), not part of Runyard.
+.claude/skills/
+skills-lock.json
