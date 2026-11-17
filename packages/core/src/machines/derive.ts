@@ -438,7 +438,10 @@ export function connection(
   return { state: "pending" };
 }
 
-/** What the pools a machine is in ask of it: their labels, and Node for Forgejo host mode. */
+/**
+ * What the pools a machine is in ask of it: their labels, Node for Forgejo host mode, and whether
+ * GitHub's runner must run JavaScript actions there.
+ */
 function readinessNeeds(
   pools: Pool[],
   machineId: string,
@@ -450,6 +453,7 @@ function readinessNeeds(
     labels: mine.flatMap((p) => p.labels),
     installs: [...new Set(mine.flatMap((p) => poolTools(p, forgeKinds, os)))],
 
+    githubRunners: mine.some((p) => p.scopes.some((s) => forgeKinds.get(s.forgeId) === "github")),
     forgejoHost: mine.some(
       (p) =>
         p.forgejoMode.kind === "host" &&

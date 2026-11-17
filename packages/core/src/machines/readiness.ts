@@ -32,12 +32,33 @@ export type ReadinessNeeds = {
   labels: string[];
   /** A Forgejo pool runs its jobs on the machine itself, where JavaScript actions need Node. */
   forgejoHost: boolean;
+  /** A GitHub pool runs here, whose runner runs JavaScript actions with its own Node 24. */
+  githubRunners?: boolean;
   /** Tools the machine's pools install where missing; their items say so instead of how. */
   installs?: readonly string[];
 };
 
-/** The oldest Node.js current JavaScript actions (actions/checkout@v4) run on. */
+/**
+ * The oldest Node.js that Forgejo host mode can run JavaScript actions with. Runyard's Forgejo
+ * workflow templates pin actions/checkout v4 and actions/setup-node v4, the last on Node 20.
+ */
 const NODE_MIN_MAJOR = 20;
+
+/**
+ * Whether GitHub's runner can run JavaScript actions here. It runs them with its own Node 24
+ * since GitHub dropped Node 20 on 2026-09-23, and Node 24 doesn't run on 32-bit ARM or on
+ * macOS 13.4 and older. Null when it can, or the reason it can't.
+ */
+export function githubActionsBlocker(
+  os: string,
+  osVersion: string | null,
+  architecture: string | undefined,
+): string | null {
+  if (/^(armv[67]\w*|arm)$/i.test(architecture ?? "")) return "32-bit ARM";
+  if (os !== "macos" || !osVersion) return null;
+  const [major = 0, minor = 0] = osVersion.split(".").map(Number);
+  return major < 13 || (major === 13 && minor <= 4) ? `macOS ${osVersion}` : null;
+}
 
 /** Clock drift past which TLS and runner tokens start failing. */
 const DRIFT_WARN_SECS = 60;
@@ -235,6 +256,20 @@ export function evaluateReadiness(
       node.detail = `Actions like actions/checkout@v4 need Node ${NODE_MIN_MAJOR} or later. Use Docker mode, or install a newer Node.js.`;
     }
   }
+
+  const blocker = needs.githubRunners
+    ? githubActionsBlocker(os, report.osVersion, facts.architecture)
+    : null;
+  if (blocker)
+    items.push({
+      id: "github-actions-node",
+      tier: "required",
+      title: "JavaScript actions",
+      status: "warn",
+      value: `Can't run on ${blocker}`,
+      detail:
+        "GitHub's runner runs actions such as actions/checkout with Node 24, which needs macOS 13.5 or later and a 64-bit CPU. Jobs here can only use run steps.",
+    });
 
   const epoch = Number(facts.epoch);
   if (Number.isFinite(epoch) && epoch > 0) {

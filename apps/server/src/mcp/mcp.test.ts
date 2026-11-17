@@ -81,6 +81,7 @@ describe("the MCP server", () => {
       "prepare_review",
       "save_pool",
       "start_test_job",
+      "workflow_template",
       "yard_summary",
     ]);
     expect(tools.find((t) => t.name === "yard_summary")?.annotations?.readOnlyHint).toBe(true);
@@ -153,6 +154,23 @@ describe("the MCP server", () => {
       'Prepared a review of 2 changes (by agent-owner via token "Claude Code")',
       'Created pool mac (by agent-owner via token "Claude Code")',
     ]);
+  });
+
+  test("gives a read-only token a pool's workflow file to fit and propose", async () => {
+    const { s, read } = await withTokens();
+    const id = await pool(s, [{ kind: "org", target: "acme" }]);
+    const files = (
+      await call(s.app, read, "workflow_template", {
+        pool: id,
+        kind: "frontend",
+        tool: "bun",
+      })
+    ).json();
+    expect(files).toHaveLength(1);
+    expect(files[0].path).toBe(".github/workflows/ci.yml");
+    expect(files[0].yaml).toContain(`runs-on: ${files[0].runsOn}`);
+    expect(files[0].yaml).toContain("bun install --frozen-lockfile");
+    expect((await call(s.app, read, "workflow_template", { pool: "nope" })).isError).toBe(true);
   });
 
   test("explains a waiting job", async () => {

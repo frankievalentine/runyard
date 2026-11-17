@@ -20,7 +20,8 @@ encrypted.
 
 - **Read only:** `yard_summary`, `list_machines`, `get_machine` (health, readiness, the steps to
   connect it, recent history), `list_runners`, `list_queued_jobs` (with why each one waits),
-  `list_pools` and `list_test_jobs`.
+  `list_pools`, `list_test_jobs` and `workflow_template` (a pool's
+  [workflow templates](workflows.md#start-from-a-template), for an agent to fit to a repository).
 - **Read and prepare** (admins only): also `add_machine`, `save_pool`, `prepare_review`,
   `machine_setup_command` and `start_test_job`.
 

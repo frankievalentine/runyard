@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
 import {
   evaluateReadiness,
+  githubActionsBlocker,
   readinessProblems,
   type MachineReport,
   type ReadinessNeeds,
@@ -220,5 +221,21 @@ describe("runner readiness", () => {
       "Installed, not usable by this account",
     );
     expect(r?.capabilities).toEqual(["xcode-16"]);
+  });
+
+  test("GitHub's Node 24 can't run on 32-bit ARM or macOS 13.4 and older", () => {
+    expect(githubActionsBlocker("linux", "12", "armv7l")).toBe("32-bit ARM");
+    expect(githubActionsBlocker("linux", "12", "aarch64")).toBeNull();
+    expect(githubActionsBlocker("macos", "13.4.1", "arm64")).toBe("macOS 13.4.1");
+    expect(githubActionsBlocker("macos", "12.7", "x86_64")).toBe("macOS 12.7");
+    expect(githubActionsBlocker("macos", "13.5", "arm64")).toBeNull();
+    expect(githubActionsBlocker("macos", "15.1", "arm64")).toBeNull();
+    const pi = { ...report("linux", { ...posixTools, architecture: "armv7l" }), osVersion: "12" };
+    const github = evaluateReadiness(pi as MachineReport, NOW, { ...none, githubRunners: true });
+    expect(status(github, "github-actions-node")).toBe("warn");
+    // Only GitHub pools run actions with GitHub's runner.
+    expect(status(evaluateReadiness(pi as MachineReport, NOW, none), "github-actions-node")).toBe(
+      undefined,
+    );
   });
 });

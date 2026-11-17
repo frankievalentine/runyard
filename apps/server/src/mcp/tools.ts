@@ -1,9 +1,12 @@
 import {
   accessSteps,
   deriveIssues,
+  FRONTEND_TOOLS,
   nextAccessStep,
+  poolWorkflow,
   readinessProblems,
   waitingReasons,
+  WORKFLOW_KINDS,
   type MachineView,
   type Pool,
   type Scope,
@@ -297,6 +300,42 @@ export function registerTools(server: McpServer, deps: ToolDeps, caller: Caller)
             })),
         })),
       );
+    },
+  );
+
+  register(
+    "workflow_template",
+    {
+      title: "Workflow template",
+      description:
+        "A workflow file that runs on a pool, for each forge the pool serves: where it goes, its runs-on line and the file. `starter` proves a job lands there; `frontend` lints, type checks, tests and builds a Node.js or Bun project in parallel jobs, running only the tests a pull request can reach; `generic` runs a Makefile's lint, test and build targets. Fit the file to the repository (package.json scripts, Makefile targets) before proposing it, and propose it as a pull request.",
+      inputSchema: {
+        pool: z.string().describe("The pool's name or id."),
+        kind: z
+          .enum(WORKFLOW_KINDS.map((k) => k.kind) as ["starter", "frontend", "generic"])
+          .default("starter"),
+        tool: z
+          .enum(FRONTEND_TOOLS.map((t) => t.tool) as ["npm", "bun", "vite-plus"])
+          .optional()
+          .describe("For frontend: how the project installs and runs its scripts. npm by default."),
+      },
+      annotations: READ,
+    },
+    ({ pool: ref, kind, tool }) => {
+      const v = view();
+      const pool = findPool(v, ref);
+      if (!pool) return fail(`No pool named ${ref}. list_pools shows them.`);
+      const systems = pool.machines.flatMap((pm) => {
+        const os = v.machines.find((m) => m.id === pm.machineId)?.os;
+        return os ? [os] : [];
+      });
+      const forgejo = (s: Scope) => v.forgejo.connections.some((c) => c.forgeId === s.forgeId);
+      const forges = [
+        ...(pool.scopes.some((s) => !forgejo(s)) ? (["github"] as const) : []),
+        ...(pool.scopes.some(forgejo) ? (["forgejo"] as const) : []),
+      ];
+      if (forges.length === 0) return fail(`${pool.name} doesn't serve any repositories yet.`);
+      return ok(forges.map((forge) => poolWorkflow(pool, forge, systems, { kind, tool })));
     },
   );
 

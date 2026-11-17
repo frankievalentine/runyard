@@ -160,7 +160,9 @@ readiness** on its page:
 - **Recommended:** unzip, zip, xz, zstd, jq, gpg, a C compiler and make, Python 3, and Docker.
 
 Readiness warns when Node.js is older than 20, which current actions such as
-`actions/checkout@v4` need; use a newer Node.js, or Forgejo's Docker mode.
+`actions/checkout@v4` need; use a newer Node.js, or Forgejo's Docker mode. For GitHub pools it
+warns on 32-bit ARM and on macOS 13.4 and older: GitHub's runner runs actions with Node 24,
+which can't run there, so jobs on that machine can only use `run:` steps.
 
 Each missing item says how to install it, and a pool can install it for you (see
 [Tools](pools.md#tools)). A machine in a pool that's missing something required or promised

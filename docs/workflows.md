@@ -36,6 +36,49 @@ jobs:
 Whether the job runs on the machine or in a container is the pool's choice, not the
 workflow's: see [Forgejo jobs](#forgejo-jobs-on-the-machine-or-in-docker).
 
+## Start from a template
+
+**Use it in a workflow** offers three files. Pick one, then copy it into your repository:
+
+- **Starter:** one job that says which runner took it. Use it to check a pool works.
+- **Frontend:** for a Node.js or Bun project, with **npm**, **Bun** or **Vite+**. It runs three
+  jobs at the same time: lint and type checks, tests, and the build. With npm or Bun it runs
+  your `package.json` scripts `lint`, `typecheck`, `test` and `build`; the file's comments
+  suggest Oxlint for `lint` and `tsgo --noEmit` (TypeScript 7) for `typecheck`. With Vite+ it
+  runs `vp check`, `vp test` and `vp build`.
+- **Generic:** runs `make lint`, `make test` and `make build` at the same time, for a project of
+  any language with a Makefile. Remove a job whose target your Makefile doesn't have.
+
+The Frontend and Generic files run on pushes to `main` and on pull requests; change `main` if
+your default branch has another name. On a pull request, Frontend runs only the tests the
+changed files can reach (`--changed`, which Vitest and `bun test` both support), unless the pull
+request changes a lockfile, `package.json`, a tsconfig or the test configuration: then it runs
+them all.
+
+Every template, the Starter included, is set up safely:
+
+- On GitHub, the job's token can only read the repository (`permissions: contents: read`).
+  Forgejo ignores `permissions`, so set the token's access in the repository's settings.
+- `actions/checkout` doesn't leave the token in `.git` for later steps
+  (`persist-credentials: false`).
+- A newer push to the same branch cancels the run in progress.
+- Each action is pinned to the commit behind its release, with the version in a comment, so a
+  moved tag can't change what runs on your machines.
+
+The two forges get different versions of each action, so the files keep working on older
+machines and runners:
+
+- **GitHub** files use the latest releases, which run on Node 24. GitHub's runner brings its own
+  Node 24 for actions; it no longer runs actions on Node 20. Node 24 doesn't run on 32-bit ARM or
+  on macOS 13.4 and older, so a machine like that can only run `run:` steps, and its
+  **Runner readiness** says so.
+- **Forgejo** files use the last releases built for Node 20, such as `actions/checkout` v4.4.0.
+  Forgejo runs actions with the Node.js on the machine, or in the job's image in Docker mode,
+  and these work with Node 20 or later on any forgejo-runner. They're written as full URLs
+  (`https://data.forgejo.org/actions/checkout@…`), as Forgejo recommends, so they don't depend
+  on the instance's default actions source. Vite+ has no Node 20 release: with Vite+, the
+  machine's runner needs forgejo-runner 9.1 or later, which Runyard installs.
+
 ## The labels each runner carries
 
 | Label                     | On                             | Use it to                                              |
