@@ -2,9 +2,13 @@ import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-q
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../api.ts";
-import { AuthCard } from "../components/AuthCard.tsx";
-import { Button, TextField } from "../components/form.tsx";
-import { ErrorText } from "../components/ui.tsx";
+import {
+  AuthField,
+  AuthLayout,
+  AuthNotice,
+  authPrimary,
+  authSecondary,
+} from "../components/AuthLayout.tsx";
 import { passkeysAvailable, signInWithPasskey } from "../lib/passkeys.ts";
 import { sessionQuery } from "../lib/queries.ts";
 
@@ -55,39 +59,75 @@ function Login() {
     login.mutate();
   };
 
+  const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+  const passkeys = passkeysAvailable();
   return (
-    <AuthCard title="Sign in">
-      {offerTailscale && (
-        <div className="mt-5 flex flex-col gap-2 border-b border-line pb-5">
-          <Button
-            variant="primary"
+    <AuthLayout
+      board={[
+        { text: "Sign in" },
+        { text: window.location.hostname, tone: "dim" },
+        { text: "Departures after sign-in", tone: "go" },
+      ]}
+    >
+      <h1 className="text-[30px] leading-none font-extrabold [font-stretch:85%]">Sign in</h1>
+      <p className="mt-2 text-[14px] text-tt-ink-2">
+        {offerTailscale
+          ? "This device's Tailscale login can sign you in."
+          : passkeys
+            ? "With a passkey, or your username and password."
+            : "With your username and password."}
+      </p>
+
+      <div className="mt-6 flex flex-col gap-2.5">
+        {offerTailscale && (
+          <button
+            type="button"
+            className={authPrimary}
             onClick={() => tailscale.mutate()}
             disabled={tailscale.isPending}
           >
             Continue as {session.tailscaleLogin}
-          </Button>
-          <p className="text-[12px] text-ink-2">
-            With this device's Tailscale login. Or sign in as someone else below.
-          </p>
-          {tailscale.error && <ErrorText error={tailscale.error} />}
+          </button>
+        )}
+        {tailscale.error && <AuthNotice>{message(tailscale.error)}</AuthNotice>}
+        {passkeys && (
+          <button
+            type="button"
+            className={offerTailscale ? authSecondary : authPrimary}
+            onClick={() => passkey.mutate()}
+            disabled={passkey.isPending}
+          >
+            {passkey.isPending ? "Waiting for your passkey…" : "Sign in with a passkey"}
+          </button>
+        )}
+        {passkey.error && <AuthNotice>{message(passkey.error)}</AuthNotice>}
+      </div>
+
+      {session.tailscaleLogin && !session.tailscaleUser && (
+        <div className="mt-4">
+          <AuthNotice tone="info">
+            <span className="font-semibold text-tt-ink">{session.tailscaleLogin}</span> isn't a
+            Runyard user. Ask an admin to add it, or sign in with a password.
+          </AuthNotice>
         </div>
       )}
-      {session.tailscaleLogin && !session.tailscaleUser && (
-        <p className="mt-2 text-[12.5px] text-ink-2">
-          <span className="font-medium text-ink">{session.tailscaleLogin}</span> isn't a Runyard
-          user. Ask an admin to add it, or sign in with a password.
-        </p>
-      )}
-      <form onSubmit={submit} className="mt-5 flex flex-col gap-4">
-        <TextField
+
+      <div className="my-6 flex items-center gap-3 text-[12px] font-semibold tracking-[.08em] text-tt-ink-3 uppercase">
+        <span className="h-px flex-1 bg-tt-rule" />
+        {offerTailscale || passkeys ? "Or with a password" : "Password"}
+        <span className="h-px flex-1 bg-tt-rule" />
+      </div>
+
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <AuthField
           label="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
           required
-          autoFocus={!offerTailscale}
+          autoFocus={!offerTailscale && !passkeys}
         />
-        <TextField
+        <AuthField
           label="Password"
           type="password"
           value={password}
@@ -95,23 +135,24 @@ function Login() {
           autoComplete="current-password"
           required
         />
-        {login.error && <ErrorText error={login.error} />}
-        <Button
+        {login.error && <AuthNotice>{message(login.error)}</AuthNotice>}
+        <button
           type="submit"
-          variant={offerTailscale ? "default" : "primary"}
+          className={offerTailscale || passkeys ? authSecondary : authPrimary}
           disabled={login.isPending}
         >
-          Sign in
-        </Button>
+          {login.isPending ? "Signing in…" : "Sign in"}
+        </button>
       </form>
-      {passkeysAvailable() && (
-        <div className="mt-4 flex flex-col gap-2 border-t border-line pt-4">
-          <Button onClick={() => passkey.mutate()} disabled={passkey.isPending}>
-            Sign in with a passkey
-          </Button>
-          {passkey.error && <ErrorText error={passkey.error} />}
+
+      {!window.isSecureContext && (
+        <div className="mt-6">
+          <AuthNotice tone="warn">
+            Passkeys need HTTPS. This address is plain http://, so passwords travel unencrypted.
+            Open Runyard at its tailnet address to use a passkey.
+          </AuthNotice>
         </div>
       )}
-    </AuthCard>
+    </AuthLayout>
   );
 }
