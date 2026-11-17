@@ -49,9 +49,9 @@ function Board() {
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)_372px] grid-rows-[auto_auto] gap-[18px]">
           <Departures view={view} />
-          <Notices view={view} besideBoard />
+          <Notices view={view} />
           <TrafficCalendar />
-          <Platforms view={view} besideBoard />
+          <Platforms view={view} />
         </div>
       )}
       {view.machines.length > 0 && <EventTimeline title="Recent activity" />}

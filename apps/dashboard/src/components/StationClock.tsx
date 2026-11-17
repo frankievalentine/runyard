@@ -7,7 +7,19 @@ const TICKS = Array.from({ length: 60 }, (_, i) => i);
  * move through refs, not state, so the page doesn't re-render every frame. With reduced motion the
  * second hand steps once a second.
  */
-export function StationClock({ size = 44, digital = true }: { size?: number; digital?: boolean }) {
+export function StationClock({
+  size = 44,
+  digital = true,
+  face = true,
+  sub,
+}: {
+  size?: number;
+  digital?: boolean;
+  /** False for the time alone, in a small board chip: the phone header's clock. */
+  face?: boolean;
+  /** A small line under the time, such as when Runyard last checked. */
+  sub?: React.ReactNode;
+}) {
   const hours = useRef<SVGRectElement>(null);
   const minutes = useRef<SVGRectElement>(null);
   const seconds = useRef<SVGGElement>(null);
@@ -49,6 +61,17 @@ export function StationClock({ size = 44, digital = true }: { size?: number; dig
     };
   }, []);
 
+  if (!face)
+    return (
+      <span
+        className="shrink-0 rounded-md bg-tt-board px-2 py-[5px] font-board text-[15px] leading-none font-bold text-tt-flap tabular"
+        aria-hidden
+      >
+        <span ref={time} />
+        <span ref={secs} className="text-[11px] font-medium text-[#8b9099]" />
+      </span>
+    );
+
   return (
     <span className="flex shrink-0 items-center gap-2.5">
       <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden className="shrink-0">
@@ -81,9 +104,12 @@ export function StationClock({ size = 44, digital = true }: { size?: number; dig
         <circle cx="50" cy="50" r="2.6" fill="var(--tt-loco)" />
       </svg>
       {digital && (
-        <span className="font-board text-[22px] leading-none font-bold tabular" aria-hidden>
-          <span ref={time} />
-          <span ref={secs} className="text-[14px] font-medium text-tt-ink-3" />
+        <span className="flex flex-col">
+          <span className="font-board text-[22px] leading-none font-bold tabular" aria-hidden>
+            <span ref={time} />
+            <span ref={secs} className="text-[14px] font-medium text-tt-ink-3" />
+          </span>
+          {sub && <span className="mt-1 text-[11.5px] text-tt-ink-3">{sub}</span>}
         </span>
       )}
     </span>

@@ -7,7 +7,10 @@ import { waitingState } from "./waiting.ts";
  * departure board. The words follow the queue's own status pills. No I/O.
  */
 
-/** How a row reads at a glance: moving, held up (needs a person), boarding (about to go) or neutral. */
+/**
+ * How a row reads at a glance, like a station board: moving (orange), held up (yellow), boarding,
+ * meaning a runner is about to take it (green), or neutral (white).
+ */
 export type DepartureTone = "moving" | "held" | "boarding" | "neutral";
 
 export type Departure = {
@@ -19,7 +22,10 @@ export type Departure = {
   repo: string;
   /** The runner (or on-demand service) it runs on, or will. */
   platform: string;
+  /** What it says, as a sentence. */
   status: string;
+  /** What the board's status cells say, upper case and short. A running job adds its time. */
+  sign: string;
   tone: DepartureTone;
   /** Opens this runner's page, for running jobs. */
   runnerKey?: string;
@@ -34,12 +40,18 @@ function running(r: RunnerView): Departure {
     at: r.job?.startedAt ?? r.job?.createdAt ?? 0,
     job: r.job?.name ?? "Job details unavailable",
     repo: r.job?.repo ?? r.scopeLabel,
-    platform: r.onDemand ? `${r.onDemand} · ${r.name}` : r.name,
+    platform: r.onDemand ?? r.name,
     status: "On its way",
+    sign: "On its way",
     tone: "moving",
     runnerKey: r.key,
     labels: r.job?.labels ?? [],
   };
+}
+
+/** The label a job's board line names: its first one besides self-hosted. */
+function headline(labels: readonly string[]): string {
+  return labels.find((l) => l.toLowerCase() !== "self-hosted") ?? labels[0] ?? "";
 }
 
 function waiting(job: QueuedJobView, view: YardView): Departure {
@@ -47,17 +59,21 @@ function waiting(job: QueuedJobView, view: YardView): Departure {
   const idle = eligible.filter((r) => r.activity === "idle").length;
   const limits = job.onDemand === "boat.dev" ? view.boat?.limits : null;
   let status: string;
+  let sign: string;
   let tone: DepartureTone;
   let platform = "";
   if (limits?.atConcurrencyLimit) {
     status = `Waiting: boat.dev is at ${limits.maxActiveSandboxes} VMs`;
+    sign = "Waiting · boat.dev full";
     tone = "held";
   } else if (limits?.atStartLimit) {
     status = "Waiting for boat.dev's start limit";
+    sign = "Waiting · boat.dev limit";
     tone = "held";
   } else if (job.onDemand) {
     status = `Starts on ${job.onDemand}`;
-    tone = "boarding";
+    sign = `Starts on ${job.onDemand}`;
+    tone = "neutral";
     platform = job.onDemand;
   } else if (eligible.length === 0) {
     const state = waitingState(job, view);
@@ -69,14 +85,24 @@ function waiting(job: QueuedJobView, view: YardView): Departure {
           : state === "poolPaused"
             ? "Pool paused"
             : "No matching runner online";
+    sign =
+      state === "runnerStarting"
+        ? "Runner starting"
+        : state === "runnerOnline"
+          ? "Now boarding"
+          : state === "poolPaused"
+            ? "Pool paused"
+            : `No ${headline(job.labels)} runner`;
     tone = state === "noRunner" ? "held" : state === "poolPaused" ? "neutral" : "boarding";
   } else if (idle > 0) {
     status = idle === 1 ? "1 idle runner matches" : `${idle} idle runners match`;
-    tone = "boarding";
+    sign = `Boarding · ${idle} match`;
+    tone = "neutral";
     platform = eligible.find((r) => r.activity === "idle")?.name ?? "";
   } else {
     status = `${eligible.length} matching, all busy`;
-    tone = "neutral";
+    sign = "Waiting · all busy";
+    tone = "held";
   }
   return {
     key: `wait:${job.forge}:${job.id}`,
@@ -86,6 +112,7 @@ function waiting(job: QueuedJobView, view: YardView): Departure {
     repo: job.repo,
     platform,
     status,
+    sign,
     tone,
     labels: job.labels,
   };

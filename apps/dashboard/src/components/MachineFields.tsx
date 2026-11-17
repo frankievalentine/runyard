@@ -1,7 +1,10 @@
 import type { OsFamily, SshTransport } from "@runyard/core";
-import { TextField } from "./form.tsx";
+import { Field, Input, Select, Toggle } from "./machine/parts.tsx";
 
-/** How Runyard reaches a machine: shared by the add form and the edit dialog. */
+/**
+ * How Runyard reaches a machine: shared by Add machine and Edit. Fragments, so the form around
+ * them sets the grid (two across on a wide screen, as in the design).
+ */
 export function MachineFields(props: {
   sshTarget: string;
   setSshTarget: (v: string) => void;
@@ -15,31 +18,31 @@ export function MachineFields(props: {
 }) {
   return (
     <>
-      <TextField
+      <Field
         label="SSH target"
-        value={props.sshTarget}
-        onChange={(e) => props.setSshTarget(e.target.value)}
-        placeholder="ci@build-box.tail1234.ts.net"
-        spellCheck={false}
-        autoCapitalize="off"
-        description="user@host, or a Host alias from the Runyard host's ~/.ssh/config."
-        required
-      />
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[12px] font-medium text-ink-2">Connect with</span>
-        <select
-          className="input"
+        hint="user@host, or a Host alias from the Runyard host's ~/.ssh/config."
+      >
+        <Input
+          value={props.sshTarget}
+          onChange={(e) => props.setSshTarget(e.target.value)}
+          placeholder="ci@build-box.tail1234.ts.net"
+          spellCheck={false}
+          autoCapitalize="off"
+          autoComplete="off"
+          required
+        />
+      </Field>
+      <Field label="Connect with">
+        <Select
           value={props.transport}
           onChange={(e) => props.setTransport(e.target.value as SshTransport)}
         >
           <option value="openssh">OpenSSH (the Runyard host's keys)</option>
           <option value="tailscale">Tailscale SSH</option>
-        </select>
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[12px] font-medium text-ink-2">Operating system</span>
-        <select
-          className="input"
+        </Select>
+      </Field>
+      <Field label="Operating system">
+        <Select
           value={props.expectedOs ?? ""}
           onChange={(e) => props.setExpectedOs((e.target.value || null) as OsFamily | null)}
         >
@@ -47,24 +50,21 @@ export function MachineFields(props: {
           <option value="macos">macOS</option>
           <option value="linux">Linux</option>
           <option value="windows">Windows</option>
-        </select>
-      </label>
+        </Select>
+      </Field>
       {props.setRunyardKeyOnly && props.transport === "openssh" && (
-        <label className="flex items-start gap-2 text-[12.5px]">
-          <input
-            type="checkbox"
-            className="mt-0.5"
+        <div className="sm:col-span-2">
+          <Toggle
             checked={props.runyardKeyOnly ?? false}
-            onChange={(e) => props.setRunyardKeyOnly?.(e.target.checked)}
-          />
-          <span>
-            <span className="font-medium">Sign in with Runyard's key only</span>
-            <span className="block text-[12px] text-ink-2">
+            onChange={(v) => props.setRunyardKeyOnly?.(v)}
+          >
+            Sign in with Runyard's key only
+            <span className="block text-[12px] font-normal text-tt-ink-3">
               For machines set up with Runyard's setup command. Turn it off if you sign in with your
               own keys.
             </span>
-          </span>
-        </label>
+          </Toggle>
+        </div>
       )}
     </>
   );

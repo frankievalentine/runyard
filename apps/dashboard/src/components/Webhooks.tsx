@@ -5,15 +5,16 @@ import { api, call } from "../api.ts";
 import { timeAgo } from "../lib/format.ts";
 import { useNow } from "../lib/now.ts";
 import { CopyValue } from "./CopyValue.tsx";
-import { Button, TextField } from "./form.tsx";
-import { Card, EmptyLine, ErrorText, Pill, StatusDot } from "./ui.tsx";
+import { ErrorText } from "./ui.tsx";
+import { Chip, Panel, ttButton } from "./tt.tsx";
+import { Note, TtField } from "./settings/parts.tsx";
 
-const statusQuery = {
+export const webhookStatusQuery = {
   queryKey: ["webhook-status"],
   queryFn: () => call(api.webhooks.status.$get()),
 };
 
-type Status = Awaited<ReturnType<typeof statusQuery.queryFn>>;
+type Status = Awaited<ReturnType<typeof webhookStatusQuery.queryFn>>;
 
 /**
  * Optional GitHub webhooks: Funnel (or a proxy) exposes the webhook listener,
@@ -21,89 +22,98 @@ type Status = Awaited<ReturnType<typeof statusQuery.queryFn>>;
  * Deliveries only make Runyard re-read sooner; polling keeps working without them.
  */
 export function Webhooks() {
-  const status = useQuery(statusQuery);
-  if (status.isPending)
-    return <Card className="px-4 py-3 text-[12.5px] text-ink-2">Checking…</Card>;
-  if (status.error) return <ErrorText error={status.error} />;
+  const status = useQuery(webhookStatusQuery);
   const s = status.data;
-  if (s.port === null) {
-    return (
-      <Card>
-        <EmptyLine>
-          The webhook listener is off (RUNYARD_WEBHOOKS=off). Runyard polls GitHub instead.
-        </EmptyLine>
-      </Card>
-    );
-  }
-  const command = `tailscale funnel --bg http://127.0.0.1:${s.port}`;
   return (
-    <div className="max-w-3xl space-y-3 text-[13px]">
-      <p className="text-ink-2">
-        Optional. Without webhooks Runyard notices queued jobs within about 45 seconds; with them,
-        within seconds. A delivery only makes Runyard re-read GitHub sooner; it never acts on what a
+    <Panel title="Webhooks" meta="Optional">
+      {status.isPending && <Note>Checking…</Note>}
+      {status.error && <ErrorText className="px-4 pb-3" error={status.error} />}
+      {s && s.port === null && (
+        <Note>
+          The webhook listener is off (RUNYARD_WEBHOOKS=off). Runyard polls GitHub instead.
+        </Note>
+      )}
+      {s && s.port !== null && <Steps s={s} port={s.port} />}
+    </Panel>
+  );
+}
+
+const dot = (on: boolean) =>
+  `mt-[5px] size-2 flex-none rounded-full ${on ? "bg-tt-ok" : "border-[1.5px] border-[#e3a800]"}`;
+
+function Steps({ s, port }: { s: Status; port: number }) {
+  const command = `tailscale funnel --bg http://127.0.0.1:${port}`;
+  return (
+    <>
+      <Note>
+        Without webhooks Runyard notices queued jobs within about 45 seconds; with them, within
+        seconds. A delivery only makes Runyard re-read GitHub sooner; it never acts on what a
         delivery says.
-      </p>
-      <Card className="px-4 py-3">
-        <div className="flex items-center gap-2 font-medium">
-          <StatusDot tone={s.funnelUrl ? "ok" : "warn"} hollow={!s.funnelUrl} />
-          1. Make the webhook listener public
-        </div>
-        {s.funnelUrl ? (
-          <div className="mt-1 space-y-1 text-[12.5px] text-ink-2">
-            <p>
-              Funnel is set to serve it at <span className="font-mono text-ink">{s.funnelUrl}</span>
-              .
-            </p>
-            <p>
-              That's this machine's setting; to check GitHub can reach it, open{" "}
-              <span className="font-mono text-ink">{s.funnelUrl}/webhooks/github</span> from a
-              device off your tailnet, such as a phone with Tailscale and Wi-Fi off. It should say
-              Not found. When Funnel is new, its public name can take up to half an hour to appear.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-1 space-y-1.5 text-[12.5px] text-ink-2">
-            <p>
-              Runyard listens for webhooks only on this machine, at 127.0.0.1:{s.port}, and serves
-              nothing else there. Tailscale Funnel can make that one port public; Runyard won't
-              change Funnel for you.
-            </p>
-            <p>
-              <span className="font-medium text-ink">First, turn Funnel on for your tailnet.</span>{" "}
-              It's off by default. In the Tailscale admin console, allow it for this machine (the{" "}
-              <span className="font-mono">funnel</span> node attribute in Access controls), or run
-              the command below: if Funnel isn't on yet, it prints a link that turns it on, and you
-              run the command again afterward.{" "}
-              <a
-                href="https://tailscale.com/kb/1223/funnel"
-                target="_blank"
-                rel="noreferrer"
-                className="text-accent hover:underline"
-              >
-                How Funnel works
-              </a>
-            </p>
-            <p>Then, on this machine:</p>
-            <div className="rounded-md border border-line bg-sunken/60 px-3 py-2 font-mono text-[12px]">
-              <CopyValue value={command} label="Command">
-                {command}
-              </CopyValue>
+      </Note>
+      <div className="flex items-start gap-3 border-t border-tt-rule px-4 py-3 text-[12.5px]">
+        <span aria-hidden className={dot(!!s.funnelUrl)} />
+        <div className="min-w-0 flex-1">
+          <b className="block text-[13px] font-bold">1. Make the webhook listener public</b>
+          {s.funnelUrl ? (
+            <div className="mt-1 space-y-1 text-tt-ink-2">
+              <p>
+                Funnel is set to serve it at{" "}
+                <span className="font-mono break-all text-tt-ink">{s.funnelUrl}</span>.
+              </p>
+              <p>
+                That's this machine's setting; to check GitHub can reach it, open{" "}
+                <span className="font-mono break-all text-tt-ink">
+                  {s.funnelUrl}/webhooks/github
+                </span>{" "}
+                from a device off your tailnet, such as a phone with Tailscale and Wi-Fi off. It
+                should say Not found. When Funnel is new, its public name can take up to half an
+                hour to appear.
+              </p>
             </div>
-            <p>Any HTTPS reverse proxy to that port works instead of Funnel.</p>
-            {s.funnelError && (
-              <p className="text-warn">Couldn't read Funnel's status: {s.funnelError}</p>
-            )}
-          </div>
-        )}
-      </Card>
+          ) : (
+            <div className="mt-1 space-y-1.5 text-tt-ink-2">
+              <p>
+                Runyard listens for webhooks only on this machine, at 127.0.0.1:{port}, and serves
+                nothing else there. Tailscale Funnel can make that one port public; Runyard won't
+                change Funnel for you.
+              </p>
+              <p>
+                <b className="font-semibold text-tt-ink">First, turn Funnel on for your tailnet.</b>{" "}
+                It's off by default. In the Tailscale admin console, allow it for this machine (the{" "}
+                <span className="font-mono">funnel</span> node attribute in Access controls), or run
+                the command below: if Funnel isn't on yet, it prints a link that turns it on, and
+                you run the command again afterward.{" "}
+                <a
+                  href="https://tailscale.com/kb/1223/funnel"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-tt-ink underline"
+                >
+                  How Funnel works
+                </a>
+              </p>
+              <p>Then, on this machine:</p>
+              <div className="rounded-lg border border-tt-rule bg-tt-paper px-3 py-2 font-mono text-[12px] text-tt-ink">
+                <CopyValue value={command} label="Command">
+                  {command}
+                </CopyValue>
+              </div>
+              <p>Any HTTPS reverse proxy to that port works instead of Funnel.</p>
+              {s.funnelError && (
+                <p className="text-tt-warn-ink">Couldn't read Funnel's status: {s.funnelError}</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
       {s.apps.length === 0 ? (
-        <Card>
-          <EmptyLine>Create a GitHub App first; then point its webhook here.</EmptyLine>
-        </Card>
+        <Note className="border-t border-tt-rule pt-3">
+          Create a GitHub App first; then point its webhook here.
+        </Note>
       ) : (
         s.apps.map((app) => <AppHook key={app.forgeId} app={app} publicUrl={s.funnelUrl} />)
       )}
-    </div>
+    </>
   );
 }
 
@@ -118,7 +128,7 @@ function AppHook({ app, publicUrl }: { app: Status["apps"][number]; publicUrl: s
       call(
         api.webhooks.github[":forgeId"].$post({ param: { forgeId: app.forgeId }, json: { url } }),
       ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: statusQuery.queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: webhookStatusQuery.queryKey }),
   });
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -126,99 +136,91 @@ function AppHook({ app, publicUrl }: { app: Status["apps"][number]; publicUrl: s
   };
   const pointed = app.secretSet && pointsAt(app.hookUrl, publicUrl);
   return (
-    <Card className="px-4 py-3">
-      <div className="flex flex-wrap items-center gap-2 font-medium">
-        {app.name}
+    <div className="border-t border-tt-rule pb-1 text-[12.5px]">
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-1">
+        <b className="text-[13.5px] font-bold">{app.name}</b>
         {app.lastDelivery ? (
-          <Pill tone="ok">Delivering · last {timeAgo(app.lastDelivery.at, now)}</Pill>
+          <Chip tone="ok">Delivering · last {timeAgo(app.lastDelivery.at, now)}</Chip>
         ) : (
-          <Pill tone="muted" hollow>
-            No delivery yet
-          </Pill>
+          <Chip tone="neutral">No delivery yet</Chip>
         )}
       </div>
-      {app.error && <ErrorText className="mt-1" error={app.error} />}
-      <div className="mt-2 space-y-2 text-[12.5px]">
-        <div className="flex items-start gap-2">
-          <span className="mt-1">
-            <StatusDot tone={pointed ? "ok" : "warn"} hollow={!pointed} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="font-medium">2. Point its webhook at Runyard</div>
-            <div className="text-ink-2">
-              {pointed ? (
-                <>
-                  GitHub sends to <span className="font-mono">{app.hookUrl}</span>, signed with a
-                  secret only Runyard and GitHub know.
-                </>
-              ) : (
-                <>
-                  {app.hookUrl && (
-                    <>
-                      It points at <span className="font-mono">{app.hookUrl}</span>, not the public
-                      address.{" "}
-                    </>
-                  )}
-                  Runyard sets the app's webhook URL and a new secret through GitHub's API.
-                </>
-              )}
-            </div>
-            <form onSubmit={submit} className="mt-2 flex flex-wrap items-end gap-2">
-              <div className="min-w-64 flex-1">
-                <TextField
-                  label="Runyard's public address"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://runyard.example.ts.net"
-                  required
-                />
-              </div>
-              <Button
-                type="submit"
-                variant={pointed ? undefined : "primary"}
-                disabled={configure.isPending || !url}
-              >
-                {pointed ? "Set again with a new secret" : "Set webhook"}
-              </Button>
-            </form>
-            {configure.error && <ErrorText className="mt-1" error={configure.error} />}
+      {app.error && <ErrorText className="px-4" error={app.error} />}
+      <div className="flex items-start gap-3 px-4 py-2">
+        <span aria-hidden className={dot(!!pointed)} />
+        <div className="min-w-0 flex-1">
+          <b className="block text-[13px] font-bold">2. Point its webhook at Runyard</b>
+          <div className="text-tt-ink-2">
+            {pointed ? (
+              <>
+                GitHub sends to <span className="font-mono break-all">{app.hookUrl}</span>, signed
+                with a secret only Runyard and GitHub know.
+              </>
+            ) : (
+              <>
+                {app.hookUrl && (
+                  <>
+                    It points at <span className="font-mono break-all">{app.hookUrl}</span>, not the
+                    public address.{" "}
+                  </>
+                )}
+                Runyard sets the app's webhook URL and a new secret through GitHub's API.
+              </>
+            )}
           </div>
-        </div>
-        <div className="flex items-start gap-2">
-          <span className="mt-1">
-            <StatusDot tone={app.subscribed ? "ok" : "warn"} hollow={!app.subscribed} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="font-medium">3. Switch it on in GitHub</div>
-            <div className="text-ink-2">
-              {app.subscribed ? (
-                <>
-                  Already subscribed to Workflow job events. On the app's{" "}
-                  <b className="font-medium text-ink">General</b> page, check{" "}
-                  <b className="font-medium text-ink">Active</b> under Webhook and save; GitHub's
-                  API can't do this for Runyard.{" "}
-                </>
-              ) : (
-                <>
-                  On the app's <b className="font-medium text-ink">General</b> page, check{" "}
-                  <b className="font-medium text-ink">Active</b> under Webhook. Then, under{" "}
-                  <b className="font-medium text-ink">Permissions & events</b>, check{" "}
-                  <b className="font-medium text-ink">Workflow job</b> under Subscribe to events.
-                  Save each page; GitHub's API can't do this for Runyard.{" "}
-                </>
-              )}
-              <a
-                href={app.settingsUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-accent hover:underline"
-              >
-                Open the app's settings
-              </a>
+          <form onSubmit={submit} className="mt-2.5 flex flex-wrap items-end gap-2">
+            <div className="min-w-56 flex-1">
+              <TtField
+                label="Runyard's public address"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://runyard.example.ts.net"
+                required
+              />
             </div>
+            <button
+              type="submit"
+              className={pointed ? ttButton.secondary : ttButton.primary}
+              disabled={configure.isPending || !url}
+            >
+              {pointed ? "Set again with a new secret" : "Set webhook"}
+            </button>
+          </form>
+          {configure.error && <ErrorText className="mt-1" error={configure.error} />}
+        </div>
+      </div>
+      <div className="flex items-start gap-3 px-4 py-2">
+        <span aria-hidden className={dot(app.subscribed === true)} />
+        <div className="min-w-0 flex-1">
+          <b className="block text-[13px] font-bold">3. Switch it on in GitHub</b>
+          <div className="text-tt-ink-2">
+            {app.subscribed ? (
+              <>
+                Already subscribed to Workflow job events. On the app's{" "}
+                <b className="font-semibold text-tt-ink">General</b> page, check{" "}
+                <b className="font-semibold text-tt-ink">Active</b> under Webhook and save; GitHub's
+                API can't do this for Runyard.{" "}
+              </>
+            ) : (
+              <>
+                On the app's <b className="font-semibold text-tt-ink">General</b> page, check{" "}
+                <b className="font-semibold text-tt-ink">Active</b> under Webhook. Then, under{" "}
+                <b className="font-semibold text-tt-ink">Permissions & events</b>, check{" "}
+                <b className="font-semibold text-tt-ink">Workflow job</b> under Subscribe to events.
+                Save each page; GitHub's API can't do this for Runyard.{" "}
+              </>
+            )}
+            <a
+              href={app.settingsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-tt-ink underline"
+            >
+              Open the app's settings
+            </a>
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

@@ -15,6 +15,7 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppBoatRouteImport } from './routes/_app/boat'
 import { Route as AppIgnoredRouteImport } from './routes/_app/ignored'
+import { Route as AppMoreRouteImport } from './routes/_app/more'
 import { Route as AppQueueRouteImport } from './routes/_app/queue'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppStartRouteImport } from './routes/_app/start'
@@ -60,6 +61,11 @@ const AppBoatRoute = AppBoatRouteImport.update({
 const AppIgnoredRoute = AppIgnoredRouteImport.update({
   id: '/ignored',
   path: '/ignored',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMoreRoute = AppMoreRouteImport.update({
+  id: '/more',
+  path: '/more',
   getParentRoute: () => AppRoute,
 } as any)
 const AppQueueRoute = AppQueueRouteImport.update({
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/boat': typeof AppBoatRoute
   '/ignored': typeof AppIgnoredRoute
+  '/more': typeof AppMoreRoute
   '/queue': typeof AppQueueRoute
   '/settings': typeof AppSettingsRouteWithChildren
   '/start': typeof AppStartRoute
@@ -177,6 +184,7 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/boat': typeof AppBoatRoute
   '/ignored': typeof AppIgnoredRoute
+  '/more': typeof AppMoreRoute
   '/queue': typeof AppQueueRoute
   '/start': typeof AppStartRoute
   '/': typeof AppIndexRoute
@@ -202,6 +210,7 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_app/boat': typeof AppBoatRoute
   '/_app/ignored': typeof AppIgnoredRoute
+  '/_app/more': typeof AppMoreRoute
   '/_app/queue': typeof AppQueueRoute
   '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/start': typeof AppStartRoute
@@ -229,6 +238,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/boat'
     | '/ignored'
+    | '/more'
     | '/queue'
     | '/settings'
     | '/start'
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/boat'
     | '/ignored'
+    | '/more'
     | '/queue'
     | '/start'
     | '/'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_app/boat'
     | '/_app/ignored'
+    | '/_app/more'
     | '/_app/queue'
     | '/_app/settings'
     | '/_app/start'
@@ -344,6 +356,13 @@ declare module '@tanstack/react-router' {
       path: '/ignored'
       fullPath: '/ignored'
       preLoaderRoute: typeof AppIgnoredRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/more': {
+      id: '/_app/more'
+      path: '/more'
+      fullPath: '/more'
+      preLoaderRoute: typeof AppMoreRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/queue': {
@@ -493,6 +512,7 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 interface AppRouteChildren {
   AppBoatRoute: typeof AppBoatRoute
   AppIgnoredRoute: typeof AppIgnoredRoute
+  AppMoreRoute: typeof AppMoreRoute
   AppQueueRoute: typeof AppQueueRoute
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppStartRoute: typeof AppStartRoute
@@ -510,6 +530,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppBoatRoute: AppBoatRoute,
   AppIgnoredRoute: AppIgnoredRoute,
+  AppMoreRoute: AppMoreRoute,
   AppQueueRoute: AppQueueRoute,
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppStartRoute: AppStartRoute,

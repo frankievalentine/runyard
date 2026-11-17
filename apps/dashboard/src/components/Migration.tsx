@@ -8,6 +8,7 @@ import type { Tone } from "../lib/status.ts";
 import { yardQuery, useYard } from "../lib/yard.ts";
 import { Button, TextField } from "./form.tsx";
 import { Icon } from "./icons.tsx";
+import { Chip, ttButton, type ChipTone } from "./tt.tsx";
 import { Card, ErrorText, Pill } from "./ui.tsx";
 
 export const migrationStatus: Record<MigrationState, { tone: Tone; label: string }> = {
@@ -273,41 +274,69 @@ function Step({
   );
 }
 
-/** The pool page's runners moving in. */
+/** A migration's state as one of the design's chips. */
+const migrationChip: Record<Tone, ChipTone> = {
+  busy: "busy",
+  ok: "ok",
+  warn: "warn",
+  bad: "error",
+  muted: "neutral",
+  info: "neutral",
+};
+
+/** The pool page's runners moving in, as rows of the design's Moving in panel. */
 export function MigrationsIn({ poolId }: { poolId: string }) {
   const view = useYard();
   const moving = view.pools.migrations.filter((m) => m.poolId === poolId);
   if (moving.length === 0) return null;
   return (
-    <Card className="divide-y divide-line">
+    <>
       {moving.map((m) => {
         const status = migrationStatus[m.state];
         const runner = view.runners.find(
           (r) => sameScope(r.scope, m.scope) && r.name.toLowerCase() === m.runnerName.toLowerCase(),
         );
+        const machine = view.machines.find((x) => x.id === m.machineId);
         return (
-          <div key={`${m.scope.target}:${m.runnerName}`} className="flex flex-col gap-1 px-4 py-3">
-            <div className="flex flex-wrap items-center gap-2 text-[13px]">
+          <div
+            key={`${m.scope.target}:${m.runnerName}`}
+            className="flex items-center gap-3 border-t border-tt-rule px-4 py-[11px]"
+          >
+            <span className="text-tt-ink-3">
+              <Icon name="runner" size={16} />
+            </span>
+            <span className="min-w-0 flex-1">
               {runner ? (
                 <Link
                   to="/runners/$key"
                   params={{ key: runner.key }}
-                  className="font-mono text-accent hover:underline"
+                  className="block truncate font-board text-[13px] font-semibold hover:underline"
                 >
                   {m.runnerName}
                 </Link>
               ) : (
-                <span className="font-mono">{m.runnerName}</span>
+                <b className="block truncate font-board text-[13px] font-semibold">
+                  {m.runnerName}
+                </b>
               )}
-              <span className="text-ink-2">
-                on {view.machines.find((x) => x.id === m.machineId)?.name} · {m.scope.target}
-              </span>
-              <Pill tone={status.tone}>{status.label}</Pill>
-            </div>
-            <p className="text-[12.5px] text-ink-2">{m.detail}</p>
+              <small className="block text-[12px] text-tt-ink-3">
+                {m.scope.target} · on {machine?.name ?? m.machineId}. {m.detail}
+              </small>
+            </span>
+            <Chip tone={migrationChip[status.tone]}>{status.label}</Chip>
+            {machine && (
+              <Link
+                to="/machines/$id"
+                params={{ id: machine.id }}
+                hash="changes"
+                className={ttButton.secondary}
+              >
+                Review
+              </Link>
+            )}
           </div>
         );
       })}
-    </Card>
+    </>
   );
 }

@@ -1,20 +1,21 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Dispatches } from "../../components/Dispatches.tsx";
-import { Jobs, useJobs } from "../../components/Jobs.tsx";
-import { Icon } from "../../components/icons.tsx";
-import {
-  emptyQueueText,
-  forgesConnected,
-  QueueList,
-  RunnerLine,
-} from "../../components/runners.tsx";
-import { Card, EmptyLine, PageHeader, Section } from "../../components/ui.tsx";
 import { useState } from "react";
-import { useYard } from "../../lib/yard.ts";
+import { Dispatches } from "../../components/Dispatches.tsx";
+import { useJobs } from "../../components/Jobs.tsx";
+import { Icon } from "../../components/icons.tsx";
+import { JobsEmpty, TabsRow, Toggle } from "../../components/jobs/parts.tsx";
+import { HistoryTable, RunningTable, WaitingTable } from "../../components/jobs/tables.tsx";
+import { emptyQueueText, forgesConnected } from "../../components/runners.tsx";
+import { PageHead, Panel, ttButton } from "../../components/tt.tsx";
+import { ErrorText } from "../../components/ui.tsx";
 import { timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
+import { sessionQuery } from "../../lib/queries.ts";
+import { useYard } from "../../lib/yard.ts";
 
 const RECENT_MS = 30 * 60_000;
+const PAGE = 25;
 
 export const Route = createFileRoute("/_app/queue")({
   component: Queue,
@@ -22,84 +23,170 @@ export const Route = createFileRoute("/_app/queue")({
 
 type Tab = "running" | "waiting" | "history";
 
-/** Jobs: what's running, what's waiting (aarondfrancis/fleet's QueueDetail) and the last 7 days. */
+/**
+ * Jobs, as in the Timetable design: tabs for what's on its way, what's waiting and why, and the
+ * last 7 days, each a table (rows on phones). Waiting adds one-job runners just started.
+ */
 function Queue() {
   const view = useYard();
   const running = view.runners.filter((r) => r.activity === "busy");
-  const history = useJobs({});
-  const total = history.data
-    ? Object.values(history.data.counts).reduce((a, b) => a + b, 0)
-    : undefined;
+  const all = useJobs({});
+  const total = all.data ? Object.values(all.data.counts).reduce((a, b) => a + b, 0) : undefined;
   const [tab, setTab] = useState<Tab>(
     running.length || !view.queue.jobs.length ? "running" : "waiting",
   );
-  const tabs: { key: Tab; label: string; count?: number }[] = [
-    { key: "running", label: "On their way", count: running.length },
-    { key: "waiting", label: "Waiting", count: view.queue.jobs.length },
-    { key: "history", label: "Last 7 days", count: total },
-  ];
+  const [failures, setFailures] = useState(false);
   return (
     <div>
-      <PageHeader
+      <PageHead
         title="Jobs"
-        subtitle="Everything on the board, plus what finished this week. Select a job to open its runner or see why it waits."
+        lede={
+          <span className="max-lg:hidden">
+            Everything on the board, plus what finished this week. Select a job to open its runner
+            or see why it waits.
+          </span>
+        }
       />
-      <div role="tablist" aria-label="Jobs" className="mt-6 flex flex-wrap gap-1.5">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
-            className={`inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-[14px] font-semibold ${
-              tab === t.key ? "bg-tt-inv text-tt-on-inv" : "text-tt-ink hover:bg-tt-hover"
-            }`}
-          >
-            {t.label}
-            {t.count !== undefined && (
-              <span
-                className={`min-w-5 rounded px-1.5 py-[3px] text-center font-mono text-[12px] leading-none font-bold tabular ${
-                  tab === t.key
-                    ? "bg-tt-signal text-tt-on-signal"
-                    : t.count === 0
-                      ? "bg-tt-hover text-tt-ink-3"
-                      : "bg-tt-rule text-tt-ink"
-                }`}
-              >
-                {t.count}
-              </span>
-            )}
-          </button>
-        ))}
+      <TabsRow
+        tab={tab}
+        onTab={setTab}
+        tabs={[
+          { key: "running", label: "On their way", count: running.length },
+          { key: "waiting", label: "Waiting", count: view.queue.jobs.length },
+          { key: "history", label: "Last 7 days", count: total },
+        ]}
+        end={
+          tab === "history" && (
+            <Toggle checked={failures} onChange={setFailures}>
+              Failures only
+            </Toggle>
+          )
+        }
+      />
+      <div
+        role="tabpanel"
+        className="overflow-hidden rounded-b-xl border border-t-0 border-tt-rule bg-tt-card max-lg:mt-3 max-lg:rounded-xl max-lg:border-t"
+      >
+        {tab === "running" &&
+          (running.length ? <RunningTable view={view} running={running} /> : <NoJobs />)}
+        {tab === "waiting" &&
+          (view.queue.jobs.length ? <WaitingTable view={view} /> : <NothingWaiting />)}
+        {tab === "history" && <History failures={failures} />}
       </div>
-      <div role="tabpanel" className="mt-4">
-        {tab === "running" && (
-          <Card className="overflow-hidden">
-            {running.length === 0 ? (
-              <EmptyLine>
-                {forgesConnected(view)
-                  ? "No runner is working right now."
-                  : "Connect GitHub or Forgejo to see running jobs."}
-              </EmptyLine>
-            ) : (
-              running.map((r) => <RunnerLine key={r.key} r={r} />)
-            )}
-          </Card>
-        )}
-        {tab === "waiting" && <Waiting />}
-        {tab === "history" && (
-          <div className="-mt-8">
-            <Jobs filter={{}} showMachine />
-          </div>
-        )}
-      </div>
+      {tab === "waiting" && <WaitingExtras />}
     </div>
   );
 }
 
-/** Jobs waiting for a self-hosted runner, with why, and one-job runners just started for them. */
-function Waiting() {
+/** Where to connect a forge, for empty states before one is. */
+function ConnectLinks() {
+  return (
+    <>
+      <Link to="/settings/github" className={ttButton.primary}>
+        Connect GitHub
+      </Link>
+      <Link to="/settings/forgejo" className={ttButton.secondary}>
+        Connect Forgejo
+      </Link>
+    </>
+  );
+}
+
+function NoJobs() {
+  const view = useYard();
+  const { data: session } = useSuspenseQuery(sessionQuery);
+  const admin = session.user?.role === "admin";
+  if (!forgesConnected(view))
+    return (
+      <JobsEmpty
+        flap="NO JOBS YET"
+        title="Connect GitHub or Forgejo"
+        actions={admin && <ConnectLinks />}
+      >
+        Runyard reads running and queued jobs from your forge. Connect one to see them here.
+      </JobsEmpty>
+    );
+  if (view.machines.length === 0)
+    return (
+      <JobsEmpty
+        flap="NO JOBS YET"
+        title="Jobs appear here once a pool's runners take work"
+        actions={
+          admin && (
+            <>
+              <Link to="/machines/add" className={ttButton.primary}>
+                <Icon name="plus" size={14} />
+                Add machine
+              </Link>
+              <span className="text-[12.5px] text-tt-ink-2">Then create a pool for it</span>
+            </>
+          )
+        }
+      >
+        Point a workflow at a pool's labels with runs-on. Its jobs show up here as they're queued
+        and run.
+      </JobsEmpty>
+    );
+  return (
+    <JobsEmpty flap="ALL QUIET" title="No runner is working right now">
+      Jobs show up here as soon as a runner takes one.
+    </JobsEmpty>
+  );
+}
+
+function NothingWaiting() {
+  const view = useYard();
+  const { data: session } = useSuspenseQuery(sessionQuery);
+  const connected = forgesConnected(view);
+  return (
+    <JobsEmpty
+      flap="NOTHING WAITING"
+      title={emptyQueueText(view)}
+      actions={!connected && session.user?.role === "admin" && <ConnectLinks />}
+    >
+      {!connected
+        ? "Connect GitHub or Forgejo to see queued and running jobs."
+        : view.queue.complete
+          ? "When a queued job has no runner that can take it, it waits here with the reason."
+          : "Waiting for a complete job scan."}
+    </JobsEmpty>
+  );
+}
+
+/** The last 7 days, newest first, a page at a time. */
+function History({ failures }: { failures: boolean }) {
+  const view = useYard();
+  const jobs = useJobs({}, failures);
+  const [shown, setShown] = useState(PAGE);
+  if (jobs.error) return <ErrorText className="px-4 py-3" error={jobs.error} />;
+  if (!jobs.data) return <p className="px-4 py-3.5 text-[13px] text-tt-ink-3">Loading…</p>;
+  const list = jobs.data.jobs;
+  if (!list.length)
+    return failures ? (
+      <p className="px-4 py-3.5 text-[13px] text-tt-ink-2">No failures in the last 7 days.</p>
+    ) : (
+      <JobsEmpty flap="NO FINISHED JOBS" title="No finished jobs yet">
+        Jobs from the last 7 days appear here as they run, from webhooks or from the runners' hooks.
+      </JobsEmpty>
+    );
+  return (
+    <>
+      <HistoryTable view={view} jobs={list.slice(0, shown)} />
+      {list.length > shown && (
+        <button
+          type="button"
+          onClick={() => setShown(shown + PAGE)}
+          className="w-full border-t border-tt-rule px-4 py-3 text-left text-[13px] font-semibold text-tt-ink-2 hover:bg-tt-hover hover:text-tt-ink"
+        >
+          Show {Math.min(PAGE, list.length - shown)} more
+        </button>
+      )}
+    </>
+  );
+}
+
+/** Under Waiting: one-job runners just started for queued jobs, and what the list can't know. */
+function WaitingExtras() {
   const view = useYard();
   const now = useNow();
   const q = view.queue;
@@ -108,56 +195,22 @@ function Waiting() {
   const recent = view.pools.dispatches.filter(
     (d) => d.state === "starting" || d.state === "running" || now - d.startedAt < RECENT_MS,
   );
-  // Their jobs' results, from run history.
   const jobs = useJobs({});
   return (
-    <div>
-      {q.at && <p className="mb-3 text-[12.5px] text-ink-2">Checked {timeAgo(q.at, now)}</p>}
-      <div>
-        {q.jobs.length ? (
-          <QueueList view={view} />
-        ) : (
-          <Card className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-            <span className="flex size-10 items-center justify-center rounded-lg border border-line bg-sunken text-ink-2">
-              <Icon name="inbox" size={20} />
-            </span>
-            <div className="space-y-1">
-              <p className="text-[14px] font-medium">{emptyQueueText(view)}</p>
-              <p className="max-w-sm text-[13px] leading-relaxed text-ink-2">
-                {!connected ? (
-                  <>
-                    Create Runyard's GitHub App in{" "}
-                    <Link to="/settings/github" className="text-accent hover:underline">
-                      Settings ▸ GitHub
-                    </Link>{" "}
-                    or connect an account in{" "}
-                    <Link to="/settings/forgejo" className="text-accent hover:underline">
-                      Settings ▸ Forgejo
-                    </Link>{" "}
-                    to see queued and running jobs.
-                  </>
-                ) : q.complete ? (
-                  "The scanned repositories have no jobs waiting for a self-hosted runner."
-                ) : (
-                  "Waiting for a complete job scan."
-                )}
-              </p>
-            </div>
-          </Card>
-        )}
-      </div>
+    <>
       {recent.length > 0 && (
-        <Section title="Recently started" count={recent.length}>
-          <p className="-mt-1 mb-2 text-[12px] text-ink-2">
+        <Panel title="Recently started" meta={recent.length} className="mt-[18px]">
+          <p className="px-4 pb-2.5 text-[12.5px] text-tt-ink-2">
             One-job runners Runyard started for queued jobs in the last half hour; their jobs leave
             the list above once a runner takes them.
           </p>
-          <Dispatches dispatches={recent.slice(0, 10)} jobs={jobs.data?.jobs ?? []} showPool />
-        </Section>
+          <Dispatches dispatches={recent.slice(0, 10)} jobs={jobs.data?.jobs ?? []} showPool bare />
+        </Panel>
       )}
-      <div className="mt-4 space-y-1.5 text-[12px] text-ink-2">
+      <div className="mt-4 space-y-1.5 text-[12px] text-tt-ink-2">
+        {q.at && <p>Checked {timeAgo(q.at, now)}.</p>}
         {!q.complete && connected && (
-          <p className="text-warn">
+          <p className="text-tt-warn-ink">
             This list may be incomplete: job data is missing or stale, or an installation has more
             repositories than Runyard scans (the 30 most recently pushed).
           </p>
@@ -168,6 +221,6 @@ function Waiting() {
           only jobs waiting for a runner, not which runner took one.
         </p>
       </div>
-    </div>
+    </>
   );
 }

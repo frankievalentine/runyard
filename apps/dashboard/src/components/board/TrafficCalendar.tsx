@@ -74,8 +74,10 @@ const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) 
  * graph, drawn with WebGL and revealed once with GSAP. Hovering or tapping a day reads it out.
  */
 export function TrafficCalendar({ phone = false }: { phone?: boolean }) {
-  const weeks = phone ? 13 : 26;
-  const { data } = useCalendar(weeks);
+  // As many weeks as fit the panel, up to the 53 Runyard keeps; one request covers them all.
+  const [fit, setFit] = useState({ weeks: phone ? 13 : 26, pitch: phone ? 22 : 24 });
+  const { weeks, pitch } = fit;
+  const { data } = useCalendar(53);
   const dark = useDark();
   const now = data?.now ?? Date.now();
   const today = new Date(now);
@@ -97,24 +99,29 @@ export function TrafficCalendar({ phone = false }: { phone?: boolean }) {
   const todayKey = localDay(now);
   const before = data?.earliest != null && localDay(data.earliest) > (cells[0] ?? "");
 
-  const wrap = useRef<HTMLDivElement>(null);
+  const body = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [pitch, setPitch] = useState(phone ? 22 : 24);
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
   const draw = useRef<(hover?: [number, number]) => void>(() => {});
   const cols = grid.length;
 
-  // The squares' size follows the panel's width.
+  // The panel's width picks how many weeks show and how big their squares are, so the grid spans it.
   useEffect(() => {
-    const el = wrap.current;
+    const el = body.current;
     if (!el) return;
-    const fit = () =>
-      setPitch(Math.max(12, Math.min(phone ? 26 : 30, Math.floor(el.clientWidth / cols))));
-    fit();
-    const ro = new ResizeObserver(fit);
+    const measure = () => {
+      // The weekday labels and the gap beside them take 38px.
+      const room = el.clientWidth - 38;
+      const ideal = phone ? 20 : 25;
+      const weeks = Math.max(13, Math.min(phone ? 26 : 53, Math.floor(room / ideal)));
+      const pitch = Math.max(12, Math.min(30, Math.floor(room / weeks)));
+      setFit((f) => (f.weeks === weeks && f.pitch === pitch ? f : { weeks, pitch }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [cols, phone]);
+  }, [phone]);
 
   useEffect(() => {
     const c = canvas.current;
@@ -288,9 +295,9 @@ export function TrafficCalendar({ phone = false }: { phone?: boolean }) {
               : "No jobs yet"}
         </span>
       </header>
-      <div className="mt-3 flex gap-2">
+      <div ref={body} className="my-auto flex gap-2 pt-3">
         <div
-          className="grid shrink-0 pt-[18px] text-[10.5px] text-[#8b9099]"
+          className="grid w-[30px] shrink-0 pt-[18px] text-[10.5px] text-[#8b9099]"
           style={{ gridTemplateRows: `repeat(7, ${pitch}px)` }}
           aria-hidden
         >
@@ -300,7 +307,7 @@ export function TrafficCalendar({ phone = false }: { phone?: boolean }) {
             </span>
           ))}
         </div>
-        <div ref={wrap} className="relative min-w-0 flex-1">
+        <div className="relative min-w-0 flex-1">
           <div className="relative h-[18px] text-[10.5px] text-[#8b9099]" aria-hidden>
             {months.map((m) => (
               <span key={m.col} className="absolute top-0" style={{ left: m.col * pitch }}>

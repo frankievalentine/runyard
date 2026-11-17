@@ -8,7 +8,8 @@ import { useNow } from "../lib/now.ts";
 import type { Tone } from "../lib/status.ts";
 import { useYard } from "../lib/yard.ts";
 import { Terminal } from "./Terminal.tsx";
-import { Card, EmptyLine, ErrorText, Pill, Section } from "./ui.tsx";
+import { Panel } from "./tt.tsx";
+import { EmptyLine, ErrorText, Pill } from "./ui.tsx";
 
 type Filter = { machine?: string; pool?: string; runner?: string };
 type JobsResponse = { days: number; counts: JobCounts; jobs: JobRecord[]; now: number };
@@ -57,8 +58,9 @@ export function Jobs({ filter, showMachine }: { filter: Filter; showMachine?: bo
   const jobs = useJobs(filter, failures);
   const counts = jobs.data?.counts;
   return (
-    <Section
+    <Panel
       title="Jobs"
+      className="mt-[18px]"
       action={
         <div className="flex items-center gap-3 text-[12px] text-ink-2">
           {counts && <span>Last 7 days: {countsLine(counts)}</span>}
@@ -74,7 +76,7 @@ export function Jobs({ filter, showMachine }: { filter: Filter; showMachine?: bo
         </div>
       }
     >
-      <Card className="overflow-hidden">
+      <div className="overflow-hidden border-t border-tt-rule">
         {jobs.error && <ErrorText className="px-4 py-3" error={jobs.error} />}
         {jobs.data?.jobs.length === 0 && (
           <EmptyLine>
@@ -104,8 +106,8 @@ export function Jobs({ filter, showMachine }: { filter: Filter; showMachine?: bo
             Show {Math.min(20, jobs.data.jobs.length - shown)} more
           </button>
         )}
-      </Card>
-    </Section>
+      </div>
+    </Panel>
   );
 }
 

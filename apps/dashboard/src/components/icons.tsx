@@ -132,10 +132,17 @@ export function Icon({ name, size = 14 }: { name: IconName; size?: number }) {
           <path d="M1.8 13.5c.5-2.4 2.2-3.7 4.2-3.7s3.7 1.3 4.2 3.7M10.5 3.2a2.4 2.4 0 0 1 0 4.6M12 9.9c1.2.5 2 1.7 2.3 3.6" />
         </svg>
       );
-    case "plus":
+    case "more":
       return (
         <svg {...common}>
-          <path d="M8 3.5v9M3.5 8h9" />
+          <path d="M3.5 8h.01M8 8h.01M12.5 8h.01" strokeWidth={2.4} />
+        </svg>
+      );
+    case "plus":
+      return (
+        // A touch heavier and a unit lower, so it lines up with a bold label's lowercase.
+        <svg {...common} strokeWidth={1.8}>
+          <path d="M8 4.5v9M3.5 9h9" />
         </svg>
       );
     case "plan":
@@ -149,6 +156,7 @@ export function Icon({ name, size = 14 }: { name: IconName; size?: number }) {
 }
 
 export type IconName =
+  | "more"
   | "search"
   | "server"
   | "inbox"

@@ -43,12 +43,12 @@ test("running jobs come first, longest running first, then waiting jobs, longest
       [queued(2, 50, []), queued(1, 20, ["r3"])],
     ),
   );
-  expect(rows.map((r) => [r.kind, r.job, r.platform, r.status, r.tone])).toEqual([
-    ["running", "Job details unavailable", "rack-01", "On its way", "moving"],
-    ["running", "build", "r1", "On its way", "moving"],
-    ["running", "e2e", "r2", "On its way", "moving"],
-    ["waiting", "job-1", "r3", "1 idle runner matches", "boarding"],
-    ["waiting", "job-2", "", "No matching runner online", "held"],
+  expect(rows.map((r) => [r.kind, r.job, r.platform, r.status, r.sign, r.tone])).toEqual([
+    ["running", "Job details unavailable", "rack-01", "On its way", "On its way", "moving"],
+    ["running", "build", "r1", "On its way", "On its way", "moving"],
+    ["running", "e2e", "r2", "On its way", "On its way", "moving"],
+    ["waiting", "job-1", "r3", "1 idle runner matches", "Boarding · 1 match", "neutral"],
+    ["waiting", "job-2", "", "No matching runner online", "No linux runner", "held"],
   ]);
 });
 
@@ -59,8 +59,9 @@ test("on-demand jobs say where they'll start, or what holds them", () => {
   const job = queued(1, 10, [], { onDemand: "boat.dev" });
   expect(departures(view([], [job], boat))[0]).toMatchObject({
     status: "Starts on boat.dev",
+    sign: "Starts on boat.dev",
     platform: "boat.dev",
-    tone: "boarding",
+    tone: "neutral",
   });
   const full = { limits: { ...boat.limits, atConcurrencyLimit: true } };
   expect(departures(view([], [job], full))[0]).toMatchObject({
@@ -69,12 +70,16 @@ test("on-demand jobs say where they'll start, or what holds them", () => {
   });
 });
 
-test("matching runners that are all busy hold a job without alarm", () => {
+test("matching runners that are all busy hold a job up", () => {
   const rows = departures(
     view(
       [runner("r1", "busy", { name: "build", repo: "acme/app", startedAt: 1, labels: [] })],
       [queued(1, 5, ["r1"])],
     ),
   );
-  expect(rows[1]).toMatchObject({ status: "1 matching, all busy", tone: "neutral" });
+  expect(rows[1]).toMatchObject({
+    status: "1 matching, all busy",
+    sign: "Waiting · all busy",
+    tone: "held",
+  });
 });

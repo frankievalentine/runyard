@@ -1,6 +1,6 @@
 import { pendingChanges, type MachineView, type PlanItem } from "@runyard/core";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { api, call } from "../api.ts";
 import { useYard } from "../lib/yard.ts";
@@ -8,10 +8,10 @@ import { timeUntil } from "../lib/format.ts";
 import { Terminal } from "./Terminal.tsx";
 import { useNow } from "../lib/now.ts";
 import { runnerFor } from "../lib/pools.ts";
-import { runnerStatus } from "../lib/status.ts";
-import { Button, TextField } from "./form.tsx";
+import { runnerStatus, type Tone } from "../lib/status.ts";
+import { Dot, Field, Input, TtError, type DotTone } from "./machine/parts.tsx";
 import { Elapsed } from "./runners.tsx";
-import { Card, EmptyLine, ErrorText, LinkRow, LinkTable, Pill, Section, StatusDot } from "./ui.tsx";
+import { Chip, Panel, Row, TtButton, ttButton, type ChipTone } from "./tt.tsx";
 
 type Review = {
   id: string;
@@ -50,68 +50,118 @@ const ACTION: Record<PlanItem["action"], string> = {
   syncPath: "Update PATH",
 };
 
-/** The machine's runners: the ones GitHub lists for it, and the ones its pools still call for. ported from aarondfrancis/fleet's RunnerTable. */
+const chipTone: Record<Tone, ChipTone> = {
+  busy: "busy",
+  ok: "ok",
+  warn: "warn",
+  bad: "error",
+  muted: "neutral",
+  info: "neutral",
+};
+
+/** The machine's runners: the ones the forge lists for it, and the ones its pools still call for. Ported from aarondfrancis/fleet's RunnerTable. */
 export function MachineRunners({ m }: { m: MachineView }) {
   const view = useYard();
-  const navigate = useNavigate();
   const linked = view.runners.filter((r) => r.machineId === m.id);
   const missing = view.pools.desired.filter((d) => d.machineId === m.id && !runnerFor(view, d));
-  if (linked.length === 0 && missing.length === 0) {
-    return (
-      <Section title="Runners">
-        <Card>
-          <EmptyLine>No runners. Add this machine to a pool to give it some.</EmptyLine>
-        </Card>
-      </Section>
-    );
-  }
+  const busy = linked.filter((r) => r.activity === "busy").length;
   return (
-    <Section title="Runners" count={linked.length + missing.length}>
-      <LinkTable
-        columns={[{ label: "Runner" }, { label: "Serves" }, { label: "Pool" }, { label: "Status" }]}
-        minWidth="min-w-[560px]"
-      >
-        {linked.map((r) => {
-          const status = runnerStatus(r);
-          const pool = view.pools.desired.find(
-            (d) => d.name === r.name && d.machineId === m.id,
-          )?.poolName;
-          return (
-            <LinkRow
-              key={r.key}
-              onOpen={() => void navigate({ to: "/runners/$key", params: { key: r.key } })}
-              opener={<span className="font-mono text-[12.5px]">{r.name}</span>}
-            >
-              <td className="px-3 py-2.5 font-mono text-[12px] text-ink-2">{r.scopeLabel}</td>
-              <td className="px-3 py-2.5 text-ink-2">{pool ?? "No pool (will be removed)"}</td>
-              <td className="px-3 py-2.5">
-                <span className="inline-flex items-center gap-2">
-                  <StatusDot tone={status.tone} hollow={status.hollow} />
-                  {r.job?.startedAt ? <Elapsed since={r.job.startedAt} /> : status.label}
-                </span>
-              </td>
-            </LinkRow>
-          );
-        })}
-        {missing.map((d) => (
-          <LinkRow
-            key={d.key}
-            onOpen={() => document.getElementById("changes")?.scrollIntoView()}
-            opener={<span className="font-mono text-[12.5px]">{d.name}</span>}
+    <Panel
+      title="Runners"
+      meta={linked.length + missing.length > 0 && `${busy} of ${linked.length} busy`}
+    >
+      {linked.length === 0 && missing.length === 0 && (
+        <p className="px-4 pt-0 pb-[18px] text-tt-ink-2">
+          No runners. Add this machine to a pool to give it some.
+        </p>
+      )}
+      {linked.map((r) => {
+        const status = runnerStatus(r);
+        const pool = view.pools.desired.find(
+          (d) => d.name === r.name && d.machineId === m.id,
+        )?.poolName;
+        return (
+          <div
+            key={r.key}
+            className="relative flex items-center gap-3 border-t border-tt-rule px-4 py-[11px] hover:bg-tt-hover"
           >
-            <td className="px-3 py-2.5 font-mono text-[12px] text-ink-2">{d.scope.target}</td>
-            <td className="px-3 py-2.5 text-ink-2">{d.poolName}</td>
-            <td className="px-3 py-2.5">
-              <span className="inline-flex items-center gap-2">
-                <StatusDot tone="muted" hollow />
-                Not installed
-              </span>
-            </td>
-          </LinkRow>
-        ))}
-      </LinkTable>
-    </Section>
+            <Light activity={r.activity} />
+            <span className="min-w-0 flex-1">
+              <Link
+                to="/runners/$key"
+                params={{ key: r.key }}
+                className="block truncate font-board text-[13px] font-bold after:absolute after:inset-0"
+              >
+                {r.name}
+              </Link>
+              <small className="block truncate text-[12px] text-tt-ink-3">
+                {pool ? `Pool ${pool}` : "No pool (will be removed)"} ·{" "}
+                <span className="font-board">{r.scopeLabel}</span>
+              </small>
+            </span>
+            <Chip tone={chipTone[status.tone]}>
+              {r.job?.startedAt ? (
+                <>
+                  Running · <Elapsed since={r.job.startedAt} />
+                </>
+              ) : (
+                status.label
+              )}
+            </Chip>
+            {r.activity === "idle" && r.forge === "github" && (
+              <Link
+                to="/runners/$key"
+                params={{ key: r.key }}
+                className={`${ttButton.secondary} relative z-[1] max-sm:hidden`}
+              >
+                Test
+              </Link>
+            )}
+          </div>
+        );
+      })}
+      {missing.map((d) => (
+        <button
+          key={d.key}
+          type="button"
+          onClick={() => document.getElementById("changes")?.scrollIntoView({ behavior: "smooth" })}
+          className="flex w-full items-center gap-3 border-t border-tt-rule px-4 py-[11px] text-left hover:bg-tt-hover"
+        >
+          <Light activity="offline" />
+          <span className="min-w-0 flex-1">
+            <b className="block truncate font-board text-[13px] font-bold">{d.name}</b>
+            <small className="block truncate text-[12px] text-tt-ink-3">
+              Pool {d.poolName} · <span className="font-board">{d.scope.target}</span>
+            </small>
+          </span>
+          <Chip tone="plain">Not installed</Chip>
+        </button>
+      ))}
+    </Panel>
   );
+}
+
+/** A runner's light, as on the Board's platforms: orange working, green idle, gray offline. */
+function Light({ activity }: { activity: string }) {
+  return (
+    <i
+      aria-hidden
+      className={`h-[9px] w-[13px] flex-none rounded-[2px] border-[1.5px] ${
+        activity === "busy"
+          ? "border-tt-loco bg-tt-loco"
+          : activity === "idle"
+            ? "border-tt-ok"
+            : "border-tt-rule-2 bg-tt-rule"
+      }`}
+    />
+  );
+}
+
+/** What a waiting change does, as the design marks it: + adds, − removes, ~ changes. */
+function opOf(text: string): ["+" | "−" | "~", string] {
+  if (/^(Install|Record)/.test(text)) return ["+", "text-tt-ok-ink"];
+  if (/^(Remove|Retire)/.test(text)) return ["−", "text-tt-bad-ink"];
+  return ["~", "text-tt-warn-ink"];
 }
 
 /** aarondfrancis/fleet's Changes: review re-reads the machine and GitHub; execute reads them again before doing anything. */
@@ -123,6 +173,7 @@ export function MachineChanges({
   anchor = "changes",
   autoPrepare = false,
   onSettled,
+  startReview = 0,
 }: {
   m: MachineView;
   admin: boolean;
@@ -135,6 +186,8 @@ export function MachineChanges({
   autoPrepare?: boolean;
   /** Told when this machine is done: its run succeeded, or its review found nothing to do. */
   onSettled?: () => void;
+  /** Bumped by a Review changes button elsewhere on the page: prepares a review here. */
+  startReview?: number;
 }) {
   const now = useNow();
   const [ownReview, setReview] = useState<Review | null>(null);
@@ -188,6 +241,13 @@ export function MachineChanges({
     prepared.current = true;
     prepare.mutate();
   }, [autoPrepare, admin, prepare]);
+  // Another button asked for a review: preparing only reads, like the one here.
+  const asked = useRef(startReview);
+  useEffect(() => {
+    if (startReview === asked.current || !admin) return;
+    asked.current = startReview;
+    prepare.mutate();
+  }, [startReview, admin, prepare]);
   const settled =
     operation.data?.status === "succeeded" || (review !== null && review.items.length === 0);
   useEffect(() => {
@@ -204,130 +264,143 @@ export function MachineChanges({
   const blocked = review?.items.filter((i) => i.blocked) ?? [];
   const expired = review !== null && review.expiresAt <= now;
 
+  const reviewButton = (
+    <TtButton
+      variant={!review && !operationId && waiting.length ? "primary" : "secondary"}
+      onClick={() => prepare.mutate()}
+      disabled={prepare.isPending || operation.data?.status === "running"}
+    >
+      {prepare.isPending
+        ? "Reviewing…"
+        : review
+          ? "Review again"
+          : waiting.length
+            ? "Review and run"
+            : "Review changes"}
+    </TtButton>
+  );
+
   return (
-    <section id={anchor ?? undefined} className="mt-8 min-w-0 scroll-mt-4">
-      <div className="mb-2 flex min-h-7 flex-wrap items-center gap-2">
-        <h2 className="text-[13px] font-semibold">{title}</h2>
-        {admin && (
-          <div className="ml-auto">
-            <Button
-              small
-              variant={!review && !operationId && waiting.length ? "primary" : "default"}
-              onClick={() => prepare.mutate()}
-              disabled={prepare.isPending || operation.data?.status === "running"}
-            >
-              {prepare.isPending
-                ? "Reviewing…"
-                : review
-                  ? "Review again"
-                  : waiting.length
-                    ? `Review ${waiting.length === 1 ? "1 change" : `${waiting.length} changes`}`
-                    : "Review changes"}
-            </Button>
-          </div>
-        )}
-      </div>
-      <Card className="overflow-hidden">
-        {!review && !operationId && waiting.length > 0 && (
-          <div className="px-4 py-3 text-[13px]">
-            <div className="flex items-center gap-2 font-medium">
-              <span className="size-2 shrink-0 rounded-full bg-accent" aria-hidden />
-              {waiting.length === 1 ? "A change is waiting" : `${waiting.length} changes waiting`}
-            </div>
-            <ul className="mt-1.5 ml-4 list-disc text-[12.5px] text-ink-2">
-              {waiting.map((w) => (
-                <li key={w}>{w}</li>
-              ))}
-            </ul>
-            <p className="mt-2 text-[12px] text-ink-3">
+    <Panel
+      id={anchor ?? undefined}
+      className="scroll-mt-4 overflow-hidden"
+      title={title}
+      meta={
+        review
+          ? actionable.length
+            ? `${actionable.length} to run`
+            : "Reviewed"
+          : waiting.length
+            ? `${waiting.length} waiting`
+            : "None waiting"
+      }
+      action={admin && (review || operationId) ? reviewButton : undefined}
+    >
+      {!review && !operationId && waiting.length > 0 && (
+        <>
+          {waiting.map((w) => {
+            const [op, color] = opOf(w);
+            return (
+              <Row key={w}>
+                <span aria-hidden className={`w-3 font-board font-bold ${color}`}>
+                  {op}
+                </span>
+                <span className="min-w-0 flex-1">{w}</span>
+              </Row>
+            );
+          })}
+          <Row className="flex-wrap">
+            <span className="min-w-0 flex-1 basis-[200px] text-[12.5px] text-tt-ink-2">
               {admin
                 ? "Review to confirm them. Nothing changes until you run it."
                 : "An admin can review and apply them."}
-            </p>
-          </div>
-        )}
-        {!review && !operationId && waiting.length === 0 && (
-          <EmptyLine>
+            </span>
+            {admin && reviewButton}
+          </Row>
+        </>
+      )}
+      {!review && !operationId && waiting.length === 0 && (
+        <div className="flex flex-wrap items-center gap-3 px-4 pb-4">
+          <p className="min-w-0 flex-1 basis-[200px] text-tt-ink-2">
             {admin
-              ? "No changes waiting. Reviewing is read-only."
+              ? `Nothing to change. Runyard compares ${m.name} with its pools after every check; reviewing is read-only.`
               : "An admin can review and apply this machine's runner changes."}
-          </EmptyLine>
-        )}
-        {prepare.error && <ErrorText className="px-4 py-3" error={prepare.error} />}
-        {reviewId && !handedDone && handed.error && (
-          <ErrorText className="px-4 py-3" error={handed.error} />
-        )}
-        {review?.preparedBy && (
-          <div className="border-b border-line bg-accent/5 px-4 py-2.5 text-[12.5px]">
-            Prepared by the agent <span className="font-medium">{review.preparedBy}</span>. Agents
-            can't run changes; check it before you run it.
-          </div>
-        )}
-        {review && review.items.length === 0 && (
-          <EmptyLine>Everything matches its pools. Nothing to do.</EmptyLine>
-        )}
-        {review && review.items.length > 0 && (
-          <form onSubmit={submit}>
-            <ul className="divide-y divide-line">
-              {[...actionable, ...blocked].map((i) => (
-                <li
-                  key={`${i.action}:${i.path}`}
-                  className="flex items-start gap-3 px-4 py-3 text-[12.5px] max-sm:flex-col max-sm:gap-1.5"
+          </p>
+          {admin && reviewButton}
+        </div>
+      )}
+      <TtError className="px-4 pb-3" error={prepare.error} />
+      {reviewId && !handedDone && <TtError className="px-4 pb-3" error={handed.error} />}
+      {review?.preparedBy && (
+        <div className="border-t border-tt-rule bg-tt-warn-bg px-4 py-2.5 text-[12.5px] text-tt-warn-ink">
+          Prepared by the agent <span className="font-semibold">{review.preparedBy}</span>. Agents
+          can't run changes; check it before you run it.
+        </div>
+      )}
+      {review && review.items.length === 0 && (
+        <p className="border-t border-tt-rule px-4 py-3.5 text-tt-ink-2">
+          Everything matches its pools. Nothing to do.
+        </p>
+      )}
+      {review && review.items.length > 0 && (
+        <form onSubmit={submit}>
+          {[...actionable, ...blocked].map((i) => (
+            <div
+              key={`${i.action}:${i.path}`}
+              className="flex items-start gap-3 border-t border-tt-rule px-4 py-[11px] text-[13px] max-sm:flex-col max-sm:gap-1.5"
+            >
+              <span className="w-40 shrink-0 max-sm:w-auto">
+                <Chip tone={i.blocked ? "warn" : i.action === "remove" ? "error" : "busy"}>
+                  {ACTION[i.action]}
+                </Chip>
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="font-board text-[12.5px] font-semibold break-words">
+                  {i.runnerName}{" "}
+                  <span className="font-normal text-tt-ink-3">· {i.scope.target}</span>
+                </div>
+                <div className="text-[12.5px] text-tt-ink-2">{i.reason}</div>
+              </div>
+            </div>
+          ))}
+          <div className="flex flex-wrap items-end gap-3 border-t border-tt-rule px-4 py-3">
+            {review.mayNeedSudo && (
+              <div className="w-64 max-sm:w-full">
+                <Field
+                  label="Sudo password (if needed)"
+                  hint="Used for this run only, never stored."
                 >
-                  <span className="mt-0.5 w-40 shrink-0 max-sm:mt-0 max-sm:w-auto">
-                    <Pill
-                      tone={i.blocked ? "warn" : i.action === "remove" ? "bad" : "busy"}
-                      hollow={i.blocked}
-                    >
-                      {ACTION[i.action]}
-                    </Pill>
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-mono">
-                      {i.runnerName} <span className="text-ink-3">· {i.scope.target}</span>
-                    </div>
-                    <div className="text-ink-2">{i.reason}</div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <div className="flex flex-wrap items-end gap-3 border-t border-line px-4 py-3">
-              {review.mayNeedSudo && (
-                <div className="w-64">
-                  <TextField
-                    label="Sudo password (if needed)"
+                  <Input
                     type="password"
                     autoComplete="off"
                     value={sudo}
                     onChange={(e) => setSudo(e.target.value)}
-                    description="Used for this run only, never stored."
                   />
-                </div>
-              )}
-              <p className="min-w-0 flex-1 text-[12px] text-ink-2">
-                {expired
-                  ? "This review expired. Review again."
-                  : actionable.length
-                    ? `Runyard checks again first and stops if anything changed. Expires ${timeUntil(review.expiresAt, now)}.`
-                    : "Nothing here can be done automatically."}
-              </p>
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={!actionable.length || expired || execute.isPending}
-              >
-                {execute.isPending
-                  ? "Starting…"
-                  : `Run
- ${actionable.length} change${actionable.length === 1 ? "" : "s"}`}
-              </Button>
-            </div>
-            {execute.error && <ErrorText className="px-4 pb-3" error={execute.error} />}
-          </form>
-        )}
-        {operation.data && <OperationLog op={operation.data} />}
-      </Card>
-    </section>
+                </Field>
+              </div>
+            )}
+            <p className="min-w-0 flex-1 basis-[200px] text-[12.5px] text-tt-ink-2">
+              {expired
+                ? "This review expired. Review again."
+                : actionable.length
+                  ? `Runyard checks again first and stops if anything changed. Expires ${timeUntil(review.expiresAt, now)}.`
+                  : "Nothing here can be done automatically."}
+            </p>
+            <TtButton
+              type="submit"
+              variant="primary"
+              disabled={!actionable.length || expired || execute.isPending}
+            >
+              {execute.isPending
+                ? "Starting…"
+                : `Run ${actionable.length} change${actionable.length === 1 ? "" : "s"}`}
+            </TtButton>
+          </div>
+          <TtError className="px-4 pb-3" error={execute.error} />
+        </form>
+      )}
+      {operation.data && <OperationLog op={operation.data} />}
+    </Panel>
   );
 }
 
@@ -339,52 +412,46 @@ const STEP_STATUS: Record<string, string> = {
   skipped: "Skipped",
 };
 
+const stepTone = (status: string): DotTone =>
+  status === "succeeded"
+    ? "ok"
+    : status === "failed"
+      ? "bad"
+      : status === "running"
+        ? "warn"
+        : "unknown";
+
 function OperationLog({ op }: { op: Operation }) {
   return (
-    <div className="border-t border-line">
-      <div className="flex items-center gap-2 px-4 py-2.5 text-[12.5px] font-medium">
-        <StatusDot
-          tone={op.status === "running" ? "busy" : op.status === "succeeded" ? "ok" : "bad"}
-        />
+    <div className="border-t border-tt-rule">
+      <div className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-bold">
+        <Dot tone={op.status === "running" ? "warn" : op.status === "succeeded" ? "ok" : "bad"} />
         {op.status === "running"
           ? "Running…"
           : op.status === "succeeded"
             ? "Done"
             : `Failed: ${op.error}`}
       </div>
-      <ul className="divide-y divide-line">
-        {op.steps.map((s, i) => (
-          <li key={i} className="px-4 py-2.5 text-[12.5px]">
-            <div className="flex items-center gap-2">
-              <StatusDot
-                tone={
-                  s.status === "succeeded"
-                    ? "ok"
-                    : s.status === "failed"
-                      ? "bad"
-                      : s.status === "running"
-                        ? "busy"
-                        : "muted"
-                }
-                hollow={s.status === "pending" || s.status === "skipped"}
-              />
-              <span className="font-medium">
-                {ACTION[s.action as PlanItem["action"]] ?? s.action}
-              </span>
-              {/* Runners by name; a machine-wide step (tools) has no runner to name. */}
-              {s.runnerName !== "Tools" && (
-                <span className="min-w-0 truncate font-mono text-ink-2">{s.runnerName}</span>
-              )}
-              <span className="ml-auto shrink-0 text-ink-2">
-                {STEP_STATUS[s.status] ?? s.status}
-              </span>
-            </div>
-            {(s.output || s.status === "running") && (
-              <Terminal text={s.output} running={s.status === "running"} />
+      {op.steps.map((s, i) => (
+        <div key={i} className="border-t border-tt-rule px-4 py-2.5 text-[12.5px]">
+          <div className="flex items-center gap-2">
+            <Dot tone={stepTone(s.status)} />
+            <span className="font-semibold">
+              {ACTION[s.action as PlanItem["action"]] ?? s.action}
+            </span>
+            {/* Runners by name; a machine-wide step (tools) has no runner to name. */}
+            {s.runnerName !== "Tools" && (
+              <span className="min-w-0 truncate font-board text-tt-ink-2">{s.runnerName}</span>
             )}
-          </li>
-        ))}
-      </ul>
+            <span className="ml-auto shrink-0 text-tt-ink-3">
+              {STEP_STATUS[s.status] ?? s.status}
+            </span>
+          </div>
+          {(s.output || s.status === "running") && (
+            <Terminal text={s.output} running={s.status === "running"} />
+          )}
+        </div>
+      ))}
     </div>
   );
 }

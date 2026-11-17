@@ -1,15 +1,14 @@
-import type { YardView } from "@runyard/core";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { api, call } from "../api.ts";
 import { CopyFeedback } from "../components/CopyValue.tsx";
 import { Button } from "../components/form.tsx";
 import { Icon } from "../components/icons.tsx";
 import { PhoneHeader, TabBar, TopNav } from "../components/TopNav.tsx";
 import { ErrorText } from "../components/ui.tsx";
 import { yardQuery, useYard, useYardStream } from "../lib/yard.ts";
-import { sectionFor } from "../lib/nav.ts";
+import { useCheckNow } from "../lib/check.ts";
+import { phoneTabFor, sectionFor } from "../lib/nav.ts";
 import { healthQuery, sessionQuery } from "../lib/queries.ts";
 
 /** Every signed-in page. Sends visitors to setup or sign-in first. */
@@ -34,28 +33,14 @@ function Layout() {
   const section = sectionFor(pathname);
   // Below 1024px: the phone layout, with the sections in a tab bar along the bottom.
   const narrow = useMediaQuery("(max-width: 1023px)");
-  const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLElement>(null);
-  const check = useMutation({
-    mutationFn: async () => (await call(api.check.$post())) as YardView,
-    onSuccess: (next) => queryClient.setQueryData(yardQuery.queryKey, next),
-  });
+  const check = useCheckNow();
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [pathname]);
 
-  const checkNow = narrow ? (
-    <button
-      type="button"
-      aria-label={check.isPending ? "Checking" : "Check now"}
-      title="Check now"
-      disabled={check.isPending}
-      onClick={() => check.mutate()}
-      className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-tt-rule-2 text-tt-ink disabled:opacity-50"
-    >
-      <Icon name="refresh" size={15} />
-    </button>
-  ) : (
+  // Phones check from More; the header holds only the name and the clock, as in the design.
+  const checkNow = (
     <button
       type="button"
       disabled={check.isPending}
@@ -71,11 +56,7 @@ function Layout() {
     <CopyFeedback>
       <div className="flex h-full flex-col bg-tt-paper font-ui text-tt-ink">
         {narrow ? (
-          <PhoneHeader
-            section={section}
-            title={pathname === "/start" ? "Getting started" : undefined}
-            checkNow={checkNow}
-          />
+          <PhoneHeader view={view} />
         ) : (
           <TopNav view={view} section={section} demo={demo} checkNow={checkNow} />
         )}
@@ -94,7 +75,7 @@ function Layout() {
             <Outlet />
           </div>
         </main>
-        {narrow && <TabBar view={view} section={section} />}
+        {narrow && <TabBar view={view} tab={phoneTabFor(pathname)} />}
       </div>
     </CopyFeedback>
   );

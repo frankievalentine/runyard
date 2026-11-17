@@ -1,22 +1,21 @@
 import type { GithubAppView } from "@runyard/core";
-import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
-import { Button, TextField } from "../../components/form.tsx";
 import { Webhooks } from "../../components/Webhooks.tsx";
 import { Icon } from "../../components/icons.tsx";
+import { ErrorText } from "../../components/ui.tsx";
+import { Chip, PageHead, Panel, ttButton } from "../../components/tt.tsx";
 import {
-  Callout,
-  Card,
-  EmptyLine,
-  ErrorText,
-  Pill,
-  Section,
-  StatusDot,
-  SubHeader,
-} from "../../components/ui.tsx";
+  Note,
+  Notice,
+  RowText,
+  SIcon,
+  TtConfirm,
+  TtField,
+  rowButton,
+} from "../../components/settings/parts.tsx";
 import { yardQuery, useYard } from "../../lib/yard.ts";
 import { plural, timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
@@ -36,115 +35,103 @@ export const Route = createFileRoute("/_app/settings/github")({
   component: GithubSettings,
 });
 
+const DOT = (problem: unknown, read: unknown) =>
+  `mt-[7px] size-2 flex-none rounded-full ${problem ? "bg-tt-bad" : read ? "bg-tt-ok" : "border-[1.5px] border-tt-off"}`;
+
 function GithubSettings() {
   const { github } = useYard();
   const { created, error } = Route.useSearch();
   const justCreated = github.apps.find((a) => a.forgeId === created);
   return (
     <div>
-      <SubHeader
-        back={
-          <Link to="/settings/connections" className="text-accent hover:underline">
-            ← Connections
-          </Link>
-        }
+      <PageHead
+        back={{ to: "/settings/connections", label: "Settings" }}
+        sign={<SIcon name="link" size={26} />}
         title="GitHub"
-        subtitle="Runyard reads runners and jobs through its own GitHub App, installed on the accounts whose repositories your runners serve."
+        lede="Runyard reads runners and jobs through its own GitHub App, installed on the accounts whose repositories your runners serve."
       />
       {error && (
-        <Callout tone="bad" title="The GitHub App wasn't set up">
+        <Notice tone="bad" title="The GitHub App wasn't set up">
           {error === "expired"
             ? "The setup link expired or was already used. Start again below."
             : "GitHub didn't accept the setup code. Start again below."}
-        </Callout>
+        </Notice>
       )}
       {justCreated && justCreated.installations.length === 0 && (
-        <Callout tone="warn" title={`${justCreated.name} is ready to install`}>
+        <Notice tone="warn" title={`${justCreated.name} is ready to install`}>
           Install it on {justCreated.owner} and choose which repositories its runners serve.{" "}
-          <a href={justCreated.installUrl} className="font-medium text-accent hover:underline">
+          <a href={justCreated.installUrl} className="font-semibold underline">
             Install on GitHub
           </a>
-        </Callout>
+        </Notice>
       )}
-      <Section title="Apps" count={github.apps.length}>
-        {github.apps.length === 0 ? (
-          <Card>
-            <EmptyLine>
-              No GitHub App yet. Create one below; GitHub asks you to confirm it.
-            </EmptyLine>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {github.apps.map((app) => (
-              <AppCard key={app.forgeId} app={app} />
-            ))}
-          </div>
-        )}
-      </Section>
-      <Section title="Create a GitHub App">
-        <CreateApp />
-      </Section>
-      {/* Optional, and only useful once an app exists. */}
-      <Section title="Webhooks">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-[18px]">
+        <div className="flex min-w-0 flex-col gap-3 lg:gap-[18px]">
+          <Panel
+            title="Apps"
+            meta={github.apps.length ? plural(github.apps.length, "app") : "None yet"}
+          >
+            {github.apps.length === 0 ? (
+              <Note>No GitHub App yet. Create one below; GitHub asks you to confirm it.</Note>
+            ) : (
+              github.apps.map((app) => <AppRows key={app.forgeId} app={app} />)
+            )}
+          </Panel>
+          <CreateApp />
+        </div>
+        {/* Optional, and only useful once an app exists. */}
         <Webhooks />
-      </Section>
+      </div>
     </div>
   );
 }
 
-function AppCard({ app }: { app: GithubAppView }) {
+function AppRows({ app }: { app: GithubAppView }) {
   const now = useNow();
   return (
-    <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <a
-              href={app.htmlUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium hover:underline"
-            >
+    <div className="border-t border-tt-rule">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-[11px]">
+        <SIcon name="link" />
+        <RowText
+          className="basis-60"
+          title={
+            <a href={app.htmlUrl} target="_blank" rel="noreferrer" className="hover:underline">
               {app.name}
             </a>
-            <Pill tone={app.error ? "bad" : app.installations.length ? "ok" : "warn"}>
-              {app.error ? "Error" : app.installations.length ? "Connected" : "Not installed"}
-            </Pill>
-          </div>
-          <div className="text-[12px] text-ink-2">
-            Owned by {app.owner} · installable only there
-            {app.rateLimit &&
-              ` · ${app.rateLimit.remaining.toLocaleString()} of ${app.rateLimit.limit.toLocaleString()} API requests left`}
-          </div>
-        </div>
-        <a
-          href={app.installUrl}
-          className="inline-flex h-[28px] items-center gap-1.5 rounded-[6px] border border-line-strong bg-card shadow-[0_1px_1px_rgb(0_0_0/0.04)] px-2.5 text-[12.5px] font-medium hover:bg-hover"
-        >
-          {app.installations.length ? "Change repositories" : "Install"}
-          <Icon name="external" size={12} />
-        </a>
-        <RemoveApp app={app} />
+          }
+          detail={
+            <>
+              Owned by {app.owner} · installable only there
+              {app.rateLimit &&
+                ` · ${app.rateLimit.remaining.toLocaleString()} of ${app.rateLimit.limit.toLocaleString()} API requests left`}
+            </>
+          }
+        />
+        <Chip tone={app.error ? "error" : app.installations.length ? "ok" : "warn"}>
+          {app.error ? "Error" : app.installations.length ? "Connected" : "Not installed"}
+        </Chip>
+        <span className="flex gap-2">
+          <a href={app.installUrl} className={rowButton.secondary}>
+            {app.installations.length ? "Change repositories" : "Install"}
+            <Icon name="external" size={12} />
+          </a>
+          <RemoveApp app={app} />
+        </span>
       </div>
-      {app.error && <ErrorText className="px-4 py-2" error={app.error} />}
+      {app.error && <ErrorText className="px-4 pb-2" error={app.error} />}
       {app.installations.length === 0 ? (
-        <EmptyLine>Not installed yet. Install it on {app.owner} to read its runners.</EmptyLine>
+        <Note>Not installed yet. Install it on {app.owner} to read its runners.</Note>
       ) : (
-        <ul className="divide-y divide-line">
+        <ul className="pb-1.5">
           {app.installations.map((i) => {
             const problem = i.runnersError ?? i.jobsError;
             return (
-              <li key={i.id} className="flex flex-wrap items-start gap-3 px-4 py-3 text-[12.5px]">
-                <span className="mt-1.5">
-                  <StatusDot
-                    tone={problem ? "bad" : i.runnersAt ? "ok" : "muted"}
-                    hollow={!i.runnersAt && !problem}
-                  />
-                </span>
+              <li key={i.id} className="flex items-start gap-3 py-2 pr-4 pl-[46px] text-[12.5px]">
+                <span aria-hidden className={DOT(problem, i.runnersAt)} />
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium">
+                  <div className="font-semibold">
                     {i.account}{" "}
-                    <span className="font-normal text-ink-2">
+                    <span className="font-normal text-tt-ink-3">
                       ·{" "}
                       {i.accountType === "Organization"
                         ? "organization runners"
@@ -155,13 +142,13 @@ function AppCard({ app }: { app: GithubAppView }) {
                         : plural(i.repoCount, "selected repository", "selected repositories")}
                     </span>
                   </div>
-                  <div className="text-ink-2">
+                  <div className="text-tt-ink-2">
                     Runners {i.runnersAt ? `read ${timeAgo(i.runnersAt, now)}` : "not read yet"} ·
                     jobs {i.jobsAt ? `scanned ${timeAgo(i.jobsAt, now)}` : "not scanned yet"}
                     {i.jobsTruncated && " (partial)"}
                   </div>
                   {i.ciRepoCount !== null && (
-                    <div className="text-ink-2">
+                    <div className="text-tt-ink-2">
                       {i.ciRepoCount === 0
                         ? "None has Actions workflows yet, so none is polled; one that gets a workflow is picked up within 5 minutes."
                         : `Watching the ${plural(i.ciRepoCount, "repository", "repositories")} with Actions workflows${i.ciRepoCount < i.repoCount ? ` · ${i.repoCount - i.ciRepoCount} skipped` : ""}.`}
@@ -174,7 +161,7 @@ function AppCard({ app }: { app: GithubAppView }) {
           })}
         </ul>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -204,40 +191,46 @@ function CreateApp() {
     e.preventDefault();
     start.mutate();
   };
+  const option = (value: "personal" | "org", title: string, detail: string) => (
+    <label
+      className={`flex cursor-pointer items-start gap-2.5 rounded-[10px] border-[1.5px] bg-tt-card px-3 py-2.5 ${
+        owner === value
+          ? "border-tt-ink shadow-[inset_0_0_0_1px_var(--tt-ink)]"
+          : "border-tt-rule-2"
+      }`}
+    >
+      <input
+        type="radio"
+        name="owner"
+        className="mt-[3px] shrink-0 accent-[var(--tt-ink)]"
+        checked={owner === value}
+        onChange={() => setOwner(value)}
+      />
+      <span>
+        <b className="block text-[13.5px]">{title}</b>
+        <small className="block text-[12px] text-tt-ink-2">{detail}</small>
+      </span>
+    </label>
+  );
   return (
-    <Card className="max-w-xl px-4 py-4">
-      <form onSubmit={submit} className="flex flex-col gap-4 text-[13px]">
-        <p className="text-ink-2">
+    <Panel title="Create a GitHub App">
+      <form onSubmit={submit} className="flex flex-col gap-4 px-4 pb-4 text-[13px]">
+        <p className="text-tt-ink-2">
           A private app can only be installed on the account that owns it, so create one for each
           account whose runners Runyard should see. It asks for{" "}
-          <b className="font-medium text-ink">Actions: read</b>,{" "}
-          <b className="font-medium text-ink">Administration</b> and{" "}
-          <b className="font-medium text-ink">Self-hosted runners: read and write</b> (runner
-          registration needs write), and <b className="font-medium text-ink">Metadata: read</b>.
+          <b className="font-semibold text-tt-ink">Actions: read</b>,{" "}
+          <b className="font-semibold text-tt-ink">Administration</b> and{" "}
+          <b className="font-semibold text-tt-ink">Self-hosted runners: read and write</b> (runner
+          registration needs write), and <b className="font-semibold text-tt-ink">Metadata: read</b>
+          .
         </p>
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-[12px] font-medium text-ink-2">Owner</legend>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="owner"
-              checked={owner === "personal"}
-              onChange={() => setOwner("personal")}
-            />
-            My personal account (runners for my repositories)
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="owner"
-              checked={owner === "org"}
-              onChange={() => setOwner("org")}
-            />
-            An organization I own (organization runners)
-          </label>
+        <fieldset className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <legend className="mb-1.5 text-[12.5px] font-semibold text-tt-ink-2">Owner</legend>
+          {option("personal", "My personal account", "Runners for my repositories")}
+          {option("org", "An organization I own", "Organization runners")}
         </fieldset>
         {owner === "org" && (
-          <TextField
+          <TtField
             label="Organization"
             value={org}
             onChange={(e) => setOrg(e.target.value)}
@@ -247,17 +240,17 @@ function CreateApp() {
         )}
         {start.error && <ErrorText error={start.error} />}
         <div>
-          <Button type="submit" variant="primary" disabled={start.isPending || demo}>
+          <button type="submit" className={ttButton.primary} disabled={start.isPending || demo}>
             Create GitHub App
-          </Button>
+          </button>
         </div>
-        <p className="text-[12px] text-ink-3">
+        <p className="text-[12px] text-tt-ink-3">
           {demo
             ? "Not available with demo data: this would create a real app on GitHub."
             : "You'll confirm on GitHub, then come back here to install it and pick repositories."}
         </p>
       </form>
-    </Card>
+    </Panel>
   );
 }
 
@@ -268,7 +261,7 @@ function RemoveApp({ app }: { app: GithubAppView }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
   });
   return (
-    <ConfirmDialog
+    <TtConfirm
       trigger="Remove"
       title={`Remove ${app.name} from Runyard?`}
       description={
@@ -278,7 +271,7 @@ function RemoveApp({ app }: { app: GithubAppView }) {
             href={app.htmlUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-accent hover:underline"
+            className="font-semibold underline"
           >
             settings
           </a>

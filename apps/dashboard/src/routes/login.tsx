@@ -6,8 +6,12 @@ import {
   AuthField,
   AuthLayout,
   AuthNotice,
+  authLede,
   authPrimary,
   authSecondary,
+  authTitle,
+  boardTime,
+  type BoardRow,
 } from "../components/AuthLayout.tsx";
 import { passkeysAvailable, signInWithPasskey } from "../lib/passkeys.ts";
 import { sessionQuery } from "../lib/queries.ts";
@@ -27,31 +31,31 @@ function Login() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  // Signed in: the board flips to a welcome, then the Board opens.
+  const [welcome, setWelcome] = useState<string | null>(null);
+  const signedIn = (next: Awaited<ReturnType<typeof signInWithPasskey>>) => {
+    setWelcome(next.user?.username ?? next.user?.tailscaleLogin ?? "");
+    window.setTimeout(() => {
+      queryClient.setQueryData(sessionQuery.queryKey, next);
+      void navigate({ to: "/" });
+    }, 1100);
+  };
 
   const login = useMutation({
     mutationFn: () => call(api.login.$post({ json: { username, password } })),
-    onSuccess: (next) => {
-      queryClient.setQueryData(sessionQuery.queryKey, next);
-      void navigate({ to: "/" });
-    },
+    onSuccess: signedIn,
   });
 
   const passkey = useMutation({
     mutationFn: signInWithPasskey,
-    onSuccess: (next) => {
-      queryClient.setQueryData(sessionQuery.queryKey, next);
-      void navigate({ to: "/" });
-    },
+    onSuccess: signedIn,
   });
 
   // This device's Tailscale login is a Runyard user: this browser signed out of it.
   const offerTailscale = Boolean(session.tailscaleLogin && session.tailscaleUser);
   const tailscale = useMutation({
     mutationFn: () => call(api.login.tailscale.$post()),
-    onSuccess: (next) => {
-      queryClient.setQueryData(sessionQuery.queryKey, next);
-      void navigate({ to: "/" });
-    },
+    onSuccess: signedIn,
   });
 
   const submit = (e: FormEvent) => {
@@ -61,21 +65,26 @@ function Login() {
 
   const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
   const passkeys = passkeysAvailable();
+  const board: BoardRow[] =
+    welcome !== null
+      ? [
+          { time: boardTime(), job: "Welcome back", status: welcome || "Signed in", tone: "go" },
+          { job: "Departures", status: "Opening the board", tone: "moving" },
+        ]
+      : [
+          { time: boardTime(), job: "Runyard", status: "Awaiting sign-in", tone: "signal" },
+          { job: "Departures", status: "After sign-in" },
+          {
+            job: offerTailscale ? "Tailscale" : passkeys ? "Passkey" : "Password",
+            status: "Ready",
+            tone: "go",
+          },
+        ];
   return (
-    <AuthLayout
-      board={[
-        { text: "Sign in" },
-        { text: window.location.hostname, tone: "dim" },
-        { text: "Departures after sign-in", tone: "go" },
-      ]}
-    >
-      <h1 className="text-[30px] leading-none font-extrabold [font-stretch:85%]">Sign in</h1>
-      <p className="mt-2 text-[14px] text-tt-ink-2">
-        {offerTailscale
-          ? "This device's Tailscale login can sign you in."
-          : passkeys
-            ? "With a passkey, or your username and password."
-            : "With your username and password."}
+    <AuthLayout board={board}>
+      <h1 className={authTitle}>Sign in</h1>
+      <p className={authLede}>
+        to Runyard at <b className="font-semibold text-tt-ink">{window.location.host}</b>
       </p>
 
       <div className="mt-6 flex flex-col gap-2.5">

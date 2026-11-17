@@ -1,138 +1,141 @@
 import { deriveIssues, type YardView } from "@runyard/core";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { timeAgo } from "../../lib/format.ts";
-import { useNow } from "../../lib/now.ts";
+import { useState, type ReactNode } from "react";
 import { checksQuery, sessionQuery } from "../../lib/queries.ts";
 import { Icon } from "../icons.tsx";
 
+/** How many notices show before "Show more". */
+const SHOWN = 3;
+
+type Notice = {
+  key: string;
+  level: "error" | "warn" | "host";
+  title: string;
+  body: string;
+  open?: () => void;
+};
+
 /**
- * The Board's notices, like a station's service notices: active alerts first (red), then
- * everything else worth a look (yellow), then, for admins, what this Runyard host itself still
- * needs (quiet). Each opens the machine, runner or page it's about.
- * Beside the departure board it takes that board's height and scrolls inside.
+ * The Board's notices, like a station's service notices, as in the Timetable design: active
+ * alerts (red), then everything else worth a look (yellow), then what this Runyard host still
+ * needs (admins only, quiet). The first three show; the rest are one click away.
  */
-export function Notices({ view, besideBoard = false }: { view: YardView; besideBoard?: boolean }) {
+export function Notices({ view }: { view: YardView }) {
   const navigate = useNavigate();
-  const now = useNow();
-  const issues = deriveIssues(view);
+  const [all, setAll] = useState(false);
   const { data: session } = useSuspenseQuery(sessionQuery);
   const checks = useQuery({ ...checksQuery, enabled: session.user?.role === "admin" });
-  const host = (checks.data ?? []).filter((c) => c.state === "warn" || c.state === "bad");
-  const count = view.alerts.length + issues.length + host.length;
+
+  const notices: Notice[] = [
+    ...view.alerts.map((a): Notice => ({
+      key: a.id,
+      level: "error",
+      title: `${a.machineName}: ${a.kind === "offline" ? "offline" : "low disk space"}${a.muted ? " · maintenance" : ""}`,
+      body: a.detail,
+      open: () => void navigate({ to: "/machines/$id", params: { id: a.machineId } }),
+    })),
+    ...deriveIssues(view).map((issue): Notice => ({
+      key: issue.id,
+      level: issue.id.endsWith(":ssh") || issue.id === "tailnet" ? "error" : "warn",
+      title: issue.title,
+      body: issue.detail,
+      open: issue.machineId
+        ? () =>
+            void navigate({
+              to: "/machines/$id",
+              params: { id: issue.machineId! },
+              hash: issue.hash,
+            })
+        : issue.runnerKey
+          ? () => void navigate({ to: "/runners/$key", params: { key: issue.runnerKey! } })
+          : issue.page
+            ? () => void navigate({ to: "/boat" })
+            : undefined,
+    })),
+    ...(checks.data ?? [])
+      .filter((c) => c.state === "warn" || c.state === "bad")
+      .map((c): Notice => ({
+        key: `host:${c.id}`,
+        level: "host",
+        title: `This host: ${c.title}`,
+        body: c.fix ?? c.detail,
+        open: () => void navigate({ to: "/settings/connections" }),
+      })),
+  ];
+  const shown = all ? notices : notices.slice(0, SHOWN);
+  const more = notices.length - shown.length;
+
   return (
     <section
       aria-labelledby="notices-title"
-      className={`flex min-w-0 flex-col overflow-hidden rounded-xl border border-tt-rule bg-tt-card ${besideBoard ? "[contain:size] max-lg:[contain:none]" : ""}`}
+      className="flex min-w-0 flex-col rounded-xl border border-tt-rule bg-tt-card"
     >
-      <header className="flex items-baseline justify-between gap-3 border-b border-tt-rule px-4 pt-3.5 pb-3">
-        <h2 id="notices-title" className="text-[13px] font-extrabold tracking-[.08em] uppercase">
+      <header className="flex items-baseline justify-between gap-3 px-4 pt-3.5 pb-2.5">
+        <h2 id="notices-title" className="text-[13px] font-extrabold tracking-[.06em] uppercase">
           Notices
         </h2>
-        <span className="text-[12px] text-tt-ink-3">
-          {count === 0
-            ? "None"
-            : view.alerts.length + issues.length === 0
-              ? `${host.length} for this host`
-              : count === 1
-                ? "1 needs a look"
-                : `${count} need a look`}
+        <span className="text-[12.5px] text-tt-ink-3">
+          {notices.length === 0 ? "None" : `${notices.length} need attention`}
         </span>
       </header>
-      <div className="scroll min-h-0 flex-1">
-        {count === 0 && (
-          <p className="px-4 py-4 text-[13px] text-tt-ink-2">
+      <div className="flex flex-col px-2 pb-2">
+        {notices.length === 0 && (
+          <p className="px-2 pb-2 text-[13px] text-tt-ink-2">
             Nothing needs you. Notices about machines and runners appear here.
           </p>
         )}
-        {view.alerts.map((a) => (
-          <button
-            key={a.id}
-            type="button"
-            onClick={() => void navigate({ to: "/machines/$id", params: { id: a.machineId } })}
-            className="flex w-full gap-3 border-b border-tt-rule px-4 py-3 text-left last:border-b-0 hover:bg-tt-hover"
-          >
-            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-tt-bad-bg text-tt-bad-ink">
-              <Icon name="alert" size={13} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[13.5px] font-bold">
-                {a.machineName}: {a.kind === "offline" ? "offline" : "low disk space"}
-                {a.muted ? " · maintenance" : ""}
-              </span>
-              <span className="mt-0.5 line-clamp-2 block text-[12.5px] text-tt-ink-2">
-                {a.detail}
-              </span>
-              <span className="mt-0.5 block text-[11.5px] text-tt-ink-3">
-                Since {timeAgo(a.since, now)}
-              </span>
-            </span>
-          </button>
-        ))}
-        {issues.map((issue) => {
-          const target = issue.machineId || issue.page || issue.runnerKey;
-          const go = () =>
-            void (issue.machineId
-              ? navigate({
-                  to: "/machines/$id",
-                  params: { id: issue.machineId },
-                  hash: issue.hash,
-                })
-              : issue.runnerKey
-                ? navigate({ to: "/runners/$key", params: { key: issue.runnerKey } })
-                : navigate({ to: "/boat" }));
-          const body = (
+        {shown.map((n, i) => {
+          const body: ReactNode = (
             <>
-              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-tt-warn-bg text-tt-warn-ink">
-                <Icon name="alert" size={13} />
+              <span
+                className={`flex size-[26px] flex-none items-center justify-center rounded ${
+                  n.level === "error"
+                    ? "bg-tt-bad text-white"
+                    : n.level === "warn"
+                      ? "bg-tt-signal text-tt-on-signal"
+                      : "bg-tt-hover text-tt-ink-2"
+                }`}
+              >
+                <Icon name={n.level === "host" ? "settings" : "alert"} size={15} />
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[13.5px] font-bold">{issue.title}</span>
-                <span
-                  className="mt-0.5 line-clamp-2 block text-[12.5px] text-tt-ink-2"
-                  title={issue.detail}
-                >
-                  {issue.detail}
-                </span>
+              <span className="min-w-0">
+                <b className="block text-[13.5px] leading-[1.3] font-bold">{n.title}</b>
+                <small className="mt-0.5 line-clamp-2 block text-[12.5px] leading-[1.35] text-tt-ink-2">
+                  {n.body}
+                </small>
               </span>
             </>
           );
-          const className =
-            "flex w-full gap-3 border-b border-tt-rule px-4 py-3 text-left last:border-b-0";
-          return target ? (
+          const className = `flex w-full items-start gap-3 px-2 py-2.5 text-left ${
+            i > 0 ? "border-t border-tt-rule" : "rounded-lg"
+          }`;
+          return n.open ? (
             <button
-              key={issue.id}
+              key={n.key}
               type="button"
-              onClick={go}
+              onClick={n.open}
               className={`${className} hover:bg-tt-hover`}
             >
               {body}
             </button>
           ) : (
-            <div key={issue.id} className={className}>
+            <div key={n.key} className={className}>
               {body}
             </div>
           );
         })}
-        {host.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => void navigate({ to: "/settings/connections" })}
-            className="flex w-full gap-3 border-b border-tt-rule px-4 py-3 text-left last:border-b-0 hover:bg-tt-hover"
-          >
-            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-tt-hover text-tt-ink-2">
-              <Icon name="settings" size={13} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[13.5px] font-bold">This host: {c.title}</span>
-              <span className="mt-0.5 line-clamp-2 block text-[12.5px] text-tt-ink-2">
-                {c.fix ?? c.detail}
-              </span>
-            </span>
-          </button>
-        ))}
       </div>
+      {(more > 0 || all) && notices.length > SHOWN && (
+        <button
+          type="button"
+          onClick={() => setAll(!all)}
+          aria-expanded={all}
+          className="px-4 pt-1 pb-3 text-left text-[12.5px] font-semibold text-tt-ink-2 hover:text-tt-ink"
+        >
+          {all ? "Show fewer notices" : `Show ${more} more ${more === 1 ? "notice" : "notices"}`}
+        </button>
+      )}
     </section>
   );
 }

@@ -11,6 +11,22 @@ export const SECTIONS = [
 
 export type SectionKey = (typeof SECTIONS)[number]["key"];
 
+/** Phones: three sections and More, which holds Pools, Settings and the rest, as in the design. */
+export const PHONE_TABS = [
+  ...SECTIONS.slice(0, 3),
+  { key: "more", label: "More", to: "/more" },
+] as const;
+
+export type PhoneTabKey = (typeof PHONE_TABS)[number]["key"];
+
+/** Which phone tab a page sits under: Pools, Settings and More itself are under More. */
+export function phoneTabFor(pathname: string): PhoneTabKey {
+  const section = sectionFor(pathname);
+  if (pathname.split("/")[1] === "more" || section === "pools" || section === "settings")
+    return "more";
+  return section;
+}
+
 /** Which section a page belongs to. Runners, tailnet devices and ignored machines sit under Machines;
  * boat.dev, the on-demand provider, under Pools. */
 export function sectionFor(pathname: string): SectionKey {

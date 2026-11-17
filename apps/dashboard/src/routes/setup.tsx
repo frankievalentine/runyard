@@ -6,8 +6,12 @@ import {
   AuthField,
   AuthLayout,
   AuthNotice,
+  authEyebrow,
+  authLede,
   authPrimary,
   authSecondary,
+  authTitle,
+  type BoardRow,
 } from "../components/AuthLayout.tsx";
 import { formatSetupCode, passwordStrength } from "../lib/claim.ts";
 import { addPasskey, passkeysAvailable, suggestedPasskeyName } from "../lib/passkeys.ts";
@@ -22,12 +26,29 @@ export const Route = createFileRoute("/setup")({
 });
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const STRENGTH = ["At least 12 characters", "Fair", "Good", "Strong"] as const;
+const STRENGTH = ["Too short: at least 12 characters.", "Fair", "Good", "Strong"] as const;
+
+/** The board while claiming, then after: it flips between them as in the design. */
+const CLAIM_BOARD: BoardRow[] = [
+  { job: "New install", status: "Ready to claim", tone: "signal" },
+  { job: "Setup code", status: "In Runyard's log" },
+  { job: "First admin", status: "Not created yet" },
+];
+const PASSKEY_BOARD: BoardRow[] = [
+  { job: "Admin", status: "Created", tone: "go" },
+  { job: "Passkey", status: "Optional" },
+  { job: "Next stop", status: "Getting started", tone: "moving" },
+];
 
 /** Claiming a new install with the setup code it printed, then offering a passkey. */
 function Setup() {
   const [claimed, setClaimed] = useState(false);
-  return claimed && passkeysAvailable() ? <OfferPasskey /> : <Claim onClaimed={setClaimed} />;
+  const offer = claimed && passkeysAvailable();
+  return (
+    <AuthLayout board={offer ? PASSKEY_BOARD : CLAIM_BOARD}>
+      {offer ? <OfferPasskey /> : <Claim onClaimed={setClaimed} />}
+    </AuthLayout>
+  );
 }
 
 function Claim({ onClaimed }: { onClaimed: (claimed: boolean) => void }) {
@@ -61,18 +82,10 @@ function Claim({ onClaimed }: { onClaimed: (claimed: boolean) => void }) {
   const here = address?.startsWith(window.location.origin);
 
   return (
-    <AuthLayout
-      board={[
-        { text: "New install" },
-        { text: "Claim your Runyard", tone: "signal" },
-        { text: "Enter the setup code", tone: "dim" },
-      ]}
-    >
-      <p className="text-[12px] font-bold tracking-[.1em] text-tt-ink-3 uppercase">New install</p>
-      <h1 className="mt-1 text-[30px] leading-none font-extrabold [font-stretch:85%]">
-        Claim your Runyard
-      </h1>
-      <p className="mt-2 text-[14px] text-tt-ink-2">
+    <>
+      <p className={authEyebrow}>New install</p>
+      <h1 className={authTitle}>Claim your Runyard</h1>
+      <p className={authLede}>
         Runyard printed a one-time setup code in its terminal when it started. Enter it to create
         the first admin.
       </p>
@@ -113,19 +126,29 @@ function Claim({ onClaimed }: { onClaimed: (claimed: boolean) => void }) {
             minLength={username || !viaTailscale ? 12 : undefined}
             required={!viaTailscale || username !== ""}
           />
-          <div className="flex items-center gap-2" aria-live="polite">
-            <span className="grid flex-1 grid-cols-3 gap-1" aria-hidden>
-              {[1, 2, 3].map((n) => (
+          {/* The design's meter: four bars across the field, red to green, the hint below. */}
+          <div className="mt-0.5 grid grid-cols-4 gap-1" aria-hidden>
+            {[1, 2, 3, 4].map((n) => {
+              const level = password ? strength + 1 : 0;
+              return (
                 <i
                   key={n}
-                  className={`h-1 rounded-full ${strength >= n ? (strength === 1 ? "bg-tt-signal" : "bg-tt-ok") : "bg-tt-rule"}`}
+                  className={`h-1 rounded-sm ${
+                    level >= n
+                      ? level === 1
+                        ? "bg-tt-bad"
+                        : level === 2
+                          ? "bg-[#e3a800]"
+                          : "bg-tt-ok"
+                      : "bg-tt-rule"
+                  }`}
                 />
-              ))}
-            </span>
-            <span className="w-40 text-right text-[12.5px] text-tt-ink-3">
-              {password ? STRENGTH[strength] : "At least 12 characters"}
-            </span>
+              );
+            })}
           </div>
+          <span className="text-[12.5px] text-tt-ink-3" aria-live="polite">
+            {password ? STRENGTH[strength] : "At least 12 characters."}
+          </span>
         </div>
         {address && !here && (
           <AuthNotice tone="info">
@@ -141,7 +164,7 @@ function Claim({ onClaimed }: { onClaimed: (claimed: boolean) => void }) {
           {setup.isPending ? "Creating…" : "Create admin"}
         </button>
       </form>
-    </AuthLayout>
+    </>
   );
 }
 
@@ -152,18 +175,10 @@ function OfferPasskey() {
   const add = useMutation({ mutationFn: () => addPasskey(name) });
   const next = () => void navigate({ to: "/start" });
   return (
-    <AuthLayout
-      board={[
-        { text: "Admin created", tone: "go" },
-        { text: "Add a passkey", tone: "signal" },
-        { text: "Then set up your yard", tone: "dim" },
-      ]}
-    >
-      <p className="text-[12px] font-bold tracking-[.1em] text-tt-ink-3 uppercase">Optional</p>
-      <h1 className="mt-1 text-[30px] leading-none font-extrabold [font-stretch:85%]">
-        Add a passkey
-      </h1>
-      <p className="mt-2 text-[14px] text-tt-ink-2">
+    <>
+      <p className={authEyebrow}>Optional</p>
+      <h1 className={authTitle}>Add a passkey</h1>
+      <p className={authLede}>
         Sign in with Touch ID, Windows Hello or a security key instead of a password. A passkey
         works only at this address, {window.location.host}.
       </p>
@@ -201,6 +216,6 @@ function OfferPasskey() {
           </button>
         </form>
       )}
-    </AuthLayout>
+    </>
   );
 }

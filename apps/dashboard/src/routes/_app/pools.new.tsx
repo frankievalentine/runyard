@@ -1,9 +1,8 @@
 import type { RunnerView } from "@runyard/core";
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Icon } from "../../components/icons.tsx";
 import { PoolForm } from "../../components/PoolForm.tsx";
-import { PageHeader } from "../../components/ui.tsx";
+import { PageHead, Panel, ttButton } from "../../components/tt.tsx";
 import { useYard } from "../../lib/yard.ts";
 import { slug, type PoolDraft } from "../../lib/pool-suggestions.ts";
 import { isBuiltinLabel } from "../../lib/status.ts";
@@ -37,6 +36,10 @@ function draftFromRunner(r: RunnerView, taken: Set<string>): PoolDraft | null {
   };
 }
 
+const LEDE =
+  "Describe the capacity you want. Runyard turns it into runners, and changes nothing until you review it.";
+
+/** New pool, as in the Timetable design: a route of four stops beside a summary of the pool. */
 function NewPool() {
   const view = useYard();
   const { fromRunner } = Route.useSearch();
@@ -45,36 +48,46 @@ function NewPool() {
   const [fromDraft] = useState(() =>
     runner ? draftFromRunner(runner, new Set(view.pools.pools.map((p) => p.name))) : null,
   );
+  const back = { to: "/pools", label: "Pools" };
+  if (view.github.apps.length === 0 && view.forgejo.connections.length === 0) {
+    return (
+      <div>
+        <PageHead title="New pool" back={back} />
+        <Panel>
+          <div className="flex max-w-[660px] flex-col items-start gap-2.5 px-6 pt-[26px] pb-7 max-lg:px-4">
+            <h3 className="text-[18px] leading-tight font-extrabold">Connect a forge first</h3>
+            <p className="text-[14px] text-tt-ink-2">
+              Connect GitHub or Forgejo first, under Settings ▸ Connections. A pool needs
+              repositories or accounts to serve.
+            </p>
+            <Link to="/settings/connections" className={`${ttButton.primary} mt-1`}>
+              Open Settings
+            </Link>
+          </div>
+        </Panel>
+      </div>
+    );
+  }
   if (runner && fromDraft) {
     return (
       <div>
-        <PageHeader
-          icon={<Icon name="plan" size={18} />}
+        <PageHead
           title="New pool"
-          subtitle={`A pool that can take over ${runner.name}: on its machine, for ${runner.scopeLabel}, with its labels. Once it's saved, start the move from the runner's page.`}
+          back={{ to: `/runners/${runner.key}`, label: runner.name }}
+          lede={`A pool that can take over ${runner.name}: on its machine, for ${runner.scopeLabel}, with its labels. Once it's saved, start the move from the runner's page.`}
         />
-        <div className="mt-6">
-          <PoolForm
-            initial={fromDraft}
-            onDone={() => void navigate({ to: "/runners/$key", params: { key: runner.key } })}
-          />
-        </div>
+        <PoolForm
+          initial={fromDraft}
+          onSaved={() => void navigate({ to: "/runners/$key", params: { key: runner.key } })}
+          onCancel={() => void navigate({ to: "/runners/$key", params: { key: runner.key } })}
+        />
       </div>
     );
   }
   return (
-    <PoolForm
-      header={(step) => (
-        <PageHeader
-          icon={<Icon name="plan" size={18} />}
-          title="New pool"
-          subtitle={
-            step === 3
-              ? "Saving doesn't change your machines. Next, you'll see what each machine needs and run it."
-              : "Choose which repositories it runs jobs for and which machines run them."
-          }
-        />
-      )}
-    />
+    <div>
+      <PageHead title="New pool" back={back} lede={<span className="max-lg:hidden">{LEDE}</span>} />
+      <PoolForm />
+    </div>
   );
 }

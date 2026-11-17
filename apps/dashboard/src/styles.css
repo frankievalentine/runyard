@@ -296,10 +296,88 @@ code,
     width: 100%;
     max-height: 88vh;
     overflow-y: auto;
+    /* The minifier drops `translate: none`, so the centering utilities' offsets are zeroed. */
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
     translate: none;
     transform: none;
     border-radius: 18px 18px 0 0;
     border-bottom: 0;
     padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
   }
+}
+
+/*
+ * Timetable's split-flap cells (components/board/SplitFlap.tsx): two halves with a hinge line,
+ * and two flaps that fold over them when a character changes. Sized by --flap-w, --flap-h,
+ * --flap-fs and --flap-g.
+ */
+.flap {
+  display: inline-flex;
+  flex: none;
+  gap: var(--flap-g, 1px);
+}
+.flap > i {
+  position: relative;
+  flex: none;
+  width: var(--flap-w, 12px);
+  height: var(--flap-h, 24px);
+  perspective: 160px;
+  font: 700 var(--flap-fs, 14px) / var(--flap-h, 24px) var(--font-board);
+  font-style: normal;
+  text-align: center;
+}
+.flap > i > span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  overflow: hidden;
+  background: var(--tt-cell);
+}
+.flap > i > span > b {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--flap-h, 24px);
+  line-height: var(--flap-h, 24px);
+  font-weight: 700;
+}
+.flap > i > .t,
+.flap > i > .ft {
+  top: 0;
+  border-radius: 2px 2px 0 0;
+}
+.flap > i > .b,
+.flap > i > .fb {
+  bottom: 0;
+  border-radius: 0 0 2px 2px;
+  background: var(--tt-cell-lo);
+}
+.flap > i > .b > b,
+.flap > i > .fb > b {
+  top: calc(var(--flap-h, 24px) / -2);
+}
+.flap > i > .ft {
+  z-index: 2;
+  display: none;
+  transform-origin: 50% 100%;
+  backface-visibility: hidden;
+  background: #24262c;
+}
+.flap > i > .fb {
+  z-index: 2;
+  display: none;
+  transform-origin: 50% 0;
+  backface-visibility: hidden;
+}
+.flap > i::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  top: calc(50% - 0.5px);
+  height: 1px;
+  background: #050506;
 }

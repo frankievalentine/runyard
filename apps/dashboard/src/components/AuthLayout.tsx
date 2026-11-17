@@ -1,67 +1,109 @@
+import { useQuery } from "@tanstack/react-query";
 import { useId, type ReactNode } from "react";
+import { healthQuery } from "../lib/queries.ts";
 import { SplitFlap } from "./board/SplitFlap.tsx";
 import { Logomark } from "./Logomark.tsx";
 
-export type BoardLine = { text: string; tone?: "flap" | "signal" | "moving" | "go" | "dim" };
+type Tone = "flap" | "signal" | "moving" | "go" | "dim";
+/** One row of the sign-in board: a time, a job column and a status, as on the Board. */
+export type BoardRow = { time?: string; job: string; status: string; tone?: Tone };
+
+const ROWS = 4;
+const COLS = { time: 5, job: 12, status: 16 } as const;
+
+/** The time now, `HH:MM`, for a board row. */
+export function boardTime(at = Date.now()): string {
+  return new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+}
 
 /**
- * Timetable's sign-in and claim screens: a departure board beside the form on desktop, one flap
- * line above it on phones. The board says where you are and what this screen is for; it never shows
- * yard data, which needs a session.
+ * Timetable's sign-in and claim screens, as in the design: on desktop a departure board beside the
+ * form (Runyard, "Departures · this address", and four rows that flip when the screen's state
+ * changes); on phones the board's first status as one flap line above the form. The rows say
+ * what the screen is for, never yard data: that needs a session.
  */
-export function AuthLayout({ board, children }: { board: BoardLine[]; children: ReactNode }) {
+export function AuthLayout({ board, children }: { board: BoardRow[]; children: ReactNode }) {
   const host = window.location.host;
+  const version = useQuery(healthQuery).data?.version;
+  const rows = Array.from({ length: ROWS }, (_, i) => board[i] ?? { job: "", status: "" });
+  const width = (n: number) => `calc(${n} * (var(--flap-w) + var(--flap-g, 1px)) - 1px)`;
   return (
     <div className="flex min-h-full bg-tt-paper font-ui text-tt-ink">
       <aside
         aria-hidden
-        className="hidden w-[46%] max-w-[640px] flex-col justify-between bg-tt-board px-10 py-9 text-tt-flap lg:flex"
+        className="hidden w-[600px] flex-none flex-col gap-6 border-r border-tt-board-edge bg-tt-board px-10 pt-10 pb-8 text-tt-flap lg:flex"
         style={
-          { "--flap-w": "15px", "--flap-h": "30px", "--flap-fs": "16px" } as React.CSSProperties
+          { "--flap-w": "14px", "--flap-h": "30px", "--flap-fs": "16px" } as React.CSSProperties
         }
       >
-        <div className="flex items-center gap-3">
-          <Logomark size={40} />
+        <div className="flex items-center gap-3.5">
+          <Logomark size={48} />
           <span>
-            <span className="block text-[18px] font-extrabold [font-stretch:85%]">Runyard</span>
-            <span className="block text-[12.5px] text-[#9aa0a9]">{host}</span>
+            <b className="block text-[24px] leading-none font-extrabold tracking-[.01em] text-white [font-stretch:80%]">
+              Runyard
+            </b>
+            <small className="mt-1 block text-[13px] text-[#a9aeb6]">{host}</small>
           </span>
         </div>
-        <div>
-          <p className="mb-4 text-[34px] leading-none font-extrabold tracking-[.01em] [font-stretch:75%]">
-            Departures
-          </p>
-          <div className="flex flex-col gap-1.5">
-            {board.map((line, i) => (
-              <SplitFlap key={i} text={line.text} cells={26} tone={line.tone ?? "flap"} />
-            ))}
+        <h2 className="mt-auto text-[44px] leading-none font-extrabold tracking-[.01em] [font-stretch:72%]">
+          Departures <span className="text-tt-signal">·</span> {window.location.hostname}
+        </h2>
+        <div className="flex flex-col gap-2 border-t border-[#23262c] pt-4">
+          <div className="flex gap-3 text-[10.5px] font-semibold tracking-[.1em] text-[#8b9099] uppercase">
+            <span className="flex-none" style={{ width: width(COLS.time) }}>
+              Time
+            </span>
+            <span className="flex-none" style={{ width: width(COLS.job) }}>
+              Job
+            </span>
+            <span>Status</span>
           </div>
+          {rows.map((r, i) => (
+            <div key={i} className="flex gap-3 border-b border-[#1a1c20] pb-2">
+              <SplitFlap text={r.time ?? ""} cells={COLS.time} delay={i * 0.12} />
+              <SplitFlap text={r.job} cells={COLS.job} delay={i * 0.12 + 0.05} />
+              <SplitFlap
+                text={r.status}
+                cells={COLS.status}
+                tone={r.tone ?? "flap"}
+                delay={i * 0.12 + 0.1}
+              />
+            </div>
+          ))}
         </div>
-        <p className="text-[12px] text-[#9aa0a9]">
-          CI runners for GitHub and Forgejo, on your machines and boat.dev.
-        </p>
+        <div className="mt-auto flex justify-between gap-3 text-[12.5px] text-[#a9aeb6]">
+          <span>{host}</span>
+          {version && <span>Runyard {version}</span>}
+        </div>
       </aside>
-      <main className="flex min-w-0 flex-1 flex-col items-center px-5 py-8 lg:justify-center">
+      <main className="flex min-w-0 flex-1 flex-col overflow-auto">
         <div
-          className="mb-8 flex w-full max-w-[400px] flex-col gap-4 lg:hidden"
+          className="flex flex-col gap-3 bg-tt-board px-[18px] pt-[max(12px,env(safe-area-inset-top,0px))] pb-4 text-tt-flap lg:hidden"
           style={
-            { "--flap-w": "11px", "--flap-h": "22px", "--flap-fs": "12px" } as React.CSSProperties
+            { "--flap-w": "13px", "--flap-h": "24px", "--flap-fs": "14px" } as React.CSSProperties
           }
+          aria-hidden
         >
           <div className="flex items-center gap-3">
             <Logomark size={36} />
             <span>
-              <span className="block text-[17px] font-extrabold [font-stretch:85%]">Runyard</span>
-              <span className="block text-[12px] text-tt-ink-3">{host}</span>
+              <b className="block text-[20px] leading-none font-extrabold text-white [font-stretch:80%]">
+                Runyard
+              </b>
+              <small className="mt-1 block text-[12px] text-[#a9aeb6]">{host}</small>
             </span>
           </div>
-          {board[0] && (
-            <div aria-hidden className="overflow-hidden rounded-lg bg-tt-board px-3 py-2.5">
-              <SplitFlap text={board[0].text} cells={24} tone={board[0].tone ?? "flap"} />
-            </div>
-          )}
+          <div className="overflow-hidden">
+            <SplitFlap
+              text={rows.find((r) => r.status)?.status ?? ""}
+              cells={22}
+              tone={rows.find((r) => r.status)?.tone ?? "flap"}
+            />
+          </div>
         </div>
-        <div className="w-full max-w-[400px]">{children}</div>
+        <div className="mx-auto my-auto w-full max-w-[420px] px-[18px] py-8 lg:px-0">
+          {children}
+        </div>
       </main>
     </div>
   );
@@ -99,6 +141,12 @@ export function AuthField({
     </div>
   );
 }
+
+/** The screens' heading, lede and eyebrow, as in the design. */
+export const authTitle =
+  "text-[38px] leading-none font-extrabold tracking-[-.005em] [font-stretch:76%]";
+export const authLede = "mt-2.5 text-[15px] text-tt-ink-2";
+export const authEyebrow = "mb-2 text-[11px] font-bold tracking-[.12em] text-tt-ink-3 uppercase";
 
 export const authPrimary =
   "inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-tt-inv px-4 text-[15px] font-semibold text-tt-on-inv hover:opacity-90 disabled:opacity-50";
