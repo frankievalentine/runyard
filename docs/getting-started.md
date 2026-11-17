@@ -37,7 +37,7 @@ you connect machines by hand; see [Without Tailscale](operating.md#without-tails
 
 Runyard prints a one-time setup code when it first starts: in the terminal, or in its log when
 it runs as a service (see [Logs](operating.md#logs)). Open the dashboard, enter the code and
-create the first admin. The overview's **Getting started** then walks through the rest.
+create the first admin. **Getting started** on the Board then walks through the rest.
 
 ## 3. Connect your forge
 
@@ -52,17 +52,18 @@ See [Forges](forges.md).
 
 ## 4. Add a machine
 
-Click **+** beside **Machines** in the sidebar, pick a device from your tailnet or enter an SSH
-target, and open the machine. Its page shows **Connect Runyard to &lt;machine&gt;** with one
-command to run on it. On a fresh Linux container or VPS, run the fresh-machine version as root.
+On **Machines**, click **Add machine**, then pick a device from your tailnet or enter an SSH
+target. The next stop shows one command to run on it; on a fresh Linux container or VPS, run the
+fresh-machine version as root. Runyard then checks the machine is ready to build.
 
 The machine needs a few things first, which depend on what it is: see the recipes in
 [Machines](machines.md#recipes).
 
 ## 5. Create a pool
 
-Click **+** beside **Pools**. A pool says which repositories its runners serve, which labels
-they carry, and which machines they run on. See [Pools](pools.md).
+Click **Put it in a pool** once the machine is ready, or **New pool** on **Pools**. A pool says
+which repositories its runners serve, which labels they carry, and which machines they run on.
+See [Pools](pools.md).
 
 ## 6. Review and run
 

@@ -64,7 +64,8 @@ release with its checksum verified.
 
 Jobs that ask for [boat.dev](https://docs.boat.dev/ci.md)'s labels (`boat`, `boat-small`,
 `boat-large`, `boat-xlarge`) show as **Starts on boat.dev**, since boat.dev starts a VM for each.
-The sidebar's **boat.dev** row opens their running and queued jobs.
+**boat.dev on demand** in Settings (on phones, **boat.dev** under **More**) opens their running
+and queued jobs.
 
 To see costs, connect boat.dev there with a key limited to `sandbox.read` and `account.read`.
 Runyard then shows each job's VM size and cost so far, your plan's limits, and VMs still billing

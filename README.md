@@ -47,7 +47,7 @@ and check its checksum; `RUNYARD_VERSION=0.1.0` pins a version.
 
 Runyard prints its address (`https://<machine>.<tailnet>.ts.net:7443` with Tailscale, otherwise
 `http://127.0.0.1:7420`) and a one-time setup code. Open it, enter the code to create the first
-admin, and follow **Getting started** on the overview (or [Getting started](docs/getting-started.md)
+admin, and follow **Getting started** on the Board (or [Getting started](docs/getting-started.md)
 here):
 
 1. **Connect GitHub or Forgejo:** Runyard creates its own GitHub App, or takes a Forgejo token.
@@ -150,7 +150,7 @@ Don't change my Tailscale settings, open ports, or connect to any other machine.
   off by default and has to be turned on for your tailnet first (see
   [Webhooks](docs/forges.md#webhooks)).
 - **AI agents.** Agents read everything and can prepare pools and reviews; only you run a
-  review. Create a token under **Settings ▸ Account**, then, for Claude Code:
+  review. Create a token under **Settings ▸ Access tokens**, then, for Claude Code:
 
   ```sh
   claude mcp add --scope user --transport http runyard https://<runyard>/api/mcp \
