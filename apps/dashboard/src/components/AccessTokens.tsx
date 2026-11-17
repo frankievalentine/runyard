@@ -1,11 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { timeAgo } from "../lib/format.ts";
-import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../api.ts";
 import { CopyValue } from "./CopyValue.tsx";
-import { Button, Choice, TextField } from "./form.tsx";
-import { Card, ErrorText, Pill, Section } from "./ui.tsx";
+import { ErrorText } from "./ui.tsx";
+import { Panel, Row, ttButton } from "./tt.tsx";
+import {
+  DialogButtons,
+  SIcon,
+  TtConfirm,
+  TtDialog,
+  TtField,
+  rowButton,
+  ttSelect,
+} from "./settings/parts.tsx";
 
 const tokensKey = ["access-tokens"];
 
@@ -76,176 +84,187 @@ export function AccessTokens({ admin }: { admin: boolean }) {
   const now = Date.now();
 
   return (
-    <Section
-      title="Access tokens"
+    <Panel
+      id="tokens"
+      title="Access tokens for AI agents"
       action={
-        !adding && (
-          <Button small onClick={() => setAdding(true)}>
-            New token
-          </Button>
-        )
+        <button type="button" className={rowButton.secondary} onClick={() => setAdding(true)}>
+          New token
+        </button>
       }
     >
-      <Card className="overflow-hidden">
-        <p className="border-b border-line px-4 py-3 text-[12.5px] text-ink-2">
-          For AI agents using Runyard's MCP server. A token acts as you, never with more access than
-          you have; tokens that prepare changes can save pools and prepare reviews, but only you run
-          a review, here in the dashboard.
-        </p>
-        {created && (
-          <div className="flex flex-col gap-1.5 border-b border-line bg-ok/5 px-4 py-3 text-[12.5px]">
-            <span className="font-medium">
-              Copy the new token now; Runyard won't show it again.
-            </span>
-            <div className="rounded-md border border-line bg-bg px-2.5 py-1.5">
-              <CopyValue
-                value={created}
-                label="Access token"
-                className="font-mono text-[12px] break-all"
-              />
-            </div>
-            <div>
-              <Button small variant="ghost" onClick={() => setCreated(null)}>
-                Done
-              </Button>
-            </div>
+      {created && (
+        <div className="mx-4 mb-3 flex flex-col gap-2 rounded-lg border border-tt-rule bg-tt-hover px-3.5 py-3 text-[12.5px]">
+          <span className="font-semibold">
+            Copy the new token now; Runyard won't show it again.
+          </span>
+          <div className="rounded-md border border-tt-rule bg-tt-card px-2.5 py-1.5">
+            <CopyValue
+              value={created}
+              label="Access token"
+              className="font-mono text-[12px] break-all"
+            />
           </div>
-        )}
-        {tokens.data?.length === 0 && !adding && !created && (
-          <p className="px-4 py-3 text-[12.5px] text-ink-2">None yet.</p>
-        )}
-        {tokens.data?.map((t) => (
-          <div key={t.id} className="border-b border-line px-4 py-3 last:border-b-0">
-            <div className="flex items-center gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate font-medium">{t.name}</span>
-                  {/* Admins change it with the menu beside Revoke. */}
-                  {!admin && (
-                    <Pill tone={t.scope === "prepare" ? "info" : "muted"}>
-                      {ACCESS[t.scope].title}
-                    </Pill>
-                  )}
-                </div>
-              </div>
-              {admin && (
-                <select
-                  aria-label={`Access for ${t.name}`}
-                  className="input !h-[28px] !w-auto text-[12.5px]"
-                  value={t.scope}
-                  disabled={setAccess.isPending}
-                  onChange={(e) =>
-                    setAccess.mutate({ id: t.id, scope: e.target.value as "read" | "prepare" })
-                  }
-                >
-                  <option value="read">Read only</option>
-                  <option value="prepare">Read and prepare</option>
-                </select>
-              )}
-              <ConfirmDialog
-                trigger="Revoke"
-                title={`Revoke ${t.name}?`}
-                description="Anything using it is refused from its next request. This can't be undone; make a new token to give access again."
-                confirm="Revoke token"
-                onConfirm={() => revoke.mutate(t.id)}
-                pending={revoke.isPending}
-                error={revoke.error}
-              />
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-2">
+          <div>
+            <button type="button" className={rowButton.secondary} onClick={() => setCreated(null)}>
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+      {tokens.error && <ErrorText className="px-4 pb-3" error={tokens.error} />}
+      {tokens.data?.length === 0 && !created && (
+        <p className="px-4 pb-1 text-[13px] text-tt-ink-2">
+          <b className="font-semibold text-tt-ink">No tokens yet.</b> Create one to let an AI agent
+          read your CI.
+        </p>
+      )}
+      {tokens.data?.map((t) => (
+        <Row key={t.id} className="flex-wrap">
+          <SIcon name="key" />
+          <span className="min-w-0 flex-1 basis-48">
+            <b className="block truncate font-mono text-[13px] font-bold">{t.name}</b>
+            <small className="flex flex-wrap items-center gap-x-1.5 text-[12px] text-tt-ink-3">
               {[
+                !admin && <span key="scope">{ACCESS[t.scope].title}</span>,
                 <span key="prefix" className="font-mono" title="The start of the token">
                   {t.prefix}…
                 </span>,
-                <span key="created">Created {formatDay(t.createdAt)}</span>,
+                <span key="created">created {formatDay(t.createdAt)}</span>,
                 t.expiresAt && t.expiresAt <= now ? (
-                  <span key="expires" className="text-warn">
-                    Expired {formatDay(t.expiresAt)}
+                  <span key="expires" className="font-semibold text-tt-bad-ink">
+                    expired {formatDay(t.expiresAt)}
                   </span>
                 ) : (
                   <span key="expires">
-                    {t.expiresAt ? `Expires ${formatDay(t.expiresAt)}` : "Never expires"}
+                    {t.expiresAt ? `expires ${formatDay(t.expiresAt)}` : "never expires"}
                   </span>
                 ),
                 <span
                   key="used"
                   title={t.lastUsedAt ? new Date(t.lastUsedAt).toLocaleString() : undefined}
                 >
-                  {t.lastUsedAt ? `Last used ${timeAgo(t.lastUsedAt, now)}` : "Never used"}
+                  {t.lastUsedAt ? `used ${timeAgo(t.lastUsedAt, now)}` : "never used"}
                 </span>,
-              ].map((part, i) =>
-                i === 0 ? (
-                  part
-                ) : (
-                  // The dot travels with what follows it, so a wrap never leaves one dangling.
-                  <span key={i} className="inline-flex items-center gap-x-2 whitespace-nowrap">
-                    <span aria-hidden className="text-ink-3">
-                      ·
+              ]
+                .filter(Boolean)
+                .map((part, i) =>
+                  i === 0 ? (
+                    part
+                  ) : (
+                    // The dot travels with what follows it, so a wrap never leaves one dangling.
+                    <span key={i} className="inline-flex items-center gap-x-1.5 whitespace-nowrap">
+                      <span aria-hidden>·</span>
+                      {part}
                     </span>
-                    {part}
-                  </span>
-                ),
-              )}
-            </div>
-          </div>
-        ))}
-        {setAccess.error && <ErrorText className="px-4 py-3" error={setAccess.error} />}
-        {adding && (
-          <form onSubmit={submit} className="flex flex-col gap-3 px-4 py-4">
-            <TextField
-              label="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Claude Code on my laptop"
-              description="Which agent uses it; changes it prepares are recorded under this name."
-              required
+                  ),
+                )}
+            </small>
+          </span>
+          <span className="flex items-center gap-2">
+            {/* Admins change a token's access here; others see it in the line above. */}
+            {admin && (
+              <select
+                aria-label={`Access for ${t.name}`}
+                className={`${ttSelect} !h-[32px] !w-auto !text-[12.5px]`}
+                value={t.scope}
+                disabled={setAccess.isPending}
+                onChange={(e) =>
+                  setAccess.mutate({ id: t.id, scope: e.target.value as "read" | "prepare" })
+                }
+              >
+                <option value="read">Read only</option>
+                <option value="prepare">Read and prepare</option>
+              </select>
+            )}
+            <TtConfirm
+              trigger="Revoke"
+              title={`Revoke ${t.name}?`}
+              description="Anything using it is refused from its next request. This can't be undone; make a new token to give access again."
+              confirm="Revoke token"
+              onConfirm={() => revoke.mutate(t.id)}
+              pending={revoke.isPending}
+              error={revoke.error}
             />
-            <fieldset className="flex flex-col gap-1.5">
-              <legend className="mb-1.5 text-[12px] font-medium text-ink-2">Access</legend>
-              <div className="grid grid-cols-1 gap-2 min-[600px]:grid-cols-2">
-                {(["read", "prepare"] as const).map((value) => (
-                  <Choice
+          </span>
+        </Row>
+      ))}
+      {setAccess.error && <ErrorText className="px-4 py-2" error={setAccess.error} />}
+      <p className="border-t border-tt-rule px-4 py-3 text-[12.5px] text-tt-ink-2">
+        Agents connect over MCP. A token acts as you, never with more access than you have; tokens
+        that prepare changes can save pools and prepare reviews, but only you run a review, here in
+        the dashboard.
+      </p>
+      <TtDialog open={adding} onOpenChange={setAdding} title="New access token">
+        <form onSubmit={submit} className="flex flex-col gap-4">
+          <TtField
+            label="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Claude Code on my laptop"
+            hint="Which agent uses it; changes it prepares are recorded under this name."
+            required
+            autoFocus
+          />
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1.5 text-[12.5px] font-semibold text-tt-ink-2">Access</legend>
+            <div className="grid grid-cols-1 gap-2 min-[600px]:grid-cols-2">
+              {(["read", "prepare"] as const).map((value) => {
+                const disabled = value === "prepare" && !admin;
+                return (
+                  <label
                     key={value}
-                    type="radio"
-                    name="token-access"
-                    checked={scope === value}
-                    onChange={() => setScope(value)}
-                    disabled={value === "prepare" && !admin}
-                    title={ACCESS[value].title}
-                    detail={
-                      value === "prepare" && !admin
-                        ? "Only admins can make tokens that prepare changes."
-                        : ACCESS[value].detail
-                    }
-                  />
-                ))}
-              </div>
-            </fieldset>
-            <div className="max-w-60">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-medium text-ink-2">Expires</span>
-                <select
-                  className="input"
-                  value={expires}
-                  onChange={(e) => setExpires(e.target.value as typeof expires)}
-                >
-                  <option value="30">In 30 days</option>
-                  <option value="90">In 90 days</option>
-                  <option value="365">In a year</option>
-                  <option value="never">Never</option>
-                </select>
-              </label>
+                    className={`flex cursor-pointer items-start gap-2.5 rounded-[10px] border-[1.5px] bg-tt-card px-3 py-2.5 ${
+                      scope === value
+                        ? "border-tt-ink shadow-[inset_0_0_0_1px_var(--tt-ink)]"
+                        : "border-tt-rule-2"
+                    } ${disabled ? "cursor-not-allowed opacity-55" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="token-access"
+                      className="mt-[3px] shrink-0 accent-[var(--tt-ink)]"
+                      checked={scope === value}
+                      onChange={() => setScope(value)}
+                      disabled={disabled}
+                    />
+                    <span>
+                      <b className="block text-[13.5px]">{ACCESS[value].title}</b>
+                      <small className="block text-[12px] text-tt-ink-2">
+                        {disabled
+                          ? "Only admins can make tokens that prepare changes."
+                          : ACCESS[value].detail}
+                      </small>
+                    </span>
+                  </label>
+                );
+              })}
             </div>
-            {add.error && <ErrorText error={add.error} />}
-            <div className="flex gap-2">
-              <Button type="submit" variant="primary" disabled={add.isPending}>
-                Create token
-              </Button>
-              <Button onClick={() => setAdding(false)}>Cancel</Button>
-            </div>
-          </form>
-        )}
-      </Card>
-    </Section>
+          </fieldset>
+          <label className="flex max-w-60 flex-col gap-1.5">
+            <span className="text-[12.5px] font-semibold text-tt-ink-2">Expires</span>
+            <select
+              className={ttSelect}
+              value={expires}
+              onChange={(e) => setExpires(e.target.value as typeof expires)}
+            >
+              <option value="30">In 30 days</option>
+              <option value="90">In 90 days</option>
+              <option value="365">In a year</option>
+              <option value="never">Never</option>
+            </select>
+          </label>
+          {add.error && <ErrorText error={add.error} />}
+          <DialogButtons>
+            <button type="button" className={ttButton.secondary} onClick={() => setAdding(false)}>
+              Cancel
+            </button>
+            <button type="submit" className={ttButton.primary} disabled={add.isPending}>
+              Create token
+            </button>
+          </DialogButtons>
+        </form>
+      </TtDialog>
+    </Panel>
   );
 }

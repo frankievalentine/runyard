@@ -9,10 +9,9 @@ import {
   type ReadinessTier,
 } from "@runyard/core";
 import { Link } from "@tanstack/react-router";
-import type { Tone } from "../lib/status.ts";
 import { useYard } from "../lib/yard.ts";
-import { CommandBox } from "./CopyValue.tsx";
-import { Callout, GroupedCard, Section, StatusDot } from "./ui.tsx";
+import { InlineCode, Kv, Kvh, type DotTone } from "./machine/parts.tsx";
+import { Callout } from "./ui.tsx";
 
 const TIERS: [ReadinessTier, string, string][] = [
   ["required", "Required", "Jobs fail without these."],
@@ -20,71 +19,60 @@ const TIERS: [ReadinessTier, string, string][] = [
   ["recommended", "Recommended", ""],
 ];
 
-const tone: Record<ReadinessItem["status"], Tone> = {
+const tone: Record<ReadinessItem["status"], DotTone> = {
   ok: "ok",
   missing: "bad",
   warn: "warn",
-  unknown: "muted",
+  unknown: "unknown",
 };
+
+/** Readiness in a few words, for the folded section's note. */
+export function readinessNote(m: MachineView): string {
+  const r = m.readiness;
+  if (!r) return "Not checked";
+  const problems = readinessProblems(r).length;
+  if (problems) return `${problems} to fix`;
+  const unknown = r.items.filter((i) => i.status === "unknown").length;
+  return unknown ? `${unknown} unknown` : "Ready";
+}
 
 /** Whether the machine has what its pools' jobs need, from its last check. */
 export function RunnerReadiness({ m }: { m: MachineView }) {
   const r = m.readiness;
-  const problems = readinessProblems(r);
+  if (!r)
+    return (
+      <p className="px-4 pt-1 pb-3 text-tt-ink-2">
+        Not checked yet. Runyard checks once it can sign in.
+      </p>
+    );
   return (
-    <Section
-      title="Runner readiness"
-      action={
-        r && (
-          <span className={`text-[12px] ${problems.length ? "text-bad" : "text-ink-2"}`}>
-            {problems.length
-              ? `${problems.length} to fix`
-              : `Ready${r.capabilities.length ? ` · has ${r.capabilities.join(", ")}` : ""}`}
-          </span>
-        )
-      }
-    >
-      {!r ? (
-        <p className="text-[12px] text-ink-2">Appears after the first SSH check.</p>
-      ) : (
-        <GroupedCard
-          groups={TIERS.map(([tier, title, sub]) => ({
-            key: tier,
-            title,
-            sub,
-            rows: r.items
-              .filter((i) => i.tier === tier)
-              .map((i) => [
-                i.id,
-                <div className="px-4 py-2.5">
-                  <div className="flex items-start justify-between gap-3 text-[12px]">
-                    <span className="flex min-w-0 items-center gap-2 text-ink-2">
-                      <StatusDot tone={tone[i.status]} hollow={i.status === "unknown"} />
-                      <span className="break-words">{i.title}</span>
-                    </span>
-                    <span className="min-w-0 text-right font-medium break-words">{i.value}</span>
-                  </div>
-                  {i.status !== "ok" && (
-                    <p className="mt-1 max-w-[60ch] text-[11.5px] leading-relaxed break-words text-ink-2">
-                      {i.detail}
-                    </p>
-                  )}
-                  {i.status !== "ok" && i.command && (
-                    <CommandBox command={i.command} className="mt-1.5 w-fit max-w-full" />
-                  )}
-                </div>,
-              ]),
-          }))}
-        />
+    <>
+      {r.capabilities.length > 0 && (
+        <p className="px-4 pt-1 text-[12.5px] text-tt-ink-3">Has {r.capabilities.join(", ")}.</p>
       )}
-    </Section>
+      {TIERS.map(([tier, title, sub]) => {
+        const items = r.items.filter((i) => i.tier === tier);
+        if (!items.length) return null;
+        return (
+          <div key={tier}>
+            <Kvh>{sub ? `${title}: ${sub.replace(/\.$/, "").toLowerCase()}` : title}</Kvh>
+            {items.map((i) => (
+              <Kv key={i.id} dot={tone[i.status]} label={i.title} value={i.value}>
+                {i.status !== "ok" && (i.detail || i.command) ? (
+                  <>
+                    {i.detail && <span className="max-w-[60ch] leading-relaxed">{i.detail}</span>}
+                    {i.command && <InlineCode text={i.command} />}
+                  </>
+                ) : null}
+              </Kv>
+            ))}
+          </div>
+        );
+      })}
+    </>
   );
 }
 
-/**
- * The pool's machines that can't serve its jobs: missing something required,
- * or something its labels promise.
- */
 export function PoolReadiness({ pool }: { pool: Pool }) {
   const view = useYard();
   const kinds = forgeKindsOf(view);

@@ -410,3 +410,16 @@ export const jobs = sqliteTable(
     index("jobs_updated").on(t.updatedAt),
   ],
 );
+
+/**
+ * Job counts per hour for the traffic calendar, kept 53 weeks. Jobs roll in here as they're pruned
+ * from `jobs` (after 30 days), so each job is counted once: live while its record exists, then here.
+ */
+export const jobHours = sqliteTable("job_hours", {
+  /** The hour's start, UTC, in milliseconds. */
+  hour: integer().primaryKey(),
+  /** Finished jobs, whatever their result. */
+  jobs: integer().notNull().default(0),
+  failed: integer().notNull().default(0),
+  cancelled: integer().notNull().default(0),
+});

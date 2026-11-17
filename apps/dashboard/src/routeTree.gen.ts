@@ -15,11 +15,15 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppBoatRouteImport } from './routes/_app/boat'
 import { Route as AppIgnoredRouteImport } from './routes/_app/ignored'
+import { Route as AppMoreRouteImport } from './routes/_app/more'
 import { Route as AppQueueRouteImport } from './routes/_app/queue'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppStartRouteImport } from './routes/_app/start'
+import { Route as AppMachinesIndexRouteImport } from './routes/_app/machines.index'
 import { Route as AppMachinesIdRouteImport } from './routes/_app/machines.$id'
 import { Route as AppMachinesAddRouteImport } from './routes/_app/machines.add'
 import { Route as AppPeersNodeIdRouteImport } from './routes/_app/peers.$nodeId'
+import { Route as AppPoolsIndexRouteImport } from './routes/_app/pools.index'
 import { Route as AppPoolsIdRouteImport } from './routes/_app/pools.$id'
 import { Route as AppPoolsNewRouteImport } from './routes/_app/pools.new'
 import { Route as AppRunnersKeyRouteImport } from './routes/_app/runners.$key'
@@ -59,6 +63,11 @@ const AppIgnoredRoute = AppIgnoredRouteImport.update({
   path: '/ignored',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMoreRoute = AppMoreRouteImport.update({
+  id: '/more',
+  path: '/more',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppQueueRoute = AppQueueRouteImport.update({
   id: '/queue',
   path: '/queue',
@@ -67,6 +76,16 @@ const AppQueueRoute = AppQueueRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppStartRoute = AppStartRouteImport.update({
+  id: '/start',
+  path: '/start',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMachinesIndexRoute = AppMachinesIndexRouteImport.update({
+  id: '/machines/',
+  path: '/machines/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMachinesIdRoute = AppMachinesIdRouteImport.update({
@@ -82,6 +101,11 @@ const AppMachinesAddRoute = AppMachinesAddRouteImport.update({
 const AppPeersNodeIdRoute = AppPeersNodeIdRouteImport.update({
   id: '/peers/$nodeId',
   path: '/peers/$nodeId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPoolsIndexRoute = AppPoolsIndexRouteImport.update({
+  id: '/pools/',
+  path: '/pools/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPoolsIdRoute = AppPoolsIdRouteImport.update({
@@ -136,8 +160,10 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/boat': typeof AppBoatRoute
   '/ignored': typeof AppIgnoredRoute
+  '/more': typeof AppMoreRoute
   '/queue': typeof AppQueueRoute
   '/settings': typeof AppSettingsRouteWithChildren
+  '/start': typeof AppStartRoute
   '/machines/$id': typeof AppMachinesIdRoute
   '/machines/add': typeof AppMachinesAddRoute
   '/peers/$nodeId': typeof AppPeersNodeIdRoute
@@ -149,6 +175,8 @@ export interface FileRoutesByFullPath {
   '/settings/forgejo': typeof AppSettingsForgejoRoute
   '/settings/github': typeof AppSettingsGithubRoute
   '/settings/users': typeof AppSettingsUsersRoute
+  '/machines/': typeof AppMachinesIndexRoute
+  '/pools/': typeof AppPoolsIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -156,7 +184,9 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/boat': typeof AppBoatRoute
   '/ignored': typeof AppIgnoredRoute
+  '/more': typeof AppMoreRoute
   '/queue': typeof AppQueueRoute
+  '/start': typeof AppStartRoute
   '/': typeof AppIndexRoute
   '/machines/$id': typeof AppMachinesIdRoute
   '/machines/add': typeof AppMachinesAddRoute
@@ -169,6 +199,8 @@ export interface FileRoutesByTo {
   '/settings/forgejo': typeof AppSettingsForgejoRoute
   '/settings/github': typeof AppSettingsGithubRoute
   '/settings/users': typeof AppSettingsUsersRoute
+  '/machines': typeof AppMachinesIndexRoute
+  '/pools': typeof AppPoolsIndexRoute
   '/settings': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -178,8 +210,10 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_app/boat': typeof AppBoatRoute
   '/_app/ignored': typeof AppIgnoredRoute
+  '/_app/more': typeof AppMoreRoute
   '/_app/queue': typeof AppQueueRoute
   '/_app/settings': typeof AppSettingsRouteWithChildren
+  '/_app/start': typeof AppStartRoute
   '/_app/': typeof AppIndexRoute
   '/_app/machines/$id': typeof AppMachinesIdRoute
   '/_app/machines/add': typeof AppMachinesAddRoute
@@ -192,6 +226,8 @@ export interface FileRoutesById {
   '/_app/settings/forgejo': typeof AppSettingsForgejoRoute
   '/_app/settings/github': typeof AppSettingsGithubRoute
   '/_app/settings/users': typeof AppSettingsUsersRoute
+  '/_app/machines/': typeof AppMachinesIndexRoute
+  '/_app/pools/': typeof AppPoolsIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -202,8 +238,10 @@ export interface FileRouteTypes {
     | '/setup'
     | '/boat'
     | '/ignored'
+    | '/more'
     | '/queue'
     | '/settings'
+    | '/start'
     | '/machines/$id'
     | '/machines/add'
     | '/peers/$nodeId'
@@ -215,6 +253,8 @@ export interface FileRouteTypes {
     | '/settings/forgejo'
     | '/settings/github'
     | '/settings/users'
+    | '/machines/'
+    | '/pools/'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -222,7 +262,9 @@ export interface FileRouteTypes {
     | '/setup'
     | '/boat'
     | '/ignored'
+    | '/more'
     | '/queue'
+    | '/start'
     | '/'
     | '/machines/$id'
     | '/machines/add'
@@ -235,6 +277,8 @@ export interface FileRouteTypes {
     | '/settings/forgejo'
     | '/settings/github'
     | '/settings/users'
+    | '/machines'
+    | '/pools'
     | '/settings'
   id:
     | '__root__'
@@ -243,8 +287,10 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_app/boat'
     | '/_app/ignored'
+    | '/_app/more'
     | '/_app/queue'
     | '/_app/settings'
+    | '/_app/start'
     | '/_app/'
     | '/_app/machines/$id'
     | '/_app/machines/add'
@@ -257,6 +303,8 @@ export interface FileRouteTypes {
     | '/_app/settings/forgejo'
     | '/_app/settings/github'
     | '/_app/settings/users'
+    | '/_app/machines/'
+    | '/_app/pools/'
     | '/_app/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -310,6 +358,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIgnoredRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/more': {
+      id: '/_app/more'
+      path: '/more'
+      fullPath: '/more'
+      preLoaderRoute: typeof AppMoreRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/queue': {
       id: '/_app/queue'
       path: '/queue'
@@ -322,6 +377,20 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/start': {
+      id: '/_app/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof AppStartRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/machines/': {
+      id: '/_app/machines/'
+      path: '/machines'
+      fullPath: '/machines/'
+      preLoaderRoute: typeof AppMachinesIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/machines/$id': {
@@ -343,6 +412,13 @@ declare module '@tanstack/react-router' {
       path: '/peers/$nodeId'
       fullPath: '/peers/$nodeId'
       preLoaderRoute: typeof AppPeersNodeIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pools/': {
+      id: '/_app/pools/'
+      path: '/pools'
+      fullPath: '/pools/'
+      preLoaderRoute: typeof AppPoolsIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/pools/$id': {
@@ -436,8 +512,10 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 interface AppRouteChildren {
   AppBoatRoute: typeof AppBoatRoute
   AppIgnoredRoute: typeof AppIgnoredRoute
+  AppMoreRoute: typeof AppMoreRoute
   AppQueueRoute: typeof AppQueueRoute
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
+  AppStartRoute: typeof AppStartRoute
   AppIndexRoute: typeof AppIndexRoute
   AppMachinesIdRoute: typeof AppMachinesIdRoute
   AppMachinesAddRoute: typeof AppMachinesAddRoute
@@ -445,13 +523,17 @@ interface AppRouteChildren {
   AppPoolsIdRoute: typeof AppPoolsIdRoute
   AppPoolsNewRoute: typeof AppPoolsNewRoute
   AppRunnersKeyRoute: typeof AppRunnersKeyRoute
+  AppMachinesIndexRoute: typeof AppMachinesIndexRoute
+  AppPoolsIndexRoute: typeof AppPoolsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppBoatRoute: AppBoatRoute,
   AppIgnoredRoute: AppIgnoredRoute,
+  AppMoreRoute: AppMoreRoute,
   AppQueueRoute: AppQueueRoute,
   AppSettingsRoute: AppSettingsRouteWithChildren,
+  AppStartRoute: AppStartRoute,
   AppIndexRoute: AppIndexRoute,
   AppMachinesIdRoute: AppMachinesIdRoute,
   AppMachinesAddRoute: AppMachinesAddRoute,
@@ -459,6 +541,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppPoolsIdRoute: AppPoolsIdRoute,
   AppPoolsNewRoute: AppPoolsNewRoute,
   AppRunnersKeyRoute: AppRunnersKeyRoute,
+  AppMachinesIndexRoute: AppMachinesIndexRoute,
+  AppPoolsIndexRoute: AppPoolsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

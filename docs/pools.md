@@ -6,7 +6,8 @@ runners and installs them through each machine's review.
 
 ## Create a pool
 
-Click **+** beside **Pools** in the sidebar. The form has three steps:
+On **Pools**, click **New pool**, or **Put it in a pool** when you've just added a machine. The
+form has four stops, with a summary of the pool beside them as you build it:
 
 1. **What it's for:** a suggestion from what Runyard sees (queued jobs no runner can take,
    connected machines not yet in a pool), or the repositories and labels you choose.
@@ -15,6 +16,7 @@ Click **+** beside **Pools** in the sidebar. The form has three steps:
 3. **Check and create:** a summary with defaults you can **Change**: one persistent runner per
    machine, Essentials and Build tools installed where missing, and the workspace cleared after
    each job.
+4. **Review and run:** each machine's review, ready to run (see below).
 
 An organization gets one runner per slot. A personal GitHub account's repositories each get
 their own runner, because GitHub can't share a personal account's runner across repositories.
@@ -24,15 +26,15 @@ to it. See [Writing workflows](workflows.md).
 
 ## Review and run
 
-Saving a pool changes nothing on your machines. **Create and review** opens the pool with each
-machine's review ready: every step it will take there, and **Run**. Run checks the machine and
+Saving a pool changes nothing on your machines. **Create and review** shows each machine's
+review: every step it will take there, and **Run**. Run checks the machine and
 the forge again first, and does nothing if anything changed since the review. Reviews work once
 and expire after 15 minutes.
 
 When a machine has changes waiting (a runner to install or remove, tools to install, labels or
-hooks that changed, a runner to retire), it says so in the sidebar ("2 changes"), under **Needs
-attention**, and on its button: **Review 2 changes**. The review reads the machine again and may
-find more, such as a runner someone changed by hand.
+hooks that changed, a runner to retire), it says so in the Board's **Notices** ("2 changes
+waiting") and in **Changes** on the machine's page, with **Review changes**. The review reads the
+machine again and may find more, such as a runner someone changed by hand.
 
 Runners live under `~/runyard-runners` (`C:\ProgramData\Runyard\runners` on Windows): a
 LaunchAgent on a Mac, a systemd service on Linux, a Windows service on Windows.
@@ -123,12 +125,12 @@ job hooks, and one-job runners start clean anyway.
 Each machine, persistent pool and runner page has **Jobs**: the last 7 days' counts ("41 passed
 · 2 failed") and the newest jobs with their result, duration, repository and runner, a link to
 the run, and **Show log**, which fetches the job's log from the forge when you open it. The
-overview's machine table counts each machine's jobs, with failures in red. Jobs are kept 30
+Machines table counts each machine's jobs, with failures in red. Jobs are kept 30
 days.
 
 A job that failed its own steps doesn't flag the machine, since that's usually the code. A job
 whose runner said it started but never finished, after the forge finished it, shows **Runner
-lost** and raises **Needs attention** on the machine: the runner or the machine stopped mid-job.
+lost** and raises a notice on the Board for the machine: the runner or the machine stopped mid-job.
 
 An on-demand pool lists its **One-job runners** instead, each with its job's result, **Runner
 log** (from the machine; it explains a job that was lost) and **Job log** (from the forge). A

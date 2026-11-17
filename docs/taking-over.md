@@ -1,8 +1,8 @@
 # Taking over existing runners
 
-Runners you registered before Runyard, or by hand, show under **Unassigned runners** in the
-sidebar. **Needs attention** lists them until you say which machine each runs on. Runyard never
-changes a runner it didn't install until you move it into a pool.
+Runners you registered before Runyard, or by hand, show under **Runners not in a pool** on
+**Machines**, and the Board's **Notices** lists them until you say which machine each runs on.
+Runyard never changes a runner it didn't install until you move it into a pool.
 
 A runner's page has **Take over this runner**, in three steps:
 

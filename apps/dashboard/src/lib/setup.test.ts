@@ -1,6 +1,6 @@
 import type { YardView } from "@runyard/core";
 import { expect, test } from "vite-plus/test";
-import { machineToConnect, machineToReview, setupSteps } from "./setup.ts";
+import { machineToConnect, machineToReview, setupSteps, startStops } from "./setup.ts";
 
 const empty = {
   machines: [],
@@ -84,4 +84,24 @@ test("the machine step names the first machine Runyard can't get into, and why",
   expect(step.done).toBe(false);
   expect(step.detail).toMatch(/^Builder: Authorize Runyard's key\. Refused\./);
   expect(machineToConnect(view)?.machine.id).toBe("m1");
+});
+
+test("Getting started adds a first job, and starts at the first stop not done", () => {
+  const fresh = startStops(empty, false);
+  expect(fresh.stops.map((s) => s.label)).toEqual([
+    "Connect a forge",
+    "Add a machine",
+    "Create a pool",
+    "Review and run",
+    "Send a job",
+  ]);
+  expect(fresh.current).toBe(0);
+  expect(fresh.finished).toBe(false);
+  const ready = {
+    ...empty,
+    forgejo: { connections: [{ forgeId: "fj_1", error: null }] },
+  } as unknown as YardView;
+  expect(startStops(ready, false).current).toBe(1);
+  // A job counts even before the other steps read as done (runners Runyard didn't install).
+  expect(startStops(empty, true).stops.at(-1)?.done).toBe(true);
 });

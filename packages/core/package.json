@@ -1,6 +1,6 @@
 {
   "name": "@runyard/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Runyard domain model and pure derivation logic, shared by the server and dashboard",
   "license": "MIT",

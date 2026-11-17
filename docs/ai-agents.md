@@ -5,7 +5,7 @@ as Claude Code can read your CI and prepare changes for you to run.
 
 ## Connect an agent
 
-Create a token under **Settings ▸ Account ▸ Access tokens**, then, for Claude Code:
+Create a token under **Settings ▸ Access tokens**, then, for Claude Code:
 
 ```sh
 claude mcp add --scope user --transport http runyard https://<runyard>/api/mcp \

@@ -4,11 +4,16 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ApiError } from "./api.ts";
 import { sessionQuery } from "./lib/queries.ts";
+import { registerServiceWorker } from "./lib/pwa.ts";
 import { applyTheme } from "./lib/theme.ts";
 import { routeTree } from "./routeTree.gen.ts";
+// Bundled with the dashboard: Runyard is often tailnet-only, so fonts never come from a CDN.
+import "@fontsource-variable/archivo/wdth.css";
+import "@fontsource-variable/jetbrains-mono";
 import "./styles.css";
 
 applyTheme();
+registerServiceWorker();
 
 const queryClient = new QueryClient({
   queryCache: new QueryCache({

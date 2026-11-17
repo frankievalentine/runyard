@@ -29,3 +29,14 @@ function rethrowCancel(error: unknown): never {
   }
   throw error;
 }
+
+/** A name for a new passkey from the device it's made on, which the person can change. */
+export function suggestedPasskeyName(userAgent: string): string {
+  if (/iPhone/.test(userAgent)) return "iPhone";
+  if (/iPad/.test(userAgent)) return "iPad";
+  if (/Android/.test(userAgent)) return "Android phone";
+  if (/Macintosh|Mac OS X/.test(userAgent)) return "Mac";
+  if (/Windows/.test(userAgent)) return "Windows PC";
+  if (/Linux/.test(userAgent)) return "Linux computer";
+  return "This device";
+}

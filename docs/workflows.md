@@ -46,7 +46,7 @@ workflow's: see [Forgejo jobs](#forgejo-jobs-on-the-machine-or-in-docker).
 | `runyard-runner-<runner>` | One GitHub runner              | Reach exactly one runner, as **Test this runner** does |
 
 GitHub matches labels in any case. A label a pool promises, such as `docker`, `gpu` or `xcode-16`, is
-checked on each machine, and a machine that can't honor it shows under **Needs attention**.
+checked on each machine, and a machine that can't honor it shows in the Board's **Notices**.
 
 ## What a job can use
 

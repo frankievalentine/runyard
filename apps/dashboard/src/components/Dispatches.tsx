@@ -2,7 +2,7 @@ import { jobResult, type Dispatch, type JobRecord } from "@runyard/core";
 import { JOB_RESULT } from "./Jobs.tsx";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { api, call } from "../api.ts";
 import { sessionQuery } from "../lib/queries.ts";
 import { formatElapsed, timeAgo } from "../lib/format.ts";
@@ -25,6 +25,7 @@ export function Dispatches({
   jobs = [],
   showPool = false,
   empty = "None yet. A runner starts here when a matching job is queued and no idle runner can take it.",
+  bare = false,
 }: {
   dispatches: Dispatch[];
   /** Run history's jobs, to show each runner's job and its result. */
@@ -32,21 +33,29 @@ export function Dispatches({
   /** Name each runner's pool, where runners from several pools are listed. */
   showPool?: boolean;
   empty?: string;
+  /** Rows only, with a line above each, for a panel that has its own frame. */
+  bare?: boolean;
 }) {
   const view = useYard();
   const now = useNow();
   const session = useQuery(sessionQuery);
   const admin = session.data?.user?.role === "admin";
   if (dispatches.length === 0) {
+    if (bare) return <p className="px-4 pb-4 text-[13.5px] text-tt-ink-2">{empty}</p>;
     return (
       <Card>
         <EmptyLine>{empty}</EmptyLine>
       </Card>
     );
   }
+  const Frame = bare ? BareFrame : Card;
   return (
-    <Card className="overflow-hidden">
-      <ul className="divide-y divide-line">
+    <Frame className="overflow-hidden">
+      <ul
+        className={
+          bare ? "divide-y divide-tt-rule border-t border-tt-rule" : "divide-y divide-line"
+        }
+      >
         {dispatches.map((d) => {
           // The job it ran, once run history has it: its result says more than "Finished".
           const job = jobs.find((j) => j.runnerName?.toLowerCase() === d.runnerName.toLowerCase());
@@ -143,8 +152,12 @@ export function Dispatches({
           );
         })}
       </ul>
-    </Card>
+    </Frame>
   );
+}
+
+function BareFrame({ children }: { children: ReactNode; className?: string }) {
+  return <>{children}</>;
 }
 
 /**

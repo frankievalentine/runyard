@@ -1,11 +1,62 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
+import { Dialog } from "@base-ui/react/dialog";
 import type { ReactNode } from "react";
-import { Button } from "./form.tsx";
+import { ttButton, ttRowButton } from "./tt.tsx";
 import { ErrorText } from "./ui.tsx";
 
+/*
+ * Timetable's dialogs: a confirmation before anything is deleted, removed, revoked or
+ * disconnected, and a plain dialog for forms. Bottom sheets on phones (.sheet-dialog).
+ */
+
+const popup =
+  "sheet-dialog fixed top-1/2 left-1/2 max-h-[calc(100vh-64px)] w-[min(calc(100vw-32px),480px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[14px] border border-tt-rule bg-tt-card text-tt-ink shadow-[0_30px_70px_-20px_rgba(0,0,0,.5)]";
+const backdrop = "fixed inset-0 bg-black/40";
+const heading = "text-[24px] leading-tight font-extrabold [font-stretch:78%]";
+
+/** A dialog in the design's style: a condensed title, its body, and buttons at the end. */
+export function TtDialog({
+  open,
+  onOpenChange,
+  title,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className={backdrop} />
+        <Dialog.Popup className={popup}>
+          <div className="flex items-start gap-3 px-[22px] pt-5 pb-1.5">
+            <Dialog.Title className={`flex-1 ${heading}`}>{title}</Dialog.Title>
+            <Dialog.Close
+              aria-label="Close"
+              className="grid size-8 place-items-center rounded-lg text-tt-ink-3 hover:bg-tt-hover hover:text-tt-ink"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M6 6l12 12M18 6 6 18" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </Dialog.Close>
+          </div>
+          <div className="px-[22px] pt-1.5 pb-[22px]">{children}</div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+/** A dialog's buttons, at its end. */
+export function DialogButtons({ children }: { children: ReactNode }) {
+  return <div className="mt-5 flex flex-wrap justify-end gap-2.5">{children}</div>;
+}
+
 /**
- * A danger button that asks before it acts: every delete, remove, revoke and
- * disconnect goes through one. The dialog stays open on an error so it shows.
+ * A danger button that asks before it acts, in the design's style. The dialog stays open on an
+ * error so it shows.
  */
 export function ConfirmDialog({
   trigger,
@@ -15,6 +66,7 @@ export function ConfirmDialog({
   onConfirm,
   pending,
   error,
+  triggerClassName = ttRowButton.danger,
   children,
 }: {
   trigger: ReactNode;
@@ -25,29 +77,34 @@ export function ConfirmDialog({
   onConfirm: () => void;
   pending?: boolean;
   error?: unknown;
+  /** The trigger's style; a small danger button by default. */
+  triggerClassName?: string;
   /** Anything to show under the description, such as commands to run. */
   children?: ReactNode;
 }) {
   return (
     <AlertDialog.Root>
-      <AlertDialog.Trigger render={<Button small variant="danger" />}>
-        {trigger}
-      </AlertDialog.Trigger>
+      <AlertDialog.Trigger className={triggerClassName}>{trigger}</AlertDialog.Trigger>
       <AlertDialog.Portal>
-        <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
-        <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 p-5">
-          <AlertDialog.Title className="text-[15px] font-semibold">{title}</AlertDialog.Title>
-          <AlertDialog.Description className="mt-1.5 text-[13px] text-ink-2">
+        <AlertDialog.Backdrop className={backdrop} />
+        <AlertDialog.Popup className={`${popup} px-[22px] pt-5 pb-[22px]`}>
+          <AlertDialog.Title className={heading}>{title}</AlertDialog.Title>
+          <AlertDialog.Description className="mt-2 text-[13.5px] text-tt-ink-2">
             {description}
           </AlertDialog.Description>
           {children}
           {error ? <ErrorText className="mt-2" error={error} /> : null}
-          <div className="mt-5 flex justify-end gap-2">
-            <AlertDialog.Close render={<Button />}>Cancel</AlertDialog.Close>
-            <Button variant="danger" onClick={onConfirm} disabled={pending}>
+          <DialogButtons>
+            <AlertDialog.Close className={ttButton.secondary}>Cancel</AlertDialog.Close>
+            <button
+              type="button"
+              className={`${ttButton.danger} !border-tt-bad`}
+              onClick={onConfirm}
+              disabled={pending}
+            >
               {confirm}
-            </Button>
-          </div>
+            </button>
+          </DialogButtons>
         </AlertDialog.Popup>
       </AlertDialog.Portal>
     </AlertDialog.Root>

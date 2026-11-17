@@ -22,6 +22,7 @@ import {
 } from "../lib/status.ts";
 import { Button } from "./form.tsx";
 import { Icon } from "./icons.tsx";
+import { Panel } from "./tt.tsx";
 import { RunnerCells } from "./runners.tsx";
 import {
   calloutSurface,
@@ -306,8 +307,9 @@ export function EventTimeline({
   const page = events.data?.slice(0, EVENTS_PAGE) ?? [];
   const older = (events.data?.length ?? 0) > EVENTS_PAGE;
   return (
-    <Section
+    <Panel
       title={title}
+      className="mt-[18px]"
       action={
         (cursors.length > 0 || older) && (
           <div className="flex items-center gap-1.5">
@@ -329,7 +331,7 @@ export function EventTimeline({
         )
       }
     >
-      <Card className="overflow-hidden">
+      <div className="overflow-hidden border-t border-tt-rule">
         {events.error && <ErrorText className="px-4 py-3" error={events.error} />}
         {events.data?.length === 0 && <EmptyLine>No events yet.</EmptyLine>}
         <ul className="divide-y divide-line">
@@ -369,7 +371,7 @@ export function EventTimeline({
             );
           })}
         </ul>
-      </Card>
-    </Section>
+      </div>
+    </Panel>
   );
 }

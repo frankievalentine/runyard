@@ -5,7 +5,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { api, call } from "../api.ts";
 import { sessionQuery } from "./queries.ts";
 
@@ -16,13 +16,19 @@ export const yardQuery = queryOptions({
   staleTime: Number.POSITIVE_INFINITY,
 });
 
-/** Keeps the yard view current from the server's event stream while mounted. */
-export function useYardStream() {
+/**
+ * Keeps the yard view current from the server's event stream while mounted. Returns whether the
+ * stream is connected, so the window can say when it's showing the last view it got.
+ */
+export function useYardStream(): boolean {
   const queryClient = useQueryClient();
+  const [live, setLive] = useState(true);
   useEffect(() => {
     const source = new EventSource("/api/stream");
     let jobsAt: number | undefined;
+    source.addEventListener("open", () => setLive(true));
     source.addEventListener("yard", (event) => {
+      setLive(true);
       const view = JSON.parse((event as MessageEvent<string>).data) as YardView;
       queryClient.setQueryData(yardQuery.queryKey, view);
       // A changed view may come with new events.
@@ -38,12 +44,13 @@ export function useYardStream() {
     });
 
     // EventSource reconnects by itself; a failure may also mean the session ended, so re-check it.
-    source.addEventListener(
-      "error",
-      () => void queryClient.invalidateQueries({ queryKey: sessionQuery.queryKey }),
-    );
+    source.addEventListener("error", () => {
+      setLive(false);
+      void queryClient.invalidateQueries({ queryKey: sessionQuery.queryKey });
+    });
     return () => source.close();
   }, [queryClient]);
+  return live;
 }
 
 export function useYard(): YardView {

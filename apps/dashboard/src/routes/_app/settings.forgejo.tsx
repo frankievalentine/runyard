@@ -1,19 +1,11 @@
 import type { ForgejoConnectionView } from "@runyard/core";
-import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
-import { Button, TextField } from "../../components/form.tsx";
-import {
-  Card,
-  EmptyLine,
-  ErrorText,
-  Pill,
-  Section,
-  StatusDot,
-  SubHeader,
-} from "../../components/ui.tsx";
+import { ErrorText } from "../../components/ui.tsx";
+import { Chip, PageHead, Panel, ttButton } from "../../components/tt.tsx";
+import { Note, RowText, SIcon, TtConfirm, TtField } from "../../components/settings/parts.tsx";
 import { yardQuery, useYard } from "../../lib/yard.ts";
 import { plural, timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
@@ -29,85 +21,70 @@ export const Route = createFileRoute("/_app/settings/forgejo")({
 
 function ForgejoSettings() {
   const { forgejo } = useYard();
+  const n = forgejo.connections.length;
   return (
     <div>
-      <SubHeader
-        back={
-          <Link to="/settings/connections" className="text-accent hover:underline">
-            ← Connections
-          </Link>
-        }
+      <PageHead
+        back={{ to: "/settings/connections", label: "Settings" }}
+        sign={<SIcon name="link" size={26} />}
         title="Forgejo"
-        subtitle="Runyard reads and registers runners on a Forgejo instance with one user's access token: that user's own runners and those of the organizations they own."
+        lede="Runyard reads and registers runners on a Forgejo instance with one user's access token: that user's own runners and those of the organizations they own."
       />
-      <Section title="Connections" count={forgejo.connections.length}>
-        {forgejo.connections.length === 0 ? (
-          <Card>
-            <EmptyLine>No Forgejo connection yet. Add one below.</EmptyLine>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {forgejo.connections.map((c) => (
-              <ConnectionCard key={c.forgeId} conn={c} />
-            ))}
-          </div>
-        )}
-      </Section>
-      <Section title="Connect Forgejo">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-[18px]">
+        <Panel title="Connections" meta={n ? plural(n, "connection") : "None yet"}>
+          {n === 0 ? (
+            <Note>No Forgejo connection yet. Add one with an access token.</Note>
+          ) : (
+            forgejo.connections.map((c) => <ConnectionRows key={c.forgeId} conn={c} />)
+          )}
+        </Panel>
         <Connect />
-      </Section>
+      </div>
     </div>
   );
 }
 
-function ConnectionCard({ conn }: { conn: ForgejoConnectionView }) {
+function ConnectionRows({ conn }: { conn: ForgejoConnectionView }) {
   const now = useNow();
   return (
-    <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <a
-              href={conn.baseUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium hover:underline"
-            >
+    <div className="border-t border-tt-rule">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-[11px]">
+        <SIcon name="link" />
+        <RowText
+          className="basis-60"
+          title={
+            <a href={conn.baseUrl} target="_blank" rel="noreferrer" className="hover:underline">
               {conn.login} on {new URL(conn.baseUrl).host}
             </a>
-            <Pill tone={conn.error ? "bad" : "ok"}>{conn.error ? "Error" : "Connected"}</Pill>
-          </div>
-          <div className="text-[12px] text-ink-2">
-            {conn.version ? `Forgejo ${conn.version.split("+")[0]}` : "Version not read yet"}
-          </div>
-        </div>
+          }
+          detail={conn.version ? `Forgejo ${conn.version.split("+")[0]}` : "Version not read yet"}
+        />
+        <Chip tone={conn.error ? "error" : "ok"}>{conn.error ? "Error" : "Connected"}</Chip>
         <RemoveConnection conn={conn} />
       </div>
-      {conn.error && <ErrorText className="px-4 py-2" error={conn.error} />}
+      {conn.error && <ErrorText className="px-4 pb-2" error={conn.error} />}
       {conn.scopes.length > 0 && (
-        <ul className="divide-y divide-line">
+        <ul className="pb-1.5">
           {conn.scopes.map((s) => {
             const problem = s.runnersError ?? s.jobsError;
             const open = s.publicRepos ?? [];
             return (
               <li
                 key={`${s.kind}:${s.target}`}
-                className="flex flex-wrap items-start gap-3 px-4 py-3 text-[12.5px]"
+                className="flex items-start gap-3 py-2 pr-4 pl-[46px] text-[12.5px]"
               >
-                <span className="mt-1.5">
-                  <StatusDot
-                    tone={problem ? "bad" : s.runnersAt ? "ok" : "muted"}
-                    hollow={!s.runnersAt && !problem}
-                  />
-                </span>
+                <span
+                  aria-hidden
+                  className={`mt-[7px] size-2 flex-none rounded-full ${problem ? "bg-tt-bad" : s.runnersAt ? "bg-tt-ok" : "border-[1.5px] border-tt-off"}`}
+                />
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium">
+                  <div className="font-semibold">
                     {s.target}{" "}
-                    <span className="font-normal text-ink-2">
+                    <span className="font-normal text-tt-ink-3">
                       · {s.kind === "org" ? "organization runners" : "account runners"}
                     </span>
                   </div>
-                  <div className="text-ink-2">
+                  <div className="text-tt-ink-2">
                     Runners {s.runnersAt ? `read ${timeAgo(s.runnersAt, now)}` : "not read yet"}
                     {open.length > 0 &&
                       ` · ${plural(open.length, "public repository", "public repositories")}`}
@@ -119,7 +96,7 @@ function ConnectionCard({ conn }: { conn: ForgejoConnectionView }) {
           })}
         </ul>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -140,25 +117,25 @@ function Connect() {
     connect.mutate();
   };
   return (
-    <Card className="max-w-xl px-4 py-4">
-      <form onSubmit={submit} className="flex flex-col gap-4 text-[13px]">
-        <p className="text-ink-2">
+    <Panel title="Connect Forgejo">
+      <form onSubmit={submit} className="flex flex-col gap-4 px-4 pb-4 text-[13px]">
+        <p className="text-tt-ink-2">
           Create an access token in Forgejo under{" "}
-          <b className="font-medium text-ink">Settings ▸ Applications</b> with{" "}
-          <b className="font-medium text-ink">user</b>,{" "}
-          <b className="font-medium text-ink">organization</b> and{" "}
-          <b className="font-medium text-ink">repository</b> set to read and write: Forgejo files
-          each runner endpoint under the scope of its path. Runyard needs Forgejo 15 or later and
-          stores the token encrypted.
+          <b className="font-semibold text-tt-ink">Settings ▸ Applications</b> with{" "}
+          <b className="font-semibold text-tt-ink">user</b>,{" "}
+          <b className="font-semibold text-tt-ink">organization</b> and{" "}
+          <b className="font-semibold text-tt-ink">repository</b> set to read and write: Forgejo
+          files each runner endpoint under the scope of its path. Runyard needs Forgejo 15 or later
+          and stores the token encrypted.
         </p>
-        <TextField
+        <TtField
           label="Forgejo address"
           type="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           required
         />
-        <TextField
+        <TtField
           label="Access token"
           type="password"
           autoComplete="off"
@@ -168,17 +145,17 @@ function Connect() {
         />
         {connect.error && <ErrorText error={connect.error} />}
         <div>
-          <Button type="submit" variant="primary" disabled={connect.isPending || demo}>
+          <button type="submit" className={ttButton.primary} disabled={connect.isPending || demo}>
             Connect
-          </Button>
+          </button>
         </div>
         {demo && (
-          <p className="text-[12px] text-ink-3">
+          <p className="text-[12px] text-tt-ink-3">
             Not available with demo data: this would contact a real Forgejo.
           </p>
         )}
       </form>
-    </Card>
+    </Panel>
   );
 }
 
@@ -189,7 +166,7 @@ function RemoveConnection({ conn }: { conn: ForgejoConnectionView }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
   });
   return (
-    <ConfirmDialog
+    <TtConfirm
       trigger="Remove"
       title={`Remove ${conn.login} on ${new URL(conn.baseUrl).host}?`}
       description="Runyard forgets the connection and its token. Runners already registered keep running; revoke the token in Forgejo if it's no longer needed."

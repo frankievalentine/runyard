@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import type { YardView, RunnerView } from "@runyard/core";
-import { filterYard, flattenNav, navKey, unassignedGroups } from "./nav.ts";
+import { filterYard, sectionFor, unassignedGroups } from "./nav.ts";
 
 const view = {
   generatedAt: 0,
@@ -44,44 +44,19 @@ test("filters by name, description, address and OS", () => {
   expect(filterYard(view, "  ")).toBe(view);
 });
 
-test("flattens the sidebar in display order, other machines only when open", () => {
-  expect(flattenNav(view, false).map(navKey)).toEqual([
-    "/",
-    "/queue",
-    "/machines/$id:m1",
-    "/machines/$id:m2",
-  ]);
-  expect(flattenNav(view, true).map(navKey).at(-1)).toBe("/peers/$nodeId:n1");
-  const withRunner = {
-    ...view,
-    runners: [
-      {
-        key: "gh:org:acme:1",
-        forgeId: "gh",
-        forge: "github",
-        scope: { kind: "org", target: "acme" },
-      },
-    ],
-  } as unknown as YardView;
-  expect(flattenNav(withRunner, false, true).map(navKey)).toContain("/runners/$key:gh:org:acme:1");
-  const onDemand = {
-    ...view,
-    runners: [{ key: "boat-1", onDemand: "boat.dev" }],
-  } as unknown as YardView;
-  expect(flattenNav(onDemand, false, false).map(navKey)).toContain("/runners/$key:boat-1");
-  expect(flattenNav(withRunner, false, false).map(navKey)).not.toContain(
-    "/runners/$key:gh:org:acme:1",
-  );
-  // A machine's own runners follow it.
-  const linked = {
-    ...view,
-    runners: [{ key: "r1", machineId: "m1", scope: { kind: "org", target: "acme" } }],
-  } as unknown as YardView;
-  expect(flattenNav(linked, false).map(navKey).slice(2, 5)).toEqual([
-    "/machines/$id:m1",
-    "/runners/$key:r1",
-    "/machines/$id:m2",
-  ]);
+test("puts every page in its top-level section", () => {
+  expect(sectionFor("/")).toBe("board");
+  expect(sectionFor("/queue")).toBe("jobs");
+  expect(sectionFor("/machines")).toBe("machines");
+  expect(sectionFor("/machines/add")).toBe("machines");
+  expect(sectionFor("/machines/m1")).toBe("machines");
+  expect(sectionFor("/runners/gh%3Aorg%3Aacme%3A1")).toBe("machines");
+  expect(sectionFor("/peers/n1")).toBe("machines");
+  expect(sectionFor("/ignored")).toBe("machines");
+  expect(sectionFor("/pools")).toBe("pools");
+  expect(sectionFor("/pools/new")).toBe("pools");
+  expect(sectionFor("/boat")).toBe("pools");
+  expect(sectionFor("/settings/github")).toBe("settings");
 });
 
 test("groups unassigned runners by account and forge", () => {

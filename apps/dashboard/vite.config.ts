@@ -25,6 +25,12 @@ export default defineConfig({
     tailwindcss(),
   ]),
   server: {
-    proxy: { "/api": `http://127.0.0.1:${process.env.RUNYARD_PORT ?? 7420}` },
+    // Keeps the browser's Host header: the server refuses writes whose Origin and Host differ.
+    proxy: {
+      "/api": {
+        target: `http://127.0.0.1:${process.env.RUNYARD_PORT ?? 7420}`,
+        changeOrigin: false,
+      },
+    },
   },
 });

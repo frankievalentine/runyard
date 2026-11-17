@@ -6,8 +6,8 @@ through a review you run.
 
 ## Add a machine
 
-Click **+** beside **Machines** in the sidebar. Pick one of your tailnet's desktops and servers,
-or enter any SSH target: `user@host`, or a `Host` alias from `~/.ssh/config`. Only machines you
+On **Machines**, click **Add machine**. Pick one of your tailnet's desktops and servers, or
+enter any SSH target: `user@host`, or a `Host` alias from `~/.ssh/config`. Only machines you
 add are checked.
 
 Every minute Runyard reads CPU, memory, load, disks, uptime, and some power and Tailscale
@@ -164,7 +164,7 @@ Readiness warns when Node.js is older than 20, which current actions such as
 
 Each missing item says how to install it, and a pool can install it for you (see
 [Tools](pools.md#tools)). A machine in a pool that's missing something required or promised
-shows under **Needs attention** and on the pool's page. The check only reads.
+shows in the Board's **Notices** and on the pool's page. The check only reads.
 
 On Windows, a tool counts only when the runner can use it:
 
@@ -182,7 +182,7 @@ A machine alerts when it's been offline on your tailnet for three minutes, or wh
 less than 10% free on readings a minute apart (clearing at 12%). **Pause alerts for 1 hour**
 pauses them.
 
-Each machine's history, and the overview's **Recent activity**, records reboots, SSH failures,
+Each machine's history, and the Board's **Recent activity**, records reboots, SSH failures,
 alerts, and each run of its changes: what each step did, where it stopped, and who ran it.
 One-job runners starting and ending are recorded; persistent runners' jobs are under **Jobs**
 instead. History is kept for 30 days, up to 5,000 events.

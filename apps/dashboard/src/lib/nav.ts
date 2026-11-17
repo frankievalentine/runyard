@@ -1,13 +1,44 @@
 import type { YardView, RunnerView } from "@runyard/core";
 
-/** A sidebar destination, in display order, for keyboard navigation. */
-export type NavItem = { path: string; params?: Record<string, string> };
+/** The top-level sections: the top nav on desktop, the tab bar on phones. */
+export const SECTIONS = [
+  { key: "board", label: "Board", to: "/" },
+  { key: "jobs", label: "Jobs", to: "/queue" },
+  { key: "machines", label: "Machines", to: "/machines" },
+  { key: "pools", label: "Pools", to: "/pools" },
+  { key: "settings", label: "Settings", to: "/settings/account" },
+] as const;
 
-export function navKey(item: NavItem): string {
-  return item.params ? `${item.path}:${Object.values(item.params).join(":")}` : item.path;
+export type SectionKey = (typeof SECTIONS)[number]["key"];
+
+/** Phones: three sections and More, which holds Pools, Settings and the rest, as in the design. */
+export const PHONE_TABS = [
+  ...SECTIONS.slice(0, 3),
+  { key: "more", label: "More", to: "/more" },
+] as const;
+
+export type PhoneTabKey = (typeof PHONE_TABS)[number]["key"];
+
+/** Which phone tab a page sits under: Pools, Settings and More itself are under More. */
+export function phoneTabFor(pathname: string): PhoneTabKey {
+  const section = sectionFor(pathname);
+  if (pathname.split("/")[1] === "more" || section === "pools" || section === "settings")
+    return "more";
+  return section;
 }
 
-/** Narrows the yard by the sidebar filter: names, descriptions, addresses and OS. */
+/** Which section a page belongs to. Runners, tailnet devices and ignored machines sit under Machines;
+ * boat.dev, the on-demand provider, under Pools. */
+export function sectionFor(pathname: string): SectionKey {
+  const first = pathname.split("/")[1] ?? "";
+  if (first === "queue") return "jobs";
+  if (["machines", "runners", "peers", "ignored"].includes(first)) return "machines";
+  if (first === "pools" || first === "boat") return "pools";
+  if (first === "settings") return "settings";
+  return "board";
+}
+
+/** Narrows the yard by the Machines page filter: names, descriptions, addresses and OS. */
 export function filterYard(view: YardView, query: string): YardView {
   const q = query.trim().toLowerCase();
   if (!q) return view;
@@ -42,25 +73,4 @@ export function unassignedGroups(
     groups.set(key, group);
   }
   return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
-}
-
-/** Everything the sidebar shows, top to bottom, for keyboard navigation. */
-export function flattenNav(view: YardView, otherOpen: boolean, runnersOpen = false): NavItem[] {
-  const runner = (r: RunnerView) => ({ path: "/runners/$key", params: { key: r.key } });
-  const boat = view.runners.filter((r) => r.onDemand === "boat.dev");
-  return [
-    { path: "/" },
-    { path: "/queue" },
-    ...view.machines.flatMap((m) => [
-      { path: "/machines/$id", params: { id: m.id } },
-      ...view.runners.filter((r) => r.machineId === m.id).map(runner),
-    ]),
-    ...view.pools.pools.map((p) => ({ path: "/pools/$id", params: { id: p.id } })),
-    ...(view.boat || boat.length ? [{ path: "/boat" }, ...boat.map(runner)] : []),
-    ...(runnersOpen ? unassignedGroups(view.runners).flatMap((g) => g.runners.map(runner)) : []),
-    ...(otherOpen
-      ? view.discovered.map((p) => ({ path: "/peers/$nodeId", params: { nodeId: p.nodeId } }))
-      : []),
-    ...(view.ignored.length ? [{ path: "/ignored" }] : []),
-  ];
 }
