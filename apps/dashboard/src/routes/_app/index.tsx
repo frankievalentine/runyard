@@ -27,9 +27,9 @@ function useNarrow(): boolean {
 }
 
 /**
- * Timetable's Board: the departure board of running and waiting jobs beside the notices, and the
- * traffic calendar beside the platforms, each pair sharing its edges. Until Getting started is
- * done, its route line leads; a new install shows every panel's empty state.
+ * Timetable's Board: the departure board of running and waiting jobs over the traffic calendar,
+ * beside the notices over the platforms. The departure board takes whatever height is left. Until
+ * Getting started is done, its route line leads; a new install shows every panel's empty state.
  */
 function Board() {
   const view = useYard();
@@ -47,11 +47,17 @@ function Board() {
           <TrafficCalendar phone />
         </>
       ) : (
-        <div className="grid grid-cols-[minmax(0,1fr)_372px] grid-rows-[auto_auto] gap-[18px]">
-          <Departures view={view} />
-          <Notices view={view} />
-          <TrafficCalendar />
-          <Platforms view={view} />
+        // Two columns that share their height: the departure board and the platforms grow to fill
+        // theirs, so the bottoms line up, while the traffic calendar keeps its content's height.
+        <div className="grid grid-cols-[minmax(0,1fr)_372px] gap-[18px]">
+          <div className="flex min-w-0 flex-col gap-[18px] [&>section:first-child]:flex-1">
+            <Departures view={view} />
+            <TrafficCalendar />
+          </div>
+          <div className="flex min-w-0 flex-col gap-[18px] [&>section:last-child]:flex-1">
+            <Notices view={view} />
+            <Platforms view={view} />
+          </div>
         </div>
       )}
       {view.machines.length > 0 && <EventTimeline title="Recent activity" />}

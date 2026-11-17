@@ -295,7 +295,7 @@ export function TrafficCalendar({ phone = false }: { phone?: boolean }) {
               : "No jobs yet"}
         </span>
       </header>
-      <div ref={body} className="my-auto flex gap-2 pt-3">
+      <div ref={body} className="flex gap-2 pt-3">
         <div
           className="grid w-[30px] shrink-0 pt-[18px] text-[10.5px] text-[#8b9099]"
           style={{ gridTemplateRows: `repeat(7, ${pitch}px)` }}

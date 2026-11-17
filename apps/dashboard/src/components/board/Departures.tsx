@@ -19,8 +19,10 @@ const FLAP_TONE: Record<DepartureTone, "moving" | "signal" | "go" | "flap"> = {
 /** The design's columns, in cells: time, job, repository, platform and status. */
 const COLS = { time: 5, job: 15, repo: 16, platform: 9, status: 19 } as const;
 const CELLS = COLS.time + COLS.job + COLS.repo + COLS.platform + COLS.status;
-/** Row padding, the four gaps between columns, and the wait and cost column. */
-const FIXED = 40 + 4 * 12 + 58;
+/** The wait and cost column, wide enough for its heading. */
+const WAIT_W = 76;
+/** Row padding, the five gaps between columns, and the wait and cost column. */
+const FIXED = 40 + 5 * 12 + WAIT_W;
 /** Phone rows: how many show before "Show all", and the status flaps' size (14px cells, 1px gaps). */
 const PHONE_ROWS = 5;
 const PHONE_PITCH = 15;
@@ -270,7 +272,12 @@ export function Departures({ view, phone = false }: { view: YardView; phone?: bo
             <span className="flex-none" style={{ width: width(COLS.status) }}>
               Status
             </span>
-            <span className="ml-auto whitespace-nowrap">Wait · cost</span>
+            <span
+              className="ml-auto shrink-0 text-right whitespace-nowrap"
+              style={{ width: WAIT_W }}
+            >
+              Wait · cost
+            </span>
           </div>
           {rows.map((d, i) => {
             const tone = FLAP_TONE[d.tone];
@@ -297,7 +304,10 @@ export function Departures({ view, phone = false }: { view: YardView; phone?: bo
                   delay={base + 0.18}
                 />
                 <SplitFlap text={sign(d)} cells={COLS.status} tone={tone} delay={base + 0.24} />
-                <span className="ml-auto w-[46px] shrink-0 text-right font-board text-[12px] font-medium text-[#8b9099] tabular">
+                <span
+                  className="ml-auto shrink-0 text-right font-board text-[12px] font-medium text-[#8b9099] tabular"
+                  style={{ width: WAIT_W }}
+                >
                   {waitOrCost(d)}
                 </span>
               </button>
