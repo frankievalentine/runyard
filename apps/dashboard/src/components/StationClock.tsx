@@ -8,7 +8,7 @@ const TICKS = Array.from({ length: 60 }, (_, i) => i);
  * second hand steps once a second.
  */
 export function StationClock({
-  size = 44,
+  size = 38,
   digital = true,
   face = true,
   sub,
@@ -105,11 +105,11 @@ export function StationClock({
       </svg>
       {digital && (
         <span className="flex flex-col">
-          <span className="font-board text-[22px] leading-none font-bold tabular" aria-hidden>
+          <span className="font-board text-[19px] leading-none font-bold tabular" aria-hidden>
             <span ref={time} />
-            <span ref={secs} className="text-[14px] font-medium text-tt-ink-3" />
+            <span ref={secs} className="text-[12px] font-medium text-tt-ink-3" />
           </span>
-          {sub && <span className="mt-1 text-[11.5px] text-tt-ink-3">{sub}</span>}
+          {sub && <span className="mt-1 text-[11px] text-tt-ink-3">{sub}</span>}
         </span>
       )}
     </span>
