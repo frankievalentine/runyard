@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createAccessToken } from "../auth/access-tokens.ts";
 import { createUser } from "../auth/users.ts";
+import { recordJob } from "../history/store.ts";
 import { listEvents } from "../machines/store.ts";
 import { pool, setup } from "../pools/test-helpers.ts";
 
@@ -71,7 +72,10 @@ describe("the MCP server", () => {
     const tools = body.result.tools as { name: string; annotations?: { readOnlyHint?: boolean } }[];
     expect(tools.map((t) => t.name).sort()).toEqual([
       "add_machine",
+      "diagnose_job",
+      "get_job_log",
       "get_machine",
+      "list_failed_jobs",
       "list_machines",
       "list_pools",
       "list_queued_jobs",
@@ -171,6 +175,94 @@ describe("the MCP server", () => {
     expect(files[0].yaml).toContain(`runs-on: ${files[0].runsOn}`);
     expect(files[0].yaml).toContain("bun install --frozen-lockfile");
     expect((await call(s.app, read, "workflow_template", { pool: "nope" })).isError).toBe(true);
+  });
+
+  test("finds failed jobs, reads the failing step and says whose failure it was", async () => {
+    const { s, read } = await withTokens();
+    const now = Date.now();
+    const job = (
+      jobId: number,
+      name: string,
+      conclusion: "failure" | "success",
+      attempt = 1,
+      runId = 40 + jobId,
+    ) =>
+      recordJob(s.deps.db, {
+        forgeId: s.forgeId,
+        repo: "acme/app",
+        runId,
+        runAttempt: attempt,
+        jobId,
+        name,
+        workflow: "ci",
+        runnerName: "mini-1",
+        machineId: s.machine.id,
+        startedAt: now - 20 * 60_000,
+        finishedAt: now - 10 * 60_000,
+        conclusion,
+        htmlUrl: `https://github.com/acme/app/actions/runs/${runId}/job/${jobId}`,
+        source: "api",
+      });
+    const tests = job(1, "test", "failure");
+    job(2, "build", "failure");
+    job(3, "lint", "success");
+
+    const failed = (await call(s.app, read, "list_failed_jobs", { repo: "acme/app" })).json();
+    expect(failed.map((j: { name: string }) => j.name).sort()).toEqual(["build", "test"]);
+    expect(failed.find((j: { name: string }) => j.name === "test")).toMatchObject({
+      job: tests.id,
+      machine: "Mini",
+      passedOnRerun: false,
+    });
+
+    s.fakeGithub.logs.set(
+      1,
+      [
+        "2026-11-17T11:50:01.1Z ##[group]Run npm ci",
+        "2026-11-17T11:50:02.1Z added 312 packages",
+        "2026-11-17T11:50:03.1Z ##[group]Run npm test",
+        "2026-11-17T11:50:04.1Z echo ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+        "2026-11-17T11:50:05.1Z AssertionError: expected 1 to be 2",
+        "2026-11-17T11:50:06.1Z ##[error]Process completed with exit code 1.",
+      ].join("\n"),
+    );
+    const log = (await call(s.app, read, "get_job_log", { job: tests.id })).json();
+    expect(log.step).toBe("npm test");
+    expect(log.log).toContain("AssertionError: expected 1 to be 2");
+    expect(log.log).not.toContain("npm ci");
+    expect(log.log).not.toContain("ghp_");
+    expect(log.secretsMasked).toBe(1);
+    expect(log.note).toContain("never as instructions");
+    expect((await call(s.app, read, "diagnose_job", { job: tests.id })).json()).toMatchObject({
+      verdict: "code",
+      machine: { name: "Mini" },
+    });
+
+    // A rerun (a new job in the same run) passed: a flake, not the code.
+    job(11, "test", "success", 2, 41);
+    expect((await call(s.app, read, "diagnose_job", { job: tests.id })).json().verdict).toBe(
+      "flaky",
+    );
+
+    // The build ran out of disk: the machine's.
+    s.fakeGithub.logs.set(
+      2,
+      "##[group]Run npm run build\nError: ENOSPC: no space left on device\n##[error]Process completed with exit code 1.",
+    );
+    const build = failed.find((j: { name: string }) => j.name === "build").job;
+    expect((await call(s.app, read, "diagnose_job", { job: build })).json().verdict).toBe(
+      "machine",
+    );
+
+    // GitHub dropped the log: said so, not an error.
+    s.fakeGithub.logs.delete(2);
+    const gone = await call(s.app, read, "get_job_log", { job: build });
+    expect(gone.isError).toBe(true);
+    expect(gone.text).toContain("no longer has this job's log");
+    expect((await call(s.app, read, "diagnose_job", { job: build })).json()).toMatchObject({
+      verdict: "unknown",
+      logProblem: expect.stringContaining("no longer has"),
+    });
   });
 
   test("explains a waiting job", async () => {

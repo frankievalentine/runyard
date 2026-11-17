@@ -22,8 +22,18 @@ encrypted.
   connect it, recent history), `list_runners`, `list_queued_jobs` (with why each one waits),
   `list_pools`, `list_test_jobs` and `workflow_template` (a pool's
   [workflow templates](workflows.md#start-from-a-template), for an agent to fit to a repository).
+  For failed CI: `list_failed_jobs` (failed, timed-out and lost jobs on Runyard's runners, from
+  the last 30 days), `get_job_log` (the step that failed, from the forge) and `diagnose_job`
+  (whether the machine, a flake or the code caused it, and what's wrong with the machine now).
 - **Read and prepare** (admins only): also `add_machine`, `save_pool`, `prepare_review`,
   `machine_setup_command` and `start_test_job`.
+
+Job logs come from the forge each time, as **Show log** does, so they need a GitHub App
+installation that reaches the repository, or Forgejo 16 or later. Before an agent sees a log,
+Runyard masks anything that looks like a token or a private key, and labels the log as the
+job's own output, not instructions. A job can still print other secrets, such as passwords
+without a recognizable shape, so mask secrets in your workflows as you would for anyone who can
+read the job.
 
 No tool runs a review or deletes anything. `prepare_review` returns the plan and a link to the
 machine's page with that review open, for you to check and **Run**. Everything a token prepares is
