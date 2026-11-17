@@ -20,7 +20,7 @@ import { StatusDot } from "./ui.tsx";
  */
 
 const rowClass =
-  "flex min-h-11 w-full min-w-0 items-center gap-3 border-t border-tt-rule px-4 py-2 text-left first:border-t-0 hover:bg-tt-paper";
+  "flex min-h-11 w-full min-w-0 items-center gap-3 border-t border-tt-rule px-4 py-2 text-left first:border-t-0 hover:bg-tt-hover";
 
 /** A titled panel of rows, with an optional action (Add machine, New pool) at its right. */
 export function ListPanel({
@@ -114,7 +114,7 @@ export function MachineList({
         admin && (
           <Link
             to="/machines/add"
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-tt-ink px-3 text-[13px] font-semibold text-white hover:opacity-90"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-tt-inv px-3 text-[13px] font-semibold text-tt-on-inv hover:opacity-90"
           >
             <Icon name="plus" size={13} />
             Add machine
@@ -258,7 +258,7 @@ export function PoolList({ view, admin }: { view: YardView; admin: boolean }) {
         admin && (
           <Link
             to="/pools/new"
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-tt-ink px-3 text-[13px] font-semibold text-white hover:opacity-90"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-tt-inv px-3 text-[13px] font-semibold text-tt-on-inv hover:opacity-90"
           >
             <Icon name="plus" size={13} />
             New pool

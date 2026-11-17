@@ -21,7 +21,7 @@ const ICONS: Record<SectionKey, IconName> = {
 /** A count beside a nav label or tab: things on the Board that need someone. */
 function CountPill({ n }: { n: number }) {
   return (
-    <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded bg-tt-signal px-1.5 py-[3px] font-board text-[12px] leading-none font-bold text-tt-ink tabular">
+    <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded bg-tt-signal px-1.5 py-[3px] font-board text-[12px] leading-none font-bold text-tt-on-signal tabular">
       {n}
     </span>
   );
@@ -117,7 +117,7 @@ export function TopNav({
             to={s.to}
             aria-current={section === s.key ? "page" : undefined}
             className={`inline-flex items-center rounded-lg px-4 py-2.5 text-[16px] leading-none font-[650] ${
-              section === s.key ? "bg-tt-ink text-white" : "text-tt-ink hover:bg-tt-paper"
+              section === s.key ? "bg-tt-inv text-tt-on-inv" : "text-tt-ink hover:bg-tt-hover"
             }`}
           >
             {s.label}
@@ -179,7 +179,7 @@ export function TabBar({ view, section }: { view: YardView; section: SectionKey 
           <Icon name={ICONS[s.key]} size={20} />
           {s.label}
           {s.key === "board" && attention > 0 && (
-            <span className="absolute top-0.5 left-[calc(50%+6px)] min-w-4 rounded-lg bg-tt-signal px-1 font-board text-[10px] leading-4 font-bold text-tt-ink tabular">
+            <span className="absolute top-0.5 left-[calc(50%+6px)] min-w-4 rounded-lg bg-tt-signal px-1 font-board text-[10px] leading-4 font-bold text-tt-on-signal tabular">
               {attention}
             </span>
           )}

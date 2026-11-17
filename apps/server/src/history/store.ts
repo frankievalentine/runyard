@@ -1,6 +1,9 @@
 import {
+  countByHour,
+  JOB_HOURS_RETENTION_MS,
   JOB_RETENTION_MS,
   mergeJob,
+  type HourCount,
   type JobConclusion,
   type JobObservation,
   type JobRecord,
@@ -8,7 +11,7 @@ import {
 } from "@runyard/core";
 import { and, desc, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 import type { Db } from "../db/index.ts";
-import { jobs } from "../db/schema.ts";
+import { jobHours, jobs } from "../db/schema.ts";
 
 type Row = typeof jobs.$inferSelect;
 
@@ -171,8 +174,68 @@ export function possiblyLostJobs(db: Db, now = Date.now()): JobRecord[] {
     .map(toRecord);
 }
 
+/**
+ * Deletes jobs untouched for 30 days, first adding them to the hourly counts so the traffic calendar
+ * keeps them, and drops hourly counts older than 53 weeks. One transaction, so no job is counted
+ * twice or lost between the two.
+ */
 export function pruneJobs(db: Db, now = Date.now()) {
-  db.delete(jobs)
-    .where(lt(jobs.updatedAt, new Date(now - JOB_RETENTION_MS)))
-    .run();
+  const old = lt(jobs.updatedAt, new Date(now - JOB_RETENTION_MS));
+  db.transaction((tx) => {
+    const leaving = tx.select().from(jobs).where(old).all().map(toRecord);
+    for (const h of countByHour(leaving, now)) {
+      tx.insert(jobHours)
+        .values(h)
+        .onConflictDoUpdate({
+          target: jobHours.hour,
+          set: {
+            jobs: sql`${jobHours.jobs} + ${h.jobs}`,
+            failed: sql`${jobHours.failed} + ${h.failed}`,
+            cancelled: sql`${jobHours.cancelled} + ${h.cancelled}`,
+          },
+        })
+        .run();
+    }
+    tx.delete(jobs).where(old).run();
+    tx.delete(jobHours)
+      .where(lt(jobHours.hour, now - JOB_HOURS_RETENTION_MS))
+      .run();
+  });
+}
+
+/**
+ * Finished jobs per hour since a time, for the traffic calendar: the hourly counts of pruned jobs
+ * plus the jobs still on record, counted live. Also the earliest hour Runyard has anything for.
+ */
+export function jobHoursSince(
+  db: Db,
+  since: number,
+  now = Date.now(),
+): { stored: HourCount[]; live: HourCount[]; earliest: number | null } {
+  const stored = db
+    .select()
+    .from(jobHours)
+    .where(gte(jobHours.hour, since))
+    .orderBy(jobHours.hour)
+    .all();
+  const recent = db
+    .select()
+    .from(jobs)
+    .where(gte(jobs.finishedAt, new Date(since)))
+    .all()
+    .map(toRecord);
+  const firstStored = db
+    .select({ hour: sql<number | null>`min(${jobHours.hour})` })
+    .from(jobHours)
+    .get()?.hour;
+  const firstJob = db
+    .select({ at: sql<number | null>`min(${jobs.finishedAt})` })
+    .from(jobs)
+    .get()?.at;
+  const firsts = [firstStored, firstJob].filter((t): t is number => typeof t === "number");
+  return {
+    stored,
+    live: countByHour(recent, now),
+    earliest: firsts.length ? Math.min(...firsts) : null,
+  };
 }

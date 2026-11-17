@@ -30,27 +30,40 @@
 }
 
 /*
- * Timetable, the redesign (docs/PLAN.md, "Dashboard redesign"). Light only until the dark design is
- * approved; pages switch to these tokens phase by phase. Boards are the dark departure panels.
+ * Timetable, the redesign (docs/PLAN.md, "Dashboard redesign"), in light and dark like the tokens
+ * above. Boards are the black departure panels; `inv` is the selected-tab and primary-button pair.
  */
 :root {
-  --tt-paper: #edf0f3;
-  --tt-card: #ffffff;
-  --tt-ink: #0e1013;
-  --tt-ink-2: #4a505a;
-  --tt-ink-3: #646a74;
-  --tt-rule: #d8dce2;
-  --tt-rule-2: #c3c8d0;
+  --tt-paper: light-dark(#edf0f3, #111317);
+  --tt-card: light-dark(#ffffff, #191c21);
+  --tt-hover: light-dark(#f6f7f9, #1f2329);
+  --tt-ink: light-dark(#0e1013, #eceef1);
+  --tt-ink-2: light-dark(#4a505a, #b3b8c1);
+  --tt-ink-3: light-dark(#646a74, #9298a2);
+  --tt-rule: light-dark(#d8dce2, #2a2e35);
+  --tt-rule-2: light-dark(#c3c8d0, #3b4049);
+  --tt-inv: light-dark(#0e1013, #eceef1);
+  --tt-on-inv: light-dark(#ffffff, #0e1013);
   --tt-board: #0b0c0e;
   --tt-board-2: #131519;
+  --tt-board-edge: light-dark(transparent, #2c3038);
   --tt-cell: #1d1f24;
   --tt-cell-lo: #17191d;
   --tt-flap: #f4f3ec;
   --tt-signal: #ffcd1f;
+  --tt-on-signal: #0e1013;
   --tt-loco: #e8732a;
-  --tt-ok: #22a35c;
-  --tt-bad: #c4372a;
-  --tt-off: #9aa0a9;
+  --tt-ok: light-dark(#22a35c, #4cc985);
+  --tt-bad: light-dark(#c4372a, #f26d5e);
+  --tt-off: light-dark(#9aa0a9, #6d7280);
+  --tt-warn-bg: light-dark(#fff4c7, rgba(255, 205, 31, 0.13));
+  --tt-warn-ink: light-dark(#6b5300, #f3d36b);
+  --tt-bad-bg: light-dark(#fde4e0, rgba(242, 109, 94, 0.15));
+  --tt-bad-ink: light-dark(#9b2516, #ffa094);
+  --tt-ok-bg: light-dark(#dcf3e5, rgba(76, 201, 133, 0.14));
+  --tt-ok-ink: light-dark(#12673a, #86e0ad);
+  --tt-busy-bg: light-dark(#fde9dc, rgba(240, 138, 60, 0.16));
+  --tt-busy-ink: light-dark(#9a4410, #ffb47f);
 }
 
 :root[data-theme="light"] {
@@ -97,6 +110,19 @@
   --color-tt-ok: var(--tt-ok);
   --color-tt-bad: var(--tt-bad);
   --color-tt-off: var(--tt-off);
+  --color-tt-hover: var(--tt-hover);
+  --color-tt-inv: var(--tt-inv);
+  --color-tt-on-inv: var(--tt-on-inv);
+  --color-tt-on-signal: var(--tt-on-signal);
+  --color-tt-board-edge: var(--tt-board-edge);
+  --color-tt-warn-bg: var(--tt-warn-bg);
+  --color-tt-warn-ink: var(--tt-warn-ink);
+  --color-tt-bad-bg: var(--tt-bad-bg);
+  --color-tt-bad-ink: var(--tt-bad-ink);
+  --color-tt-ok-bg: var(--tt-ok-bg);
+  --color-tt-ok-ink: var(--tt-ok-ink);
+  --color-tt-busy-bg: var(--tt-busy-bg);
+  --color-tt-busy-ink: var(--tt-busy-ink);
   --font-ui: "Archivo Variable", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-board: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }

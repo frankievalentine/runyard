@@ -25,8 +25,6 @@ export const Route = createFileRoute("/_app")({
 
 /**
  * Timetable's window: the top nav on desktop (a header and a tab bar on phones), then the page.
- * The redesign is light only until its dark design is approved, so the window pins the light
- * palette for everything inside it (docs/PLAN.md, "Dashboard redesign").
  */
 function Layout() {
   useYardStream();
@@ -62,7 +60,7 @@ function Layout() {
       type="button"
       disabled={check.isPending}
       onClick={() => check.mutate()}
-      className="inline-flex h-9 items-center gap-2 rounded-lg border border-tt-rule-2 bg-tt-card px-3.5 text-[13.5px] font-semibold text-tt-ink hover:bg-tt-paper disabled:opacity-50"
+      className="inline-flex h-9 items-center gap-2 rounded-lg border border-tt-rule-2 bg-tt-card px-3.5 text-[13.5px] font-semibold text-tt-ink hover:bg-tt-hover disabled:opacity-50"
     >
       <Icon name="refresh" size={13} />
       {check.isPending ? "Checking…" : "Check now"}
@@ -71,7 +69,7 @@ function Layout() {
 
   return (
     <CopyFeedback>
-      <div className="flex h-full flex-col bg-tt-paper font-ui text-tt-ink [color-scheme:light]">
+      <div className="flex h-full flex-col bg-tt-paper font-ui text-tt-ink">
         {narrow ? (
           <PhoneHeader section={section} checkNow={checkNow} />
         ) : (
@@ -85,7 +83,9 @@ function Layout() {
         <UpdateBar />
         {demo && <DemoBanner />}
         <main ref={scrollRef} className="scroll min-h-0 flex-1">
-          <div className="mx-auto w-full max-w-[1200px] px-4 py-6 sm:px-6 sm:py-8 xl:px-8">
+          <div
+            className={`mx-auto w-full px-4 py-6 sm:px-6 sm:py-8 xl:px-8 ${section === "board" ? "max-w-[1440px]" : "max-w-[1200px]"}`}
+          >
             <Outlet />
           </div>
         </main>
