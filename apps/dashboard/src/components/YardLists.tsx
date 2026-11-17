@@ -117,7 +117,7 @@ export function MachineList({
             className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-tt-inv px-3 text-[13px] font-semibold text-tt-on-inv hover:opacity-90"
           >
             <Icon name="plus" size={13} />
-            Add machine
+            <span className="mt-[2px]">Add machine</span>
           </Link>
         )
       }
@@ -263,7 +263,7 @@ export function PoolList({ view, admin }: { view: YardView; admin: boolean }) {
             aria-disabled="true"
           >
             <Icon name="plus" size={13} />
-            New pool · add a machine first
+            <span className="mt-[2px]">New pool · add a machine first</span>
           </span>
         ) : (
           <Link
@@ -271,7 +271,7 @@ export function PoolList({ view, admin }: { view: YardView; admin: boolean }) {
             className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-tt-inv px-3 text-[13px] font-semibold text-tt-on-inv hover:opacity-90"
           >
             <Icon name="plus" size={13} />
-            New pool
+            <span className="mt-[2px]">New pool</span>
           </Link>
         ))
       }

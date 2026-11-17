@@ -132,6 +132,12 @@ export function Icon({ name, size = 14 }: { name: IconName; size?: number }) {
           <path d="M1.8 13.5c.5-2.4 2.2-3.7 4.2-3.7s3.7 1.3 4.2 3.7M10.5 3.2a2.4 2.4 0 0 1 0 4.6M12 9.9c1.2.5 2 1.7 2.3 3.6" />
         </svg>
       );
+    case "signout":
+      return (
+        <svg {...common}>
+          <path d="M6.5 13.5h-3a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3M10.5 11 13.5 8l-3-3M13.5 8H6" />
+        </svg>
+      );
     case "more":
       return (
         <svg {...common}>
@@ -156,6 +162,7 @@ export function Icon({ name, size = 14 }: { name: IconName; size?: number }) {
 }
 
 export type IconName =
+  | "signout"
   | "more"
   | "search"
   | "server"

@@ -64,17 +64,25 @@ export function Platforms({ view }: { view: YardView }) {
       </header>
       <div className="flex-1">
         {view.machines.length === 0 && (
-          <div className="flex flex-col items-start gap-3 px-4 pb-4">
+          // The design's empty platforms: a dashed machine, what adding one does, and the button.
+          <div className="flex flex-col items-start gap-2.5 px-4 pt-1 pb-4">
+            <span
+              aria-hidden
+              className="grid size-[34px] place-items-center rounded-md border-[1.5px] border-dashed border-tt-rule-2 text-tt-ink-3"
+            >
+              <Icon name="server" size={16} />
+            </span>
+            <h3 className="text-[17px] font-bold">No machines yet</h3>
             <p className="text-[13px] text-tt-ink-2">
-              <span className="block font-bold text-tt-ink">No machines yet</span>
-              Add one and Runyard checks it over SSH every minute. It changes nothing until you
-              review it.
+              Add a machine and Runyard checks it over SSH every minute. It changes nothing until
+              you review it.
             </p>
             <Link
               to="/machines/add"
-              className="inline-flex h-9 items-center rounded-lg bg-tt-inv px-3.5 text-[13px] font-semibold text-tt-on-inv hover:opacity-90"
+              className="mt-1 inline-flex h-10 items-center gap-2 rounded-lg bg-tt-inv px-4 text-[13.5px] font-semibold text-tt-on-inv hover:opacity-90"
             >
-              Add a machine
+              <Icon name="plus" size={14} />
+              <span className="mt-[2px]">Add machine</span>
             </Link>
           </div>
         )}
@@ -187,10 +195,22 @@ export function Platforms({ view }: { view: YardView }) {
               <span className="text-tt-ink-3">
                 <Icon name="machine" size={16} />
               </span>
-              <span>
-                <b className="font-semibold text-tt-ink">{device.name}</b> is on your tailnet but
-                not added
-              </span>
+              {view.machines.length === 0 ? (
+                // A new install: the device is the obvious first machine, so it reads as a find.
+                <>
+                  <span className="min-w-0 flex-1 truncate">
+                    Found on your tailnet:{" "}
+                    <b className="font-semibold text-tt-ink">{device.name}</b>
+                    {` · ${osLabel[device.os]} · ${device.online ? "online" : "offline"}`}
+                  </span>
+                  <span className="font-semibold text-tt-ink">Add</span>
+                </>
+              ) : (
+                <span>
+                  <b className="font-semibold text-tt-ink">{device.name}</b> is on your tailnet but
+                  not added
+                </span>
+              )}
             </Link>
           )}
         </div>

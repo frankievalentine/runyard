@@ -83,10 +83,13 @@ export function createApi(deps: AppDeps, build: string | null = null) {
         version: pkg.version,
         build,
         demo: deps.demo ?? false,
-        // This machine's tailnet name while Runyard serves there, for the sidebar.
-        tailnetHost: (() => {
+        // This machine's tailnet name and HTTPS address while Runyard serves there: for the top
+        // nav, and for sign-in over plain http to point at the address passkeys work on.
+        ...(() => {
           const state = deps.tailnetState();
-          return state.kind === "serving" ? new URL(state.url).hostname : null;
+          return state.kind === "serving"
+            ? { tailnetHost: new URL(state.url).hostname, tailnetUrl: state.url }
+            : { tailnetHost: null, tailnetUrl: null };
         })(),
       }),
     )

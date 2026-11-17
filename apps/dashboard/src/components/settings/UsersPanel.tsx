@@ -35,7 +35,7 @@ export function UsersPanel() {
       action={
         <button type="button" className={rowButton.secondary} onClick={() => setAdding(true)}>
           <SIcon name="plus" size={15} />
-          Add a user
+          <span className="mt-[2px]">Add a user</span>
         </button>
       }
     >

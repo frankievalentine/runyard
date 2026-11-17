@@ -110,10 +110,14 @@ export function Departures({ view, phone = false }: { view: YardView; phone?: bo
             Departures
           </h2>
           <p className="mt-0.5 text-[12.5px] text-[#8b9099]">
-            {running} on {running === 1 ? "its" : "their"} way · {rows.length - running} waiting
+            {rows.length === 0
+              ? forgesConnected(view)
+                ? "All quiet"
+                : "No service yet"
+              : `${running} on ${running === 1 ? "its" : "their"} way · ${rows.length - running} waiting`}
           </p>
         </div>
-        {!rowsLayout && (
+        {!rowsLayout && rows.length > 0 && (
           <ul className="flex gap-3.5 text-[11.5px] text-[#8b9099]">
             <li className="flex items-center gap-1.5">
               <i className="size-2 rounded-[2px] bg-tt-loco" />
@@ -132,31 +136,43 @@ export function Departures({ view, phone = false }: { view: YardView; phone?: bo
       </header>
 
       {rows.length === 0 ? (
-        <div className="flex flex-col gap-1.5 px-5 py-3">
-          {forgesConnected(view) ? (
-            <>
-              <SplitFlap text="All quiet" cells={rowsLayout ? 20 : 30} tone="dim" />
-              <SplitFlap
-                text="No jobs running or waiting"
-                cells={rowsLayout ? 20 : 30}
-                tone="dim"
-                delay={0.1}
-              />
-            </>
-          ) : (
-            <>
-              <SplitFlap text="No departures yet" cells={rowsLayout ? 20 : 30} />
-              <SplitFlap
-                text="Connect a forge to start"
-                cells={rowsLayout ? 20 : 30}
-                tone="signal"
-                delay={0.1}
-              />
+        // The design's empty board: what the board will show, on board rows of their own.
+        <div className="mt-2">
+          {(forgesConnected(view)
+            ? [
+                { text: "All quiet", tone: "dim" as const },
+                { text: "No jobs running or waiting", tone: "dim" as const },
+              ]
+            : rowsLayout
+              ? [
+                  { text: "No departures yet", tone: "flap" as const },
+                  { text: "Connect a forge", tone: "signal" as const },
+                  { text: "to get started", tone: "signal" as const },
+                ]
+              : [
+                  { text: "No departures yet", tone: "flap" as const },
+                  { text: "Connect a forge to start", tone: "signal" as const },
+                  { text: "Then add a machine and a pool", tone: "flap" as const },
+                ]
+          ).map((r, i) => (
+            <div
+              key={r.text}
+              className={`flex items-center gap-3 border-t border-[#1a1c20] py-[5px] ${rowsLayout ? "px-3" : "px-5"}`}
+            >
               {!rowsLayout && (
-                <SplitFlap text="Then add a machine and a pool" cells={30} tone="dim" delay={0.2} />
+                <SplitFlap text={i === 0 ? "--:--" : ""} cells={5} delay={i * 0.08} />
               )}
-            </>
-          )}
+              <SplitFlap
+                text={r.text}
+                cells={rowsLayout ? statusCells : 30}
+                tone={r.tone}
+                delay={i * 0.08 + 0.06}
+              />
+            </div>
+          ))}
+          <p className="px-5 pt-3 pb-2 text-[11.5px] text-[#9aa0a9] max-lg:px-3">
+            Jobs appear here as they're queued and picked up by your runners.
+          </p>
         </div>
       ) : rowsLayout ? (
         // Phones flip only what changes, the time and the status; the job, its repository and

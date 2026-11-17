@@ -44,7 +44,7 @@ function Machines() {
             {admin && !empty && (
               <Link to="/machines/add" className={ttButton.primary}>
                 <Icon name="plus" size={14} />
-                Add machine
+                <span className="mt-[2px]">Add machine</span>
               </Link>
             )}
           </>
@@ -64,7 +64,7 @@ function Machines() {
             {admin && (
               <Link to="/machines/add" className={ttButton.primary}>
                 <Icon name="plus" size={14} />
-                Add machine
+                <span className="mt-[2px]">Add machine</span>
               </Link>
             )}
           </Empty>

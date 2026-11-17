@@ -1,5 +1,6 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { api, call } from "../../api.ts";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "../../components/icons.tsx";
 import { InstallPanel } from "../../components/settings/InstallPanel.tsx";
@@ -39,13 +40,24 @@ const icon = (name: IconName) => <Icon name={name} size={18} />;
 
 /**
  * The phone's More tab, as in the Timetable design: installing the app, then Pools, adding a
- * machine and Settings, then Check now, boat.dev and runners outside pools.
+ * machine and Settings, then Check now, boat.dev and runners outside pools, and Sign out.
  */
 function More() {
   const view = useYard();
   const { data: session } = useSuspenseQuery(sessionQuery);
   const admin = session.user?.role === "admin";
   const check = useCheckNow();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const signOut = useMutation({
+    mutationFn: () => call(api.logout.$post()),
+    onSuccess: () => {
+      queryClient.clear();
+      void navigate({ to: "/login" });
+    },
+  });
+  const user = session.user;
+  const name = user?.username ?? user?.tailscaleLogin ?? "";
   const pools = view.pools.pools.length;
   const unassigned = unassignedGroups(view.runners).flatMap((g) => g.runners);
   const boatRunners = view.runners.filter((r) => r.onDemand === "boat.dev");
@@ -126,7 +138,29 @@ function More() {
           </Link>
         )}
       </div>
+      {/* The desktop's account menu has Sign out; on phones it lives here. */}
+      <div className={menu}>
+        <button
+          type="button"
+          className={row}
+          disabled={signOut.isPending}
+          onClick={() => signOut.mutate()}
+        >
+          <span className="text-tt-bad">{icon("signout")}</span>
+          <span className="min-w-0 flex-1">
+            <b className="block font-bold text-tt-bad">
+              {signOut.isPending ? "Signing out…" : "Sign out"}
+            </b>
+            <small className="block truncate text-[12.5px] text-tt-ink-3">
+              Signed in as {name}
+              {user && ` · ${user.role === "admin" ? "admin" : "viewer"}`}
+              {session.via === "tailscale" && " · via Tailscale"}
+            </small>
+          </span>
+        </button>
+      </div>
       {check.isError && <ErrorText error={check.error} />}
+      {signOut.isError && <ErrorText error={signOut.error} />}
     </div>
   );
 }

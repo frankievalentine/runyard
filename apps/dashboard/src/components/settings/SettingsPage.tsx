@@ -13,13 +13,15 @@ import { UsersPanel } from "./UsersPanel.tsx";
  * Settings on one page, as in the Timetable design: the forges, this host, boat.dev, access tokens
  * and installing the app on the left; your account, users and Getting started on the right. On a
  * phone the two columns stack. Only admins see connections, the host, users and Getting started.
- * `focus` scrolls to a panel, for the older /settings/connections and /settings/users links.
+ * `focus` scrolls to a panel, for the older /settings/connections and /settings/users links; a
+ * link's #panel does the same, as the Board's host notices do with #host.
  */
 export function SettingsPage({ focus }: { focus?: "connections" | "users" }) {
   const { data: session } = useSuspenseQuery(sessionQuery);
   const admin = session.user?.role === "admin";
   useEffect(() => {
-    if (focus) document.getElementById(focus)?.scrollIntoView({ block: "start" });
+    const target = focus ?? window.location.hash.slice(1);
+    if (target) document.getElementById(target)?.scrollIntoView({ block: "start" });
   }, [focus]);
   return (
     <div>

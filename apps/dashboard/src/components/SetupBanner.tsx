@@ -29,22 +29,31 @@ export function SetupBanner() {
         <h2 id="setup-title" className="mt-1 text-[19px] font-extrabold [font-stretch:85%]">
           Set up your yard
         </h2>
-        <p className="mt-1 text-[12.5px] text-tt-ink-2">{stops[current]?.detail}</p>
+        <p className="mt-1 text-[12.5px] text-tt-ink-2">
+          {started
+            ? stops[current]?.detail
+            : "Connect your forge, add a machine and create a pool. Nothing changes on a machine until you review it."}
+        </p>
       </div>
       <div className="min-w-0 px-2">
-        <RouteLine stops={stops} current={current} compact />
+        <RouteLine stops={stops} current={current} compact phoneLabels={false} />
+        {/* Phones name the stop in a sentence; the line has no room for its labels. */}
+        <p className="mt-3 text-[13px] text-tt-ink-2 lg:hidden">
+          {started ? "Next stop" : "First stop"}:{" "}
+          <b className="font-bold text-tt-ink">{stops[current]?.label}</b>
+        </p>
       </div>
       <div className="flex gap-2">
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          className="h-9 rounded-lg border border-tt-rule-2 px-3.5 text-[13px] font-semibold hover:bg-tt-hover"
+          className="h-9 rounded-lg border border-tt-rule-2 px-3.5 text-[13px] font-semibold hover:bg-tt-hover max-lg:h-11 max-lg:flex-1"
         >
           Skip for now
         </button>
         <Link
           to="/start"
-          className="inline-flex h-9 items-center rounded-lg bg-tt-inv px-4 text-[13px] font-semibold text-tt-on-inv hover:opacity-90"
+          className="inline-flex h-9 items-center justify-center rounded-lg bg-tt-inv px-4 text-[13px] font-semibold text-tt-on-inv hover:opacity-90 max-lg:h-11 max-lg:flex-[2]"
         >
           {started ? "Continue" : "Start"}
         </Link>

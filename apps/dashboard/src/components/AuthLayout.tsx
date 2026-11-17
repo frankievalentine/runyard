@@ -22,7 +22,16 @@ export function boardTime(at = Date.now()): string {
  * changes); on phones the board's first status as one flap line above the form. The rows say
  * what the screen is for, never yard data: that needs a session.
  */
-export function AuthLayout({ board, children }: { board: BoardRow[]; children: ReactNode }) {
+export function AuthLayout({
+  board,
+  line,
+  children,
+}: {
+  board: BoardRow[];
+  /** The phone's one flap line, when it isn't the board's first status. */
+  line?: { text: string; tone?: Tone };
+  children: ReactNode;
+}) {
   const host = window.location.host;
   const version = useQuery(healthQuery).data?.version;
   const rows = Array.from({ length: ROWS }, (_, i) => board[i] ?? { job: "", status: "" });
@@ -95,13 +104,14 @@ export function AuthLayout({ board, children }: { board: BoardRow[]; children: R
           </div>
           <div className="overflow-hidden">
             <SplitFlap
-              text={rows.find((r) => r.status)?.status ?? ""}
+              text={line?.text ?? rows.find((r) => r.status)?.status ?? ""}
               cells={22}
-              tone={rows.find((r) => r.status)?.tone ?? "flap"}
+              tone={line?.tone ?? rows.find((r) => r.status)?.tone ?? "flap"}
             />
           </div>
         </div>
-        <div className="mx-auto my-auto w-full max-w-[420px] px-[18px] py-8 lg:px-0">
+        {/* Phones: the form starts under the header and its last actions sit at the bottom. */}
+        <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col px-[18px] pt-6 pb-[max(20px,env(safe-area-inset-bottom,0px))] lg:my-auto lg:flex-none lg:px-0 lg:py-8">
           {children}
         </div>
       </main>
@@ -139,6 +149,81 @@ export function AuthField({
         </span>
       )}
     </div>
+  );
+}
+
+/** A screen's last actions: at the bottom of a phone's screen, under the form on desktop. */
+export const authActions = "mt-auto flex flex-col gap-2.5 pt-6 lg:mt-2 lg:pt-0";
+
+/** A form that fills the screen on phones, so its actions can sit at the bottom. */
+export const authForm = "flex flex-1 flex-col gap-4";
+
+/** The screens' line icons: a key for passkeys, the tailnet's nodes for Tailscale, a lock. */
+export function AuthIcon({ name }: { name: "key" | "tailnet" | "lock" | "warn" }) {
+  return (
+    <svg
+      aria-hidden
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="flex-none"
+    >
+      {name === "key" && (
+        <>
+          <circle cx="8" cy="15" r="4" />
+          <path d="m11 12 9-9M17 6l3 3M15 8l2 2" />
+        </>
+      )}
+      {name === "tailnet" && (
+        <>
+          <circle cx="5" cy="6" r="2" />
+          <circle cx="19" cy="6" r="2" />
+          <circle cx="12" cy="18" r="2" />
+          <path d="M6.5 7.5 11 16.5M17.5 7.5 13 16.5M7 6h10" />
+        </>
+      )}
+      {name === "lock" && (
+        <>
+          <rect x="5" y="11" width="14" height="10" rx="2" />
+          <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+        </>
+      )}
+      {name === "warn" && (
+        <>
+          <path d="M12 3 2 20h20z" />
+          <path d="M12 10v4M12 17h.01" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/** A quiet note with an icon, like the design's tailnet and passkey notes. */
+export function AuthNote({
+  icon,
+  tone,
+  children,
+}: {
+  icon: "tailnet" | "lock" | "warn";
+  tone?: "warn";
+  children: ReactNode;
+}) {
+  return (
+    <p
+      className={`flex gap-2.5 rounded-lg px-3.5 py-3 text-[13px] ${
+        tone === "warn" ? "bg-tt-warn-bg text-tt-warn-ink" : "text-tt-ink-2"
+      }`}
+    >
+      <span className="mt-0.5">
+        <AuthIcon name={icon} />
+      </span>
+      <span className="min-w-0">{children}</span>
+    </p>
   );
 }
 

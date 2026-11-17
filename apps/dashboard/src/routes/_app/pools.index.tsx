@@ -35,7 +35,7 @@ function Pools() {
           pools.length > 0 && (
             <Link to="/pools/new" className={ttButton.primary}>
               <Icon name="plus" size={14} />
-              New pool
+              <span className="mt-[2px]">New pool</span>
             </Link>
           )
         }
@@ -55,7 +55,7 @@ function Pools() {
               (canCreate ? (
                 <Link to="/pools/new" className={ttButton.primary}>
                   <Icon name="plus" size={14} />
-                  Create a pool
+                  <span className="mt-[2px]">Create a pool</span>
                 </Link>
               ) : (
                 <>
@@ -66,7 +66,7 @@ function Pools() {
                     aria-describedby="pool-why"
                   >
                     <Icon name="plus" size={14} />
-                    Create a pool
+                    <span className="mt-[2px]">Create a pool</span>
                   </button>
                   <span id="pool-why" className="text-[12.5px] text-tt-ink-2">
                     Add a machine first

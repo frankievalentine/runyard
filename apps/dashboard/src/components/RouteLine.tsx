@@ -15,12 +15,15 @@ export function RouteLine({
   onSelect,
   dark = false,
   compact = false,
+  phoneLabels = true,
 }: {
   stops: Stop[];
   current: number;
   onSelect?: (index: number) => void;
   dark?: boolean;
   compact?: boolean;
+  /** False hides the labels on phones, where the stop is named in a sentence instead. */
+  phoneLabels?: boolean;
 }) {
   const fill = useRef<HTMLSpanElement>(null);
   const share = stops.length > 1 ? (current / (stops.length - 1)) * 100 : 0;
@@ -42,7 +45,9 @@ export function RouteLine({
   const muted = dark ? "text-[#9aa0a9]" : "text-tt-ink-3";
   const line = dark ? "bg-[#343841]" : "bg-tt-rule-2";
   return (
-    <ol className={`relative flex justify-between ${compact ? "pb-5" : "pb-7"}`}>
+    <ol
+      className={`relative flex justify-between ${compact ? "pb-5" : "pb-7"} ${phoneLabels ? "" : "max-lg:pb-0"}`}
+    >
       {/* The line runs between the first and last stop's centers. */}
       <span
         aria-hidden
@@ -71,7 +76,7 @@ export function RouteLine({
                 on ? (dark ? "text-tt-flap" : "text-tt-ink") : muted
               } ${i === 0 ? "left-0 text-left" : i === stops.length - 1 ? "right-0 text-right" : "left-1/2 -translate-x-1/2 text-center"} ${
                 !on ? "max-sm:hidden" : ""
-              }`}
+              } ${phoneLabels ? "" : "max-lg:hidden"}`}
             >
               {s.label}
             </span>

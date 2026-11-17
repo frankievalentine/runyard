@@ -5,8 +5,12 @@ import { api, call } from "../api.ts";
 import {
   AuthField,
   AuthLayout,
+  AuthIcon,
+  AuthNote,
   AuthNotice,
+  authActions,
   authEyebrow,
+  authForm,
   authLede,
   authPrimary,
   authSecondary,
@@ -45,7 +49,10 @@ function Setup() {
   const [claimed, setClaimed] = useState(false);
   const offer = claimed && passkeysAvailable();
   return (
-    <AuthLayout board={offer ? PASSKEY_BOARD : CLAIM_BOARD}>
+    <AuthLayout
+      board={offer ? PASSKEY_BOARD : CLAIM_BOARD}
+      line={offer ? { text: "Admin created", tone: "go" } : undefined}
+    >
       {offer ? <OfferPasskey /> : <Claim onClaimed={setClaimed} />}
     </AuthLayout>
   );
@@ -89,7 +96,7 @@ function Claim({ onClaimed }: { onClaimed: (claimed: boolean) => void }) {
         Runyard printed a one-time setup code in its terminal when it started. Enter it to create
         the first admin.
       </p>
-      <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
+      <form onSubmit={submit} className={`mt-6 ${authForm}`}>
         <AuthField
           label="Setup code"
           value={code}
@@ -151,18 +158,20 @@ function Claim({ onClaimed }: { onClaimed: (claimed: boolean) => void }) {
           </span>
         </div>
         {address && !here && (
-          <AuthNotice tone="info">
+          <AuthNote icon="tailnet">
             From your other devices, Runyard is at{" "}
-            <a href={address} className="font-board font-semibold text-tt-ink underline">
-              {address}
+            <a href={address} className="font-semibold text-tt-ink underline">
+              {address.replace(/\/$/, "")}
             </a>
             . Bookmark it: there, Tailscale signs you in.
-          </AuthNotice>
+          </AuthNote>
         )}
         {setup.error && <AuthNotice>{message(setup.error)}</AuthNotice>}
-        <button type="submit" className={authPrimary} disabled={setup.isPending}>
-          {setup.isPending ? "Creating…" : "Create admin"}
-        </button>
+        <div className={authActions}>
+          <button type="submit" className={authPrimary} disabled={setup.isPending}>
+            {setup.isPending ? "Creating…" : "Create admin"}
+          </button>
+        </div>
       </form>
     </>
   );
@@ -171,51 +180,87 @@ function Claim({ onClaimed }: { onClaimed: (claimed: boolean) => void }) {
 /** Right after claiming: add a passkey on this device, or skip to Getting started. */
 function OfferPasskey() {
   const navigate = useNavigate();
+  const { data: session } = useSuspenseQuery(sessionQuery);
+  const user = session.user?.username ?? session.user?.tailscaleLogin ?? "";
+  const host = window.location.host;
   const [name, setName] = useState(() => suggestedPasskeyName(navigator.userAgent));
   const add = useMutation({ mutationFn: () => addPasskey(name) });
   const next = () => void navigate({ to: "/start" });
-  return (
-    <>
-      <p className={authEyebrow}>Optional</p>
-      <h1 className={authTitle}>Add a passkey</h1>
-      <p className={authLede}>
-        Sign in with Touch ID, Windows Hello or a security key instead of a password. A passkey
-        works only at this address, {window.location.host}.
-      </p>
-      {add.isSuccess ? (
-        <div className="mt-6 flex flex-col gap-4">
-          <AuthNotice tone="info">
-            <span className="font-semibold text-tt-ink">Passkey added.</span> Next time, sign in
-            with “{name}”.
-          </AuthNotice>
+  if (add.isSuccess)
+    return (
+      <>
+        <span className="mb-4 grid size-11 place-items-center rounded-full bg-tt-ok-bg text-tt-ok-ink">
+          <svg
+            aria-hidden
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m5 12.5 4.5 4.5L19 7.5" />
+          </svg>
+        </span>
+        <h1 className={authTitle}>Passkey added</h1>
+        <p className={authLede}>
+          Next time, sign in to {host} with your passkey instead of your password.
+        </p>
+        <div className="mt-6 flex items-center gap-3 rounded-lg border border-tt-rule bg-tt-card px-3.5 py-3 text-tt-ink-2">
+          <AuthIcon name="key" />
+          <span className="min-w-0">
+            <b className="block truncate text-tt-ink">{name || "This device"}</b>
+            <small className="block text-[12.5px] text-tt-ink-3">
+              Added just now · works on {host}
+            </small>
+          </span>
+        </div>
+        <div className={authActions}>
           <button type="button" className={authPrimary} onClick={next}>
-            Set up your yard
+            Continue to Getting started <span aria-hidden>→</span>
           </button>
         </div>
-      ) : (
-        <form
-          className="mt-6 flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            add.mutate();
-          }}
-        >
-          <AuthField
-            label="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            hint="So you can tell your passkeys apart in Settings ▸ Account."
-            required
-          />
-          {add.error && <AuthNotice>{message(add.error)}</AuthNotice>}
-          <button type="submit" className={authPrimary} disabled={add.isPending}>
-            {add.isPending ? "Waiting for your device…" : "Add passkey"}
-          </button>
+      </>
+    );
+  return (
+    <>
+      <p className={authEyebrow}>Admin created{user && ` · ${user}`}</p>
+      <h1 className={authTitle}>Add a passkey</h1>
+      <p className={authLede}>
+        Sign in next time with Face ID, Touch ID, Windows Hello or a security key instead of your
+        password.
+      </p>
+      <form
+        className={`mt-6 ${authForm}`}
+        onSubmit={(e) => {
+          e.preventDefault();
+          add.mutate();
+        }}
+      >
+        <AuthField
+          label="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          hint="So you can tell your passkeys apart in Settings ▸ Account."
+          required
+        />
+        {add.error && <AuthNotice>{message(add.error)}</AuthNotice>}
+        <AuthNote icon="lock">
+          A passkey works only on the address you add it from:{" "}
+          <b className="font-semibold text-tt-ink">{host}</b>. Passkeys need HTTPS or localhost.
+        </AuthNote>
+        <div className={`${authActions} !flex-row`}>
           <button type="button" className={authSecondary} onClick={next}>
             Skip for now
           </button>
-        </form>
-      )}
+          <button type="submit" className={authPrimary} disabled={add.isPending}>
+            <AuthIcon name="key" />
+            {add.isPending ? "Waiting…" : "Add passkey"}
+          </button>
+        </div>
+      </form>
     </>
   );
 }

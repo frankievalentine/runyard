@@ -45,10 +45,12 @@ function Layout() {
       type="button"
       disabled={check.isPending}
       onClick={() => check.mutate()}
-      className="inline-flex h-9 items-center gap-2 rounded-lg border border-tt-rule-2 bg-tt-card px-3.5 text-[13.5px] font-semibold text-tt-ink hover:bg-tt-hover disabled:opacity-50"
+      // Never shrinks or wraps: on a crowded header the label stays on one line beside its icon.
+      className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-tt-rule-2 bg-tt-card px-3.5 text-[13.5px] font-semibold whitespace-nowrap text-tt-ink hover:bg-tt-hover disabled:opacity-50"
     >
-      <Icon name="refresh" size={13} />
-      {check.isPending ? "Checking…" : "Check now"}
+      <Icon name="refresh" size={14} />
+      {/* Sits a touch lower, so the label reads as centered on the icon. */}
+      <span className="mt-px">{check.isPending ? "Checking…" : "Check now"}</span>
     </button>
   );
 

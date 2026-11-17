@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { checksQuery, sessionQuery } from "../../lib/queries.ts";
 import { Icon } from "../icons.tsx";
+import { SIcon, WithCode } from "../settings/parts.tsx";
 
 /** How many notices show before "Show more". */
 const SHOWN = 3;
@@ -13,7 +14,22 @@ type Notice = {
   level: "error" | "warn" | "host";
   title: string;
   body: string;
+  /** A host notice's own icon: a key for the secret key, a loop for the service. */
+  icon?: "key" | "refresh";
   open?: () => void;
+};
+
+/**
+ * What this host still needs, as the design words it: what to do, not the check's name. The line
+ * under it is the check's fix, or what it found when that says more.
+ */
+const HOST: Record<string, { title: string; icon?: "key" | "refresh"; body?: "detail" }> = {
+  secretKey: { title: "Back up the secret key", icon: "key" },
+  service: { title: "Keep Runyard running", icon: "refresh", body: "detail" },
+  ssh: { title: "Install the OpenSSH client" },
+  sshKey: { title: "Runyard's SSH key needs a look" },
+  tailnet: { title: "Serve Runyard on your tailnet" },
+  disk: { title: "Free up disk space on this host" },
 };
 
 /**
@@ -55,16 +71,21 @@ export function Notices({ view }: { view: YardView }) {
     })),
     ...(checks.data ?? [])
       .filter((c) => c.state === "warn" || c.state === "bad")
-      .map((c): Notice => ({
-        key: `host:${c.id}`,
-        level: "host",
-        title: `This host: ${c.title}`,
-        body: c.fix ?? c.detail,
-        open: () => void navigate({ to: "/settings/connections" }),
-      })),
+      .map((c): Notice => {
+        const known = HOST[c.id];
+        return {
+          key: `host:${c.id}`,
+          level: "host",
+          title: known?.title ?? `This host: ${c.title}`,
+          body: known?.body === "detail" ? c.detail : (c.fix ?? c.detail),
+          icon: known?.icon,
+          open: () => void navigate({ to: "/settings/account", hash: "host" }),
+        };
+      }),
   ];
   const shown = all ? notices : notices.slice(0, SHOWN);
   const more = notices.length - shown.length;
+  const hostOnly = notices.length > 0 && notices.every((n) => n.level === "host");
 
   return (
     <section
@@ -76,7 +97,11 @@ export function Notices({ view }: { view: YardView }) {
           Notices
         </h2>
         <span className="text-[12.5px] text-tt-ink-3">
-          {notices.length === 0 ? "None" : `${notices.length} need attention`}
+          {notices.length === 0
+            ? "None"
+            : hostOnly
+              ? `${notices.length} for this host`
+              : `${notices.length} need attention`}
         </span>
       </header>
       <div className="flex flex-col px-2 pb-2">
@@ -97,12 +122,21 @@ export function Notices({ view }: { view: YardView }) {
                       : "bg-tt-hover text-tt-ink-2"
                 }`}
               >
-                <Icon name={n.level === "host" ? "settings" : "alert"} size={15} />
+                {n.icon === "key" ? (
+                  <SIcon name="key" size={15} />
+                ) : (
+                  <Icon
+                    name={
+                      n.icon === "refresh" ? "refresh" : n.level === "host" ? "settings" : "alert"
+                    }
+                    size={15}
+                  />
+                )}
               </span>
               <span className="min-w-0">
                 <b className="block text-[13.5px] leading-[1.3] font-bold">{n.title}</b>
                 <small className="mt-0.5 line-clamp-2 block text-[12.5px] leading-[1.35] text-tt-ink-2">
-                  {n.body}
+                  <WithCode text={n.body} />
                 </small>
               </span>
             </>
@@ -126,6 +160,11 @@ export function Notices({ view }: { view: YardView }) {
           );
         })}
       </div>
+      {hostOnly && (
+        <p className="mx-4 border-t border-tt-rule pt-3 pb-3.5 text-[12.5px] text-tt-ink-3">
+          Nothing else needs you. Notices about machines and jobs appear here.
+        </p>
+      )}
       {(more > 0 || all) && notices.length > SHOWN && (
         <button
           type="button"
