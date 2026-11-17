@@ -43,7 +43,7 @@ runyard service install   # keep it running
 ```
 
 The installers download the latest [release](https://github.com/frankievalentine/runyard/releases)
-and check its checksum; `RUNYARD_VERSION=0.2.0` pins a version.
+and check its checksum; `RUNYARD_VERSION=0.2.1` pins a version.
 
 Runyard prints its address (`https://<machine>.<tailnet>.ts.net:7443` with Tailscale, otherwise
 `http://127.0.0.1:7420`) and a one-time setup code. Open it, enter the code to create the first

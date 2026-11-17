@@ -11,7 +11,7 @@
     },
     "apps/cli": {
       "name": "@runyard/cli",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dependencies": {
         "@runyard/dashboard": "workspace:*",
         "@runyard/server": "workspace:*",
@@ -22,7 +22,7 @@
     },
     "apps/dashboard": {
       "name": "@runyard/dashboard",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dependencies": {
         "@base-ui/react": "^1",
         "@fontsource-variable/archivo": "^5.3.0",
@@ -52,7 +52,7 @@
     },
     "apps/server": {
       "name": "@runyard/server",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dependencies": {
         "@hono/zod-validator": "^0.9.1",
         "@modelcontextprotocol/sdk": "1.29.0",
@@ -70,7 +70,7 @@
     },
     "packages/core": {
       "name": "@runyard/core",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "devDependencies": {
         "typescript": "^7.0.2",
         "vite-plus": "catalog:",

@@ -1,6 +1,6 @@
 {
   "name": "@runyard/cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Builds the single runyard binary: the control service with the dashboard embedded",
   "license": "MIT",

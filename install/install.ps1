@@ -4,7 +4,7 @@
 #
 #   irm https://frankievalentine.github.io/runyard/install.ps1 | iex
 #
-# RUNYARD_VERSION=0.2.0 installs that release instead of the latest. RUNYARD_BASE_URL
+# RUNYARD_VERSION=0.2.1 installs that release instead of the latest. RUNYARD_BASE_URL
 # installs from another release directory (the files `vp run release` writes).
 # RUNYARD_INSTALL_DIR overrides where it goes (default %LOCALAPPDATA%\Programs\Runyard).
 $ErrorActionPreference = 'Stop'
