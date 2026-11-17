@@ -117,7 +117,7 @@ function ResetPassword({ user }: { user: UserView }) {
       <Dialog.Trigger render={<Button small />}>Reset password</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-black/30" />
-        <Dialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,380px)] -translate-x-1/2 -translate-y-1/2 p-5">
+        <Dialog.Popup className="panel sheet-dialog fixed top-1/2 left-1/2 w-[min(92vw,380px)] -translate-x-1/2 -translate-y-1/2 p-5">
           <Dialog.Title className="text-[15px] font-semibold">
             Reset {user.username}'s password
           </Dialog.Title>

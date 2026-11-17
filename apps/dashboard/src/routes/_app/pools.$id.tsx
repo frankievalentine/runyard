@@ -64,7 +64,7 @@ function PoolPage() {
         <EmptyLine>
           This pool no longer exists.{" "}
           <Link to="/" className="text-accent hover:underline">
-            Back to the overview
+            Back to the Board
           </Link>
         </EmptyLine>
       </Card>

@@ -1,9 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Dispatches } from "../../components/Dispatches.tsx";
-import { useJobs } from "../../components/Jobs.tsx";
+import { Jobs, useJobs } from "../../components/Jobs.tsx";
 import { Icon } from "../../components/icons.tsx";
-import { emptyQueueText, forgesConnected, QueueList } from "../../components/runners.tsx";
-import { Card, PageHeader, Section } from "../../components/ui.tsx";
+import {
+  emptyQueueText,
+  forgesConnected,
+  QueueList,
+  RunnerLine,
+} from "../../components/runners.tsx";
+import { Card, EmptyLine, PageHeader, Section } from "../../components/ui.tsx";
+import { useState } from "react";
 import { useYard } from "../../lib/yard.ts";
 import { timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
@@ -14,8 +20,86 @@ export const Route = createFileRoute("/_app/queue")({
   component: Queue,
 });
 
-/** aarondfrancis/fleet's QueueDetail. */
+type Tab = "running" | "waiting" | "history";
+
+/** Jobs: what's running, what's waiting (aarondfrancis/fleet's QueueDetail) and the last 7 days. */
 function Queue() {
+  const view = useYard();
+  const running = view.runners.filter((r) => r.activity === "busy");
+  const history = useJobs({});
+  const total = history.data
+    ? Object.values(history.data.counts).reduce((a, b) => a + b, 0)
+    : undefined;
+  const [tab, setTab] = useState<Tab>(
+    running.length || !view.queue.jobs.length ? "running" : "waiting",
+  );
+  const tabs: { key: Tab; label: string; count?: number }[] = [
+    { key: "running", label: "On their way", count: running.length },
+    { key: "waiting", label: "Waiting", count: view.queue.jobs.length },
+    { key: "history", label: "Last 7 days", count: total },
+  ];
+  return (
+    <div>
+      <PageHeader
+        title="Jobs"
+        subtitle="Everything on the board, plus what finished this week. Select a job to open its runner or see why it waits."
+      />
+      <div role="tablist" aria-label="Jobs" className="mt-6 flex flex-wrap gap-1.5">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
+            onClick={() => setTab(t.key)}
+            className={`inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-[14px] font-semibold ${
+              tab === t.key ? "bg-tt-inv text-tt-on-inv" : "text-tt-ink hover:bg-tt-hover"
+            }`}
+          >
+            {t.label}
+            {t.count !== undefined && (
+              <span
+                className={`min-w-5 rounded px-1.5 py-[3px] text-center font-mono text-[12px] leading-none font-bold tabular ${
+                  tab === t.key
+                    ? "bg-tt-signal text-tt-on-signal"
+                    : t.count === 0
+                      ? "bg-tt-hover text-tt-ink-3"
+                      : "bg-tt-rule text-tt-ink"
+                }`}
+              >
+                {t.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" className="mt-4">
+        {tab === "running" && (
+          <Card className="overflow-hidden">
+            {running.length === 0 ? (
+              <EmptyLine>
+                {forgesConnected(view)
+                  ? "No runner is working right now."
+                  : "Connect GitHub or Forgejo to see running jobs."}
+              </EmptyLine>
+            ) : (
+              running.map((r) => <RunnerLine key={r.key} r={r} />)
+            )}
+          </Card>
+        )}
+        {tab === "waiting" && <Waiting />}
+        {tab === "history" && (
+          <div className="-mt-8">
+            <Jobs filter={{}} showMachine />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Jobs waiting for a self-hosted runner, with why, and one-job runners just started for them. */
+function Waiting() {
   const view = useYard();
   const now = useNow();
   const q = view.queue;
@@ -28,16 +112,8 @@ function Queue() {
   const jobs = useJobs({});
   return (
     <div>
-      <PageHeader
-        icon={<Icon name="queue" size={18} />}
-        title="Queued jobs"
-        subtitle={
-          q.at
-            ? `Self-hosted jobs waiting for a runner · checked ${timeAgo(q.at, now)}`
-            : "Jobs waiting for a self-hosted runner across scanned repositories."
-        }
-      />
-      <div className="mt-8">
+      {q.at && <p className="mb-3 text-[12.5px] text-ink-2">Checked {timeAgo(q.at, now)}</p>}
+      <div>
         {q.jobs.length ? (
           <QueueList view={view} />
         ) : (

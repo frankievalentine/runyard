@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Records the README's walkthrough of the demo yard: the overview, adding a
+# Records the README's walkthrough of the demo yard: the Board, Jobs, adding a
 # machine from the tailnet, a new pool from start to running runners, Settings,
 # and removing a machine. Starts its own demo (`apps/server/scripts/demo.ts`)
 # with fresh data, creates an admin off camera, drives the dashboard with
 # agent-browser and records it, zooming in on each action as it goes.
 # Needs agent-browser, ffmpeg and bun. Writes runyard-demo.mp4 here, or to $1.
+# agent-browser drives its own Chrome, or any Chromium named in AGENT_BROWSER_EXECUTABLE_PATH.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 repo="$(cd "$here/../../.." && pwd)"
@@ -54,6 +55,15 @@ ab_cam() {
     window.__cam = { tx: nx, ty: ny, z };
   })()"
   sleep 0.5
+}
+# Waits (up to 10 seconds) until the page shows some text, for loads and redirects.
+until_text() {
+  for _ in $(seq 1 40); do
+    [ "$(agent-browser eval "document.body.innerText.includes($(printf '%s' "$1" | sed "s/'/\\'/g; s/^/'/; s/$/'/"))")" = "true" ] && return 0
+    sleep 0.25
+  done
+  echo "The page never showed \"$1\"." >&2
+  exit 1
 }
 # Points the camera at page point x y with zoom z.
 cam() { ab_cam "$1" "$2" "$3" page; }
@@ -121,7 +131,7 @@ center() {
 }
 # Scrolls the page smoothly until an element is comfortably on screen, so a click never
 # lands while the page jumps under it. Only the main panel scrolls: FIXED=1 skips it for
-# the sidebar's own controls.
+# the top bar's own controls.
 reveal() {
   local x y
   [ "${FIXED:-}" = 1 ] && return 0
@@ -160,32 +170,48 @@ press() {
   home
 }
 # Scrolls the dashboard's own panel, which is what scrolls rather than the window.
-scroll() { ab eval "document.querySelector('main .scroll').scrollBy({ top: $1, behavior: 'smooth' })"; }
+scroll() { ab eval "document.querySelector('main.scroll').scrollBy({ top: $1, behavior: 'smooth' })"; }
 
-# Off camera: the first admin, Getting started (all done) dismissed, Tailnet devices open.
+# Off camera: the first admin, no passkey (a headless browser can't make one), then the Board.
+# The demo yard has every Getting started stop done, so the Board opens on its departures.
 ab set viewport 1440 900
 ab open "$url/"
+until_text "Claim your Runyard"
 ab find label "Setup code" fill "$code"
 ab find label "Username" fill demo
 ab find label "Password" fill "demo password 1234"
 ab find role button click --name "Create admin"
 sleep 2.5
-ab find role button click --name "Dismiss"
-ab find role button click --name "TAILNET DEVICES"
+if agent-browser snapshot -i | grep -qF 'button "Skip for now"'; then
+  ab find role button click --name "Skip for now"
+  sleep 1.5
+fi
+ab open "$url/"
+until_text "Departures"
+sleep 2
 ab mouse move 840 480
 sleep 1
 
 pointer
 ab record start "$raw" --fps 60
 sleep 1.5
-# The yard at a glance, and what needs attention.
+# The Board: departures, notices, the last 26 weeks' traffic and each machine's runners.
+sleep 1.5
 scroll 520
-sleep 2
+sleep 2.5
 scroll -520
 sleep 1
 
+# Jobs: what's on its way, what's waiting and why.
+FIXED=1 tap link "Jobs"
+sleep 1.5
+tap tab "Waiting"
+sleep 2.5
+
 # A machine from the tailnet: Runyard lists the devices it can see.
-tap link "Add machines"
+FIXED=1 tap link "Machines"
+sleep 1.2
+tap link "Add machine"
 sleep 1.2
 focus button "Add" 900
 tap button "Add"
@@ -194,6 +220,8 @@ home
 sleep 3.5
 
 # A pool: what it's for, where it runs, then each machine's review.
+FIXED=1 tap link "Pools"
+sleep 1
 tap link "New pool"
 sleep 1
 tap checkbox "frankie-demo/site"
@@ -223,7 +251,9 @@ tap link "Connections"
 sleep 2.5
 
 # Removing a machine: what goes, one confirmation, each step as it runs.
-tap button "Spare LXC"
+FIXED=1 tap link "Machines"
+sleep 1
+tap link "Spare LXC"
 sleep 1.2
 press button "Remove"
 sleep 0.8
@@ -231,7 +261,8 @@ look '[role=alertdialog]' "$ZOOM"
 tap button "Remove machine"
 sleep 1.2
 tap button "Yes, remove Spare LXC"
-sleep 2
+until_text "Removed Spare LXC"
+sleep 1
 home
 sleep 3
 ab record stop

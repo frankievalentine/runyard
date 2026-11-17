@@ -52,7 +52,7 @@ function Runner() {
         <EmptyLine>
           {view.forgejo.connections.length ? "The forge" : "GitHub"} no longer lists this runner.{" "}
           <Link to="/" className="text-accent hover:underline">
-            Back to the overview
+            Back to the Board
           </Link>
         </EmptyLine>
       </Card>

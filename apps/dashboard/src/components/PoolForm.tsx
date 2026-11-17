@@ -281,7 +281,7 @@ export function PoolForm({
                   className={`flex items-center gap-2 disabled:opacity-50 ${current ? "font-medium text-ink" : "text-ink-2 hover:text-ink"}`}
                 >
                   <span
-                    className={`flex size-5 items-center justify-center rounded-full border text-[11px] ${current ? "border-accent bg-accent text-white" : n < step ? "border-accent text-accent" : "border-line"}`}
+                    className={`flex size-5 items-center justify-center rounded-full border text-[11px] ${current ? "border-accent bg-accent text-on-accent" : n < step ? "border-accent text-accent" : "border-line"}`}
                   >
                     {n}
                   </span>

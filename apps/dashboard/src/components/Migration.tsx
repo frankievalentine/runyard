@@ -220,7 +220,7 @@ export function TakeOver({ r }: { r: RunnerView }) {
                     hash="changes"
                     className={`inline-flex h-[28px] items-center rounded-[6px] px-2.5 text-[12.5px] font-medium ${
                       migration.state === "ready" || migration.state === "waiting"
-                        ? "bg-accent text-white hover:brightness-110"
+                        ? "bg-accent text-on-accent hover:brightness-110"
                         : "border border-line-strong bg-card hover:bg-hover"
                     }`}
                   >

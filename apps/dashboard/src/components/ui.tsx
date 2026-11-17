@@ -61,7 +61,8 @@ export function Pill({
     <span
       className="inline-flex h-[20px] shrink-0 items-center gap-1.5 rounded-[6px] border px-1.5 text-[12px] font-medium whitespace-nowrap"
       style={{
-        color: tone === "ok" ? "var(--ok-ink)" : color,
+        // Muted's gray is for dots and edges; its words take the secondary text color to stay readable.
+        color: tone === "ok" ? "var(--ok-ink)" : tone === "muted" ? "var(--text-2)" : color,
         borderColor: `color-mix(in srgb, ${color} 25%, transparent)`,
         background: `color-mix(in srgb, ${color} 8%, transparent)`,
       }}
@@ -90,9 +91,11 @@ export function Section({
   return (
     <section className="mt-8 min-w-0">
       <div className="mb-2 flex min-h-7 flex-wrap items-center gap-2">
-        <h2 className="text-[13px] font-semibold text-ink">{title}</h2>
+        <h2 className="text-[13px] font-extrabold tracking-[.08em] text-ink uppercase">{title}</h2>
         {count !== undefined && (
-          <span className="font-mono text-[12px] text-ink-2 tabular">{count}</span>
+          <span className="rounded bg-sunken px-1.5 py-0.5 font-mono text-[12px] font-bold text-ink-2 tabular">
+            {count}
+          </span>
         )}
         {action && <div className="ml-auto min-w-0">{action}</div>}
       </div>
@@ -123,7 +126,9 @@ export function PageHeader({
       )}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-[20px] font-semibold tracking-tight break-words">{title}</h1>
+          <h1 className="text-[28px] leading-none font-extrabold break-words [font-stretch:85%]">
+            {title}
+          </h1>
           {status}
         </div>
         {subtitle && <div className="mt-1 text-[13px] break-words text-ink-2">{subtitle}</div>}

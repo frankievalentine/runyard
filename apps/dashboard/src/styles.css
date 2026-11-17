@@ -1,31 +1,33 @@
 @import "tailwindcss";
 
 /*
- * Semantic tokens, ported from aarondfrancis/fleet's palette. Each is `light-dark(light, dark)`;
- * `color-scheme` picks the side: the OS preference by default, or the theme the
- * viewer chose (`data-theme` on <html>).
+ * The pages' semantic tokens, pointed at Timetable's palette (below) so every card, table and
+ * button follows the redesign in light and dark. Each Timetable token is `light-dark(light, dark)`;
+ * `color-scheme` picks the side: the OS preference by default, or the viewer's choice (`data-theme`).
  */
 :root {
   color-scheme: light dark;
-  --bg: light-dark(oklch(0.99 0.002 260), #1c1c1e);
-  --card: light-dark(#ffffff, #2a2a2d);
-  --card-sunken: light-dark(oklch(0.955 0.004 260), #242426);
-  --hover: light-dark(oklch(0.955 0.004 260 / 0.6), rgba(255, 255, 255, 0.05));
-  --selected: light-dark(oklch(0.935 0.006 260), rgba(255, 255, 255, 0.09));
-  --border: light-dark(oklch(0.915 0.005 260), rgba(255, 255, 255, 0.08));
-  --border-strong: light-dark(oklch(0.85 0.008 260), rgba(255, 255, 255, 0.16));
-  --text: light-dark(oklch(0.21 0.012 265), #ececee);
-  --text-2: light-dark(oklch(0.52 0.014 262), #a3a3a8);
-  --text-3: light-dark(oklch(0.6 0.012 262), #6f6f75);
-  --accent: light-dark(oklch(0.54 0.2 262), #5b93f5);
-  --busy: light-dark(oklch(0.54 0.2 262), #5b93f5);
-  --ok: light-dark(oklch(0.66 0.15 155), #47b871);
-  --ok-ink: light-dark(oklch(0.45 0.12 155), #74d799);
-  --warn: light-dark(oklch(0.6 0.13 65), #e0a03a);
-  --bad: light-dark(oklch(0.58 0.21 25), #ec6a5e);
-  --muted: light-dark(oklch(0.7 0.01 262), #77777d);
-  --meter: light-dark(oklch(0.38 0.012 265), #b4b8c0);
-  --info: light-dark(#6b62d9, #9a93f0);
+  --bg: var(--tt-paper);
+  --card: var(--tt-card);
+  --card-sunken: light-dark(#f3f5f8, #15181c);
+  --hover: var(--tt-hover);
+  --selected: light-dark(#e6e9ee, #262a31);
+  --border: var(--tt-rule);
+  --border-strong: var(--tt-rule-2);
+  --text: var(--tt-ink);
+  --text-2: var(--tt-ink-2);
+  --text-3: var(--tt-ink-3);
+  /* Primary buttons and links: Timetable's ink, inverted in dark. */
+  --accent: var(--tt-inv);
+  --on-accent: var(--tt-on-inv);
+  --busy: var(--tt-loco);
+  --ok: var(--tt-ok);
+  --ok-ink: var(--tt-ok-ink);
+  --warn: light-dark(#8a6400, #e8bb4a);
+  --bad: var(--tt-bad);
+  --muted: var(--tt-off);
+  --meter: light-dark(#4a505a, #b3b8c1);
+  --info: light-dark(#5b52c9, #9a93f0);
   --shadow: 0 1px 2px light-dark(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.3));
 }
 
@@ -86,14 +88,14 @@
   --color-ink-2: var(--text-2);
   --color-ink-3: var(--text-3);
   --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
   --color-busy: var(--busy);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-bad: var(--bad);
   --color-muted: var(--muted);
-  --font-sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: "Archivo Variable", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --color-tt-paper: var(--tt-paper);
   --color-tt-card: var(--tt-card);
   --color-tt-ink: var(--tt-ink);
@@ -182,7 +184,7 @@ body {
   .panel {
     position: relative;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 12px;
     background: var(--card);
     box-shadow: var(--shadow);
   }
@@ -278,5 +280,26 @@ code,
     margin-bottom: 2px;
     font-size: 11px;
     color: var(--text-3);
+  }
+}
+
+/*
+ * Dialogs become bottom sheets on phones: full width along the bottom, clear of the home
+ * indicator, scrolling inside when tall. Unlayered, so it wins over the popups' utility classes.
+ */
+@media (max-width: 639px) {
+  .sheet-dialog {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    translate: none;
+    transform: none;
+    border-radius: 18px 18px 0 0;
+    border-bottom: 0;
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
   }
 }

@@ -1,5 +1,6 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { Jobs } from "../../components/Jobs.tsx";
+import { readinessProblems } from "@runyard/core";
 import type {
   DiagnosticGroup,
   HealthView,
@@ -84,7 +85,7 @@ function Machine() {
         <EmptyLine>
           This machine isn't in Runyard anymore.{" "}
           <Link to="/" className="text-accent hover:underline">
-            Go to overview
+            Go to the Board
           </Link>
         </EmptyLine>
       </Card>
@@ -146,20 +147,56 @@ function Machine() {
       <MachineChanges key={reviewId} m={m} admin={admin} reviewId={reviewId} />
       <Jobs filter={{ machine: m.id }} />
       <Monitoring m={m} admin={admin} />
-      <RunnerReadiness m={m} />
-      <Diagnostics m={m} />
-      <Details m={m} />
-      {m.health && m.health.warnings.length > 0 && (
-        <Section title="SSH warnings" count={m.health.warnings.length}>
-          <Card className="px-4 py-3 text-[12px] text-ink-2">
-            {m.health.warnings.map((w) => (
-              <div key={w}>{w}</div>
-            ))}
-          </Card>
-        </Section>
-      )}
-      <EventTimeline machineId={m.id} />
+      <MoreAboutMachine m={m}>
+        <RunnerReadiness m={m} />
+        <Diagnostics m={m} />
+        <Details m={m} />
+        {m.health && m.health.warnings.length > 0 && (
+          <Section title="SSH warnings" count={m.health.warnings.length}>
+            <Card className="px-4 py-3 text-[12px] text-ink-2">
+              {m.health.warnings.map((w) => (
+                <div key={w}>{w}</div>
+              ))}
+            </Card>
+          </Section>
+        )}
+        <EventTimeline machineId={m.id} />
+      </MoreAboutMachine>
     </div>
+  );
+}
+
+/**
+ * Readiness, diagnostics, connection details and history: there whenever you want them, folded
+ * away until then. Opens by itself when the machine isn't ready for its pools' jobs, so a notice
+ * about that lands on the answer.
+ */
+function MoreAboutMachine({ m, children }: { m: MachineView; children: ReactNode }) {
+  const problems = readinessProblems(m.readiness).length;
+  const [open, setOpen] = useState(problems > 0);
+  return (
+    <section className="mt-8">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-3 rounded-xl border border-line bg-card px-4 py-3 text-left hover:bg-hover"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-extrabold tracking-[.08em] uppercase">
+            Details
+          </span>
+          <span className="block text-[12.5px] text-ink-2">
+            Runner readiness
+            {problems ? ` (${problems} to fix)` : ""}, diagnostics, connection and history
+          </span>
+        </span>
+        <span className={`text-ink-3 transition-transform ${open ? "rotate-90" : ""}`}>
+          <Icon name="chevron" size={13} />
+        </span>
+      </button>
+      {open && <div className="-mt-2">{children}</div>}
+    </section>
   );
 }
 
@@ -711,7 +748,7 @@ function RemoveMachine({ m }: { m: MachineView }) {
       <AlertDialog.Trigger render={<Button small variant="danger" />}>Remove</AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
-        <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,460px)] -translate-x-1/2 -translate-y-1/2 p-5">
+        <AlertDialog.Popup className="panel sheet-dialog fixed top-1/2 left-1/2 w-[min(92vw,460px)] -translate-x-1/2 -translate-y-1/2 p-5">
           <AlertDialog.Title className="text-[15px] font-semibold">
             {plan.length && (remove.isPending || remove.error)
               ? `Removing ${m.name}`
@@ -900,7 +937,7 @@ function Removed({ removed }: { removed: RemovedMachine }) {
         )}
         <div className="mt-5 flex justify-center">
           <Button variant="primary" onClick={() => void navigate({ to: "/" })}>
-            Go to overview
+            Go to the Board
           </Button>
         </div>
       </Card>

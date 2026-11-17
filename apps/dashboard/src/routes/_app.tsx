@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_app")({
  * Timetable's window: the top nav on desktop (a header and a tab bar on phones), then the page.
  */
 function Layout() {
-  useYardStream();
+  const live = useYardStream();
   const view = useYard();
   const demo = useQuery(healthQuery).data?.demo === true;
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -84,6 +84,7 @@ function Layout() {
             <ErrorText error={check.error} />
           </div>
         )}
+        <OfflineBar live={live} at={view.generatedAt} />
         <UpdateBar />
         {demo && <DemoBanner />}
         <main ref={scrollRef} className="scroll min-h-0 flex-1">
@@ -96,6 +97,52 @@ function Layout() {
         {narrow && <TabBar view={view} section={section} />}
       </div>
     </CopyFeedback>
+  );
+}
+
+/** Whether the device says it's online, following changes. */
+function useOnline(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener("online", onChange);
+      window.addEventListener("offline", onChange);
+      return () => {
+        window.removeEventListener("online", onChange);
+        window.removeEventListener("offline", onChange);
+      };
+    },
+    () => navigator.onLine,
+  );
+}
+
+/**
+ * Shows when the device is offline or Runyard stopped answering for a few seconds: the page is the
+ * last view Runyard sent, and when that was. Mostly for the installed app away from the tailnet.
+ */
+function OfflineBar({ live, at }: { live: boolean; at: number }) {
+  const online = useOnline();
+  const [lost, setLost] = useState(false);
+  useEffect(() => {
+    if (live && online) {
+      setLost(false);
+      return;
+    }
+    // A reconnect within a few seconds isn't worth a banner.
+    const t = window.setTimeout(() => setLost(true), online ? 5_000 : 0);
+    return () => window.clearTimeout(t);
+  }, [live, online]);
+  if (!lost) return null;
+  const time = new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return (
+    <div
+      role="status"
+      className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-tt-rule bg-tt-warn-bg px-5 py-2 text-[12.5px] text-tt-warn-ink"
+    >
+      <span className="font-bold">{online ? "Can't reach Runyard" : "Offline"}</span>
+      <span className="min-w-0 flex-1">
+        Showing what it last sent, at {time}. This page catches up when it's back.
+      </span>
+    </div>
   );
 }
 

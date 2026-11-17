@@ -44,7 +44,7 @@ function Peer() {
         <EmptyLine>
           This device is no longer listed.{" "}
           <Link to="/" className="text-accent hover:underline">
-            Go to overview
+            Go to the Board
           </Link>
         </EmptyLine>
       </Card>

@@ -34,7 +34,7 @@ export function Button({
     // Every button but the primary one has an edge you can see in both themes.
     default:
       "border border-line-strong bg-card text-ink shadow-[0_1px_1px_rgb(0_0_0/0.04)] hover:bg-hover active:bg-selected",
-    primary: "bg-accent text-white hover:brightness-110 active:brightness-95",
+    primary: "bg-accent text-on-accent hover:brightness-110 active:brightness-95",
     danger: "border border-bad/40 bg-bad/5 text-bad hover:bg-bad/10",
     // Quieter than default (no fill), for secondary actions such as Cancel and Ignore.
     ghost: "border border-line-strong/70 text-ink-2 hover:bg-hover hover:text-ink",

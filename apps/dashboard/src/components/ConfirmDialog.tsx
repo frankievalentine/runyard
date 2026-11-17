@@ -35,7 +35,7 @@ export function ConfirmDialog({
       </AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
-        <AlertDialog.Popup className="panel fixed top-1/2 left-1/2 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 p-5">
+        <AlertDialog.Popup className="panel sheet-dialog fixed top-1/2 left-1/2 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 p-5">
           <AlertDialog.Title className="text-[15px] font-semibold">{title}</AlertDialog.Title>
           <AlertDialog.Description className="mt-1.5 text-[13px] text-ink-2">
             {description}
