@@ -10,7 +10,7 @@ const item =
   "flex h-7 w-full items-center gap-2 rounded-[4px] px-2 text-left outline-none data-[highlighted]:bg-selected";
 
 /** aarondfrancis/fleet's Settings gear: Settings, the theme and sign-out. */
-export function AccountMenu() {
+export function AccountMenu({ side = "bottom" }: { side?: "top" | "bottom" }) {
   const { data: session } = useSuspenseQuery(sessionQuery);
   const theme = useTheme();
   const navigate = useNavigate();
@@ -29,12 +29,12 @@ export function AccountMenu() {
     <Menu.Root>
       <Menu.Trigger
         aria-label="Account and settings"
-        className="flex size-6 shrink-0 items-center justify-center rounded-md hover:bg-hover data-[popup-open]:bg-selected"
+        className="flex size-9 shrink-0 items-center justify-center rounded-lg text-tt-ink-2 hover:bg-tt-paper hover:text-tt-ink data-[popup-open]:bg-tt-paper"
       >
         <Icon name="settings" />
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Positioner side="top" align="end" sideOffset={6}>
+        <Menu.Positioner side={side} align="end" sideOffset={6}>
           <Menu.Popup className="panel min-w-52 p-1 text-[13px] outline-none">
             <div className="px-2 pt-1 pb-1.5">
               <div className="truncate font-medium">{name}</div>

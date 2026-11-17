@@ -17,9 +17,11 @@ import { Route as AppBoatRouteImport } from './routes/_app/boat'
 import { Route as AppIgnoredRouteImport } from './routes/_app/ignored'
 import { Route as AppQueueRouteImport } from './routes/_app/queue'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppMachinesIndexRouteImport } from './routes/_app/machines.index'
 import { Route as AppMachinesIdRouteImport } from './routes/_app/machines.$id'
 import { Route as AppMachinesAddRouteImport } from './routes/_app/machines.add'
 import { Route as AppPeersNodeIdRouteImport } from './routes/_app/peers.$nodeId'
+import { Route as AppPoolsIndexRouteImport } from './routes/_app/pools.index'
 import { Route as AppPoolsIdRouteImport } from './routes/_app/pools.$id'
 import { Route as AppPoolsNewRouteImport } from './routes/_app/pools.new'
 import { Route as AppRunnersKeyRouteImport } from './routes/_app/runners.$key'
@@ -69,6 +71,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMachinesIndexRoute = AppMachinesIndexRouteImport.update({
+  id: '/machines/',
+  path: '/machines/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppMachinesIdRoute = AppMachinesIdRouteImport.update({
   id: '/machines/$id',
   path: '/machines/$id',
@@ -82,6 +89,11 @@ const AppMachinesAddRoute = AppMachinesAddRouteImport.update({
 const AppPeersNodeIdRoute = AppPeersNodeIdRouteImport.update({
   id: '/peers/$nodeId',
   path: '/peers/$nodeId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPoolsIndexRoute = AppPoolsIndexRouteImport.update({
+  id: '/pools/',
+  path: '/pools/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPoolsIdRoute = AppPoolsIdRouteImport.update({
@@ -149,6 +161,8 @@ export interface FileRoutesByFullPath {
   '/settings/forgejo': typeof AppSettingsForgejoRoute
   '/settings/github': typeof AppSettingsGithubRoute
   '/settings/users': typeof AppSettingsUsersRoute
+  '/machines/': typeof AppMachinesIndexRoute
+  '/pools/': typeof AppPoolsIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -169,6 +183,8 @@ export interface FileRoutesByTo {
   '/settings/forgejo': typeof AppSettingsForgejoRoute
   '/settings/github': typeof AppSettingsGithubRoute
   '/settings/users': typeof AppSettingsUsersRoute
+  '/machines': typeof AppMachinesIndexRoute
+  '/pools': typeof AppPoolsIndexRoute
   '/settings': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -192,6 +208,8 @@ export interface FileRoutesById {
   '/_app/settings/forgejo': typeof AppSettingsForgejoRoute
   '/_app/settings/github': typeof AppSettingsGithubRoute
   '/_app/settings/users': typeof AppSettingsUsersRoute
+  '/_app/machines/': typeof AppMachinesIndexRoute
+  '/_app/pools/': typeof AppPoolsIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -215,6 +233,8 @@ export interface FileRouteTypes {
     | '/settings/forgejo'
     | '/settings/github'
     | '/settings/users'
+    | '/machines/'
+    | '/pools/'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -235,6 +255,8 @@ export interface FileRouteTypes {
     | '/settings/forgejo'
     | '/settings/github'
     | '/settings/users'
+    | '/machines'
+    | '/pools'
     | '/settings'
   id:
     | '__root__'
@@ -257,6 +279,8 @@ export interface FileRouteTypes {
     | '/_app/settings/forgejo'
     | '/_app/settings/github'
     | '/_app/settings/users'
+    | '/_app/machines/'
+    | '/_app/pools/'
     | '/_app/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -324,6 +348,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/machines/': {
+      id: '/_app/machines/'
+      path: '/machines'
+      fullPath: '/machines/'
+      preLoaderRoute: typeof AppMachinesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/machines/$id': {
       id: '/_app/machines/$id'
       path: '/machines/$id'
@@ -343,6 +374,13 @@ declare module '@tanstack/react-router' {
       path: '/peers/$nodeId'
       fullPath: '/peers/$nodeId'
       preLoaderRoute: typeof AppPeersNodeIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pools/': {
+      id: '/_app/pools/'
+      path: '/pools'
+      fullPath: '/pools/'
+      preLoaderRoute: typeof AppPoolsIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/pools/$id': {
@@ -445,6 +483,8 @@ interface AppRouteChildren {
   AppPoolsIdRoute: typeof AppPoolsIdRoute
   AppPoolsNewRoute: typeof AppPoolsNewRoute
   AppRunnersKeyRoute: typeof AppRunnersKeyRoute
+  AppMachinesIndexRoute: typeof AppMachinesIndexRoute
+  AppPoolsIndexRoute: typeof AppPoolsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -459,6 +499,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppPoolsIdRoute: AppPoolsIdRoute,
   AppPoolsNewRoute: AppPoolsNewRoute,
   AppRunnersKeyRoute: AppRunnersKeyRoute,
+  AppMachinesIndexRoute: AppMachinesIndexRoute,
+  AppPoolsIndexRoute: AppPoolsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

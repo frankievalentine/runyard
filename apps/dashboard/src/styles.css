@@ -8,7 +8,6 @@
 :root {
   color-scheme: light dark;
   --bg: light-dark(oklch(0.99 0.002 260), #1c1c1e);
-  --sidebar: light-dark(oklch(0.975 0.003 260), #232325);
   --card: light-dark(#ffffff, #2a2a2d);
   --card-sunken: light-dark(oklch(0.955 0.004 260), #242426);
   --hover: light-dark(oklch(0.955 0.004 260 / 0.6), rgba(255, 255, 255, 0.05));
@@ -64,7 +63,6 @@
 
 @theme inline {
   --color-bg: var(--bg);
-  --color-sidebar: var(--sidebar);
   --color-card: var(--card);
   --color-sunken: var(--card-sunken);
   --color-hover: var(--hover);
@@ -197,24 +195,6 @@ code,
     background-size: 12px;
     text-overflow: ellipsis;
   }
-}
-
-/* aarondfrancis/fleet's sidebar tree connector. */
-.tree-child {
-  position: relative;
-}
-.tree-child::before {
-  content: "";
-  position: absolute;
-  /* Under the center of the machine's status dot (8px in from the row, 8px wide). */
-  left: 11.5px;
-  top: 0;
-  bottom: 0;
-  border-left: 1px solid var(--border-strong);
-}
-/* Under the center of a row's icon (centered in its 16px slot, 8px in from the row). */
-.tree-child.under-icon::before {
-  left: 15.5px;
 }
 
 /* Tailwind v4 gives buttons the default cursor; anything clickable gets a pointer.
