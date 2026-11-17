@@ -41,3 +41,29 @@ recorded in the machine's history as yours, through that token.
 
 A token never has more access than its user. It's shown once, stored hashed, can expire, and
 works only on `/api/mcp`. Change its access with the menu beside **Revoke**.
+
+## Skills for CI
+
+Runyard publishes three agent skills that use these tools. Each tells an agent how to do one
+job with your machines in mind:
+
+- **`runyard-ci-setup`:** writes a repository's workflow from a pool's
+  [templates](workflows.md#start-from-a-template), fitted to its scripts or Makefile, and opens
+  a pull request.
+- **`runyard-fix-ci`:** finds a failed job, decides whether the code, the machine or a flaky
+  run caused it, and fixes the right one: the code on the pull request's branch, or the machine
+  through a review you run.
+- **`runyard-workflow-security`:** reviews workflows for the risks of self-hosted runners, such
+  as fork pull requests running code on your machines, `pull_request_target`, unpinned actions
+  and state left between jobs.
+
+Install them in a repository with the [skills](https://github.com/vercel-labs/skills) CLI,
+which works with Claude Code, Codex and other agents:
+
+```sh
+npx skills add frankievalentine/runyard
+```
+
+Add `--skill runyard-fix-ci` for one of them, or `-g` for every project. The skills ask
+before changing anything, propose repository changes as pull requests, and never run a review:
+they follow the same rules as the tools.

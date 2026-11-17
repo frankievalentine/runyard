@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createAccessToken } from "../auth/access-tokens.ts";
 import { createUser } from "../auth/users.ts";
 import { recordJob } from "../history/store.ts";
@@ -286,5 +288,47 @@ describe("the MCP server", () => {
     await s.github.refreshAll();
     const jobs = (await call(s.app, read, "list_queued_jobs")).json();
     expect(jobs[0]?.why.join(" ")).toContain("gpu");
+  });
+});
+
+/** Words in backticks that look like tool names but are the forges' own (events, context keys). */
+const FORGE_WORDS = new Set([
+  "pull_request",
+  "pull_request_target",
+  "workflow_run",
+  "workflow_dispatch",
+  "head_ref",
+]);
+
+describe("Runyard's agent skills", () => {
+  const dir = join(import.meta.dir, "../../../../skills");
+  const skills = readdirSync(dir).map((name) => ({
+    name,
+    text: readFileSync(join(dir, name, "SKILL.md"), "utf8"),
+  }));
+
+  test("each has the frontmatter skill installers read", () => {
+    expect(skills.map((s) => s.name).sort()).toEqual([
+      "runyard-ci-setup",
+      "runyard-fix-ci",
+      "runyard-workflow-security",
+    ]);
+    for (const s of skills) {
+      const front = /^---\nname: (.+)\ndescription: (.+)\n---\n/.exec(s.text);
+      expect(front?.[1], s.name).toBe(s.name);
+      expect(front?.[2]?.length ?? 0, s.name).toBeLessThanOrEqual(1024);
+    }
+  });
+
+  test("name only tools Runyard's MCP server has", async () => {
+    const { s, read } = await withTokens();
+    const tools = new Set(
+      ((await rpc(s.app, read, "tools/list")).body.result.tools as { name: string }[]).map(
+        (t) => t.name,
+      ),
+    );
+    for (const skill of skills)
+      for (const [, word] of skill.text.matchAll(/`([a-z]+(?:_[a-z]+)+)`/g))
+        if (!FORGE_WORDS.has(word!)) expect(tools.has(word!), `${skill.name}: ${word}`).toBe(true);
   });
 });
