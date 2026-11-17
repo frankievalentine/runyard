@@ -1,7 +1,8 @@
 import { deriveIssues, type YardView } from "@runyard/core";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useExpandInPlace } from "../../lib/expand.ts";
 import { checksQuery, sessionQuery } from "../../lib/queries.ts";
 import { Icon } from "../icons.tsx";
 import { SIcon, WithCode } from "../settings/parts.tsx";
@@ -39,7 +40,7 @@ const HOST: Record<string, { title: string; icon?: "key" | "refresh"; body?: "de
  */
 export function Notices({ view }: { view: YardView }) {
   const navigate = useNavigate();
-  const [all, setAll] = useState(false);
+  const { all, toggle, list, style, scrolls, atEnd, onScroll } = useExpandInPlace(SHOWN);
   const { data: session } = useSuspenseQuery(sessionQuery);
   const checks = useQuery({ ...checksQuery, enabled: session.user?.role === "admin" });
 
@@ -104,61 +105,75 @@ export function Notices({ view }: { view: YardView }) {
               : `${notices.length} need attention`}
         </span>
       </header>
-      <div className="flex flex-col px-2 pb-2">
-        {notices.length === 0 && (
-          <p className="px-2 pb-2 text-[13px] text-tt-ink-2">
-            Nothing needs you. Notices about machines and runners appear here.
-          </p>
-        )}
-        {shown.map((n, i) => {
-          const body: ReactNode = (
-            <>
-              <span
-                className={`flex size-[26px] flex-none items-center justify-center rounded ${
-                  n.level === "error"
-                    ? "bg-tt-bad text-white"
-                    : n.level === "warn"
-                      ? "bg-tt-signal text-tt-on-signal"
-                      : "bg-tt-hover text-tt-ink-2"
-                }`}
+      {/* Opened on desktop, the list scrolls at its collapsed height, with a fade while there's more. */}
+      <div className="relative">
+        <div
+          ref={list}
+          style={style}
+          onScroll={onScroll}
+          className={`relative flex flex-col px-2 pb-2 ${scrolls ? "scroll overscroll-contain" : ""}`}
+        >
+          {notices.length === 0 && (
+            <p className="px-2 pb-2 text-[13px] text-tt-ink-2">
+              Nothing needs you. Notices about machines and runners appear here.
+            </p>
+          )}
+          {shown.map((n, i) => {
+            const body: ReactNode = (
+              <>
+                <span
+                  className={`flex size-[26px] flex-none items-center justify-center rounded ${
+                    n.level === "error"
+                      ? "bg-tt-bad text-white"
+                      : n.level === "warn"
+                        ? "bg-tt-signal text-tt-on-signal"
+                        : "bg-tt-hover text-tt-ink-2"
+                  }`}
+                >
+                  {n.icon === "key" ? (
+                    <SIcon name="key" size={15} />
+                  ) : (
+                    <Icon
+                      name={
+                        n.icon === "refresh" ? "refresh" : n.level === "host" ? "settings" : "alert"
+                      }
+                      size={15}
+                    />
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <b className="block text-[13.5px] leading-[1.3] font-bold">{n.title}</b>
+                  <small className="mt-0.5 line-clamp-2 block text-[12.5px] leading-[1.35] text-tt-ink-2">
+                    <WithCode text={n.body} />
+                  </small>
+                </span>
+              </>
+            );
+            const className = `flex w-full items-start gap-3 px-2 py-2.5 text-left ${
+              i > 0 ? "border-t border-tt-rule" : "rounded-lg"
+            }`;
+            return n.open ? (
+              <button
+                key={n.key}
+                type="button"
+                onClick={n.open}
+                className={`${className} hover:bg-tt-hover`}
               >
-                {n.icon === "key" ? (
-                  <SIcon name="key" size={15} />
-                ) : (
-                  <Icon
-                    name={
-                      n.icon === "refresh" ? "refresh" : n.level === "host" ? "settings" : "alert"
-                    }
-                    size={15}
-                  />
-                )}
-              </span>
-              <span className="min-w-0">
-                <b className="block text-[13.5px] leading-[1.3] font-bold">{n.title}</b>
-                <small className="mt-0.5 line-clamp-2 block text-[12.5px] leading-[1.35] text-tt-ink-2">
-                  <WithCode text={n.body} />
-                </small>
-              </span>
-            </>
-          );
-          const className = `flex w-full items-start gap-3 px-2 py-2.5 text-left ${
-            i > 0 ? "border-t border-tt-rule" : "rounded-lg"
-          }`;
-          return n.open ? (
-            <button
-              key={n.key}
-              type="button"
-              onClick={n.open}
-              className={`${className} hover:bg-tt-hover`}
-            >
-              {body}
-            </button>
-          ) : (
-            <div key={n.key} className={className}>
-              {body}
-            </div>
-          );
-        })}
+                {body}
+              </button>
+            ) : (
+              <div key={n.key} className={className}>
+                {body}
+              </div>
+            );
+          })}
+        </div>
+        {scrolls && !atEnd && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-t from-tt-card to-transparent"
+          />
+        )}
       </div>
       {hostOnly && (
         <p className="mx-4 border-t border-tt-rule pt-3 pb-3.5 text-[12.5px] text-tt-ink-3">
@@ -166,14 +181,21 @@ export function Notices({ view }: { view: YardView }) {
         </p>
       )}
       {(more > 0 || all) && notices.length > SHOWN && (
-        <button
-          type="button"
-          onClick={() => setAll(!all)}
-          aria-expanded={all}
-          className="px-4 pt-1 pb-3 text-left text-[12.5px] font-semibold text-tt-ink-2 hover:text-tt-ink"
-        >
-          {all ? "Show fewer notices" : `Show ${more} more ${more === 1 ? "notice" : "notices"}`}
-        </button>
+        <div className="flex items-baseline justify-between gap-3 px-4 pt-1 pb-3 text-[12.5px]">
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={all}
+            className="text-left font-semibold text-tt-ink-2 hover:text-tt-ink"
+          >
+            {all ? "Show fewer notices" : `Show ${more} more ${more === 1 ? "notice" : "notices"}`}
+          </button>
+          {scrolls && !atEnd && (
+            <span className="text-tt-ink-3">
+              Scroll for more <span aria-hidden>↓</span>
+            </span>
+          )}
+        </div>
       )}
     </section>
   );

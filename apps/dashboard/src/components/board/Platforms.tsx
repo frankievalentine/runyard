@@ -1,6 +1,5 @@
 import type { RunnerView, YardView } from "@runyard/core";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
 import { formatDollars } from "../../lib/format.ts";
 import { unassignedGroups } from "../../lib/nav.ts";
 import { primaryDisk } from "../../lib/health.ts";
@@ -31,15 +30,14 @@ function summary(m: YardView["machines"][number]): string {
 /**
  * The Board's platforms, as in the Timetable design: each machine with its platform number, a
  * light per runner (orange working, green idle, gray offline), then boat.dev, runners outside
- * pools and tailnet devices. The first five machines show; the rest are one click away.
+ * pools and tailnet devices. The first five machines show; the rest are on Machines.
  */
 export function Platforms({ view }: { view: YardView }) {
-  const [all, setAll] = useState(false);
   const byMachine = new Map<string, RunnerView[]>();
   for (const r of view.runners) {
     if (r.machineId) byMachine.set(r.machineId, [...(byMachine.get(r.machineId) ?? []), r]);
   }
-  const machines = all ? view.machines : view.machines.slice(0, SHOWN);
+  const machines = view.machines.slice(0, SHOWN);
   const more = view.machines.length - machines.length;
   const s = view.summary;
   const boatRunners = view.runners.filter((r) => r.onDemand === "boat.dev");
@@ -141,17 +139,14 @@ export function Platforms({ view }: { view: YardView }) {
             </Link>
           );
         })}
-        {(more > 0 || all) && view.machines.length > SHOWN && (
-          <button
-            type="button"
-            onClick={() => setAll(!all)}
-            aria-expanded={all}
-            className="w-full border-t border-tt-rule px-4 py-2.5 text-left text-[12.5px] font-semibold text-tt-ink-2 hover:text-tt-ink"
+        {/* The rest are on Machines, which lists them all with more than this card can hold. */}
+        {more > 0 && (
+          <Link
+            to="/machines"
+            className="block w-full border-t border-tt-rule px-4 py-2.5 text-left text-[12.5px] font-semibold text-tt-ink-2 hover:text-tt-ink"
           >
-            {all
-              ? "Show fewer machines"
-              : `Show ${more} more ${more === 1 ? "machine" : "machines"}`}
-          </button>
+            All {view.machines.length} machines <span aria-hidden>→</span>
+          </Link>
         )}
       </div>
       {(view.boat || boatRunners.length > 0 || unassigned > 0 || device) && (
