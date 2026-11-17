@@ -34,6 +34,10 @@ function deliver(s: Setup, secret: string, payload: unknown) {
   );
 }
 
+// Fixture times sit an hour before now, since GET /api/jobs only returns the last 7 days.
+const T0 = Math.floor(Date.now() / 1000) * 1000 - 3_600_000;
+const iso = (offsetMs = 0) => new Date(T0 + offsetMs).toISOString();
+
 const job = (over: object) => ({
   id: 501,
   run_id: 77,
@@ -44,8 +48,8 @@ const job = (over: object) => ({
   labels: ["self-hosted", "runyard-mac"],
   status: "completed",
   conclusion: "success",
-  started_at: "2026-10-29T10:00:00Z",
-  completed_at: "2026-10-29T10:01:30Z",
+  started_at: iso(),
+  completed_at: iso(90_000),
   html_url: "https://github.test/acme/app/actions/runs/77/job/501",
   ...over,
 });
@@ -71,8 +75,8 @@ describe("run history", () => {
       name: "build",
       runnerName: "mini-mac-01",
       conclusion: "success",
-      startedAt: Date.parse("2026-10-29T10:00:00Z"),
-      finishedAt: Date.parse("2026-10-29T10:01:30Z"),
+      startedAt: T0,
+      finishedAt: T0 + 90_000,
       sources: ["webhook"],
     });
     // A job on a GitHub-hosted runner isn't Runyard's to show.
@@ -85,7 +89,7 @@ describe("run history", () => {
 
   test("hook lines from a machine, then one GitHub read for the result and the log", async () => {
     const s = await setup({ account: "acme", type: "Organization", repos: ["acme/app"] });
-    const at = Date.parse("2026-10-29T10:00:00Z");
+    const at = T0;
     s.history.fromHooks(s.machine.id, [
       {
         at,
@@ -122,9 +126,9 @@ describe("run history", () => {
             conclusion: "failure",
             labels: ["self-hosted"],
             runner_name: "mini-mac-01",
-            created_at: "2026-10-29T09:59:50Z",
-            started_at: "2026-10-29T10:00:00Z",
-            completed_at: "2026-10-29T10:01:30Z",
+            created_at: iso(-10_000),
+            started_at: iso(),
+            completed_at: iso(90_000),
           },
         ],
       },
@@ -152,7 +156,7 @@ describe("run history", () => {
 
   test("a job whose runner never reported its end counts as lost, a machine problem", async () => {
     const s = await setup({ account: "acme", type: "Organization", repos: ["acme/app"] });
-    const at = Date.parse("2026-10-29T10:00:00Z");
+    const at = T0;
     s.history.fromHooks(s.machine.id, [
       {
         at,
@@ -176,8 +180,8 @@ describe("run history", () => {
             conclusion: "failure",
             labels: ["self-hosted"],
             runner_name: "mini-mac-01",
-            created_at: "2026-10-29T09:59:50Z",
-            completed_at: "2026-10-29T10:20:00Z",
+            created_at: iso(-10_000),
+            completed_at: iso(1_200_000),
           },
         ],
       },
