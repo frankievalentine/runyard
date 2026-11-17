@@ -5,7 +5,7 @@
 #
 #   curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh
 #
-# RUNYARD_VERSION=0.1.0 installs that release instead of the latest.
+# RUNYARD_VERSION=0.2.0 installs that release instead of the latest.
 # RUNYARD_BASE_URL installs from another release directory (the files
 # `vp run release` writes), such as file://$PWD/apps/cli/dist/release.
 # RUNYARD_INSTALL_DIR overrides where it goes (default ~/.local/bin).

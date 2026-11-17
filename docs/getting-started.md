@@ -24,7 +24,7 @@ runyard service install   # keep it running
 ```
 
 The installers download the latest [release](https://github.com/frankievalentine/runyard/releases)
-and check its checksum; `RUNYARD_VERSION=0.1.0` pins a version.
+and check its checksum; `RUNYARD_VERSION=0.2.0` pins a version.
 
 To run it in Docker instead, see [Docker](operating.md#docker).
 
