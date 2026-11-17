@@ -22,7 +22,7 @@ An organization gets one runner per slot. A personal GitHub account's repositori
 their own runner, because GitHub can't share a personal account's runner across repositories.
 
 Once a pool exists, its page shows **Use it in a workflow**, the `runs-on` line that sends jobs
-to it. See [Writing workflows](workflows.md).
+to it, with a starter file or a full CI to copy. See [Writing workflows](workflows.md).
 
 ## Review and run
 

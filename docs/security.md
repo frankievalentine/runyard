@@ -19,4 +19,9 @@
 - **Webhooks only prompt a check.** Signatures are verified, and a delivery only makes Runyard
   read the forge again and record the job. It never changes a machine or a forge.
 - **Agents prepare, people run.** Access tokens can read and prepare changes, never run a review;
-  only a dashboard session can.
+  only a dashboard session can. Job logs reach agents with token- and key-shaped strings masked,
+  labelled as the job's output rather than instructions.
+- **Workflow templates start safe.** They give the job's token read access only (on GitHub; on
+  Forgejo it's a repository setting), keep it out of `.git`, cancel superseded runs, and pin
+  every action to a commit. Runyard never writes to your repositories: you copy the file, or an
+  agent proposes it as a pull request.

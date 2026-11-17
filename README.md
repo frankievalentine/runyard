@@ -19,8 +19,10 @@ https://github.com/user-attachments/assets/c660c31d-d315-495c-b641-1a1cbd0f086a
 - **Prove it works:** run a short test job on any runner.
 - **Safe by default:** nothing changes without a review, busy runners are never touched, and
   public repositories are refused unless you allow them.
-- **Works with agents:** an MCP server lets AI agents read your CI and prepare changes for you
-  to run.
+- **Start from a good workflow:** each pool offers a CI file to copy (a Node.js or Bun
+  frontend, or a Makefile) with parallel jobs and safe defaults.
+- **Works with agents:** an MCP server lets AI agents read your CI, diagnose failed jobs and
+  prepare changes for you to run, and Runyard's skills teach them to set up, fix and secure it.
 
 ## Quick start
 
@@ -57,7 +59,8 @@ here):
 3. **Create a pool:** labels, machines and the repositories it serves.
 4. **Review and run** the machine's changes. Its runners start taking jobs.
 5. **Point a workflow at the pool:** its page shows the `runs-on` line and a file to start
-   from. [Writing workflows](docs/workflows.md) covers labels, Windows and Forgejo.
+   from: a starter, or a full CI for a frontend project or a Makefile.
+   [Writing workflows](docs/workflows.md) covers the templates, labels, Windows and Forgejo.
 
 To remove Runyard later, run `runyard uninstall --purge`. It lists the machines and connections
 to remove in the dashboard first; [Uninstalling](docs/operating.md#uninstalling) has the full
@@ -149,13 +152,21 @@ Don't change my Tailscale settings, open ports, or connect to any other machine.
   They need a public address for Runyard's webhook listener, such as Tailscale Funnel, which is
   off by default and has to be turned on for your tailnet first (see
   [Webhooks](docs/forges.md#webhooks)).
-- **AI agents.** Agents read everything and can prepare pools and reviews; only you run a
-  review. Create a token under **Settings ▸ Access tokens**, then, for Claude Code:
+- **Workflow templates.** A pool's **Use it in a workflow** offers a starter, a frontend CI
+  (npm, Bun or Vite+: lint and types, tests, build, in parallel, with pull requests running only
+  the tests they reach) and a Makefile CI. Every file cancels superseded runs and pins its
+  actions to commits, and on GitHub gives the job's token read access only.
+- **AI agents.** Agents read everything, find failed jobs and say whether the code, the machine
+  or a flaky run caused them, and can prepare pools and reviews; only you run a review. Create a
+  token under **Settings ▸ Access tokens**, then, for Claude Code:
 
   ```sh
   claude mcp add --scope user --transport http runyard https://<runyard>/api/mcp \
     --header "Authorization: Bearer <token>"
   ```
+
+  Runyard's skills set up, fix and review CI with those tools:
+  `npx skills add frankievalentine/runyard` (see [AI agents](docs/ai-agents.md#skills-for-ci)).
 
 The [documentation](docs/GUIDE.md) covers each in detail, along with Docker, running as a
 service, Tailscale, users and passkeys, recipes for runner machines (Proxmox LXC, VPS, Mac,

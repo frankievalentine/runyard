@@ -73,4 +73,6 @@ See [Pools](pools.md).
 ## 7. Send it a job
 
 The pool's page shows **Use it in a workflow**: the `runs-on` line and a file to copy into your
-repository. Push it, and the job runs on your machine. See [Writing workflows](workflows.md).
+repository. Start with **Starter** to see a job land on your machine, then pick **Frontend** or
+**Generic** for a full CI. Push it, and the job runs on your machine. See
+[Writing workflows](workflows.md#start-from-a-template).
