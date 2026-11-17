@@ -30,6 +30,30 @@
   --shadow: 0 1px 2px light-dark(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.3));
 }
 
+/*
+ * Timetable, the redesign (docs/PLAN.md, "Dashboard redesign"). Light only until the dark design is
+ * approved; pages switch to these tokens phase by phase. Boards are the dark departure panels.
+ */
+:root {
+  --tt-paper: #edf0f3;
+  --tt-card: #ffffff;
+  --tt-ink: #0e1013;
+  --tt-ink-2: #4a505a;
+  --tt-ink-3: #646a74;
+  --tt-rule: #d8dce2;
+  --tt-rule-2: #c3c8d0;
+  --tt-board: #0b0c0e;
+  --tt-board-2: #131519;
+  --tt-cell: #1d1f24;
+  --tt-cell-lo: #17191d;
+  --tt-flap: #f4f3ec;
+  --tt-signal: #ffcd1f;
+  --tt-loco: #e8732a;
+  --tt-ok: #22a35c;
+  --tt-bad: #c4372a;
+  --tt-off: #9aa0a9;
+}
+
 :root[data-theme="light"] {
   color-scheme: light;
 }
@@ -59,6 +83,24 @@
   --font-sans:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --color-tt-paper: var(--tt-paper);
+  --color-tt-card: var(--tt-card);
+  --color-tt-ink: var(--tt-ink);
+  --color-tt-ink-2: var(--tt-ink-2);
+  --color-tt-ink-3: var(--tt-ink-3);
+  --color-tt-rule: var(--tt-rule);
+  --color-tt-rule-2: var(--tt-rule-2);
+  --color-tt-board: var(--tt-board);
+  --color-tt-board-2: var(--tt-board-2);
+  --color-tt-cell: var(--tt-cell);
+  --color-tt-flap: var(--tt-flap);
+  --color-tt-signal: var(--tt-signal);
+  --color-tt-loco: var(--tt-loco);
+  --color-tt-ok: var(--tt-ok);
+  --color-tt-bad: var(--tt-bad);
+  --color-tt-off: var(--tt-off);
+  --font-ui: "Archivo Variable", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-board: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 html,
