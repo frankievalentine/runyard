@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Records the README's walkthrough of the demo yard: the Board, Jobs, adding a
-# machine from the tailnet, a new pool from start to running runners, Settings,
-# and removing a machine. Starts its own demo (`apps/server/scripts/demo.ts`)
+# machine from the tailnet, putting it in a new pool and running its review,
+# Settings, and removing a machine. Starts its own demo (`apps/server/scripts/demo.ts`)
 # with fresh data, creates an admin off camera, drives the dashboard with
 # agent-browser and records it, zooming in on each action as it goes.
 # Needs agent-browser, ffmpeg and bun. Writes runyard-demo.mp4 here, or to $1.
@@ -187,7 +187,15 @@ if agent-browser snapshot -i | grep -qF 'button "Skip for now"'; then
   sleep 1.5
 fi
 ab open "$url/"
-until_text "Departures"
+sleep 2
+# The sign-in page has a departure board too, so wait for Check now, which only the signed-in
+# pages have; sign in first if claiming didn't keep its session.
+if [ "$(agent-browser eval "location.pathname")" = '"/login"' ]; then
+  ab find label "Username" fill demo
+  ab find label "Password" fill "demo password 1234"
+  ab find role button click --name "Sign in"
+fi
+until_text "Check now"
 sleep 2
 ab mouse move 840 480
 sleep 1
@@ -208,22 +216,24 @@ sleep 1.5
 tap tab "Waiting"
 sleep 2.5
 
-# A machine from the tailnet: Runyard lists the devices it can see.
+# A machine from the tailnet: Runyard lists the devices it can see, then a ticket walks it
+# through the setup command and its checks.
 FIXED=1 tap link "Machines"
-sleep 1.2
+sleep 2
 tap link "Add machine"
-sleep 1.2
-focus button "Add" 900
-tap button "Add"
-tap button "Add lab-pi"
-home
-sleep 3.5
+sleep 1.5
+tap button "Add and continue"
+sleep 2.5
+tap button "Continue"
+until_text "Checking lab-pi"
+sleep 2.5
+tap button "Continue"
+until_text "lab-pi is ready"
+sleep 2
 
 # A pool: what it's for, where it runs, then each machine's review.
-FIXED=1 tap link "Pools"
-sleep 1
-tap link "New pool"
-sleep 1
+tap link "Put it in a pool"
+sleep 1.5
 tap checkbox "frankie-demo/site"
 tap checkbox "frankie-demo/cli"
 tap textbox "Labels"
@@ -240,15 +250,13 @@ run="$(agent-browser snapshot -i | grep -oE 'button "Run [0-9]+ changes?"' | hea
 press button "$run"
 sleep 3.5
 
-# Settings: connections, and what this machine has.
-FIXED=1 focus button "Account and settings"
-FIXED=1 tap button "Account and settings"
-sleep 0.4
-tap menuitem "Settings"
-home
-sleep 1
-tap link "Connections"
+# Settings: connections, this machine and the account, on one page.
+FIXED=1 tap link "Settings"
+sleep 2
+scroll 420
 sleep 2.5
+scroll -420
+sleep 1
 
 # Removing a machine: what goes, one confirmation, each step as it runs.
 FIXED=1 tap link "Machines"
