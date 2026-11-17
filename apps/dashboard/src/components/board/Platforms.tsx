@@ -42,13 +42,19 @@ export function Platforms({
       </header>
       <div className="scroll min-h-0 flex-1">
         {view.machines.length === 0 && (
-          <p className="px-4 py-4 text-[13px] text-tt-ink-2">
-            No machines yet.{" "}
-            <Link to="/machines/add" className="font-semibold underline">
+          <div className="flex flex-col items-start gap-3 px-4 py-4">
+            <p className="text-[13px] text-tt-ink-2">
+              <span className="block font-bold text-tt-ink">No machines yet</span>
+              Add one and Runyard checks it over SSH every minute. It changes nothing until you
+              review it.
+            </p>
+            <Link
+              to="/machines/add"
+              className="inline-flex h-9 items-center rounded-lg bg-tt-inv px-3.5 text-[13px] font-semibold text-tt-on-inv hover:opacity-90"
+            >
               Add a machine
-            </Link>{" "}
-            and Runyard checks it over SSH every minute.
-          </p>
+            </Link>
+          </div>
         )}
         {view.machines.map((m) => {
           const status = machineStatus(m);
@@ -87,6 +93,18 @@ export function Platforms({
           );
         })}
       </div>
+      {view.machines.length === 0 && view.discovered[0] && (
+        <Link
+          to="/machines/add"
+          className="flex items-center gap-2 border-t border-tt-rule px-4 py-2.5 text-[12.5px] hover:bg-tt-hover"
+        >
+          <span className="min-w-0 flex-1 truncate text-tt-ink-2">
+            Found on your tailnet:{" "}
+            <span className="font-semibold text-tt-ink">{view.discovered[0].name}</span>
+          </span>
+          <span className="font-semibold">Add</span>
+        </Link>
+      )}
     </section>
   );
 }

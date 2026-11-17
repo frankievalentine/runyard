@@ -255,7 +255,17 @@ export function PoolList({ view, admin }: { view: YardView; admin: boolean }) {
       title="Pools"
       count={view.pools.pools.length}
       action={
-        admin && (
+        admin &&
+        (view.machines.length === 0 ? (
+          <span
+            className="inline-flex h-8 cursor-not-allowed items-center gap-1.5 rounded-lg border border-tt-rule-2 px-3 text-[13px] font-semibold text-tt-ink-3"
+            title="Add a machine first"
+            aria-disabled="true"
+          >
+            <Icon name="plus" size={13} />
+            New pool · add a machine first
+          </span>
+        ) : (
           <Link
             to="/pools/new"
             className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-tt-inv px-3 text-[13px] font-semibold text-tt-on-inv hover:opacity-90"
@@ -263,7 +273,7 @@ export function PoolList({ view, admin }: { view: YardView; admin: boolean }) {
             <Icon name="plus" size={13} />
             New pool
           </Link>
-        )
+        ))
       }
     >
       {view.pools.pools.length === 0 && (

@@ -139,8 +139,17 @@ export function TopNav({
 }
 
 /** Phone: a compact header with where you are, Check now, a small clock and the account menu. */
-export function PhoneHeader({ section, checkNow }: { section: SectionKey; checkNow: ReactNode }) {
-  const label = SECTIONS.find((s) => s.key === section)?.label ?? "";
+export function PhoneHeader({
+  section,
+  title,
+  checkNow,
+}: {
+  section: SectionKey;
+  /** A page's own name, when it isn't its section's. */
+  title?: string;
+  checkNow: ReactNode;
+}) {
+  const label = title ?? SECTIONS.find((s) => s.key === section)?.label ?? "";
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-tt-rule bg-tt-card px-4 pt-[env(safe-area-inset-top,0px)]">
       <Link to="/" aria-label="Board">

@@ -71,7 +71,11 @@ function Layout() {
     <CopyFeedback>
       <div className="flex h-full flex-col bg-tt-paper font-ui text-tt-ink">
         {narrow ? (
-          <PhoneHeader section={section} checkNow={checkNow} />
+          <PhoneHeader
+            section={section}
+            title={pathname === "/start" ? "Getting started" : undefined}
+            checkNow={checkNow}
+          />
         ) : (
           <TopNav view={view} section={section} demo={demo} checkNow={checkNow} />
         )}

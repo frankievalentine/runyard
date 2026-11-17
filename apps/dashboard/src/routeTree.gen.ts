@@ -17,6 +17,7 @@ import { Route as AppBoatRouteImport } from './routes/_app/boat'
 import { Route as AppIgnoredRouteImport } from './routes/_app/ignored'
 import { Route as AppQueueRouteImport } from './routes/_app/queue'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppStartRouteImport } from './routes/_app/start'
 import { Route as AppMachinesIndexRouteImport } from './routes/_app/machines.index'
 import { Route as AppMachinesIdRouteImport } from './routes/_app/machines.$id'
 import { Route as AppMachinesAddRouteImport } from './routes/_app/machines.add'
@@ -69,6 +70,11 @@ const AppQueueRoute = AppQueueRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppStartRoute = AppStartRouteImport.update({
+  id: '/start',
+  path: '/start',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMachinesIndexRoute = AppMachinesIndexRouteImport.update({
@@ -150,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/ignored': typeof AppIgnoredRoute
   '/queue': typeof AppQueueRoute
   '/settings': typeof AppSettingsRouteWithChildren
+  '/start': typeof AppStartRoute
   '/machines/$id': typeof AppMachinesIdRoute
   '/machines/add': typeof AppMachinesAddRoute
   '/peers/$nodeId': typeof AppPeersNodeIdRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/boat': typeof AppBoatRoute
   '/ignored': typeof AppIgnoredRoute
   '/queue': typeof AppQueueRoute
+  '/start': typeof AppStartRoute
   '/': typeof AppIndexRoute
   '/machines/$id': typeof AppMachinesIdRoute
   '/machines/add': typeof AppMachinesAddRoute
@@ -196,6 +204,7 @@ export interface FileRoutesById {
   '/_app/ignored': typeof AppIgnoredRoute
   '/_app/queue': typeof AppQueueRoute
   '/_app/settings': typeof AppSettingsRouteWithChildren
+  '/_app/start': typeof AppStartRoute
   '/_app/': typeof AppIndexRoute
   '/_app/machines/$id': typeof AppMachinesIdRoute
   '/_app/machines/add': typeof AppMachinesAddRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/ignored'
     | '/queue'
     | '/settings'
+    | '/start'
     | '/machines/$id'
     | '/machines/add'
     | '/peers/$nodeId'
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/boat'
     | '/ignored'
     | '/queue'
+    | '/start'
     | '/'
     | '/machines/$id'
     | '/machines/add'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/_app/ignored'
     | '/_app/queue'
     | '/_app/settings'
+    | '/_app/start'
     | '/_app/'
     | '/_app/machines/$id'
     | '/_app/machines/add'
@@ -346,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/start': {
+      id: '/_app/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof AppStartRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/machines/': {
@@ -476,6 +495,7 @@ interface AppRouteChildren {
   AppIgnoredRoute: typeof AppIgnoredRoute
   AppQueueRoute: typeof AppQueueRoute
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
+  AppStartRoute: typeof AppStartRoute
   AppIndexRoute: typeof AppIndexRoute
   AppMachinesIdRoute: typeof AppMachinesIdRoute
   AppMachinesAddRoute: typeof AppMachinesAddRoute
@@ -492,6 +512,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIgnoredRoute: AppIgnoredRoute,
   AppQueueRoute: AppQueueRoute,
   AppSettingsRoute: AppSettingsRouteWithChildren,
+  AppStartRoute: AppStartRoute,
   AppIndexRoute: AppIndexRoute,
   AppMachinesIdRoute: AppMachinesIdRoute,
   AppMachinesAddRoute: AppMachinesAddRoute,

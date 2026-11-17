@@ -1,19 +1,25 @@
 import { deriveIssues, type YardView } from "@runyard/core";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
+import { checksQuery, sessionQuery } from "../../lib/queries.ts";
 import { Icon } from "../icons.tsx";
 
 /**
  * The Board's notices, like a station's service notices: active alerts first (red), then
- * everything else worth a look (yellow). Each opens the machine, runner or page it's about.
+ * everything else worth a look (yellow), then, for admins, what this Runyard host itself still
+ * needs (quiet). Each opens the machine, runner or page it's about.
  * Beside the departure board it takes that board's height and scrolls inside.
  */
 export function Notices({ view, besideBoard = false }: { view: YardView; besideBoard?: boolean }) {
   const navigate = useNavigate();
   const now = useNow();
   const issues = deriveIssues(view);
-  const count = view.alerts.length + issues.length;
+  const { data: session } = useSuspenseQuery(sessionQuery);
+  const checks = useQuery({ ...checksQuery, enabled: session.user?.role === "admin" });
+  const host = (checks.data ?? []).filter((c) => c.state === "warn" || c.state === "bad");
+  const count = view.alerts.length + issues.length + host.length;
   return (
     <section
       aria-labelledby="notices-title"
@@ -24,7 +30,13 @@ export function Notices({ view, besideBoard = false }: { view: YardView; besideB
           Notices
         </h2>
         <span className="text-[12px] text-tt-ink-3">
-          {count === 0 ? "None" : count === 1 ? "1 needs a look" : `${count} need a look`}
+          {count === 0
+            ? "None"
+            : view.alerts.length + issues.length === 0
+              ? `${host.length} for this host`
+              : count === 1
+                ? "1 needs a look"
+                : `${count} need a look`}
         </span>
       </header>
       <div className="scroll min-h-0 flex-1">
@@ -102,6 +114,24 @@ export function Notices({ view, besideBoard = false }: { view: YardView; besideB
             </div>
           );
         })}
+        {host.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => void navigate({ to: "/settings/connections" })}
+            className="flex w-full gap-3 border-b border-tt-rule px-4 py-3 text-left last:border-b-0 hover:bg-tt-hover"
+          >
+            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-tt-hover text-tt-ink-2">
+              <Icon name="settings" size={13} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13.5px] font-bold">This host: {c.title}</span>
+              <span className="mt-0.5 line-clamp-2 block text-[12.5px] text-tt-ink-2">
+                {c.fix ?? c.detail}
+              </span>
+            </span>
+          </button>
+        ))}
       </div>
     </section>
   );

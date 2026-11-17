@@ -1,18 +1,8 @@
-import {
-  calendarWeeks,
-  countByDay,
-  shadeOf,
-  shadeThresholds,
-  type DayCount,
-  type HourCount,
-} from "@runyard/core";
-import { useQuery } from "@tanstack/react-query";
+import { calendarWeeks, countByDay, shadeOf, shadeThresholds, type DayCount } from "@runyard/core";
 import gsap from "gsap";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { api, call } from "../../api.ts";
+import { useCalendar } from "../../lib/calendar.ts";
 import { useTheme } from "../../lib/theme.ts";
-
-type CalendarResponse = { weeks: number; hours: HourCount[]; earliest: number | null; now: number };
 
 /** The viewer's own day for a moment, as `YYYY-MM-DD`. */
 function localDay(ms: number): string {
@@ -85,12 +75,7 @@ const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) 
  */
 export function TrafficCalendar({ phone = false }: { phone?: boolean }) {
   const weeks = phone ? 13 : 26;
-  const { data } = useQuery({
-    queryKey: ["jobs", "calendar", weeks],
-    queryFn: async () =>
-      (await call(api.jobs.calendar.$get({ query: { weeks: String(weeks) } }))) as CalendarResponse,
-    refetchInterval: 5 * 60_000,
-  });
+  const { data } = useCalendar(weeks);
   const dark = useDark();
   const now = data?.now ?? Date.now();
   const today = new Date(now);

@@ -77,3 +77,44 @@ export function machineToConnect(view: YardView) {
   }
   return null;
 }
+
+/** The stops on Getting started's route line: the setup steps, then a first job. */
+export type StartStop = {
+  id: SetupStep["id"] | "job";
+  label: string;
+  done: boolean;
+  detail: string;
+};
+
+const STOP_LABELS: Record<StartStop["id"], string> = {
+  forge: "Connect a forge",
+  machine: "Add a machine",
+  pool: "Create a pool",
+  runners: "Review and run",
+  job: "Send a job",
+};
+
+/**
+ * Getting started's stops, from what exists and whether any job has finished on a runner yet
+ * (`jobsSeen`). `current` is the first stop not done, or the last stop once all are.
+ */
+export function startStops(
+  view: YardView,
+  jobsSeen: boolean,
+): { stops: StartStop[]; current: number; finished: boolean } {
+  const steps: StartStop[] = setupSteps(view).map((s) => ({ ...s, label: STOP_LABELS[s.id] }));
+  steps.push({
+    id: "job",
+    label: STOP_LABELS.job,
+    done: jobsSeen,
+    detail: jobsSeen
+      ? "Your runners have taken jobs."
+      : "Point a workflow at your pool, or run a short test job on one of its runners.",
+  });
+  const next = steps.findIndex((s) => !s.done);
+  return {
+    stops: steps,
+    current: next === -1 ? steps.length - 1 : next,
+    finished: next === -1,
+  };
+}

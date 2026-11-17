@@ -1,5 +1,6 @@
 import { departures, type Departure, type DepartureTone, type YardView } from "@runyard/core";
 import { useNavigate } from "@tanstack/react-router";
+import { forgesConnected } from "../runners.tsx";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Elapsed } from "../runners.tsx";
 import { SplitFlap } from "./SplitFlap.tsx";
@@ -99,8 +100,31 @@ export function Departures({ view, phone = false }: { view: YardView; phone?: bo
 
       {rows.length === 0 ? (
         <div className="flex flex-col gap-1.5 px-5 py-3">
-          <SplitFlap text="All quiet" cells={20} tone="dim" />
-          <SplitFlap text="No jobs running or waiting" cells={26} tone="dim" />
+          {forgesConnected(view) ? (
+            <>
+              <SplitFlap text="All quiet" cells={layout === "rows" ? 20 : 26} tone="dim" />
+              <SplitFlap
+                text="No jobs running or waiting"
+                cells={layout === "rows" ? 20 : 26}
+                tone="dim"
+              />
+            </>
+          ) : (
+            <>
+              <SplitFlap text="No departures yet" cells={layout === "rows" ? 20 : 30} />
+              <SplitFlap
+                text="Connect a forge to start"
+                cells={layout === "rows" ? 20 : 30}
+                tone="signal"
+              />
+              {layout !== "rows" && (
+                <SplitFlap text="Then add a machine and a pool" cells={30} tone="dim" />
+              )}
+            </>
+          )}
+          <p className="mt-2 text-[12px] text-[#9aa0a9]">
+            Jobs appear here as they're queued and picked up by your runners.
+          </p>
         </div>
       ) : layout === "rows" ? (
         <ul>

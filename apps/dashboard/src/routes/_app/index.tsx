@@ -6,9 +6,7 @@ import { Notices } from "../../components/board/Notices.tsx";
 import { Platforms } from "../../components/board/Platforms.tsx";
 import { TrafficCalendar } from "../../components/board/TrafficCalendar.tsx";
 import { EventTimeline } from "../../components/machines.tsx";
-import { forgesConnected } from "../../components/runners.tsx";
-import { Card, EmptyLine, PageHeader } from "../../components/ui.tsx";
-import { SetupChecklist } from "../../components/SetupChecklist.tsx";
+import { SetupBanner } from "../../components/SetupBanner.tsx";
 import { useYard } from "../../lib/yard.ts";
 import { sessionQuery } from "../../lib/queries.ts";
 
@@ -30,33 +28,17 @@ function useNarrow(): boolean {
 
 /**
  * Timetable's Board: the departure board of running and waiting jobs beside the notices, and the
- * traffic calendar beside the platforms, each pair sharing its edges. Setup comes first until done.
+ * traffic calendar beside the platforms, each pair sharing its edges. Until Getting started is
+ * done, its route line leads; a new install shows every panel's empty state.
  */
 function Board() {
   const view = useYard();
   const { data: session } = useSuspenseQuery(sessionQuery);
   const admin = session.user?.role === "admin";
   const narrow = useNarrow();
-  if (view.machines.length === 0 && !forgesConnected(view)) {
-    return (
-      <div className="mx-auto max-w-2xl pt-4">
-        <PageHeader
-          title="Welcome to Runyard"
-          subtitle="Runyard watches the machines that run your CI over SSH and your tailnet, and installs runners on them only after you review the changes."
-        />
-        {admin ? (
-          <SetupChecklist />
-        ) : (
-          <Card className="mt-6">
-            <EmptyLine>An admin hasn't added any machines yet.</EmptyLine>
-          </Card>
-        )}
-      </div>
-    );
-  }
   return (
     <div className="flex flex-col gap-[18px]">
-      {admin && <SetupChecklist />}
+      {admin && <SetupBanner />}
       {narrow ? (
         <>
           <Departures view={view} phone />
@@ -72,7 +54,7 @@ function Board() {
           <Platforms view={view} besideBoard />
         </div>
       )}
-      <EventTimeline title="Recent activity" />
+      {view.machines.length > 0 && <EventTimeline title="Recent activity" />}
     </div>
   );
 }
