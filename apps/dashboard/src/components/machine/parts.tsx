@@ -233,6 +233,9 @@ function CopyIcon() {
   return (
     <svg
       aria-hidden
+      // The glyph's back sheet reaches further left than its front one reaches right: 2px of
+      // margin puts it in the button's optical center.
+      className="ml-[2px]"
       width="15"
       height="15"
       viewBox="0 0 16 16"

@@ -65,6 +65,7 @@ export function CodeBox({ text, label }: { text: string; label: string }) {
       >
         <svg
           aria-hidden="true"
+          className="ml-[2px]"
           width="16"
           height="16"
           viewBox="0 0 16 16"
