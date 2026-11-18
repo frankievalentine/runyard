@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 
 /** Ported from aarondfrancis/fleet: one small confirmation for the latest copy on the page. */
 const Feedback = createContext<(message: string, failed?: boolean) => void>(() => {});
@@ -34,6 +42,37 @@ export function CopyFeedback({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * A click handler that copies `value` and says so. Dragging to select part of the button's text
+ * still works: a click that ends a selection inside it doesn't copy.
+ */
+export function useCopy(value: string, label: string) {
+  const feedback = useContext(Feedback);
+  const pending = useRef(false);
+  return async (event: MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
+    const selection = window.getSelection();
+    if (
+      selection &&
+      !selection.isCollapsed &&
+      selection.anchorNode &&
+      event.currentTarget.contains(selection.anchorNode)
+    ) {
+      return;
+    }
+    if (pending.current) return;
+    pending.current = true;
+    try {
+      await navigator.clipboard.writeText(value);
+      feedback(`${label} copied`);
+    } catch {
+      feedback("Couldn't copy. Select the text and copy it manually.", true);
+    } finally {
+      pending.current = false;
+    }
+  };
+}
+
 /** Copies the full underlying value, even when its visible text is truncated. */
 export function CopyValue({
   value,
@@ -50,37 +89,14 @@ export function CopyValue({
   truncate?: boolean;
   showIcon?: boolean;
 }) {
-  const feedback = useContext(Feedback);
-  const pending = useRef(false);
+  const copy = useCopy(value, label);
   return (
     <button
       type="button"
       className={`group/copy inline-flex max-w-full min-w-0 cursor-copy items-center gap-1.5 rounded text-left align-baseline hover:text-ink ${className}`}
       title={`${value}\nClick to copy`}
       aria-label={`Copy ${label.toLowerCase()}`}
-      onClick={async (event) => {
-        event.stopPropagation();
-        // Dragging to select part of the text still works.
-        const selection = window.getSelection();
-        if (
-          selection &&
-          !selection.isCollapsed &&
-          selection.anchorNode &&
-          event.currentTarget.contains(selection.anchorNode)
-        ) {
-          return;
-        }
-        if (pending.current) return;
-        pending.current = true;
-        try {
-          await navigator.clipboard.writeText(value);
-          feedback(`${label} copied`);
-        } catch {
-          feedback("Couldn't copy. Select the text and copy it manually.", true);
-        } finally {
-          pending.current = false;
-        }
-      }}
+      onClick={copy}
     >
       <span
         className={`min-w-0 ${truncate ? "truncate" : "break-words"} group-hover/copy:underline group-hover/copy:decoration-dotted group-hover/copy:underline-offset-2`}

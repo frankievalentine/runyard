@@ -2,9 +2,9 @@ import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { Jobs } from "../../components/Jobs.tsx";
 import { readinessProblems } from "@runyard/core";
 import type { DiagnosticGroup, MachineView, OsFamily, SshTransport } from "@runyard/core";
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
+import { useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { api, ApiError, call } from "../../api.ts";
 import { readinessNote, RunnerReadiness } from "../../components/Readiness.tsx";
 import { AccessPanel } from "../../components/AccessPanel.tsx";
@@ -41,7 +41,7 @@ import {
 } from "../../lib/format.ts";
 import { memoryUsedFraction, primaryDisk } from "../../lib/health.ts";
 import { useNow } from "../../lib/now.ts";
-import { sessionQuery } from "../../lib/queries.ts";
+import { sessionQuery, sshKeyQuery } from "../../lib/queries.ts";
 import { diagnosticSummary, diagnosticTone, osLabel, osLine, type Tone } from "../../lib/status.ts";
 
 export const Route = createFileRoute("/_app/machines/$id")({
@@ -83,10 +83,15 @@ function Machine() {
   })();
   // Readiness opens by itself when the machine isn't ready for its pools' jobs.
   const [readinessOpen, setReadinessOpen] = useState(problems > 0);
-  const m = view.machines.find((x) => x.id === id);
   const removed = useSyncExternalStore(removedMachines.subscribe, () => removedMachines.get(id));
+  // The live view drops the machine as soon as the server forgets it. While the remove dialog
+  // is still showing its last step finish, the page keeps the machine as it last saw it.
+  const last = useRef<MachineView | undefined>(undefined);
+  const live = view.machines.find((x) => x.id === id);
+  if (live) last.current = live;
+  const m = live ?? (removed && !removed.done ? last.current : undefined);
   if (!m) {
-    if (removed) return <Removed removed={removed} />;
+    if (removed?.done) return <Removed removed={removed} />;
     return (
       <Panel className="mx-auto mt-[12vh] max-w-md">
         <p className="px-4 py-4 text-tt-ink-2">
@@ -760,7 +765,7 @@ function EditMachine({ m, close }: { m: MachineView; close: () => void }) {
   );
 }
 
-type RemoveStep = "pools" | "runners" | "cleanUp" | "remove";
+type RemoveStep = "pools" | "runners" | "cleanUp" | "remove" | "done";
 type Operation = { status: "running" | "succeeded" | "failed"; error: string | null };
 
 /**
@@ -831,20 +836,34 @@ function RemoveMachine({ m }: { m: MachineView }) {
         await queryClient.invalidateQueries({ queryKey: yardQuery.queryKey });
       }
       setStep(withCleanUp ? "cleanUp" : "remove");
-      const res = await call(
-        api.machines[":id"].$delete({
-          param: { id: m.id },
-          query: withCleanUp ? { cleanUp: "1" } : {},
-        }),
-      );
-      // Recorded here rather than in onSuccess: the live view drops the machine, and this dialog
-      // with it, as soon as the server removes it. The page then shows what happened.
-      removedMachines.set(m.id, {
+      const removal: RemovedMachine = {
         name: m.name,
         os: m.os,
-        cleanedUp: res.cleanedUp !== null,
+        pools: pools.map((p) => p.name),
+        runners: left.length ? (left.length === 1 ? left[0]! : leftSummary) : null,
+        cleanedUp: false,
         prepared: m.os === "linux" && m.sshTarget.startsWith("runyard@"),
-      });
+        done: false,
+      };
+      // Recorded before the call: the live view drops the machine as soon as the server removes
+      // it, and the page holds it on screen while this entry isn't done.
+      removedMachines.set(m.id, removal);
+      let res;
+      try {
+        res = await call(
+          api.machines[":id"].$delete({
+            param: { id: m.id },
+            query: withCleanUp ? { cleanUp: "1" } : {},
+          }),
+        );
+      } catch (error) {
+        removedMachines.forget(m.id);
+        throw error;
+      }
+      // Every step shows done for a moment, then the page says what the removal did.
+      setStep("done");
+      await new Promise((r) => setTimeout(r, 900));
+      removedMachines.set(m.id, { ...removal, cleanedUp: res.cleanedUp !== null, done: true });
     },
     onSettled: () => setSudo(""),
   });
@@ -868,7 +887,7 @@ function RemoveMachine({ m }: { m: MachineView }) {
       : []),
     { key: "remove", label: "Remove it from Runyard" },
   ];
-  const at = step ? plan.findIndex((s) => s.key === step) : -1;
+  const at = step === "done" ? plan.length : step ? plan.findIndex((s) => s.key === step) : -1;
   const start = (withCleanUp: boolean) => {
     setConfirming(false);
     setPlan(steps.filter((s) => s.key !== "cleanUp" || withCleanUp));
@@ -892,24 +911,28 @@ function RemoveMachine({ m }: { m: MachineView }) {
         <AlertDialog.Backdrop className="fixed inset-0 bg-black/30" />
         <AlertDialog.Popup className="sheet-dialog fixed top-1/2 left-1/2 w-[min(92vw,460px)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-tt-rule bg-tt-card p-5 font-ui text-tt-ink shadow-[0_24px_50px_-20px_rgba(0,0,0,.45)]">
           <AlertDialog.Title className="text-[22px] leading-tight font-extrabold [font-stretch:80%]">
-            {plan.length && (remove.isPending || remove.error)
-              ? `Removing ${m.name}`
-              : confirming
-                ? `Are you sure you want to remove ${m.name}?`
-                : `Remove ${m.name}`}
+            {step === "done"
+              ? `Removed ${m.name}`
+              : plan.length && (remove.isPending || remove.error)
+                ? `Removing ${m.name}`
+                : confirming
+                  ? `Are you sure you want to remove ${m.name}?`
+                  : `Remove ${m.name}`}
           </AlertDialog.Title>
           <AlertDialog.Description className="mt-1.5 text-[13.5px] text-tt-ink-2">
-            {plan.length && (remove.isPending || remove.error)
-              ? remove.error
-                ? "It stopped here. Nothing after this step ran."
-                : plan.some((s) => s.key === "runners")
-                  ? "This can take a minute while each runner is removed."
-                  : "This takes a few seconds."
-              : confirming
-                ? "Runyard does these in order. It can't be undone."
-                : left.length
-                  ? `Runyard removes ${left.length === 1 ? "its runner" : "what it has there"} first, then deletes the machine's history and stops checking it.`
-                  : "Runyard deletes its history and stops checking it."}
+            {step === "done"
+              ? "Every step is done."
+              : plan.length && (remove.isPending || remove.error)
+                ? remove.error
+                  ? "It stopped here. Nothing after this step ran."
+                  : plan.some((s) => s.key === "runners")
+                    ? "This can take a minute while each runner is removed."
+                    : "This takes a few seconds."
+                : confirming
+                  ? "Runyard does these in order. It can't be undone."
+                  : left.length
+                    ? `Runyard removes ${left.length === 1 ? "its runner" : "what it has there"} first, then deletes the machine's history and stops checking it.`
+                    : "Runyard deletes its history and stops checking it."}
           </AlertDialog.Description>
           {left.length > 0 && !confirming && !remove.isPending && !remove.error && (
             <ul className="mt-3 flex flex-col gap-1 rounded-lg border border-tt-rule bg-tt-paper px-3 py-2 font-board text-[12px]">
@@ -1034,7 +1057,18 @@ function RemoveMachine({ m }: { m: MachineView }) {
   );
 }
 
-type RemovedMachine = { name: string; os: OsFamily | null; cleanedUp: boolean; prepared: boolean };
+type RemovedMachine = {
+  name: string;
+  os: OsFamily | null;
+  /** The pools it was taken out of. */
+  pools: string[];
+  /** What Runyard removed there first ("lab-1", "2 runners and runner software"), if anything. */
+  runners: string | null;
+  cleanedUp: boolean;
+  prepared: boolean;
+  /** False while the remove dialog is still finishing. */
+  done: boolean;
+};
 
 /**
  * Machines removed in this tab, so the machine's page can say what the removal did. A store
@@ -1049,6 +1083,10 @@ const removedMachines = (() => {
       entries.set(id, removed);
       for (const l of listeners) l();
     },
+    forget: (id: string) => {
+      entries.delete(id);
+      for (const l of listeners) l();
+    },
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -1060,6 +1098,12 @@ const removedMachines = (() => {
 function Removed({ removed }: { removed: RemovedMachine }) {
   const navigate = useNavigate();
   const leftToDo = !removed.cleanedUp || removed.prepared;
+  const did = [
+    removed.pools.length > 0 && `Took it out of ${removed.pools.join(", ")}`,
+    removed.runners && `Removed ${removed.runners}`,
+    removed.cleanedUp && "Deleted its runner folder and Runyard's key there",
+    "Deleted its history and stopped checking it",
+  ].filter((x): x is string => typeof x === "string");
   return (
     <div className="mx-auto mt-[12vh] max-w-md font-ui">
       <Panel className="px-6 py-6">
@@ -1073,13 +1117,21 @@ function Removed({ removed }: { removed: RemovedMachine }) {
             Removed {removed.name}
           </h2>
           <p className="mt-2 text-[13.5px] text-tt-ink-2">
-            {removed.cleanedUp
-              ? removed.prepared
-                ? "Runyard deleted its runner folder there and removed its key. The runyard account it signed in as is still there."
-                : "Runyard deleted its runner folder there and removed its key. Nothing of Runyard's is left on it."
-              : "Runyard stopped checking it. Nothing on the machine changed."}
+            {!removed.cleanedUp
+              ? "Runyard's runner folder and SSH key may still be on the machine."
+              : removed.prepared
+                ? "Only the runyard account it signed in as is left on the machine."
+                : "Nothing of Runyard's is left on the machine."}
           </p>
         </div>
+        <ul className="mt-4 flex flex-col gap-1.5 rounded-lg border border-tt-rule bg-tt-paper px-3 py-2.5 text-[13px]">
+          {did.map((line) => (
+            <li key={line} className="flex items-center gap-2">
+              <Dot tone="ok" />
+              {line}
+            </li>
+          ))}
+        </ul>
         {removed.cleanedUp ? (
           removed.prepared && <AccountCommand />
         ) : (
@@ -1095,12 +1147,16 @@ function Removed({ removed }: { removed: RemovedMachine }) {
   );
 }
 
+/** Deletes the runyard account by hand, where the dashboard can't serve the teardown script. */
+const ACCOUNT_REMOVAL =
+  "sudo loginctl disable-linger runyard; sudo loginctl terminate-user runyard; sleep 2; sudo pkill -KILL -u runyard; sleep 1; sudo userdel -r runyard && sudo rm -f /etc/sudoers.d/runyard";
+
 /** After a cleanup on a machine set up with --prepare: the root command that deletes the runyard account. */
 function AccountCommand() {
   const origin = window.location.origin;
   const command = origin.startsWith("https://")
     ? `curl -fsSL ${origin}/api/machine-setup/teardown.sh | sudo sh -s -- --prepared`
-    : "sudo loginctl disable-linger runyard; sudo loginctl terminate-user runyard; sleep 2; sudo pkill -KILL -u runyard; sleep 1; sudo userdel -r runyard && sudo rm -f /etc/sudoers.d/runyard";
+    : ACCOUNT_REMOVAL;
   return (
     <div className="mt-3 flex flex-col gap-1 text-[12px]">
       <span className="font-bold">To delete the runyard account too, run on the machine:</span>
@@ -1116,36 +1172,54 @@ function AccountCommand() {
  */
 function TeardownCommands({ os }: { os: OsFamily | null }) {
   const origin = window.location.origin;
-  if (!origin.startsWith("https://"))
+  const https = origin.startsWith("https://");
+  const { data: key } = useQuery({ ...sshKeyQuery, enabled: !https });
+  // Over plain http the script isn't served, so the commands do the same by hand, matching
+  // Runyard's key by its body.
+  const body = key?.line.split(" ")[1];
+  if (!https && !body)
     return (
-      <p className="mt-3 text-[12px] text-tt-ink-3">
-        Open the dashboard over HTTPS to get the cleanup command.
+      <p className="mt-3 text-[12px] text-tt-ink-2">
+        To clean it up, delete Runyard's runner folder on the machine and remove Runyard's key from
+        its <span className="font-board">authorized_keys</span>. Or open the dashboard over HTTPS
+        for a command that does both.
       </p>
     );
   const commands =
     os === "windows"
-      ? [["As the account Runyard used", `irm ${origin}/api/machine-setup/teardown.ps1 | iex`]]
+      ? [
+          [
+            "In PowerShell, as the account Runyard used (an administrator one needs an administrator PowerShell)",
+            https
+              ? `irm ${origin}/api/machine-setup/teardown.ps1 | iex`
+              : `Remove-Item -Recurse -Force "$env:ProgramData\\Runyard\\runners" -ErrorAction SilentlyContinue; foreach ($f in "$HOME\\.ssh\\authorized_keys", "$env:ProgramData\\ssh\\administrators_authorized_keys") { if ((Test-Path $f) -and (Select-String -Path $f -SimpleMatch -Pattern '${body}' -Quiet)) { Set-Content -Path $f -Encoding ascii -Value (Get-Content $f | Where-Object { -not $_.Contains('${body}') }) } }`,
+          ],
+        ]
       : [
           [
             "As the account Runyard used",
-            `curl -fsSL ${origin}/api/machine-setup/teardown.sh | sh`,
+            https
+              ? `curl -fsSL ${origin}/api/machine-setup/teardown.sh | sh`
+              : `rm -rf ~/runyard-runners; f=~/.ssh/authorized_keys; [ -f $f ] && grep -vF '${body}' $f > $f.new; [ -f $f.new ] && chmod 600 $f.new && mv $f.new $f`,
           ],
           ...(os !== "macos"
             ? [
                 [
                   "Fresh-machine setup, as root (also removes the runyard account)",
-                  `curl -fsSL ${origin}/api/machine-setup/teardown.sh | sudo sh -s -- --prepared`,
+                  https
+                    ? `curl -fsSL ${origin}/api/machine-setup/teardown.sh | sudo sh -s -- --prepared`
+                    : ACCOUNT_REMOVAL,
                 ],
               ]
             : []),
         ];
   return (
-    <div className="mt-3 flex flex-col gap-2 text-[12px]">
-      <span className="font-bold">To clean up, run on the machine:</span>
+    <div className="mt-4 flex flex-col gap-2 text-[12px]">
+      <span className="font-bold">To clean it up, run on the machine:</span>
       {commands.map(([label, text]) => (
         <div key={label} className="flex flex-col gap-1">
           <span className="text-tt-ink-3">{label}</span>
-          <CodeBlock text={text!} label="Teardown command" />
+          <CodeBlock text={text!} label="Cleanup command" />
         </div>
       ))}
     </div>

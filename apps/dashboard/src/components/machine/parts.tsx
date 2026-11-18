@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { useLayoutEffect, useRef, type ComponentProps, type ReactNode } from "react";
-import { CopyValue } from "../CopyValue.tsx";
+import { CopyValue, useCopy } from "../CopyValue.tsx";
 
 /*
  * The machine page's and Add machine's pieces from the Timetable design: the notice bar, the stat
@@ -258,19 +258,21 @@ export function CodeBlock({
   label?: string;
   className?: string;
 }) {
+  const copy = useCopy(text, label);
   return (
     <div
       className={`relative rounded-[10px] border border-tt-board-edge bg-tt-board py-3.5 pr-[52px] pl-4 font-board text-[12.5px] leading-[1.6] break-all whitespace-pre-wrap text-tt-flap ${className}`}
     >
       <span className="select-all">{text}</span>
-      <CopyValue
-        value={text}
-        label={label}
-        showIcon={false}
-        className="absolute top-2 right-2 grid size-[34px] place-items-center rounded-lg bg-[#26292f] text-[#c7cbd2] hover:text-white"
+      <button
+        type="button"
+        className="absolute top-2 right-2 grid size-[34px] cursor-copy place-items-center rounded-lg bg-[#26292f] text-[#c7cbd2] hover:text-white"
+        title="Copy"
+        aria-label={`Copy ${label.toLowerCase()}`}
+        onClick={copy}
       >
         <CopyIcon />
-      </CopyValue>
+      </button>
     </div>
   );
 }
