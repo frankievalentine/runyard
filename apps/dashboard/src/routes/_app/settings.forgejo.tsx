@@ -30,7 +30,7 @@ function ForgejoSettings() {
         title="Forgejo"
         lede="Runyard reads and registers runners on a Forgejo instance with one user's access token: that user's own runners and those of the organizations they own."
       />
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-[18px]">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-[18px] 3xl:grid-cols-[minmax(0,1fr)_480px]">
         <Panel title="Connections" meta={n ? plural(n, "connection") : "None yet"}>
           {n === 0 ? (
             <Note>No Forgejo connection yet. Add one with an access token.</Note>

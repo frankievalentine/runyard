@@ -255,7 +255,7 @@ export function Departures({ view, phone = false }: { view: YardView; phone?: bo
           )}
         </ul>
       ) : (
-        <div>
+        <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex items-center gap-3 px-5 pt-2.5 pb-2 text-[10.5px] font-semibold tracking-[.1em] text-[#8b9099] uppercase">
             <span className="flex-none" style={{ width: width(COLS.time) }}>
               Time
@@ -313,6 +313,7 @@ export function Departures({ view, phone = false }: { view: YardView; phone?: bo
               </button>
             );
           })}
+          <BlankRows />
         </div>
       )}
       <DepartureSheet
@@ -423,5 +424,44 @@ function DepartureSheet({
         </>
       )}
     </TtDialog>
+  );
+}
+
+/**
+ * Empty board rows below the departures, as many as fit the board's spare height, so a tall board
+ * reads as a board with free slots rather than a black gap. They take the space left over and
+ * never make the board taller.
+ */
+function BlankRows() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      // A row is the flap's height, its 10px of padding and its 1px top border.
+      const flap = parseFloat(getComputedStyle(el).getPropertyValue("--flap-h")) || 24;
+      setCount(Math.floor(el.clientHeight / (flap + 11)));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={ref} aria-hidden className="relative min-h-0 flex-1">
+      <div className="absolute inset-0 overflow-hidden">
+        {Array.from({ length: count }, (_, i) => (
+          <div
+            key={i}
+            className="flex h-[calc(var(--flap-h)+10px)] items-center gap-3 border-t border-[#1a1c20] px-5 opacity-60"
+          >
+            {Object.values(COLS).map((cells, c) => (
+              <SplitFlap key={c} text="" cells={cells} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -65,7 +65,7 @@ function GithubSettings() {
           </a>
         </Notice>
       )}
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-[18px]">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-[18px] 3xl:grid-cols-[minmax(0,1fr)_480px]">
         <div className="flex min-w-0 flex-col gap-3 lg:gap-[18px]">
           <Panel
             title="Apps"

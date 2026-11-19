@@ -295,9 +295,12 @@ function MetricCell({
 export function EventTimeline({
   machineId,
   title = "History",
+  fill = false,
 }: {
   machineId?: string;
   title?: string;
+  /** Fills a positioned parent, with the list scrolling inside, as in the Board's third column. */
+  fill?: boolean;
 }) {
   // The `before` cursor of each page back from the newest; empty on the first page.
   const [cursors, setCursors] = useState<number[]>([]);
@@ -309,7 +312,7 @@ export function EventTimeline({
   return (
     <Panel
       title={title}
-      className="mt-[18px]"
+      className={fill ? "absolute inset-0 flex flex-col" : "mt-[18px]"}
       action={
         (cursors.length > 0 || older) && (
           <div className="flex items-center gap-1.5">
@@ -331,7 +334,9 @@ export function EventTimeline({
         )
       }
     >
-      <div className="overflow-hidden border-t border-tt-rule">
+      <div
+        className={`border-t border-tt-rule ${fill ? "scroll min-h-0 flex-1" : "overflow-hidden"}`}
+      >
         {events.error && <ErrorText className="px-4 py-3" error={events.error} />}
         {events.data?.length === 0 && <EmptyLine>No events yet.</EmptyLine>}
         <ul className="divide-y divide-line">

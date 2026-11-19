@@ -142,7 +142,7 @@ function Machine() {
       <Banner m={m} unreached={unreached} problems={problems} showReadiness={showReadiness} />
       <Readings m={m} />
       {/* Two stacks on a wide screen; on a phone one, in the design's order. */}
-      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start lg:gap-[18px]">
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] 3xl:grid-cols-[minmax(0,1fr)_480px] lg:items-start lg:gap-[18px]">
         <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-[18px]">
           {unreached && (
             <div className="max-lg:order-1">

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useMediaQuery } from "../lib/media.ts";
 import { CopyFeedback } from "../components/CopyValue.tsx";
 import { Button } from "../components/form.tsx";
 import { Icon } from "../components/icons.tsx";
@@ -72,7 +73,7 @@ function Layout() {
         {demo && <DemoBanner />}
         <main ref={scrollRef} className="scroll min-h-0 flex-1">
           <div
-            className={`mx-auto w-full px-4 py-6 sm:px-6 sm:py-8 xl:px-8 ${section === "board" ? "max-w-[1440px]" : "max-w-[1200px]"}`}
+            className={`mx-auto flex min-h-full w-full flex-col px-4 py-6 sm:px-6 sm:py-8 xl:px-8 ${pageWidth[section]}`}
           >
             <Outlet />
           </div>
@@ -82,6 +83,18 @@ function Layout() {
     </CopyFeedback>
   );
 }
+
+/**
+ * How wide each section's pages get. From 1800px (`3xl:`) every section uses the room: the Board
+ * and Settings with a third column, the others with wider tables and side columns.
+ */
+const pageWidth: Record<ReturnType<typeof sectionFor>, string> = {
+  board: "max-w-[1440px] 3xl:max-w-[1880px]",
+  jobs: "max-w-[1200px] 3xl:max-w-[1880px]",
+  machines: "max-w-[1200px] 3xl:max-w-[1880px]",
+  pools: "max-w-[1200px] 3xl:max-w-[1880px]",
+  settings: "max-w-[1200px] 3xl:max-w-[1880px]",
+};
 
 /** Whether the device says it's online, following changes. */
 function useOnline(): boolean {
@@ -157,17 +170,5 @@ function DemoBanner() {
         Fictional machines answered by a stand-in. Nothing real is contacted.
       </span>
     </div>
-  );
-}
-
-/** Whether a media query matches, following changes such as a window resized past it. */
-function useMediaQuery(query: string): boolean {
-  return useSyncExternalStore(
-    (onChange) => {
-      const list = window.matchMedia(query);
-      list.addEventListener("change", onChange);
-      return () => list.removeEventListener("change", onChange);
-    },
-    () => window.matchMedia(query).matches,
   );
 }

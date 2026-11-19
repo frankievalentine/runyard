@@ -184,7 +184,7 @@ function PoolPage() {
         />
       )}
 
-      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-[18px]">
+      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] 3xl:grid-cols-[minmax(0,1fr)_480px] lg:gap-[18px]">
         <div className="flex min-w-0 flex-col gap-3 lg:gap-[18px]">
           <UseInWorkflow pool={pool} />
           {!onDemand && (
