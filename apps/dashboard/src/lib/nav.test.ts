@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import type { YardView, RunnerView } from "@runyard/core";
-import { filterYard, sectionFor, unassignedGroups } from "./nav.ts";
+import { filterYard, phoneBack, phoneTabFor, sectionFor, unassignedGroups } from "./nav.ts";
 
 const view = {
   generatedAt: 0,
@@ -85,4 +85,27 @@ test("groups unassigned runners by account and forge", () => {
     ["frankie · GitHub", ["a", "b"]],
     ["yard-club · Forgejo", ["c"]],
   ]);
+});
+
+test("phone tabs: Pools and Settings are under More, and so is anything More opened", () => {
+  expect(phoneTabFor("/pools")).toBe("more");
+  expect(phoneTabFor("/settings/github")).toBe("more");
+  expect(phoneTabFor("/machines/add")).toBe("machines");
+  expect(phoneTabFor("/machines/add", "more")).toBe("more");
+  expect(phoneTabFor("/machines", "more")).toBe("more");
+});
+
+test("phone back links lead to More from what More opens", () => {
+  const own = { to: "/machines", label: "Machines" };
+  expect(phoneBack("/machines/add", "more", own)).toEqual({ to: "/more", label: "More" });
+  expect(phoneBack("/machines/add", undefined, own)).toBe(own);
+  // Pools, Settings and boat.dev lead to More however they were reached.
+  expect(phoneBack("/pools", undefined, undefined)).toEqual({ to: "/more", label: "More" });
+  expect(phoneBack("/boat", undefined, { to: "/settings/account", label: "Settings" })).toEqual({
+    to: "/more",
+    label: "More",
+  });
+  // Deeper pages keep their own: a pool leads back to Pools.
+  const pools = { to: "/pools", label: "Pools" };
+  expect(phoneBack("/pools/p_1", undefined, pools)).toBe(pools);
 });

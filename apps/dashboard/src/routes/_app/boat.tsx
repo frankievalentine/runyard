@@ -31,7 +31,7 @@ function BoatPage() {
   return (
     <div>
       <PageHead
-        back={admin ? { to: "/settings/connections", label: "Settings" } : undefined}
+        back={admin ? { to: "/settings/account", hash: "boat", label: "Settings" } : undefined}
         sign={<SIcon name="cloud" size={26} />}
         title="boat.dev"
         lede="Jobs with runs-on: boat run on a fresh boat.dev VM each. Runyard shows them from GitHub's data; a read-only key adds each VM's cost, your plan's limits, and VMs left running."
