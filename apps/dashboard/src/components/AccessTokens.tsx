@@ -14,6 +14,7 @@ import {
   rowButton,
   ttSelect,
 } from "./settings/parts.tsx";
+import { InfoTip, RowTip, TipText } from "./InfoTip.tsx";
 
 const tokensKey = ["access-tokens"];
 
@@ -86,7 +87,17 @@ export function AccessTokens({ admin }: { admin: boolean }) {
   return (
     <Panel
       id="tokens"
-      title="Access tokens for AI agents"
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          Access tokens for AI agents
+          <InfoTip label="access tokens">
+            <TipText
+              what="An AI agent connects to Runyard over MCP with one of these. It acts as you, never with more access than you have."
+              details="Read and prepare lets it also save pools and prepare reviews. Only you can run a review, here in the dashboard."
+            />
+          </InfoTip>
+        </span>
+      }
       action={
         <button type="button" className={rowButton.secondary} onClick={() => setAdding(true)}>
           New token
@@ -127,9 +138,12 @@ export function AccessTokens({ admin }: { admin: boolean }) {
             <small className="flex flex-wrap items-center gap-x-1.5 text-[12px] text-tt-ink-3">
               {[
                 !admin && <span key="scope">{ACCESS[t.scope].title}</span>,
-                <span key="prefix" className="font-mono" title="The start of the token">
-                  {t.prefix}…
-                </span>,
+                <RowTip
+                  key="prefix"
+                  content={<TipText what="The start of the token, to tell your tokens apart." />}
+                >
+                  <span className="font-mono">{t.prefix}…</span>
+                </RowTip>,
                 <span key="created">created {formatDay(t.createdAt)}</span>,
                 t.expiresAt && t.expiresAt <= now ? (
                   <span key="expires" className="font-semibold text-tt-bad-ink">
@@ -140,12 +154,16 @@ export function AccessTokens({ admin }: { admin: boolean }) {
                     {t.expiresAt ? `expires ${formatDay(t.expiresAt)}` : "never expires"}
                   </span>
                 ),
-                <span
-                  key="used"
-                  title={t.lastUsedAt ? new Date(t.lastUsedAt).toLocaleString() : undefined}
-                >
-                  {t.lastUsedAt ? `used ${timeAgo(t.lastUsedAt, now)}` : "never used"}
-                </span>,
+                t.lastUsedAt ? (
+                  <RowTip
+                    key="used"
+                    content={<TipText what={new Date(t.lastUsedAt).toLocaleString()} />}
+                  >
+                    <span>used {timeAgo(t.lastUsedAt, now)}</span>
+                  </RowTip>
+                ) : (
+                  <span key="used">never used</span>
+                ),
               ]
                 .filter(Boolean)
                 .map((part, i) =>
@@ -190,11 +208,6 @@ export function AccessTokens({ admin }: { admin: boolean }) {
         </Row>
       ))}
       {setAccess.error && <ErrorText className="px-4 py-2" error={setAccess.error} />}
-      <p className="border-t border-tt-rule px-4 py-3 text-[12.5px] text-tt-ink-2">
-        Agents connect over MCP. A token acts as you, never with more access than you have; tokens
-        that prepare changes can save pools and prepare reviews, but only you run a review, here in
-        the dashboard.
-      </p>
       <TtDialog open={adding} onOpenChange={setAdding} title="New access token">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <TtField

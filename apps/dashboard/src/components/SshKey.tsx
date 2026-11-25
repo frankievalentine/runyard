@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { sshKeyQuery } from "../lib/queries.ts";
 import { CodeBlock } from "./machine/parts.tsx";
+import { Clipped, InfoTip, TipText } from "./InfoTip.tsx";
 
 /** Runyard's public key, to copy into a machine's authorized_keys. */
 export function SshKeyCard() {
@@ -10,9 +11,13 @@ export function SshKeyCard() {
   return key ? (
     <div className="flex flex-col gap-2">
       <CodeBlock text={key.line} label="Runyard's public key" />
-      <p className="text-[12px] text-tt-ink-3">
-        <span className="font-board">{key.fingerprint}</span>. The setup command adds this key to a
-        machine. Your own keys still work.
+      <p className="flex min-w-0 items-center gap-1.5 text-[12px] text-tt-ink-3">
+        <span className="min-w-0 font-board">
+          <Clipped value={key.fingerprint} label="Fingerprint" />
+        </span>
+        <InfoTip label="Runyard's key">
+          <TipText what="The setup command adds this key to a machine, so Runyard can sign in. Your own keys keep working." />
+        </InfoTip>
       </p>
     </div>
   ) : (

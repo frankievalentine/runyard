@@ -10,6 +10,7 @@ import { readinessNote, RunnerReadiness } from "../../components/Readiness.tsx";
 import { AccessPanel } from "../../components/AccessPanel.tsx";
 import { CopyValue } from "../../components/CopyValue.tsx";
 import { Icon } from "../../components/icons.tsx";
+import { Clipped, InfoTip, TipText } from "../../components/InfoTip.tsx";
 import { MachineFields } from "../../components/MachineFields.tsx";
 import { MachineChanges, MachineRunners } from "../../components/changes.tsx";
 import { EventTimeline } from "../../components/machines.tsx";
@@ -180,17 +181,37 @@ function Machine() {
             <Monitoring m={m} admin={admin} />
           </div>
           <div className="max-lg:order-6">
-            <Panel title="Details" meta="Folded until you need them">
+            <Panel title="Details">
               <Det
                 id="readiness"
-                summary="Runner readiness"
+                summary={
+                  <span className="flex items-center gap-1.5">
+                    Runner readiness
+                    <InfoTip label="Runner readiness">
+                      <TipText
+                        what="Whether this machine has what its pools' jobs need: the tools, Docker, and what each of its labels promises."
+                        details="Runyard checks it after every SSH read."
+                      />
+                    </InfoTip>
+                  </span>
+                }
                 note={readinessNote(m)}
                 open={readinessOpen}
                 onToggle={setReadinessOpen}
               >
                 <RunnerReadiness m={m} />
               </Det>
-              <Det summary="Diagnostics" note={diagnosticSummary(m)}>
+              <Det
+                summary={
+                  <span className="flex items-center gap-1.5">
+                    Diagnostics
+                    <InfoTip label="Diagnostics">
+                      <TipText what="The machine itself rather than its jobs: Tailscale access, power and sleep settings, and system facts." />
+                    </InfoTip>
+                  </span>
+                }
+                note={diagnosticSummary(m)}
+              >
                 <Diagnostics m={m} />
               </Det>
               <Det
@@ -402,17 +423,33 @@ function Readings({ m }: { m: MachineView }) {
         label="Tailnet"
         value={!t ? "Off" : t.online ? "Online" : "Offline"}
         sub={
-          !t
-            ? "Not on tailnet"
-            : t.online
-              ? t.address
-              : t.lastSeen
-                ? `last seen ${timeAgo(t.lastSeen, now)}`
-                : "not seen recently"
+          !t ? (
+            "Not on tailnet"
+          ) : t.online ? (
+            <Clipped value={t.address} label="MagicDNS name" />
+          ) : t.lastSeen ? (
+            `last seen ${timeAgo(t.lastSeen, now)}`
+          ) : (
+            "not seen recently"
+          )
         }
       />
       <Stat
-        label="SSH"
+        label={
+          <>
+            SSH
+            <InfoTip label="SSH">
+              <TipText
+                what="Whether Runyard can sign in to this machine. It checks every minute, and the readings beside this come from that check."
+                details={
+                  c.state === "stale"
+                    ? `Stale: the last check didn't get through, so the readings are from ${timeAgo(c.checkedAt, now)}.`
+                    : undefined
+                }
+              />
+            </InfoTip>
+          </>
+        }
         value={
           c.state === "connected"
             ? "Connected"
@@ -433,18 +470,32 @@ function Readings({ m }: { m: MachineView }) {
         }
       />
       <Stat
-        label="CPU"
+        label={
+          <>
+            CPU
+            <InfoTip label="CPU">
+              <TipText
+                what="How busy the processor is right now."
+                details={
+                  h?.loadAverage
+                    ? `Load ${h.loadAverage.map((l) => l.toFixed(1)).join(" · ")}: how many tasks wanted the processor, on average, over the last 1, 5 and 15 minutes.${h.logicalCores ? ` With ${h.logicalCores} cores, ${h.logicalCores} means fully busy.` : ""}`
+                    : undefined
+                }
+              />
+            </InfoTip>
+          </>
+        }
         stale={stale}
         value={h?.cpuPercent == null ? "—" : formatPercent(h.cpuPercent)}
         bar={h?.cpuPercent == null ? null : h.cpuPercent / 100}
         sub={
           !h
             ? "not reachable"
-            : h.loadAverage
-              ? `load ${h.loadAverage.map((l) => l.toFixed(1)).join(" ")}`
-              : h.logicalCores == null
-                ? "unavailable"
-                : `${h.logicalCores} cores`
+            : h.logicalCores != null
+              ? `${h.logicalCores} cores`
+              : h.loadAverage
+                ? `load ${h.loadAverage[0]!.toFixed(1)}`
+                : "unavailable"
         }
       />
       <Stat
@@ -459,7 +510,17 @@ function Readings({ m }: { m: MachineView }) {
         }
       />
       <Stat
-        label="Disk free"
+        label={
+          <>
+            Disk free
+            <InfoTip label="Disk free">
+              <TipText
+                what="Free space on the machine's main disk."
+                details="Under 10%, the bar turns amber and Runyard raises an alert. Every disk is listed under Details ▸ Connection."
+              />
+            </InfoTip>
+          </>
+        }
         stale={stale}
         value={free == null ? "—" : formatPercent(free * 100)}
         bar={free}
@@ -503,7 +564,17 @@ function Monitoring({ m, admin }: { m: MachineView; admin: boolean }) {
   });
   return (
     <Panel
-      title="Monitoring"
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          Monitoring
+          <InfoTip label="Monitoring">
+            <TipText
+              what="Runyard raises an alert when this machine has been offline for 3 minutes, or has less than 10% disk free."
+              details="Pausing alerts for maintenance keeps its history going; alerts come back on their own."
+            />
+          </InfoTip>
+        </span>
+      }
       action={
         admin && (
           <TtButton disabled={maintenance.isPending} onClick={() => maintenance.mutate()}>
@@ -516,11 +587,11 @@ function Monitoring({ m, admin }: { m: MachineView; admin: boolean }) {
         )
       }
     >
-      <p className="px-4 pb-3.5 text-tt-ink-2">
-        {pausedUntil
-          ? `Alerts are paused until ${formatClock(pausedUntil)}. History continues.`
-          : "Alerts when offline for 3 minutes or under 10% disk free."}
-      </p>
+      {pausedUntil && (
+        <p className="px-4 pb-3.5 text-tt-ink-2">
+          Alerts are paused until {formatClock(pausedUntil)}. History continues.
+        </p>
+      )}
       <TtError className="px-4 pb-3" error={maintenance.error} />
       {m.alerts.length === 0 && (
         <Row>
@@ -656,7 +727,17 @@ function Connection({ m }: { m: MachineView }) {
       {t && (
         <>
           <Kv label="Hostname" value={copy(t.name, "Hostname")} />
-          <Kv label="MagicDNS" value={copy(t.address, "MagicDNS", true)} />
+          <Kv
+            label={
+              <span className="inline-flex items-center gap-1">
+                MagicDNS
+                <InfoTip label="MagicDNS">
+                  <TipText what="The name this machine has on your tailnet. Runyard reaches it by this name." />
+                </InfoTip>
+              </span>
+            }
+            value={copy(t.address, "MagicDNS", true)}
+          />
           <Kv
             label="Addresses"
             value={
@@ -677,7 +758,14 @@ function Connection({ m }: { m: MachineView }) {
             }
           />
           <Kv
-            label="Tailscale SSH"
+            label={
+              <span className="inline-flex items-center gap-1">
+                Tailscale SSH
+                <InfoTip label="Tailscale SSH">
+                  <TipText what="Whether this machine lets devices on your tailnet sign in through Tailscale, with no SSH keys. Runyard can connect that way." />
+                </InfoTip>
+              </span>
+            }
             value={
               m.diagnostics?.checks.find((c) => c.id === "tailscale-ssh")?.value ??
               (t.tailscaleSsh ? "Advertised" : "Not advertised")

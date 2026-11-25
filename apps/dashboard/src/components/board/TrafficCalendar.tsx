@@ -3,6 +3,7 @@ import gsap from "gsap";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useCalendar } from "../../lib/calendar.ts";
 import { useTheme } from "../../lib/theme.ts";
+import { InfoTip, TipText } from "../InfoTip.tsx";
 
 /** The viewer's own day for a moment, as `YYYY-MM-DD`. */
 function localDay(ms: number): string {
@@ -280,13 +281,27 @@ export function TrafficCalendar({ phone = false }: { phone?: boolean }) {
       aria-labelledby="traffic-title"
       className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-tt-board-edge bg-tt-board px-5 pt-4 pb-4 text-tt-flap"
     >
-      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2
-          id="traffic-title"
-          className="text-[13px] font-extrabold tracking-[.08em] text-tt-signal uppercase"
-        >
-          Traffic · last {weeks} weeks
-        </h2>
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <span className="flex items-center gap-1.5">
+          <h2
+            id="traffic-title"
+            className="text-[13px] font-extrabold tracking-[.08em] text-tt-signal uppercase"
+          >
+            Traffic · last {weeks} weeks
+          </h2>
+          <InfoTip label="Traffic" dark>
+            <TipText
+              what="One square per day. Brighter means more jobs. A red corner means 5% or more of that day's jobs failed. The outlined square is today."
+              details={
+                before
+                  ? `Runyard has kept this log since ${new Date(data!.earliest!).toLocaleDateString([], { month: "short", day: "numeric" })}.`
+                  : total
+                    ? undefined
+                    : "Jobs appear here once runners take work."
+              }
+            />
+          </InfoTip>
+        </span>
         <span className="text-[12px] text-[#9aa0a9]">
           {!data
             ? "Loading…"
@@ -335,14 +350,7 @@ export function TrafficCalendar({ phone = false }: { phone?: boolean }) {
           )}
         </div>
       </div>
-      <footer className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-[#9aa0a9]">
-        <span>
-          {before
-            ? `Runyard has kept this log since ${new Date(data!.earliest!).toLocaleDateString([], { month: "short", day: "numeric" })}.`
-            : total
-              ? "A red corner marks a day with 5% or more failed."
-              : "Jobs appear here once runners take work."}
-        </span>
+      <footer className="mt-3 flex flex-wrap items-center justify-end gap-2 text-[11.5px] text-[#9aa0a9]">
         <span className="flex items-center gap-1" aria-hidden>
           Less
           {(dark ? PALETTE.dark : PALETTE.light).map((c) => (

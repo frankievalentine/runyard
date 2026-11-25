@@ -20,6 +20,7 @@ import { yardQuery, useYard } from "../../lib/yard.ts";
 import { plural, timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
 import { healthQuery, sessionQuery } from "../../lib/queries.ts";
+import { InfoTip, RowTip, TipText } from "../../components/InfoTip.tsx";
 
 type Search = { created?: string; error?: string };
 
@@ -101,9 +102,29 @@ function AppRows({ app }: { app: GithubAppView }) {
           }
           detail={
             <>
-              Owned by {app.owner} · installable only there
-              {app.rateLimit &&
-                ` · ${app.rateLimit.remaining.toLocaleString()} of ${app.rateLimit.limit.toLocaleString()} API requests left`}
+              Owned by {app.owner} ·{" "}
+              <RowTip
+                content={
+                  <TipText what="A private GitHub App can only be installed on the account that owns it." />
+                }
+              >
+                <span tabIndex={0}>installable only there</span>
+              </RowTip>
+              {app.rateLimit && (
+                <>
+                  {" · "}
+                  <RowTip
+                    content={
+                      <TipText what="GitHub's hourly allowance of API requests for this app." />
+                    }
+                  >
+                    <span tabIndex={0}>
+                      {app.rateLimit.remaining.toLocaleString()} of{" "}
+                      {app.rateLimit.limit.toLocaleString()} API requests left
+                    </span>
+                  </RowTip>
+                </>
+              )}
             </>
           }
         />
@@ -127,7 +148,11 @@ function AppRows({ app }: { app: GithubAppView }) {
             const problem = i.runnersError ?? i.jobsError;
             return (
               <li key={i.id} className="flex items-start gap-3 py-2 pr-4 pl-[46px] text-[12.5px]">
-                <span aria-hidden className={DOT(problem, i.runnersAt)} />
+                <span
+                  role="img"
+                  aria-label={problem ? "Error" : i.runnersAt ? "Read" : "Not read yet"}
+                  className={DOT(problem, i.runnersAt)}
+                />
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold">
                     {i.account}{" "}
@@ -145,7 +170,23 @@ function AppRows({ app }: { app: GithubAppView }) {
                   <div className="text-tt-ink-2">
                     Runners {i.runnersAt ? `read ${timeAgo(i.runnersAt, now)}` : "not read yet"} ·
                     jobs {i.jobsAt ? `scanned ${timeAgo(i.jobsAt, now)}` : "not scanned yet"}
-                    {i.jobsTruncated && " (partial)"}
+                    {i.jobsTruncated && (
+                      <>
+                        {" "}
+                        <RowTip
+                          content={
+                            <TipText what="The job scan stopped at its limit, the 30 most recently pushed repositories, so some queued jobs may be missing." />
+                          }
+                        >
+                          <span
+                            tabIndex={0}
+                            className="underline decoration-dotted underline-offset-2"
+                          >
+                            (partial)
+                          </span>
+                        </RowTip>
+                      </>
+                    )}
                   </div>
                   {i.ciRepoCount !== null && (
                     <div className="text-tt-ink-2">
@@ -215,14 +256,14 @@ function CreateApp() {
   return (
     <Panel title="Create a GitHub App">
       <form onSubmit={submit} className="flex flex-col gap-4 px-4 pb-4 text-[13px]">
-        <p className="text-tt-ink-2">
-          A private app can only be installed on the account that owns it, so create one for each
-          account whose runners Runyard should see. It asks for{" "}
-          <b className="font-semibold text-tt-ink">Actions: read</b>,{" "}
-          <b className="font-semibold text-tt-ink">Administration</b> and{" "}
-          <b className="font-semibold text-tt-ink">Self-hosted runners: read and write</b> (runner
-          registration needs write), and <b className="font-semibold text-tt-ink">Metadata: read</b>
-          .
+        <p className="flex items-center gap-1.5 text-tt-ink-2">
+          Create one for each account whose runners Runyard should see.
+          <InfoTip label="the GitHub App">
+            <TipText
+              what="A private GitHub App can only be installed on the account that owns it."
+              details="It asks for Actions: read, Administration, Self-hosted runners: read and write (registering runners needs write), and Metadata: read. GitHub shows these again before you confirm."
+            />
+          </InfoTip>
         </p>
         <fieldset className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <legend className="mb-1.5 text-[12.5px] font-semibold text-tt-ink-2">Owner</legend>

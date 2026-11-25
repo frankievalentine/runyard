@@ -33,6 +33,7 @@ import {
 } from "../../components/pool/bits.tsx";
 import { PoolJobs } from "../../components/pool/PoolJobs.tsx";
 import { Chip, PageHead, Panel, TtButton, ttButton, type ChipTone } from "../../components/tt.tsx";
+import { InfoTip, RowTip, TipText } from "../../components/InfoTip.tsx";
 import { UseInWorkflow } from "../../components/UseInWorkflow.tsx";
 import { isForgejo, runnerFor, scopeLabel } from "../../lib/pools.ts";
 import { sessionQuery } from "../../lib/queries.ts";
@@ -214,17 +215,29 @@ function PoolPage() {
                         : { to: "/machines/$id", params: { id: d.machineId } })}
                       className="flex items-center gap-3 border-t border-tt-rule px-4 py-[11px] hover:bg-tt-hover"
                     >
-                      <span className="min-w-0 flex-1">
-                        <b className="block truncate font-board text-[13px] font-semibold">
-                          {d.name}
-                        </b>
-                        <small className="block truncate text-[12px] text-tt-ink-3">
-                          {machine?.name ?? d.machineId} · serves {d.scope.target}
-                        </small>
-                      </span>
-                      <span className="max-w-[45%] truncate">
-                        <Chip tone={chip[0]}>{chip[1]}</Chip>
-                      </span>
+                      {/* Both cut to fit; their whole text on hover. */}
+                      <RowTip
+                        content={
+                          <TipText
+                            what={d.name}
+                            details={`On ${machine?.name ?? d.machineId}, taking jobs from ${d.scope.target}.`}
+                          />
+                        }
+                      >
+                        <span className="min-w-0 flex-1">
+                          <b className="block truncate font-board text-[13px] font-semibold">
+                            {d.name}
+                          </b>
+                          <small className="block truncate text-[12px] text-tt-ink-3">
+                            {machine?.name ?? d.machineId} · serves {d.scope.target}
+                          </small>
+                        </span>
+                      </RowTip>
+                      <RowTip content={<TipText what={chip[1]} />}>
+                        <span className="max-w-[45%] truncate">
+                          <Chip tone={chip[0]}>{chip[1]}</Chip>
+                        </span>
+                      </RowTip>
                     </Link>
                   );
                 })
@@ -236,11 +249,41 @@ function PoolPage() {
           {onDemand && <OneJobRunners poolId={pool.id} dispatches={dispatches} />}
         </div>
         <div className="flex min-w-0 flex-col gap-3 lg:gap-[18px]">
-          <Panel title="Labels">
+          <Panel
+            title={
+              <span className="inline-flex items-center gap-1.5">
+                Labels
+                <InfoTip label="Labels">
+                  <TipText what="A job runs on this pool's runners when its runs-on asks for labels they have." />
+                </InfoTip>
+              </span>
+            }
+          >
             <div className="flex flex-wrap gap-1 px-4 pb-3">
-              {[...pool.labels, "runyard", poolLabel(pool)].map((l) => (
+              {pool.labels.map((l) => (
                 <Lab key={l}>{l}</Lab>
               ))}
+              <RowTip
+                content={
+                  <TipText what="Runyard adds this label to every runner it sets up, in every pool." />
+                }
+              >
+                <span>
+                  <Lab>runyard</Lab>
+                </span>
+              </RowTip>
+              <RowTip
+                content={
+                  <TipText
+                    what="Only this pool's runners have this label, so a workflow can ask for exactly them."
+                    todo="Use it in runs-on: when a job must run here."
+                  />
+                }
+              >
+                <span>
+                  <Lab>{poolLabel(pool)}</Lab>
+                </span>
+              </RowTip>
             </div>
             {facts.map((f) => (
               <p key={f} className="px-4 pb-2.5 text-[12.5px] text-tt-ink-2">
@@ -249,10 +292,19 @@ function PoolPage() {
             ))}
           </Panel>
           <Panel
-            title="Machines"
-            meta={
-              onDemand ? "Starts a runner when a matching job is queued" : `${pool.machines.length}`
+            title={
+              onDemand ? (
+                <span className="inline-flex items-center gap-1.5">
+                  Machines
+                  <InfoTip label="Machines">
+                    <TipText what="When a job this pool can take is queued, Runyard starts a one-job runner on one of these machines." />
+                  </InfoTip>
+                </span>
+              ) : (
+                "Machines"
+              )
             }
+            meta={`${pool.machines.length}`}
           >
             {pool.machines.map(({ machineId, slots }) => (
               <PoolMachine
@@ -392,8 +444,29 @@ function PoolMachine({
             ? "Runner software installed"
             : "Not installed: review changes"
     }`;
-    if (unsupported) chip = <Chip tone="error">Unsupported</Chip>;
-    else if (machine?.os && !ready) chip = <Chip tone="warn">Review changes</Chip>;
+    if (unsupported)
+      chip = (
+        <RowTip content={<TipText what="One-job runners run on Linux and macOS only." />}>
+          <span>
+            <Chip tone="error">Unsupported</Chip>
+          </span>
+        </RowTip>
+      );
+    else if (machine?.os && !ready)
+      chip = (
+        <RowTip
+          content={
+            <TipText
+              what="This machine needs the runner software before Runyard can start one-job runners on it."
+              todo="Open the machine and review its changes."
+            />
+          }
+        >
+          <span>
+            <Chip tone="warn">Review changes</Chip>
+          </span>
+        </RowTip>
+      );
   } else {
     const mine = view.pools.desired
       .filter((d) => d.poolId === pool.id && d.machineId === machineId)
@@ -409,10 +482,12 @@ function PoolMachine({
       className="flex items-center gap-3 border-t border-tt-rule px-4 py-[11px] hover:bg-tt-hover"
     >
       {machine ? machineSign(view, machine) : null}
-      <span className="min-w-0 flex-1">
-        <b className="block truncate font-bold">{machine?.name ?? machineId}</b>
-        <small className="block truncate text-[12px] text-tt-ink-3">{line}</small>
-      </span>
+      <RowTip content={<TipText what={machine?.name ?? machineId} details={line} />}>
+        <span className="min-w-0 flex-1">
+          <b className="block truncate font-bold">{machine?.name ?? machineId}</b>
+          <small className="block truncate text-[12px] text-tt-ink-3">{line}</small>
+        </span>
+      </RowTip>
       {chip}
     </Link>
   );

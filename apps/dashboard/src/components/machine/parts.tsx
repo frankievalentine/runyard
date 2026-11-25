@@ -94,7 +94,7 @@ export function Stat({
   warn,
   stale,
 }: {
-  label: string;
+  label: ReactNode;
   value: ReactNode;
   sub?: ReactNode;
   /** 0 to 1; no bar when undefined. */
@@ -104,7 +104,7 @@ export function Stat({
 }) {
   return (
     <div className={`min-w-0 p-3 lg:px-4 lg:py-3.5 ${stale ? "opacity-60" : ""}`}>
-      <small className="block text-[10.5px] leading-none font-bold tracking-[.1em] text-tt-ink-3 uppercase">
+      <small className="flex items-center gap-1 text-[10.5px] leading-none font-bold tracking-[.1em] text-tt-ink-3 uppercase">
         {label}
       </small>
       <b className="mt-2 block truncate text-[20px] leading-[1.1] font-extrabold tabular-nums [font-stretch:80%] lg:text-[24px]">

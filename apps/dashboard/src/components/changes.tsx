@@ -11,6 +11,7 @@ import { runnerFor } from "../lib/pools.ts";
 import { runnerStatus, type Tone } from "../lib/status.ts";
 import { Dot, Field, Input, TtError, type DotTone } from "./machine/parts.tsx";
 import { Elapsed } from "./runners.tsx";
+import { RowTip, TipText } from "./InfoTip.tsx";
 import { Chip, Panel, Row, TtButton, ttButton, type ChipTone } from "./tt.tsx";
 
 type Review = {
@@ -48,6 +49,38 @@ const ACTION: Record<PlanItem["action"], string> = {
   configureCleanup: "Set job hooks",
   recordJobs: "Record jobs",
   syncPath: "Update PATH",
+};
+
+/** What each kind of change does, for its chip's tooltip; the row says what it does here. */
+const ACTION_TIP: Record<PlanItem["action"], string> = {
+  install: "Registers a new runner for its pool and starts it on this machine.",
+  start: "Starts the runner's service, which is set up but not running.",
+  reconcileLabels: "Changes the runner's labels to match its pool.",
+  remove: "Removes a runner that no pool wants any more.",
+  inspect:
+    "Runyard couldn't read the forge or the machine, so it leaves this runner alone for now.",
+  repairRegistration:
+    "The runner on the machine and the one on the forge don't line up. Runyard won't guess; sort it out by hand.",
+  recoverLocal:
+    "The forge has this runner, but its folder on the machine isn't set up. Runyard won't guess; sort it out by hand.",
+  preserveService:
+    "The runner's service is stopped, but the forge says it's running a job, so Runyard leaves it alone.",
+  inspectOffline:
+    "The service is running, but the forge sees the runner as offline. Look at it on the machine.",
+  publicRepo:
+    "Anyone who opens a pull request on a public repository could run code on this machine, so Runyard waits until you allow it.",
+  groupPolicy:
+    "The runner group lets public repositories use these runners, so anyone who opens a pull request could run code on them.",
+  unsupportedPlatform: "This kind of runner can't run on this machine's system.",
+  installTemplate:
+    "Downloads the runner program for one-job runners. Nothing is registered until a job needs one.",
+  removeTemplate: "Deletes runner software that no on-demand pool needs any more.",
+  retire:
+    "Unregisters a runner you've taken over, once its replacement is ready. Its files stay on the machine.",
+  installTools: "Installs the tools the pool asks for.",
+  configureCleanup: "Sets up what the runner clears after each job.",
+  recordJobs: "Adds hooks so the runner tells Runyard when each job starts and ends.",
+  syncPath: "Updates the runner's PATH to match the machine's, restarting it once it's idle.",
 };
 
 const chipTone: Record<Tone, ChipTone> = {
@@ -350,9 +383,13 @@ export function MachineChanges({
               className="flex items-start gap-3 border-t border-tt-rule px-4 py-[11px] text-[13px] max-sm:flex-col max-sm:gap-1.5"
             >
               <span className="w-40 shrink-0 max-sm:w-auto">
-                <Chip tone={i.blocked ? "warn" : i.action === "remove" ? "error" : "busy"}>
-                  {ACTION[i.action]}
-                </Chip>
+                <RowTip content={<TipText what={ACTION_TIP[i.action]} />}>
+                  <span>
+                    <Chip tone={i.blocked ? "warn" : i.action === "remove" ? "error" : "busy"}>
+                      {ACTION[i.action]}
+                    </Chip>
+                  </span>
+                </RowTip>
               </span>
               <div className="min-w-0 flex-1">
                 <div className="font-board text-[12.5px] font-semibold break-words">

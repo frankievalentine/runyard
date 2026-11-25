@@ -15,6 +15,7 @@ import { useNow } from "../lib/now.ts";
 import { isBuiltinLabel, runnerStatus, type Tone } from "../lib/status.ts";
 import { CopyValue } from "./CopyValue.tsx";
 import { Icon } from "./icons.tsx";
+import { RowTip, TipText } from "./InfoTip.tsx";
 import { Card, EmptyLine, Pill, StatusDot } from "./ui.tsx";
 import { TryAgain } from "./TryAgain.tsx";
 
@@ -74,16 +75,17 @@ export function GitHubLink({
   children: ReactNode;
 }) {
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-      aria-label={label}
-      title={label}
-      className="shrink-0 text-ink-2 hover:text-accent"
-    >
-      {children}
-    </a>
+    <RowTip content={<TipText what={label} />}>
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={label}
+        className="shrink-0 text-ink-2 hover:text-accent"
+      >
+        {children}
+      </a>
+    </RowTip>
   );
 }
 
@@ -114,12 +116,18 @@ export function RunnerLine({ r }: { r: RunnerView }) {
         <div className="truncate font-mono text-[12px] text-ink-2">{detail}</div>
       </div>
       {vm?.dollars != null && (
-        <span
-          className="shrink-0 text-[12px] text-ink-2 tabular"
-          title={`${vm.type} boat.dev VM, cost so far at list price`}
+        <RowTip
+          content={
+            <TipText
+              what="What this job's boat.dev VM has cost so far, at list price."
+              details={`A ${vm.type} VM.`}
+            />
+          }
         >
-          {formatDollars(vm.dollars)}
-        </span>
+          <span className="shrink-0 text-[12px] text-ink-2 tabular">
+            {formatDollars(vm.dollars)}
+          </span>
+        </RowTip>
       )}
       <span className="shrink-0 text-[12px] text-ink-2 tabular">
         {r.job?.startedAt ? <Elapsed since={r.job.startedAt} /> : status.label}

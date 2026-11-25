@@ -1,6 +1,7 @@
 import type { RunnerView } from "@runyard/core";
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { InfoTip, TipText } from "../../components/InfoTip.tsx";
 import { PoolForm } from "../../components/PoolForm.tsx";
 import { PageHead, Panel, ttButton } from "../../components/tt.tsx";
 import { useYard } from "../../lib/yard.ts";
@@ -37,7 +38,7 @@ function draftFromRunner(r: RunnerView, taken: Set<string>): PoolDraft | null {
 }
 
 const LEDE =
-  "Describe the capacity you want. Runyard turns it into runners, and changes nothing until you review it.";
+  "Say which machines should run jobs, for which repositories, and with which labels. Runyard turns that into runners, and changes nothing until you review it.";
 
 /** New pool, as in the Timetable design: a route of four stops beside a summary of the pool. */
 function NewPool() {
@@ -86,7 +87,17 @@ function NewPool() {
   }
   return (
     <div>
-      <PageHead title="New pool" back={back} lede={<span className="max-lg:hidden">{LEDE}</span>} />
+      <PageHead
+        title={
+          <span className="inline-flex items-center gap-2">
+            New pool
+            <InfoTip label="New pool" large>
+              <TipText what={LEDE} />
+            </InfoTip>
+          </span>
+        }
+        back={back}
+      />
       <PoolForm />
     </div>
   );

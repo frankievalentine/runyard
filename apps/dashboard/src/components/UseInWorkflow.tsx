@@ -10,6 +10,7 @@ import {
 import { useState } from "react";
 import { isForgejo } from "../lib/pools.ts";
 import { useYard } from "../lib/yard.ts";
+import { InfoTip, TipText } from "./InfoTip.tsx";
 import { CodeBox } from "./pool/bits.tsx";
 import { Panel } from "./tt.tsx";
 
@@ -116,15 +117,26 @@ export function WorkflowSnippet({ pool }: { pool: Pool }) {
           </div>
         );
       })}
-      <p className="max-w-[70ch] text-[12.5px] text-tt-ink-3">
-        Only this pool's runners carry{" "}
+      {/* Why the pool's own label is there lives in its tip; the mixed-systems warning stays. */}
+      <p className="flex max-w-[70ch] items-center gap-1.5 text-[12.5px] text-tt-ink-3">
+        Only this pool's runners have{" "}
         <span className="font-board text-tt-ink-2">{poolLabel(pool)}</span>
-        {pool.labels.length > 0 &&
-          ", for jobs that must land here and not on another pool with the same labels"}
-        .
-        {mixed &&
-          " Its machines run different systems and a job can land on any of them, so give each system its own pool or label when your steps differ."}
+        <InfoTip label={poolLabel(pool)}>
+          <TipText
+            what={
+              pool.labels.length > 0
+                ? "Ask for it in runs-on: when a job must run on this pool, and not on another pool with the same labels."
+                : "Ask for it in runs-on: to run a job on this pool."
+            }
+          />
+        </InfoTip>
       </p>
+      {mixed && (
+        <p className="max-w-[70ch] text-[12.5px] text-tt-warn-ink">
+          Its machines run different systems and a job can land on any of them, so give each system
+          its own pool or label when your steps differ.
+        </p>
+      )}
     </div>
   );
 }
