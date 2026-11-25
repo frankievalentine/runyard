@@ -1,4 +1,6 @@
+import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { NARROW, useMediaQuery } from "../../lib/media.ts";
 import { Panel, Row } from "../tt.tsx";
 import { Note, RowText, SIcon, rowButton } from "./parts.tsx";
 
@@ -19,15 +21,21 @@ const installed = () =>
   window.matchMedia?.("(display-mode: standalone)").matches ||
   (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-/** Installing Runyard on the home screen: the browser's prompt where there is one, else how. */
+/**
+ * Installing Runyard on the home screen: the browser's prompt where there is one, else how. On
+ * phones and tablets it's on the More tab only, not in Settings as well.
+ */
 export function InstallPanel() {
   const [prompt, setPrompt] = useState(held);
   const [how, setHow] = useState(false);
+  const narrow = useMediaQuery(NARROW);
+  const onMore = useRouterState({ select: (s) => s.location.pathname === "/more" });
   useEffect(() => {
     const update = () => setPrompt(held);
     listeners.add(update);
     return () => void listeners.delete(update);
   }, []);
+  if (narrow && !onMore) return null;
   const secure = window.isSecureContext;
   const install = async () => {
     if (!prompt) return setHow(!how);
