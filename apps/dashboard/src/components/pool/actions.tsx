@@ -22,17 +22,21 @@ export function PauseButton({ pool }: { pool: Pool }) {
   // a phone.
   return (
     <span className="flex flex-col items-end gap-1">
-      <TtButton
-        onClick={() => toggle.mutate()}
-        disabled={toggle.isPending}
-        title={
-          pool.paused
-            ? "Start one-job runners again for queued jobs"
-            : "Start no new runners; running jobs finish"
+      <RowTip
+        content={
+          <TipText
+            what={
+              pool.paused
+                ? "Starts one-job runners for queued jobs again."
+                : "Starts no new one-job runners. Jobs already running finish."
+            }
+          />
         }
       >
-        {pool.paused ? "Resume" : "Pause"}
-      </TtButton>
+        <TtButton onClick={() => toggle.mutate()} disabled={toggle.isPending}>
+          {pool.paused ? "Resume" : "Pause"}
+        </TtButton>
+      </RowTip>
       {toggle.error && <ErrorText error={toggle.error} />}
     </span>
   );

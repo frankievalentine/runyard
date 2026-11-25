@@ -122,9 +122,18 @@ function Runner() {
               <CopyValue key="scope" value={r.scopeLabel} label={scopeKind} showIcon={false} />,
               r.os && <span key="os">{r.os}</span>,
               !r.listed && (
-                <span key="listed">
-                  known from its running job; {forgeName}'s runner list doesn't include it
-                </span>
+                <RowTip
+                  key="listed"
+                  content={
+                    <TipText
+                      what={`Runyard knows this runner from the job it's running; ${forgeName}'s runner list doesn't include it.`}
+                    />
+                  }
+                >
+                  <span tabIndex={0} className="underline decoration-dotted underline-offset-2">
+                    unlisted
+                  </span>
+                </RowTip>
               ),
             ]}
           </Separated>
@@ -172,7 +181,12 @@ function Runner() {
           />
           <Stat
             label={scopeKind}
-            value={r.scopeLabel}
+            value={
+              // Cut to fit; whole on hover or tap.
+              <RowTip content={<TipText what={r.scopeLabel} />}>
+                <span tabIndex={0}>{r.scopeLabel}</span>
+              </RowTip>
+            }
             sub={
               r.scope.kind === "org"
                 ? "serves the organization's repositories"
