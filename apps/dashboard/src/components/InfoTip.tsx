@@ -14,11 +14,11 @@ const shape =
   "z-50 max-w-xs origin-(--transform-origin) rounded-lg px-3 py-1.5 text-[12px] leading-4 font-normal tracking-normal normal-case outline-none transition-[opacity,scale] duration-150 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0";
 const arrowShape =
   "size-2.5 rotate-45 rounded-[2px] data-[side=bottom]:-top-1 data-[side=left]:-right-1 data-[side=right]:-left-1 data-[side=top]:-bottom-1";
-// Ink on the light cards; on the dark board panels the board's own light ink, so the bubble stands
-// out from what it's over either way.
+// The tt-tip colors (styles.css): ink on light cards, the board's light ink over the dark board
+// panels, and a raised dark gray in the dark theme. A shadow there separates it from what's below.
 const popup = (dark: boolean) =>
-  `${shape} ${dark ? "bg-tt-flap text-tt-board" : "bg-tt-inv text-tt-on-inv"}`;
-const arrow = (dark: boolean) => `${arrowShape} ${dark ? "bg-tt-flap" : "bg-tt-inv"}`;
+  `${shape} shadow-[0_8px_24px_-6px_var(--tt-tip-shadow)] ${dark ? "bg-tt-tip-board text-tt-on-tip-board" : "bg-tt-tip text-tt-on-tip"}`;
+const arrow = (dark: boolean) => `${arrowShape} ${dark ? "bg-tt-tip-board" : "bg-tt-tip"}`;
 
 function Tip({
   trigger,
