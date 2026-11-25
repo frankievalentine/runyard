@@ -5,6 +5,7 @@ import { api, call } from "../../api.ts";
 import { addPasskey, passkeysAvailable, suggestedPasskeyName } from "../../lib/passkeys.ts";
 import { healthQuery, passkeysQuery, sessionQuery } from "../../lib/queries.ts";
 import { setTheme, useTheme, type Theme } from "../../lib/theme.ts";
+import { Icon } from "../icons.tsx";
 import { ErrorText } from "../ui.tsx";
 import { Panel, Row, ttButton } from "../tt.tsx";
 import {
@@ -21,37 +22,15 @@ import {
 
 const day = (at: number) => new Date(at).toLocaleDateString();
 
-/** Who you are, your passkeys and password, the theme, and signing out. */
+/** Who you are, your passkeys and password, and the theme. Signing out has its own card. */
 export function AccountPanel() {
   const { data: session } = useSuspenseQuery(sessionQuery);
   const version = useQuery(healthQuery).data?.version;
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const logout = useMutation({
-    mutationFn: () => call(api.logout.$post()),
-    onSuccess: () => {
-      queryClient.clear();
-      void navigate({ to: "/login" });
-    },
-  });
   const user = session.user;
   if (!user) return null;
   const name = user.username ?? user.tailscaleLogin ?? "Account";
   return (
-    <Panel
-      id="account"
-      title="Account"
-      action={
-        <button
-          type="button"
-          className={rowButton.secondary}
-          onClick={() => logout.mutate()}
-          disabled={logout.isPending}
-        >
-          Sign out
-        </button>
-      }
-    >
+    <Panel id="account" title="Account">
       <Row className="!border-t-0">
         <SIcon name="user" />
         <RowText
@@ -65,13 +44,41 @@ export function AccountPanel() {
           }
         />
       </Row>
-      {logout.error && <ErrorText className="px-4 pb-2" error={logout.error} />}
       <Passkeys />
       <Kvh>Password</Kvh>
       <Password hasPassword={user.username !== null} />
       <Kvh>Theme</Kvh>
       <ThemeChoice />
     </Panel>
+  );
+}
+
+/** Signing out of this browser, beside the Settings heading. Phones also have it at the foot of More. */
+export function SignOutButton() {
+  const { data: session } = useSuspenseQuery(sessionQuery);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const logout = useMutation({
+    mutationFn: () => call(api.logout.$post()),
+    onSuccess: () => {
+      queryClient.clear();
+      void navigate({ to: "/login" });
+    },
+  });
+  if (!session.user) return null;
+  return (
+    <span className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        className={ttButton.danger}
+        onClick={() => logout.mutate()}
+        disabled={logout.isPending}
+      >
+        <Icon name="signout" size={14} />
+        {logout.isPending ? "Signing out…" : "Sign out"}
+      </button>
+      {logout.error && <ErrorText error={logout.error} />}
+    </span>
   );
 }
 

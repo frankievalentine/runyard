@@ -131,7 +131,7 @@ center() {
 }
 # Scrolls the page smoothly until an element is comfortably on screen, so a click never
 # lands while the page jumps under it. Only the main panel scrolls: FIXED=1 skips it for
-# the top bar's own controls.
+# the sidebar's own controls.
 reveal() {
   local x y
   [ "${FIXED:-}" = 1 ] && return 0

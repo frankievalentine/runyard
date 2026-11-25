@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useMediaQuery } from "../lib/media.ts";
 import { CopyFeedback } from "../components/CopyValue.tsx";
 import { Button } from "../components/form.tsx";
-import { Icon } from "../components/icons.tsx";
-import { PhoneHeader, TabBar, TopNav } from "../components/TopNav.tsx";
+import { PhoneHeader, TabBar } from "../components/PhoneNav.tsx";
+import { Sidebar } from "../components/Sidebar.tsx";
 import { ErrorText } from "../components/ui.tsx";
 import { yardQuery, useYard, useYardStream } from "../lib/yard.ts";
 import { useCheckNow } from "../lib/check.ts";
@@ -24,7 +24,8 @@ export const Route = createFileRoute("/_app")({
 });
 
 /**
- * Timetable's window: the top nav on desktop (a header and a tab bar on phones), then the page.
+ * Timetable's window: the floating sidebar beside the page on desktop (a header and a tab bar on
+ * phones). Banners sit above the page, inside its column.
  */
 function Layout() {
   const live = useYardStream();
@@ -40,44 +41,41 @@ function Layout() {
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [pathname]);
 
-  // Phones check from More; the header holds only the name and the clock, as in the design.
-  const checkNow = (
-    <button
-      type="button"
-      disabled={check.isPending}
-      onClick={() => check.mutate()}
-      // Never shrinks or wraps: on a crowded header the label stays on one line beside its icon.
-      className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-tt-rule-2 bg-tt-card px-3.5 text-[13.5px] font-semibold whitespace-nowrap text-tt-ink hover:bg-tt-hover disabled:opacity-50"
-    >
-      <Icon name="refresh" size={14} />
-      {/* Sits a touch lower, so the label reads as centered on the icon. */}
-      <span className="mt-px">{check.isPending ? "Checking…" : "Check now"}</span>
-    </button>
-  );
-
   return (
     <CopyFeedback>
-      <div className="flex h-full flex-col bg-tt-paper font-ui text-tt-ink">
+      <div
+        className={`flex h-full bg-tt-paper font-ui text-tt-ink ${narrow ? "flex-col" : "flex-row"}`}
+      >
         {narrow ? (
           <PhoneHeader view={view} />
         ) : (
-          <TopNav view={view} section={section} demo={demo} checkNow={checkNow} />
+          <Sidebar
+            view={view}
+            section={section}
+            demo={demo}
+            checking={check.isPending}
+            onCheck={() => check.mutate()}
+          />
         )}
-        {check.isError && (
-          <div className="border-b border-tt-rule bg-tt-card px-6 py-2">
-            <ErrorText error={check.error} />
-          </div>
-        )}
-        <OfflineBar live={live} at={view.generatedAt} />
-        <UpdateBar />
-        {demo && <DemoBanner />}
-        <main ref={scrollRef} className="scroll min-h-0 flex-1">
-          <div
-            className={`mx-auto flex min-h-full w-full flex-col px-4 py-6 sm:px-6 sm:py-8 xl:px-8 ${pageWidth[section]}`}
-          >
-            <Outlet />
-          </div>
-        </main>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {/* Phones check from More; on desktop Check now is in the sidebar. */}
+          {check.isError && (
+            <div className="border-b border-tt-rule bg-tt-card px-6 py-2">
+              <ErrorText error={check.error} />
+            </div>
+          )}
+          <OfflineBar live={live} at={view.generatedAt} />
+          <UpdateBar />
+          {/* On desktop the sidebar's status line already says "Demo data". */}
+          {demo && narrow && <DemoBanner />}
+          <main ref={scrollRef} className="scroll min-h-0 flex-1">
+            <div
+              className={`mx-auto flex min-h-full w-full flex-col px-4 py-6 sm:px-6 sm:py-8 lg:pl-4 xl:px-8 xl:pl-5 ${pageWidth[section]}`}
+            >
+              <Outlet />
+            </div>
+          </main>
+        </div>
         {narrow && <TabBar view={view} tab={phoneTabFor(pathname)} />}
       </div>
     </CopyFeedback>

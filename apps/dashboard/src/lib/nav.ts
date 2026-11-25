@@ -1,6 +1,6 @@
 import type { YardView, RunnerView } from "@runyard/core";
 
-/** The top-level sections: the top nav on desktop, the tab bar on phones. */
+/** The top-level sections: the sidebar on desktop, the tab bar on phones. */
 export const SECTIONS = [
   { key: "board", label: "Board", to: "/" },
   { key: "jobs", label: "Jobs", to: "/queue" },
