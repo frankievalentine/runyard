@@ -40,6 +40,8 @@ Runyard prints a one-time setup code when it first starts: in the terminal, or i
 it runs as a service (see [Logs](operating.md#logs)). Open the dashboard, enter the code and
 create the first admin. **Getting started** on the Board then walks through the rest.
 
+![The Claim your Runyard page: the one-time setup code entered, then a username and password for the first admin](assets/getting-started/claim.png)
+
 ## 3. Connect your forge
 
 Under **Settings ▸ Connections**:
@@ -51,6 +53,8 @@ Under **Settings ▸ Connections**:
 
 See [Forges](forges.md).
 
+![Settings, with GitHub and Forgejo connections under Connections](assets/getting-started/connect.png)
+
 ## 4. Add a machine
 
 On **Machines**, click **Add machine**, then pick a device from your tailnet or enter an SSH
@@ -60,16 +64,22 @@ fresh-machine version as root. Runyard then checks the machine is ready to build
 The machine needs a few things first, which depend on what it is: see the recipes in
 [Machines](machines.md#recipes).
 
+![Adding lab-pi from the tailnet: its readiness check, with each tool installed or not found](assets/getting-started/add-machine.png)
+
 ## 5. Create a pool
 
 Click **Put it in a pool** once the machine is ready, or **New pool** on **Pools**. A pool says
 which repositories its runners serve, which labels they carry, and which machines they run on.
 See [Pools](pools.md).
 
+![A new pool: two repositories chosen and the web-build label](assets/getting-started/pool.png)
+
 ## 6. Review and run
 
 **Create and review** shows exactly what each machine will get: tools, runners, hooks. Click
 **Run** on each. The runners come online within a minute.
+
+![Review and run for the new pool: the tools, runners and job hooks lab-pi will get](assets/getting-started/review.png)
 
 ## 7. Send it a job
 
@@ -77,3 +87,5 @@ The pool's page shows **Use it in a workflow**: the `runs-on` line and a file to
 repository. Start with **Starter** to see a job land on your machine, then pick **Frontend** or
 **Generic** for a full CI. Push it, and the job runs on your machine. See
 [Writing workflows](workflows.md#start-from-a-template).
+
+![Use it in a workflow on the pool: the runs-on line and the Starter workflow to copy](assets/getting-started/workflow.png)
