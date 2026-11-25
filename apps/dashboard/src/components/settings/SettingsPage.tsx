@@ -5,7 +5,7 @@ import { sessionQuery } from "../../lib/queries.ts";
 import { AccessTokens } from "../AccessTokens.tsx";
 import { SetupSummary } from "../SetupChecklist.tsx";
 import { PageHead } from "../tt.tsx";
-import { AccountPanel } from "./AccountPanel.tsx";
+import { AccountPanel, SignOutButton } from "./AccountPanel.tsx";
 import { BoatPanel, ConnectionsPanel, HostPanel } from "./ConnectionsPanels.tsx";
 import { InstallPanel } from "./InstallPanel.tsx";
 import { UsersPanel } from "./UsersPanel.tsx";
@@ -61,7 +61,7 @@ export function SettingsPage({ focus }: { focus?: "connections" | "users" }) {
         ];
   return (
     <div>
-      <PageHead title="Settings" />
+      <PageHead title="Settings" actions={<SignOutButton />} />
       <div
         className={`grid grid-cols-1 items-start gap-3 lg:gap-[18px] ${columns.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}
       >

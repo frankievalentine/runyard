@@ -138,7 +138,7 @@ function More() {
           </Link>
         )}
       </div>
-      {/* The desktop's account menu has Sign out; on phones it lives here. */}
+      {/* Settings has a Sign out card too; on phones it is also here, at the foot of More. */}
       <div className={menu}>
         <button
           type="button"
