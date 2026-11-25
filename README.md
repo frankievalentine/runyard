@@ -9,7 +9,7 @@ Runyard is a self-hosted dashboard and control service for CI runners. It runs o
 reaches your others over SSH and Tailscale, and installs GitHub and Forgejo runners on them
 after you review exactly what will change.
 
-https://github.com/user-attachments/assets/c660c31d-d315-495c-b641-1a1cbd0f086a
+https://github.com/user-attachments/assets/15f71a52-620d-43a2-b799-77245e1b7403
 
 - **See everything:** machine health, every runner, and every queued job with why it's waiting.
 - **Describe capacity, not runners:** a pool's labels, machines and repositories become
