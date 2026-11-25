@@ -3,7 +3,6 @@
 </p>
 <h1 align="center">Runyard</h1>
 <p align="center">CI runners for GitHub and Forgejo, on your machines and boat.dev.</p>
-<p align="center"><sub>Builds on <a href="https://github.com/aarondfrancis/fleet">aarondfrancis/fleet</a></sub></p>
 
 Runyard is a self-hosted dashboard and control service for CI runners. It runs on one machine,
 reaches your others over SSH and Tailscale, and installs GitHub and Forgejo runners on them
@@ -268,4 +267,4 @@ are ported from fleet.
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE)
