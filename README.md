@@ -30,6 +30,40 @@ Install Runyard once, on the machine that will run its dashboard and control pla
 Runyard host. Your runner machines don't need it; you add them from the dashboard later, and
 each gets its own one-line setup command.
 
+### Set it up with an agent
+
+Paste this into Claude Code or another coding agent on the machine that will run Runyard. It
+sets Runyard up in [Docker](#docker), asking you for anything it needs:
+
+```text
+Set up Runyard in Docker on this machine, following the Docker section of the README in
+https://github.com/frankievalentine/runyard and docs/operating.md#docker.
+
+1. Check that Docker with Compose v2 is running. Stop and tell me if it isn't.
+2. Clone the repository and work from its root.
+3. Copy docker/.env.example to docker/.env. Ask me for Runyard's machine name on my tailnet
+   (default: runyard) and set RUNYARD_HOSTNAME to it.
+4. Ask me to create a Tailscale auth key (admin console, Settings > Keys: not reusable, not
+   ephemeral, pre-approved if my tailnet requires device approval) and to paste it into
+   docker/.env after TS_AUTHKEY= myself. Never ask for the key in this chat, and never print
+   docker/.env. Wait until I say it's done.
+5. If docker/runyard.key doesn't exist, create it with
+   `openssl rand -base64 32 > docker/runyard.key && chmod 600 docker/runyard.key`.
+   Never overwrite an existing one.
+6. Start it with `docker compose -f docker/compose.yaml up -d`.
+7. Wait until `docker compose -f docker/compose.yaml ps` shows runyard as healthy and its log
+   shows "listening on https://...ts.net:7443/ (tailnet)". If the log says the tailnet can't
+   issue HTTPS certificates, tell me to turn on MagicDNS and HTTPS Certificates on the DNS
+   page of the Tailscale admin console, then check again.
+8. Tell me the dashboard address and the setup code from
+   `docker compose -f docker/compose.yaml logs runyard`, and remind me to back up
+   docker/runyard.key somewhere other than this machine.
+
+Don't change my Tailscale settings, open ports, or connect to any other machine.
+```
+
+### Install it yourself
+
 **macOS or Linux:**
 
 ```sh
@@ -91,37 +125,6 @@ Open `https://<RUNYARD_HOSTNAME>.<tailnet>.ts.net:7443/`, enter the setup code, 
 step 1 of the Quick start. Back up `docker/runyard.key` somewhere other than this machine: it
 decrypts the credentials Runyard stores. Upgrades, backups and webhooks are in
 [Docker](docs/operating.md#docker).
-
-### Set it up with an agent
-
-Paste this into Claude Code or another coding agent on the machine that will run Runyard:
-
-```text
-Set up Runyard in Docker on this machine, following the Docker section of the README in
-https://github.com/frankievalentine/runyard and docs/operating.md#docker.
-
-1. Check that Docker with Compose v2 is running. Stop and tell me if it isn't.
-2. Clone the repository and work from its root.
-3. Copy docker/.env.example to docker/.env. Ask me for Runyard's machine name on my tailnet
-   (default: runyard) and set RUNYARD_HOSTNAME to it.
-4. Ask me to create a Tailscale auth key (admin console, Settings > Keys: not reusable, not
-   ephemeral, pre-approved if my tailnet requires device approval) and to paste it into
-   docker/.env after TS_AUTHKEY= myself. Never ask for the key in this chat, and never print
-   docker/.env. Wait until I say it's done.
-5. If docker/runyard.key doesn't exist, create it with
-   `openssl rand -base64 32 > docker/runyard.key && chmod 600 docker/runyard.key`.
-   Never overwrite an existing one.
-6. Start it with `docker compose -f docker/compose.yaml up -d`.
-7. Wait until `docker compose -f docker/compose.yaml ps` shows runyard as healthy and its log
-   shows "listening on https://...ts.net:7443/ (tailnet)". If the log says the tailnet can't
-   issue HTTPS certificates, tell me to turn on MagicDNS and HTTPS Certificates on the DNS
-   page of the Tailscale admin console, then check again.
-8. Tell me the dashboard address and the setup code from
-   `docker compose -f docker/compose.yaml logs runyard`, and remind me to back up
-   docker/runyard.key somewhere other than this machine.
-
-Don't change my Tailscale settings, open ports, or connect to any other machine.
-```
 
 ## Requirements
 
