@@ -60,6 +60,7 @@ function Runner() {
     );
   }
   const status = runnerStatus(r);
+  const forgeName = r.forge === "forgejo" ? "Forgejo" : "GitHub";
   const scopeKind =
     r.scope.kind === "org" ? "Organization" : r.scope.kind === "user" ? "Account" : "Repository";
   return (
@@ -122,7 +123,7 @@ function Runner() {
               r.os && <span key="os">{r.os}</span>,
               !r.listed && (
                 <span key="listed">
-                  known from its running job; GitHub's runner list doesn't include it
+                  known from its running job; {forgeName}'s runner list doesn't include it
                 </span>
               ),
             ]}
@@ -142,7 +143,7 @@ function Runner() {
       <div className="mt-8">
         <StatStrip cols={3}>
           <Stat
-            label="Connected to GitHub"
+            label={`Connected to ${forgeName}`}
             value={r.status === "online" ? "Yes" : "No"}
             tone={r.stale ? "muted" : r.status === "online" ? "ok" : "bad"}
             hollow={r.stale}
@@ -165,8 +166,8 @@ function Runner() {
               r.activity === "offline"
                 ? "Runner is offline"
                 : r.activity === "unknown"
-                  ? "No fresh GitHub data"
-                  : "Reported by GitHub"
+                  ? `No fresh ${forgeName} data`
+                  : `Reported by ${forgeName}`
             }
           />
           <Stat
@@ -201,8 +202,8 @@ function Runner() {
             </Card>
           ) : (
             <Card className="border-busy/25 bg-busy/5 px-4 py-3 text-[13px] text-ink-2">
-              GitHub reports this runner busy. Job details aren't available: the job's repository
-              may be outside the scanned repositories, or the scan hasn't caught up yet.
+              {forgeName} reports this runner busy. Job details aren't available: the job's
+              repository may be outside the scanned repositories, or the scan hasn't caught up yet.
             </Card>
           )}
         </div>
@@ -210,7 +211,7 @@ function Runner() {
       <Section title="State">
         <div className="grid grid-cols-1 gap-3 min-[1000px]:grid-cols-2">
           <KeyValuePanel
-            title="GitHub"
+            title={forgeName}
             rows={[
               ["Status", `${r.status}${r.activity === "busy" ? ", busy" : ""}`],
               ["Runner ID", <span className="font-mono text-[12px]">{r.id}</span>, String(r.id)],

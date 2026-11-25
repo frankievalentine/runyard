@@ -252,7 +252,10 @@ export function JobTitle({ job }: { job: JobView }) {
           {job.name}
         </span>
         {job.htmlUrl && (
-          <GitHubLink url={job.htmlUrl} label={`Open ${job.name} on GitHub`}>
+          <GitHubLink
+            url={job.htmlUrl}
+            label={`Open ${job.name} on ${job.forge === "forgejo" ? "Forgejo" : "GitHub"}`}
+          >
             <Icon name="external" size={12} />
           </GitHubLink>
         )}
