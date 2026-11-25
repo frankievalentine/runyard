@@ -93,7 +93,7 @@ export function Panel({
       } ${className}`}
     >
       {(title || meta || action) && (
-        <header className="flex items-baseline justify-between gap-3 px-4 pt-3.5 pb-2.5">
+        <header className="flex items-center justify-between gap-3 px-4 pt-3.5 pb-2.5">
           {title && (
             <h2
               className={`text-[13px] font-extrabold tracking-[.06em] uppercase ${dark ? "text-tt-signal" : ""}`}

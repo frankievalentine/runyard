@@ -34,6 +34,9 @@ import { setupChecks, type TailnetState } from "./setup/checks.ts";
 import { TailnetListener } from "./tailnet.ts";
 import { WebhookReceiver } from "./webhooks/receiver.ts";
 import { TailscaleCli, WhoisCache } from "./tailscale.ts";
+import { installKind, UpdateChecker } from "./updates/checker.ts";
+import type { InstallKind } from "@runyard/core";
+import pkg from "../package.json" with { type: "json" };
 
 /**
  * Opens storage, then serves on loopback TCP and, when Tailscale is available,
@@ -47,6 +50,8 @@ export type StartOverrides = {
   fetch?: Fetch;
   githubApiBase?: string;
   githubWebBase?: string;
+  /** How Settings says this Runyard updates, for the demo, which runs from a checkout. */
+  install?: { kind: InstallKind; binary: string };
 };
 
 export async function start(dashboard?: DashboardAssets, overrides: StartOverrides = {}) {
@@ -214,6 +219,15 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
       );
     }
   }
+  const updates = new UpdateChecker({
+    db,
+    fetch,
+    current: pkg.version,
+    install: overrides.install?.kind ?? installKind(),
+    platform: process.platform,
+    binary: overrides.install?.binary ?? process.execPath,
+  });
+  updates.start();
   const shared = {
     db,
     setup,
@@ -240,6 +254,7 @@ export async function start(dashboard?: DashboardAssets, overrides: StartOverrid
     testJobs: new TestJobs({ github }),
     dispatcher,
     history,
+    updates,
   };
   const deps = (listener: AppDeps["listener"]): AppDeps => ({ ...shared, listener });
 

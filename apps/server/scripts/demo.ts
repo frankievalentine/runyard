@@ -28,6 +28,8 @@ import { sshKeygenProgram } from "../src/machines/keys.ts";
 import { FakeRunnerHost } from "../src/pools/fake-host.ts";
 import type { FakeGithub as FakeGithubType } from "../src/github/fake.ts";
 import { start } from "../src/server.ts";
+import { LATEST_RELEASE_URL } from "../src/updates/checker.ts";
+import pkg from "../package.json" with { type: "json" };
 
 const GIB = 1_073_741_824;
 const demoDir = (process.env.RUNYARD_DATA_DIR ??= await mkdtemp(join(tmpdir(), "runyard-demo-")));
@@ -577,10 +579,24 @@ const {
   // Each app's API host goes to its own fake.
   fetch: (request) => {
     const host = new URL(request.url).host;
+    // Settings' update check finds a newer Runyard, except in the fresh demo the docs' screenshots
+    // come from, which is up to date.
+    if (request.url === LATEST_RELEASE_URL) {
+      const version = fresh ? pkg.version : "0.4.0";
+      return Promise.resolve(
+        Response.json({
+          tag_name: `v${version}`,
+          html_url: `https://github.com/frankievalentine/runyard/releases/tag/v${version}`,
+          published_at: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+        }),
+      );
+    }
     if (host === "forgejo.demo" || host === "code.forgejo.org") return forgejo.fetch(request);
     if (host === "boat.dev") return boat.fetch(request);
     return (host === "api.personal.github.demo" ? personal : github).fetch(request);
   },
+  // Settings shows the update command for an installed service, rather than none for a checkout.
+  install: { kind: "service", binary: "/home/demo/.local/bin/runyard" },
   githubApiBase: "https://api.github.demo",
   githubWebBase: "https://github.demo",
 });

@@ -23,7 +23,9 @@ RUN chmod 755 /usr/local/bin/runyard-entrypoint
 
 # Runs as root: `tailscale cert` through the sidecar's socket needs root or the
 # Tailscale operator, and the sidecar can't name a user from this container.
+# RUNYARD_INSTALL tells Settings to update by pulling the image rather than reinstalling.
 ENV RUNYARD_DATA_DIR=/data \
+  RUNYARD_INSTALL=docker \
   RUNYARD_SSH=/usr/bin/ssh \
   RUNYARD_TAILSCALE=/usr/local/bin/tailscale
 VOLUME /data
