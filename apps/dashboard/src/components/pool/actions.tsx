@@ -17,19 +17,23 @@ export function PauseButton({ pool }: { pool: Pool }) {
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
   });
+  // The error shows under the button: in a hover title it was easy to miss and never shown on
+  // a phone.
   return (
-    <TtButton
-      onClick={() => toggle.mutate()}
-      disabled={toggle.isPending}
-      title={
-        toggle.error?.message ??
-        (pool.paused
-          ? "Start one-job runners again for queued jobs"
-          : "Start no new runners; running jobs finish")
-      }
-    >
-      {pool.paused ? "Resume" : "Pause"}
-    </TtButton>
+    <span className="flex flex-col items-end gap-1">
+      <TtButton
+        onClick={() => toggle.mutate()}
+        disabled={toggle.isPending}
+        title={
+          pool.paused
+            ? "Start one-job runners again for queued jobs"
+            : "Start no new runners; running jobs finish"
+        }
+      >
+        {pool.paused ? "Resume" : "Pause"}
+      </TtButton>
+      {toggle.error && <ErrorText error={toggle.error} />}
+    </span>
   );
 }
 

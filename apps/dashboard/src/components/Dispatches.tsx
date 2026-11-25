@@ -1,4 +1,4 @@
-import { jobResult, type Dispatch, type JobRecord } from "@runyard/core";
+import { forgeKindsOf, jobResult, type Dispatch, type JobRecord } from "@runyard/core";
 import { JOB_RESULT } from "./Jobs.tsx";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -70,6 +70,8 @@ export function Dispatches({
             (r) => r.scope.forgeId === d.scope.forgeId && r.name === d.runnerName,
           );
           const took = (d.endedAt ?? now) - d.startedAt;
+          const forgeName =
+            forgeKindsOf(view).get(d.scope.forgeId) === "forgejo" ? "Forgejo" : "GitHub";
           return (
             <li key={d.id} className="flex items-start gap-3 px-4 py-2.5 text-[12.5px]">
               {/* As tall as the first line, so the dot sits on it however many lines follow. */}
@@ -115,7 +117,7 @@ export function Dispatches({
                           href={d.job.url}
                           target="_blank"
                           rel="noreferrer"
-                          aria-label={`Open ${d.job.name} on GitHub`}
+                          aria-label={`Open ${d.job.name} on ${forgeName}`}
                           className="ml-1 inline-flex translate-y-[2px] text-ink-3 hover:text-ink"
                         >
                           <Icon name="external" size={12} />
@@ -146,7 +148,7 @@ export function Dispatches({
                 {d.detail && (
                   <div className={d.state === "failed" ? "text-bad" : "text-ink-2"}>{d.detail}</div>
                 )}
-                <Logs dispatch={d} job={job} admin={admin} />
+                <Logs dispatch={d} job={job} admin={admin} forgeName={forgeName} />
               </div>
             </li>
           );
@@ -163,9 +165,19 @@ function BareFrame({ children }: { children: ReactNode; className?: string }) {
 /**
  * A one-job runner's two logs: the runner's own, read from its machine (kept
  * after it exits, live while it runs; it explains a job that was lost), and
- * its job's, fetched from GitHub. Opened one at a time.
+ * its job's, fetched from its forge. Opened one at a time.
  */
-function Logs({ dispatch, job, admin }: { dispatch: Dispatch; job?: JobRecord; admin: boolean }) {
+function Logs({
+  dispatch,
+  job,
+  admin,
+  forgeName,
+}: {
+  dispatch: Dispatch;
+  job?: JobRecord;
+  admin: boolean;
+  forgeName: string;
+}) {
   const [open, setOpen] = useState<"runner" | "job" | null>(null);
   const running = dispatch.state === "starting" || dispatch.state === "running";
   const runnerLog = useQuery({
@@ -205,7 +217,7 @@ function Logs({ dispatch, job, admin }: { dispatch: Dispatch; job?: JobRecord; a
       </div>
       {open && log.isPending && (
         <div className="mt-1 text-[12px] text-ink-3">
-          {open === "runner" ? "Reading it from the machine…" : "Fetching it from GitHub…"}
+          {open === "runner" ? "Reading it from the machine…" : `Fetching it from ${forgeName}…`}
         </div>
       )}
       {open && log.error && <ErrorText className="mt-1" error={log.error} />}

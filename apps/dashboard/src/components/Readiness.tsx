@@ -1,17 +1,10 @@
 import {
-  forgeKindsOf,
-  poolTools,
   readinessProblems,
-  toolInstallPlan,
   type MachineView,
-  type Pool,
   type ReadinessItem,
   type ReadinessTier,
 } from "@runyard/core";
-import { Link } from "@tanstack/react-router";
-import { useYard } from "../lib/yard.ts";
 import { InlineCode, Kv, Kvh, type DotTone } from "./machine/parts.tsx";
-import { Callout } from "./ui.tsx";
 
 const TIERS: [ReadinessTier, string, string][] = [
   ["required", "Required", "Jobs fail without these."],
@@ -70,51 +63,5 @@ export function RunnerReadiness({ m }: { m: MachineView }) {
         );
       })}
     </>
-  );
-}
-
-export function PoolReadiness({ pool }: { pool: Pool }) {
-  const view = useYard();
-  const kinds = forgeKindsOf(view);
-  const labels = new Set(pool.labels.map((l) => `label-${l.toLowerCase()}`));
-  const machineIds = pool.machines.map((x) => x.machineId);
-  const rows = view.machines
-    .filter((m) => machineIds.includes(m.id))
-    .map((m) => {
-      // What the pool installs where missing; the machine's review takes care of those.
-      const installs = new Set(
-        m.os && m.readiness
-          ? toolInstallPlan(m.os, m.readiness, poolTools(pool, kinds, m.os)).install.map((t) =>
-              t === "docker" ? "docker" : `tool-${t}`,
-            )
-          : [],
-      );
-      return {
-        m,
-        problems: readinessProblems(m.readiness).filter(
-          (i) => (i.tier !== "label" || labels.has(i.id)) && !installs.has(i.id),
-        ),
-      };
-    })
-
-    .filter((r) => r.problems.length > 0);
-  if (rows.length === 0) return null;
-  return (
-    <Callout className="mt-6" tone="warn" title="Some machines can't serve this pool's jobs yet">
-      <ul className="mt-1 flex flex-col gap-1">
-        {rows.map(({ m, problems }) => (
-          <li key={m.id}>
-            <Link
-              to="/machines/$id"
-              params={{ id: m.id }}
-              className="font-medium text-accent hover:underline"
-            >
-              {m.name}
-            </Link>
-            : {problems.map((i) => `${i.title}: ${i.value}`).join("; ")}
-          </li>
-        ))}
-      </ul>
-    </Callout>
   );
 }

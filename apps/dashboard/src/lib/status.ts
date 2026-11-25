@@ -85,11 +85,6 @@ export function machineSummary(m: MachineView): string {
   return connectionStatus(m.connection).label;
 }
 
-/** Hover text for a machine: its name and description. */
-export function machineTooltip(m: MachineView): string {
-  return [m.name, m.description].filter(Boolean).join("\n");
-}
-
 /** Ported from aarondfrancis/fleet: warnings and unknowns, or why there's nothing to say. */
 export function diagnosticSummary(m: MachineView): string {
   const d = m.diagnostics;
