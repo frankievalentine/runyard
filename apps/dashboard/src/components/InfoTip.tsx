@@ -1,6 +1,6 @@
 import { Popover } from "@base-ui/react/popover";
 import { Tooltip } from "@base-ui/react/tooltip";
-import type { ReactElement, ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 
 /*
  * Explanations that stay out of the way until asked for. A Popover rather than a Tooltip: it
@@ -120,10 +120,14 @@ export function Clipped({ value, label }: { value: string; label: string }) {
   );
 }
 
+/** Things a tap already does something on: a tip inside one keeps the tap for it. */
+const TAPPABLE = "a, button, select, input, textarea, summary, label, [role=button], [role=radio]";
+
 /**
- * A tooltip on a row or control that's already a link or button: Departures rows, runner lights,
- * the Board badge. It opens on hover and keyboard focus only, as a phone's tap already opens the
- * row; the child keeps being the element it is. Looks like InfoTip's.
+ * A tooltip on something without an (i): a row, a chip, a value. It opens on hover and keyboard
+ * focus, and on a phone on a tap, unless it sits on or inside a link or button, whose tap opens
+ * that instead (and whose page has the details). A second tap, or a tap elsewhere, closes it. The
+ * child keeps being the element it is. Looks like InfoTip's.
  */
 export function RowTip({
   content,
@@ -140,10 +144,39 @@ export function RowTip({
   /** Renders the child alone, without a tooltip. */
   disabled?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLElement | null>(null);
+  const touch = useRef(false);
+  // Opened by a tap: the next tap anywhere else closes it.
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => {
+      if (!trigger.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", close, true);
+    return () => document.removeEventListener("pointerdown", close, true);
+  }, [open]);
   if (disabled) return children;
   return (
-    <Tooltip.Root>
-      <Tooltip.Trigger delay={300} closeDelay={0} render={children} />
+    <Tooltip.Root open={open} onOpenChange={setOpen}>
+      <Tooltip.Trigger
+        ref={(el: HTMLElement | null) => {
+          trigger.current = el;
+        }}
+        delay={300}
+        closeDelay={0}
+        closeOnClick={false}
+        render={children}
+        onPointerDown={(e) => {
+          touch.current = e.pointerType === "touch";
+        }}
+        onClick={(e) => {
+          if (!touch.current) return;
+          const el = e.currentTarget as HTMLElement;
+          if (el.matches(TAPPABLE) || el.parentElement?.closest(TAPPABLE)) return;
+          setOpen((o) => !o);
+        }}
+      />
       <Tooltip.Portal>
         <Tooltip.Positioner side={side} sideOffset={8} collisionPadding={12} className="z-50">
           <Tooltip.Popup className={popup(dark)}>
