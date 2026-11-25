@@ -4,6 +4,7 @@ import gsap from "gsap";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "../../components/icons.tsx";
 import { RouteLine } from "../../components/RouteLine.tsx";
+import { stickyHead } from "../../components/tt.tsx";
 import { useDismissed } from "../../components/SetupChecklist.tsx";
 import { UseInWorkflow } from "../../components/UseInWorkflow.tsx";
 import { useJobsSeen } from "../../lib/calendar.ts";
@@ -60,7 +61,8 @@ function GettingStarted() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-end gap-3">
+      {/* The parent's 24px gap sits inside the sticky head's padding, so nothing shows through it. */}
+      <header className={`flex flex-wrap items-end gap-3 ${stickyHead} lg:-mb-6 lg:pb-6`}>
         <div className="min-w-0 flex-1">
           <h1 className="font-ui text-[28px] leading-none font-extrabold [font-stretch:85%]">
             Getting started

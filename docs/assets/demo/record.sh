@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Records the README's walkthrough of the demo yard: the Board, Jobs, adding a
+# Records the README's walkthrough of the demo yard: the Board, the sidebar folding, Jobs, adding a
 # machine from the tailnet, putting it in a new pool and running its review,
 # Settings, and removing a machine. Starts its own demo (`apps/server/scripts/demo.ts`)
 # with fresh data, creates an admin off camera, drives the dashboard with
@@ -186,6 +186,8 @@ if agent-browser snapshot -i | grep -qF 'button "Skip for now"'; then
   ab find role button click --name "Skip for now"
   sleep 1.5
 fi
+# The video opens with the sidebar expanded, then collapses it once to show the icon rail.
+ab eval "localStorage.setItem('runyard.sidebar', 'expanded')"
 ab open "$url/"
 sleep 2
 # The sign-in page has a departure board too, so wait for Check now, which only the signed-in
@@ -209,6 +211,10 @@ scroll 520
 sleep 2.5
 scroll -520
 sleep 1
+
+# The sidebar folds to an icon rail, giving the pages more room.
+tap button "Collapse the sidebar"
+sleep 1.5
 
 # Jobs: what's on its way, what's waiting and why.
 FIXED=1 tap link "Jobs"

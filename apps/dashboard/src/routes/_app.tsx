@@ -58,19 +58,30 @@ function Layout() {
           />
         )}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {/* Phones check from More; on desktop Check now is in the sidebar. */}
-          {check.isError && (
-            <div className="border-b border-tt-rule bg-tt-card px-6 py-2">
-              <ErrorText error={check.error} />
-            </div>
-          )}
-          <OfflineBar live={live} at={view.generatedAt} />
-          <UpdateBar />
-          {/* On desktop the sidebar's status line already says "Demo data". */}
-          {demo && narrow && <DemoBanner />}
+          {/* Phones: banners run edge to edge under the header. Desktop: they float as rounded
+              strips on the same 18px spacing as the sidebar and the page, so their top lines up
+              with its card. Empty, the wrapper takes no room. */}
+          <div
+            className={
+              narrow
+                ? "contents"
+                : "mx-[18px] mt-[18px] flex flex-col gap-2 empty:hidden [&>*]:rounded-lg [&>*]:border"
+            }
+          >
+            {/* Phones check from More; on desktop Check now is in the sidebar. */}
+            {check.isError && (
+              <div className="border-b border-tt-rule bg-tt-card px-6 py-2">
+                <ErrorText error={check.error} />
+              </div>
+            )}
+            <OfflineBar live={live} at={view.generatedAt} />
+            <UpdateBar />
+            {/* On desktop the sidebar's status line already says "Demo data". */}
+            {demo && narrow && <DemoBanner />}
+          </div>
           <main ref={scrollRef} className="scroll min-h-0 flex-1">
             <div
-              className={`mx-auto flex min-h-full w-full flex-col px-4 py-6 sm:px-6 sm:py-8 lg:pl-4 xl:px-8 xl:pl-5 ${pageWidth[section]}`}
+              className={`mx-auto flex min-h-full w-full flex-col px-4 pt-[var(--page-pt)] pb-6 [--page-pt:24px] sm:px-6 sm:pb-8 sm:[--page-pt:32px] lg:px-[18px] lg:pb-[18px] lg:[--page-pt:18px] ${pageWidth[section]}`}
             >
               <Outlet />
             </div>
