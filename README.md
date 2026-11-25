@@ -33,33 +33,30 @@ each gets its own one-line setup command.
 ### Set it up with an agent
 
 Paste this into Claude Code or another coding agent on the machine that will run Runyard. It
-sets Runyard up in [Docker](#docker), asking you for anything it needs:
+runs the installer for that system and asks you for anything it needs:
 
 ```text
-Set up Runyard in Docker on this machine, following the Docker section of the README in
-https://github.com/frankievalentine/runyard and docs/operating.md#docker.
+Install Runyard on this machine as its host (the dashboard and control plane), following the
+Quick start in https://github.com/frankievalentine/runyard and docs/getting-started.md.
 
-1. Check that Docker with Compose v2 is running. Stop and tell me if it isn't.
-2. Clone the repository and work from its root.
-3. Copy docker/.env.example to docker/.env. Ask me for Runyard's machine name on my tailnet
-   (default: runyard) and set RUNYARD_HOSTNAME to it.
-4. Ask me to create a Tailscale auth key (admin console, Settings > Keys: not reusable, not
-   ephemeral, pre-approved if my tailnet requires device approval) and to paste it into
-   docker/.env after TS_AUTHKEY= myself. Never ask for the key in this chat, and never print
-   docker/.env. Wait until I say it's done.
-5. If docker/runyard.key doesn't exist, create it with
-   `openssl rand -base64 32 > docker/runyard.key && chmod 600 docker/runyard.key`.
-   Never overwrite an existing one.
-6. Start it with `docker compose -f docker/compose.yaml up -d`.
-7. Wait until `docker compose -f docker/compose.yaml ps` shows runyard as healthy and its log
-   shows "listening on https://...ts.net:7443/ (tailnet)". If the log says the tailnet can't
-   issue HTTPS certificates, tell me to turn on MagicDNS and HTTPS Certificates on the DNS
-   page of the Tailscale admin console, then check again.
-8. Tell me the dashboard address and the setup code from
-   `docker compose -f docker/compose.yaml logs runyard`, and remind me to back up
-   docker/runyard.key somewhere other than this machine.
+1. Check this is macOS (Apple silicon), Linux (x64 or arm64, glibc) or Windows x64, and that
+   `ssh` is installed. Stop and tell me if it isn't.
+2. Check whether Tailscale is installed and signed in (`tailscale status`). If it isn't, tell me
+   that Runyard works best with it (an HTTPS dashboard, device discovery and one-line machine
+   setup) and ask whether to go on without it. Don't install or sign in to Tailscale yourself.
+3. Install Runyard with the installer for this system:
+   - macOS or Linux: `curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh`
+   - Windows, in PowerShell: `irm https://frankievalentine.github.io/runyard/install.ps1 | iex`
+4. On Linux with Tailscale, ask me before running `sudo tailscale set --operator=$USER`, which
+   lets Runyard fetch its tailnet HTTPS certificate.
+5. Run `runyard service install` to keep it running. If it asks for my sudo password, let me
+   type it myself. Then check `runyard service status` shows it running.
+6. Tell me the dashboard address and the one-time setup code from Runyard's log: on Linux
+   `journalctl -u runyard`, on macOS and Windows `runyard.log` in its data directory (see
+   docs/reference.md#configuration). Remind me to back up `secret.key` from the data directory
+   somewhere other than this machine: it decrypts the credentials Runyard stores.
 
-Don't change my Tailscale settings, open ports, or connect to any other machine.
+Don't change my Tailscale settings beyond step 4, open ports, or connect to any other machine.
 ```
 
 ### Install it yourself
@@ -125,6 +122,35 @@ Open `https://<RUNYARD_HOSTNAME>.<tailnet>.ts.net:7443/`, enter the setup code, 
 step 1 of the Quick start. Back up `docker/runyard.key` somewhere other than this machine: it
 decrypts the credentials Runyard stores. Upgrades, backups and webhooks are in
 [Docker](docs/operating.md#docker).
+
+**With an agent:** paste this into Claude Code or another coding agent on that machine:
+
+```text
+Set up Runyard in Docker on this machine, following the Docker section of the README in
+https://github.com/frankievalentine/runyard and docs/operating.md#docker.
+
+1. Check that Docker with Compose v2 is running. Stop and tell me if it isn't.
+2. Clone the repository and work from its root.
+3. Copy docker/.env.example to docker/.env. Ask me for Runyard's machine name on my tailnet
+   (default: runyard) and set RUNYARD_HOSTNAME to it.
+4. Ask me to create a Tailscale auth key (admin console, Settings > Keys: not reusable, not
+   ephemeral, pre-approved if my tailnet requires device approval) and to paste it into
+   docker/.env after TS_AUTHKEY= myself. Never ask for the key in this chat, and never print
+   docker/.env. Wait until I say it's done.
+5. If docker/runyard.key doesn't exist, create it with
+   `openssl rand -base64 32 > docker/runyard.key && chmod 600 docker/runyard.key`.
+   Never overwrite an existing one.
+6. Start it with `docker compose -f docker/compose.yaml up -d`.
+7. Wait until `docker compose -f docker/compose.yaml ps` shows runyard as healthy and its log
+   shows "listening on https://...ts.net:7443/ (tailnet)". If the log says the tailnet can't
+   issue HTTPS certificates, tell me to turn on MagicDNS and HTTPS Certificates on the DNS
+   page of the Tailscale admin console, then check again.
+8. Tell me the dashboard address and the setup code from
+   `docker compose -f docker/compose.yaml logs runyard`, and remind me to back up
+   docker/runyard.key somewhere other than this machine.
+
+Don't change my Tailscale settings, open ports, or connect to any other machine.
+```
 
 ## Requirements
 
