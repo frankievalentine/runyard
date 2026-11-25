@@ -4,6 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import type { CSSProperties, ReactNode } from "react";
 import { SplitFlap } from "../../components/board/SplitFlap.tsx";
 import { Icon } from "../../components/icons.tsx";
+import { InfoTip, RowTip, TipText } from "../../components/InfoTip.tsx";
 import { Lab, poolStatus } from "../../components/pool/bits.tsx";
 import { Chip, PageHead, Panel, ttButton } from "../../components/tt.tsx";
 import { OnDemandList } from "../../components/YardLists.tsx";
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/_app/pools/")({
 });
 
 const LEDE =
-  "Describe capacity, not runners: a pool's labels, machines and repositories become runners.";
+  "A pool says which machines run jobs for which repositories, and the labels workflows use to ask for them. Runyard turns that into runners.";
 
 /** Every pool as a card, as in the Timetable design, and boat.dev's on-demand runners. */
 function Pools() {
@@ -28,8 +29,14 @@ function Pools() {
   return (
     <div className="flex flex-col gap-5">
       <PageHead
-        title="Pools"
-        lede={<span className="max-lg:hidden">{LEDE}</span>}
+        title={
+          <span className="inline-flex items-center gap-2">
+            Pools
+            <InfoTip label="Pools" large>
+              <TipText what={LEDE} />
+            </InfoTip>
+          </span>
+        }
         actions={
           canCreate &&
           pools.length > 0 && (
@@ -90,9 +97,20 @@ function Pools() {
   );
 }
 
+/** What a pool's chip means, by label ("partial" for "2 of 3 runners"), when it isn't plain. */
+const STATUS_TIP: Record<string, string> = {
+  Paused: "No new one-job runners start for it. Jobs already running finish.",
+  partial:
+    "Some of this pool's runners aren't set up yet. Review its machines' changes to set up the rest.",
+  "No runners": "None of its machines has a runner for it yet. Add machines to the pool.",
+  Offline: "Every one of its runners is offline.",
+};
+
 /** A pool's card: its status, its machines as stops on a line, how it runs, its labels and scope. */
 function PoolCard({ pool, view }: { pool: Pool; view: YardView }) {
   const status = poolStatus(view, pool);
+  const statusTip =
+    STATUS_TIP[/^\d+ of \d+ runners$/.test(status.label) ? "partial" : status.label];
   const machines = pool.machines.map(
     (pm) => view.machines.find((m) => m.id === pm.machineId)?.name ?? pm.machineId,
   );
@@ -119,28 +137,61 @@ function PoolCard({ pool, view }: { pool: Pool; view: YardView }) {
         <b className="min-w-0 truncate text-[20px] leading-[1.1] font-bold tracking-[-.01em]">
           {pool.name}
         </b>
-        <Chip tone={status.tone}>{status.label}</Chip>
+        {statusTip ? (
+          <RowTip content={<TipText what={statusTip} />}>
+            <span>
+              <Chip tone={status.tone}>{status.label}</Chip>
+            </span>
+          </RowTip>
+        ) : (
+          <Chip tone={status.tone}>{status.label}</Chip>
+        )}
       </span>
       <span className="mt-0.5 flex items-center" aria-hidden>
         {machines.map((name, i) => (
           <span key={`${name}-${i}`} className="contents">
             {i > 0 && <u className="h-[3px] flex-1 bg-tt-ink" />}
-            <i
-              title={name}
-              className="size-3 flex-none rounded-full border-[3px] border-tt-ink bg-tt-card"
-            />
+            <i className="size-3 flex-none rounded-full border-[3px] border-tt-ink bg-tt-card" />
           </span>
         ))}
         <u className="h-[3px] flex-1 bg-tt-ink" />
       </span>
-      <small className="text-[12.5px] text-tt-ink-3">
-        {mode}
-        {machines.length > 0 && ` · ${machines.join(", ")}`}
-      </small>
+      <RowTip
+        content={
+          <TipText
+            what={
+              pool.mode === "onDemand"
+                ? "Runyard starts a fresh runner for each queued job and removes it when the job ends."
+                : "Its runners stay set up on each machine and wait for jobs, so builds start warm."
+            }
+          />
+        }
+      >
+        <small className="text-[12.5px] text-tt-ink-3">
+          {mode}
+          {machines.length > 0 && ` · ${machines.join(", ")}`}
+        </small>
+      </RowTip>
       <span className="flex flex-wrap gap-1">
-        {labels.map((l) => (
-          <Lab key={l}>{l}</Lab>
-        ))}
+        {labels.map((l) =>
+          pool.labels.length ? (
+            <Lab key={l}>{l}</Lab>
+          ) : (
+            <RowTip
+              key={l}
+              content={
+                <TipText
+                  what="This pool has no labels of its own yet. Runyard gives every runner in it this one, so a workflow can ask for exactly these runners."
+                  todo="Use it in runs-on:"
+                />
+              }
+            >
+              <span>
+                <Lab>{l}</Lab>
+              </span>
+            </RowTip>
+          ),
+        )}
       </span>
       <small className="text-[12.5px] break-words text-tt-ink-3">
         {forges.join(" and ")}
