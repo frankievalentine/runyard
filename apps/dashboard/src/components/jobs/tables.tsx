@@ -21,6 +21,7 @@ import { TryAgain } from "../TryAgain.tsx";
 import { Chip, ttRowButton, ttTable } from "../tt.tsx";
 import { ErrorText } from "../ui.tsx";
 import { MRow, ResultTag, WHY_TONE } from "./parts.tsx";
+import { InfoTip, RowTip, TipText } from "../InfoTip.tsx";
 
 /*
  * The Jobs page's three tables from the Timetable design, each with its phone rows: jobs on their
@@ -31,6 +32,18 @@ const forgeName = (f: "github" | "forgejo") => (f === "forgejo" ? "Forgejo" : "G
 const row = "cursor-pointer [&:hover>td]:bg-tt-hover";
 const num = `${ttTable.td} text-right tabular`;
 const numHead = `${ttTable.th} !text-right`;
+
+/** What "can take" means for a waiting job, beside Why it's waiting (and under the list on phones). */
+export function WhyWaitingTip() {
+  return (
+    <InfoTip label="Why it's waiting">
+      <TipText
+        what="A runner can take a job when it has every label the job asks for."
+        details="On GitHub, a runner group's access rules can still keep a job off a runner that matches; GitHub doesn't say which per job. Forgejo lists only jobs still waiting, not which runner took one."
+      />
+    </InfoTip>
+  );
+}
 
 /** Jobs runners are working on: job, repository, forge, runner, how long, and boat.dev's cost. */
 export function RunningTable({ view, running }: { view: YardView; running: RunnerView[] }) {
@@ -50,7 +63,17 @@ export function RunningTable({ view, running }: { view: YardView; running: Runne
             <th className={ttTable.th}>Forge</th>
             <th className={ttTable.th}>Runner</th>
             <th className={numHead}>Running for</th>
-            <th className={numHead}>Cost</th>
+            <th className={numHead}>
+              <span className="inline-flex items-center gap-1">
+                Cost
+                <InfoTip label="Cost">
+                  <TipText
+                    what="What a boat.dev VM has cost so far, at list price."
+                    details="Jobs on your own machines show —."
+                  />
+                </InfoTip>
+              </span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -131,7 +154,12 @@ export function WaitingTable({ view }: { view: YardView }) {
             <th className={ttTable.th}>Job</th>
             <th className={ttTable.th}>Repository</th>
             <th className={ttTable.th}>Asks for</th>
-            <th className={ttTable.th}>Why it's waiting</th>
+            <th className={ttTable.th}>
+              <span className="inline-flex items-center gap-1">
+                Why it's waiting
+                <WhyWaitingTip />
+              </span>
+            </th>
             <th className={numHead}>Waiting</th>
           </tr>
         </thead>
@@ -394,15 +422,24 @@ function LogButton({
   const { logs } = logsFor(job, view);
   if (!logs && job.htmlUrl)
     return (
-      <a
-        href={job.htmlUrl}
-        target="_blank"
-        rel="noreferrer"
-        onClick={(e) => e.stopPropagation()}
-        className={ttRowButton.secondary}
+      <RowTip
+        content={
+          <TipText
+            what="This Forgejo doesn't serve job logs; Forgejo 16 and later do."
+            details="The log is on the job's page in Forgejo."
+          />
+        }
       >
-        Open on Forgejo
-      </a>
+        <a
+          href={job.htmlUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={ttRowButton.secondary}
+        >
+          Open on Forgejo
+        </a>
+      </RowTip>
     );
   if (!logs || job.jobId === null) return null;
   return (

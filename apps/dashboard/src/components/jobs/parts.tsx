@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { SplitFlap } from "../board/SplitFlap.tsx";
+import { RowTip, TipText } from "../InfoTip.tsx";
 
 /*
  * Pieces of the Timetable design's Jobs page: the tab row that sits on its table, the count pills,
@@ -103,16 +104,31 @@ const RESULT: Record<Result, [string, string]> = {
   lost: ["lost", "bg-tt-bad-bg text-tt-bad-ink"],
 };
 
-/** A job's result as the design's small upper-case tag. */
+/** What the results that aren't self-explanatory mean, for their tags' tooltips. */
+const RESULT_TIP: Partial<Record<Result, ReactNode>> = {
+  lost: (
+    <TipText
+      what="The runner started this job but never reported a result. Usually its machine went offline or the runner stopped mid-job."
+      todo="Run it again on its forge if you still need it."
+    />
+  ),
+  unknown: (
+    <TipText what="No result yet. Runyard fills it in when the forge, or the runner's job hooks, report one." />
+  ),
+};
+
+/** A job's result as the design's small upper-case tag; lost and pending explain themselves. */
 export function ResultTag({ result }: { result: Result }) {
   const [label, tone] = RESULT[result];
-  return (
+  const tag = (
     <span
       className={`inline-block rounded-[4px] px-1.5 py-1 font-board text-[11px] leading-none font-bold tracking-[.04em] whitespace-nowrap uppercase ${tone}`}
     >
       {label}
     </span>
   );
+  const tip = RESULT_TIP[result];
+  return tip ? <RowTip content={tip}>{tag}</RowTip> : tag;
 }
 
 /** Why a job waits, colored like the design: held up in amber, about to board in green. */

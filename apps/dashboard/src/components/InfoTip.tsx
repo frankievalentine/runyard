@@ -61,23 +61,27 @@ export function InfoTip({
   label,
   children,
   dark = false,
+  large = false,
 }: {
   label: string;
   children: ReactNode;
   /** On the dark board panels (Departures, Traffic). */
   dark?: boolean;
+  /** Beside a page title: 18px rather than 14px. */
+  large?: boolean;
 }) {
+  const icon = large ? 18 : 14;
   return (
     <Tip
       dark={dark}
       label={`About ${label}`}
       // 14px beside 13px text, lifted 1px so it centers on the capitals rather than the line box.
-      triggerClassName={`inline-grid size-4 flex-none -translate-y-px cursor-default place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-1 ${dark ? "text-[#8b9099] hover:text-tt-flap focus-visible:text-tt-flap focus-visible:outline-tt-flap data-[popup-open]:text-tt-flap" : "text-tt-ink-3 hover:text-tt-ink focus-visible:text-tt-ink focus-visible:outline-tt-ink data-[popup-open]:text-tt-ink"}`}
+      triggerClassName={`inline-grid flex-none cursor-default ${large ? "size-5" : "size-4 -translate-y-px"} place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-1 ${dark ? "text-[#8b9099] hover:text-tt-flap focus-visible:text-tt-flap focus-visible:outline-tt-flap data-[popup-open]:text-tt-flap" : "text-tt-ink-3 hover:text-tt-ink focus-visible:text-tt-ink focus-visible:outline-tt-ink data-[popup-open]:text-tt-ink"}`}
       trigger={
         <svg
           aria-hidden
-          width="14"
-          height="14"
+          width={icon}
+          height={icon}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
