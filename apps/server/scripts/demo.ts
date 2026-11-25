@@ -6,7 +6,9 @@
  *
  * `--fresh` starts a brand-new install instead, for the Getting started screenshots: the fakes
  * still answer, but nothing is connected, added or run yet, and the dashboard doesn't say it's
- * demo data. It prints the fake Forgejo's address and token to connect with.
+ * demo data. GitHub's manifest flow accepts the code `good-code` at
+ * /api/github/manifest/callback, standing in for github.com, and the fake Forgejo's address and
+ * token are printed to connect with.
  */
 import { existsSync } from "node:fs";
 import { chmod, mkdir, mkdtemp } from "node:fs/promises";
@@ -413,6 +415,15 @@ github.runs.set("acme-demo/web", [
     ],
   },
 ]);
+
+// A new install: the app the Getting started screenshots create through the manifest flow, with
+// the acme-demo installation waiting, and none of its runners or queued jobs yet.
+if (fresh) {
+  github.manifestOwner = { login: "acme-demo", type: "Organization" };
+  github.manifestApp = { name: "Runyard 7f3k", slug: "runyard-7f3k" };
+  github.runners.clear();
+  github.runs.clear();
+}
 
 // A fictional Forgejo: the user's own runner and an organization's, one job waiting.
 const forgejo = new FakeForgejo();

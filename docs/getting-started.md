@@ -38,7 +38,9 @@ you connect machines by hand; see [Without Tailscale](operating.md#without-tails
 
 Runyard prints a one-time setup code when it first starts: in the terminal, or in its log when
 it runs as a service (see [Logs](operating.md#logs)). Open the dashboard, enter the code and
-create the first admin. **Getting started** on the Board then walks through the rest.
+create the first admin. Runyard then offers to add a passkey, so you can sign in with Touch ID,
+Windows Hello or a security key; **Skip for now** leaves it for **Settings ▸ Account**.
+**Getting started** on the Board then walks through the rest.
 
 ![The Claim your Runyard page on a new install: the one-time setup code entered, then the first admin's username](assets/getting-started/claim.png)
 
@@ -55,7 +57,9 @@ Under **Settings ▸ Connections**:
 
 See [Forges](forges.md).
 
-![Settings ▸ Forgejo after connecting with an access token: the account's and the organization's runners read](assets/getting-started/connect.png)
+![Settings ▸ GitHub on a new install: creating Runyard's GitHub App for an organization](assets/getting-started/connect-github.png)
+
+![Settings ▸ GitHub once the app is created and installed: connected, with the organization's repositories](assets/getting-started/connect.png)
 
 ## 4. Add a machine
 
@@ -74,14 +78,16 @@ Click **Put it in a pool** once the machine is ready, or **New pool** on **Pools
 which repositories its runners serve, which labels they carry, and which machines they run on.
 See [Pools](pools.md).
 
-![The first pool: one Forgejo repository chosen and the linux-build label](assets/getting-started/pool.png)
+![The first pool, at its first stop: the organization chosen and the linux-build label](assets/getting-started/pool.png)
 
 ## 6. Review and run
 
 **Create and review** shows exactly what each machine will get: tools, runners, hooks. Click
-**Run** on each. The runners come online within a minute.
+**Run** on each. If installing tools needs `sudo` on the machine, enter its password in **Sudo
+password**: it's used for that run only and never stored. The runners come online within a
+minute.
 
-![Review and run for the first pool: the tools and the runner lab-pi will get](assets/getting-started/review.png)
+![Review and run for the first pool: the tools, runners and job hooks lab-pi will get](assets/getting-started/review.png)
 
 ## 7. Send it a job
 

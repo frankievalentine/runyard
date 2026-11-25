@@ -4,7 +4,8 @@
 # review and the workflow to copy. Starts its own demo with `--fresh`
 # (`apps/server/scripts/demo.ts`), so nothing is connected or added beforehand and nothing real is
 # contacted, and drives the dashboard with agent-browser, in the light theme with motion off, at
-# 1.5x for sharp text. The forge is the demo's fake Forgejo: GitHub's App needs github.com.
+# 1.5x for sharp text. The forge is GitHub: this script stands in for github.com by taking the
+# manifest flow's address from the page and returning to Runyard with the fake GitHub's code.
 # Needs agent-browser and bun. Writes the PNGs next to this script.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -28,14 +29,6 @@ for _ in $(seq 1 30); do
   sleep 0.5
 done
 [ -n "$code" ] || { echo "The demo didn't start:" >&2; cat "$data/demo.log" >&2; exit 1; }
-# The fake Forgejo's token; the demo prints it once everything is up.
-token=""
-for _ in $(seq 1 30); do
-  token="$(grep -oE 'with the token [^ ]+' "$data/demo.log" | awk '{print $4}' || true)"
-  [ -n "$token" ] && break
-  sleep 0.5
-done
-[ -n "$token" ] || { echo "The demo didn't print the Forgejo token:" >&2; cat "$data/demo.log" >&2; exit 1; }
 
 ab() { agent-browser "$@" >/dev/null; }
 # Waits (up to 10 seconds) until the page shows some text.
@@ -93,14 +86,28 @@ ab open "$url/start"
 until_text "Stop 1 of 5"
 shot start.png 1.5
 
-# Step 3: connecting a forge, here Forgejo with an access token.
-ab open "$url/settings/forgejo"
-until_text "Forgejo address"
-ab find label "Forgejo address" fill "https://forgejo.demo"
-ab find label "Access token" fill "$token"
-ab find role button click --name "Connect"
-until_text "Runners read just now"
-shot connect.png 1
+# Step 3: connecting GitHub: Runyard's GitHub App for an organization.
+ab open "$url/settings/github"
+until_text "Create GitHub App"
+click radio "An organization I own"
+click textbox "Organization"
+ab keyboard type acme-demo
+shot connect-github.png 1
+# GitHub takes the manifest as a form post. Catch where it would go instead of leaving the page,
+# then come back the way GitHub would, with the code the fake GitHub accepts.
+ab eval "HTMLFormElement.prototype.submit = function () { window.__ghAction = this.action; }"
+ab find role button click --name "Create GitHub App"
+state=""
+for _ in $(seq 1 20); do
+  state="$(agent-browser eval "window.__ghAction ? new URL(window.__ghAction).searchParams.get('state') : ''" | tr -d '"')"
+  [ -n "$state" ] && break
+  sleep 0.25
+done
+[ -n "$state" ] || { echo "Runyard didn't start GitHub's manifest flow." >&2; exit 1; }
+ab open "$url/api/github/manifest/callback?code=good-code&state=$state"
+until_text "acme-demo"
+until_text "Runners read"
+shot connect.png 1.5
 
 # Step 4: a device from the tailnet, through to its readiness check.
 ab open "$url/machines/add"
@@ -117,11 +124,14 @@ click button "Continue"
 until_text "lab-pi is ready"
 click link "Put it in a pool"
 until_text "New pool"
-click checkbox "frankie-demo/dotfiles"
+click checkbox "acme-demo (all repositories)"
 click textbox "Labels"
 ab keyboard type "linux-build"
-scroll_to "Or choose yourself"
+# Taller for this one, from the top, so the pool's progress bar shows above the form.
+ab set viewport 1280 1080 1.5
+ab eval "document.querySelector('main.scroll').scrollTo(0, 0)"
 shot pool.png 1
+ab set viewport 1280 800 1.5
 
 # Step 6: where it runs, then the review of the machine's changes.
 click button "Continue"

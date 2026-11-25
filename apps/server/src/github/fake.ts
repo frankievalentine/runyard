@@ -86,6 +86,8 @@ export class FakeGithub {
   labelUpdates: { owner: string; runnerId: number; labels: string[] }[] = [];
   /** Answers a converted manifest with this owner. */
   manifestOwner = { login: "frankie", type: "User" };
+  /** And with this app's name and slug. */
+  manifestApp = { name: "Runyard test", slug: "runyard-test" };
   readonly fetch: Fetch;
 
   /** `privateKey` reuses an app key from an earlier run, as the demo does across restarts. */
@@ -117,13 +119,13 @@ export class FakeGithub {
       if (c.req.param("code") !== "good-code") return c.json({ message: "Not Found" }, 404);
       return c.json({
         id: Number(this.appId),
-        slug: "runyard-test",
-        name: "Runyard test",
+        slug: this.manifestApp.slug,
+        name: this.manifestApp.name,
         client_id: "Iv1.abc",
         client_secret: "client-secret",
         webhook_secret: "webhook-secret",
         pem: this.privateKey,
-        html_url: "https://github.com/apps/runyard-test",
+        html_url: `https://github.com/apps/${this.manifestApp.slug}`,
         owner: this.manifestOwner,
       });
     });
