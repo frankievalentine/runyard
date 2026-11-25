@@ -147,20 +147,36 @@ function runnerHost(
 ) {
   const host = new FakeRunnerHost();
   hosts.set(target, host);
+  // Tools a review installed: the machine reports them from then on, as a real one would.
+  const installed = new Set<string>();
+  const report = () =>
+    installed.size
+      ? health().replace(
+          "RFM\tdiag:complete\t1",
+          [
+            ...[...installed].map((t) => `RFM\tdiag:tool_${t}\t/usr/bin/${t}`),
+            "RFM\tdiag:complete\t1",
+          ].join("\n"),
+        )
+      : health();
   return (stdin: string) => {
-    if (stdin.includes("metric os")) return health();
+    if (stdin.includes("metric os")) return report();
     const result = host.answer(stdin);
     const last = host.received.at(-1);
+    if (last?.op === "tools-install" && typeof result === "string")
+      for (const t of (last.env.RF_TOOLS ?? "").split(" ").filter(Boolean)) installed.add(t);
     if (last?.op === "jit-start" && typeof result === "string") playOneJob(host, last.env.RF_NAME!);
     const url = last?.env.RF_URL;
     if (last && typeof result === "string" && url) {
       const owner = new URL(url).pathname.slice(1);
       const gh = githubFor(owner);
       const labels = ["self-hosted", os, ...(last.env.RF_LABELS ?? "").split(",").filter(Boolean)];
+      const id = nextRunnerId++;
       gh.runners.set(owner, [
         ...(gh.runners.get(owner) ?? []),
-        { id: nextRunnerId++, name: last.env.RF_NAME!, os, status: "online", busy: false, labels },
+        { id, name: last.env.RF_NAME!, os, status: "online", busy: false, labels },
       ]);
+      if (fresh) playFirstJob(gh, owner, id, last.env.RF_NAME!, labels);
     } else if (last?.op === "remove" && typeof result === "string") {
       for (const gh of [github, personal]) {
         for (const [owner, list] of gh.runners)
@@ -172,6 +188,56 @@ function runnerHost(
     }
     return result;
   };
+}
+/**
+ * `--fresh`: the first runner to come online takes a `build` job a few seconds later, as if the
+ * pool's Starter workflow had been pushed, so the Board shows a departure. It finishes after
+ * about a minute and a half.
+ */
+let firstJobPlayed = false;
+function playFirstJob(
+  gh: FakeGithubType,
+  owner: string,
+  runnerId: number,
+  name: string,
+  labels: string[],
+) {
+  if (firstJobPlayed) return;
+  firstJobPlayed = true;
+  const repo = owner.includes("/") ? owner : `${owner}/web`;
+  const runId = Math.floor(Date.now() / 1000);
+  setTimeout(() => {
+    const runner = gh.runners.get(owner)?.find((r) => r.name === name);
+    if (runner) runner.busy = true;
+    const now = new Date().toISOString();
+    gh.runs.set(repo, [
+      ...(gh.runs.get(repo) ?? []),
+      {
+        id: runId,
+        status: "in_progress",
+        jobs: [
+          {
+            id: runId + 1,
+            name: "build",
+            status: "in_progress",
+            labels,
+            runner_id: runnerId,
+            runner_name: name,
+            created_at: now,
+            started_at: now,
+          },
+        ],
+      },
+    ]);
+  }, 6_000).unref();
+  setTimeout(() => {
+    const runner = gh.runners.get(owner)?.find((r) => r.name === name);
+    if (runner) runner.busy = false;
+    gh.runs.set(
+      repo,
+      (gh.runs.get(repo) ?? []).filter((r) => r.id !== runId),
+    );
+  }, 95_000).unref();
 }
 /**
  * A one-job runner's life on the fake: it comes online and takes the queued

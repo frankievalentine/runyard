@@ -64,11 +64,14 @@ See [Forges](forges.md).
 ## 4. Add a machine
 
 On **Machines**, click **Add machine**, then pick a device from your tailnet or enter an SSH
-target. The next stop shows one command to run on it; on a fresh Linux container or VPS, run the
-fresh-machine version as root. Runyard then checks the machine is ready to build.
+target. On the next stop, **Show setup command** gives one command to run on it; on a fresh Linux
+container or VPS, run the fresh-machine version as root. Runyard then checks the machine is ready
+to build.
 
 The machine needs a few things first, which depend on what it is: see the recipes in
 [Machines](machines.md#recipes).
+
+![Adding lab-pi from the tailnet: the one-line setup command to run on it, and the fresh-machine version](assets/getting-started/setup-command.png)
 
 ![Adding lab-pi from the tailnet: its readiness check, with each tool installed or not found](assets/getting-started/add-machine.png)
 
@@ -93,7 +96,10 @@ minute.
 
 The pool's page shows **Use it in a workflow**: the `runs-on` line and a file to copy into your
 repository. Start with **Starter** to see a job land on your machine, then pick **Frontend** or
-**Generic** for a full CI. Push it, and the job runs on your machine. See
+**Generic** for a full CI. Push it, and the job runs on your machine: it shows on the Board's
+departure board while it runs. See
 [Writing workflows](workflows.md#start-from-a-template).
 
 ![Use it in a workflow on the new pool: the runs-on line and the Starter workflow to copy](assets/getting-started/workflow.png)
+
+![The Board with the first job on its way: build on acme-demo/web, running on lab-pi](assets/getting-started/board.png)

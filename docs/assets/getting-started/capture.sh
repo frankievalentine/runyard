@@ -6,22 +6,32 @@
 # contacted, and drives the dashboard with agent-browser, in the light theme with motion off, at
 # 1.5x for sharp text. The forge is GitHub: this script stands in for github.com by taking the
 # manifest flow's address from the page and returning to Runyard with the fake GitHub's code.
-# Needs agent-browser and bun. Writes the PNGs next to this script.
+# The dashboard runs at https://runyard.example.ts.net:7443, as it would on a tailnet, so the
+# machine setup command shows: https-proxy.ts serves a throwaway certificate for that name, and
+# Chrome resolves it to the proxy. The demo's first runner takes a job, for the Board at the end.
+# Needs agent-browser, bun and openssl. Writes the PNGs next to this script.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 repo="$(cd "$here/../../.." && pwd)"
 port="${RUNYARD_DEMO_PORT:-7497}"
-url="http://127.0.0.1:$port"
+host="runyard.example.ts.net:7443"
+url="https://$host"
+proxy_port="${RUNYARD_PROXY_PORT:-17443}"
 # A plain path, since Settings shows the data directory on screen.
 data=/tmp/runyard-getting-started
 rm -rf "$data"
 mkdir -p "$data"
 export AGENT_BROWSER_SESSION="runyard-getting-started"
 
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 -keyout "$data/key.pem" -out "$data/cert.pem" \
+  -subj "/CN=${host%:*}" -addext "subjectAltName=DNS:${host%:*}" 2>/dev/null
 RUNYARD_DATA_DIR="$data/data" RUNYARD_PORT="$port" RUNYARD_WEBHOOK_PORT="$((port + 1))" \
-  bun "$repo/apps/server/scripts/demo.ts" --fresh >"$data/demo.log" 2>&1 &
+  RUNYARD_ORIGIN="$url" bun "$repo/apps/server/scripts/demo.ts" --fresh >"$data/demo.log" 2>&1 &
 demo=$!
-trap 'agent-browser close >/dev/null 2>&1 || true; kill "$demo" 2>/dev/null || true; rm -rf "$data"' EXIT
+bun "$here/https-proxy.ts" "$proxy_port" "$port" "$data/cert.pem" "$data/key.pem" >"$data/proxy.log" 2>&1 &
+proxy=$!
+trap 'agent-browser close >/dev/null 2>&1 || true; kill "$demo" "$proxy" 2>/dev/null || true; rm -rf "$data"' EXIT
+export AGENT_BROWSER_ARGS="--host-resolver-rules=MAP $host 127.0.0.1:$proxy_port"
 code=""
 for _ in $(seq 1 30); do
   code="$(grep -oE '[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}' "$data/demo.log" | head -n 1 || true)"
@@ -62,7 +72,7 @@ scroll_to() {
 }
 shot() { sleep "${2:-0.8}"; ab screenshot "$here/$1"; echo "Wrote $1"; }
 
-ab set viewport 1280 800 1.5
+ab --ignore-https-errors set viewport 1280 800 1.5
 ab set media light reduced-motion
 
 # Step 2: claiming a new install with its setup code.
@@ -114,6 +124,10 @@ ab open "$url/machines/add"
 until_text "Which machine?"
 click button "Add and continue"
 sleep 2
+# The one-line setup command, the step's real action.
+click button "Show setup command"
+until_text "Works once"
+shot setup-command.png 1
 click button "Continue"
 until_text "Checking lab-pi"
 until_text "Continue"
@@ -149,3 +163,16 @@ ab find role button click --name "$run"
 until_text "is running"
 scroll_to "Use it in a workflow"
 shot workflow.png 1.5
+
+# Then the job lands: the Board with it on the departure board, on lab-pi. The demo's runner
+# takes it a few seconds after it comes online; ask Runyard to re-read GitHub rather than wait
+# for its next scan.
+sleep 8
+ab open "$url/"
+until_text "Departures"
+ab eval "fetch('/api/github/refresh', { method: 'POST' }).then(() => 'ok')"
+for _ in $(seq 1 40); do
+  [ "$(agent-browser eval "document.querySelector('main').innerText.includes('lab-pi') && !document.body.innerText.includes('All quiet')")" = "true" ] && break
+  sleep 0.5
+done
+shot board.png 3
