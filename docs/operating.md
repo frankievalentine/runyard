@@ -34,6 +34,10 @@ one, such as an earlier version to roll back. Open dashboard tabs say when the s
 
 ## Docker
 
+This runs the Runyard host (the dashboard and control plane) in a container, in place of the
+installer. It doesn't run CI jobs: runner machines are still separate machines Runyard reaches
+over SSH, added from the dashboard as usual.
+
 `docker/compose.yaml` runs Runyard beside the official Tailscale container. Runyard shares that
 container's network and serves HTTPS only on your tailnet, at
 `https://<RUNYARD_HOSTNAME>.<tailnet>.ts.net:7443/`. You need MagicDNS and HTTPS Certificates

@@ -26,7 +26,8 @@ runyard service install   # keep it running
 The installers download the latest [release](https://github.com/frankievalentine/runyard/releases)
 and check its checksum; `RUNYARD_VERSION=0.3.0` pins a version.
 
-To run it in Docker instead, see [Docker](operating.md#docker).
+To run the Runyard host in Docker instead of installing it, see [Docker](operating.md#docker).
+Either way, runner machines are added from the dashboard over SSH.
 
 With [Tailscale](https://tailscale.com) on the Runyard host, with MagicDNS and HTTPS Certificates
 turned on for your tailnet, Runyard serves the dashboard at

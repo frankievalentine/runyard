@@ -68,8 +68,10 @@ order.
 
 ## Docker
 
-Runyard also runs in Docker, beside the official Tailscale container, and serves HTTPS on your
-tailnet only. You need:
+The Runyard host (the dashboard and control plane) can run in Docker instead of the installer
+above, beside the official Tailscale container, serving HTTPS on your tailnet only. This is only
+where Runyard itself runs: CI jobs don't run in this container, and runner machines are still
+separate machines you add over SSH. You need:
 
 - Docker with Compose, on Linux, macOS (Docker Desktop or OrbStack) or Windows.
 - A tailnet with **MagicDNS** and **HTTPS Certificates** turned on (the admin console's DNS page).
@@ -123,10 +125,10 @@ Don't change my Tailscale settings, open ports, or connect to any other machine.
 
 ## Requirements
 
-- **Runyard host:** a Mac (Apple silicon), Linux (x64 or arm64, glibc), Windows x64 or Docker,
-  with `ssh`.
+- **Runyard host:** a Mac (Apple silicon), Linux (x64 or arm64, glibc) or Windows x64 with
+  `ssh`, or a Docker container. The host runs the dashboard, not CI jobs.
 - **Tailscale (recommended):** gives the HTTPS dashboard, device discovery, Tailscale sign-in and
-  one-line machine setup. Turn on MagicDNS and HTTPS Certificates. Docker needs it;
+  one-line machine setup. Turn on MagicDNS and HTTPS Certificates. The host in Docker needs it;
   [without it](docs/operating.md#without-tailscale), you connect machines by hand.
 - **Forges:** GitHub, and Forgejo 15 or later.
 - **Runner machines:** anything Runyard reaches over SSH.
