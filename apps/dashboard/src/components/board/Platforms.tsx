@@ -3,8 +3,9 @@ import { Link } from "@tanstack/react-router";
 import { formatDollars } from "../../lib/format.ts";
 import { unassignedGroups } from "../../lib/nav.ts";
 import { primaryDisk } from "../../lib/health.ts";
-import { machineSummary, osLabel } from "../../lib/status.ts";
+import { machineSummary, osLabel, runnerStatus } from "../../lib/status.ts";
 import { Icon } from "../icons.tsx";
+import { InfoTip, RowTip, TipText } from "../InfoTip.tsx";
 
 /** How many machines show before "Show more". */
 const SHOWN = 5;
@@ -29,7 +30,7 @@ function summary(m: YardView["machines"][number]): string {
 
 /**
  * The Board's platforms, as in the Timetable design: each machine with its platform number, a
- * light per runner (orange working, green idle, gray offline), then boat.dev, runners outside
+ * light per runner (orange working, green idle, gray offline; each names itself on hover), then boat.dev, runners outside
  * pools and tailnet devices. The first five machines show; the rest are on Machines.
  */
 export function Platforms({ view }: { view: YardView }) {
@@ -50,10 +51,21 @@ export function Platforms({ view }: { view: YardView }) {
       aria-labelledby="platforms-title"
       className="flex min-w-0 flex-col rounded-xl border border-tt-rule bg-tt-card"
     >
-      <header className="flex items-baseline justify-between gap-3 px-4 pt-3.5 pb-2.5">
-        <h2 id="platforms-title" className="text-[13px] font-extrabold tracking-[.06em] uppercase">
-          Platforms
-        </h2>
+      <header className="flex items-center justify-between gap-3 px-4 pt-3.5 pb-2.5">
+        <span className="flex items-center gap-1.5">
+          <h2
+            id="platforms-title"
+            className="text-[13px] font-extrabold tracking-[.06em] uppercase"
+          >
+            Platforms
+          </h2>
+          <InfoTip label="Platforms">
+            <TipText
+              what="Your machines, numbered like platforms in a station. Each small box is one of its runners."
+              details="Orange: working. Green outline: idle. Gray: offline. A red number means Runyard can't reach the machine over SSH; a gray one means it's offline."
+            />
+          </InfoTip>
+        </span>
         <span className="text-[12.5px] text-tt-ink-3">
           {view.machines.length === 0
             ? "No machines yet"
@@ -122,17 +134,20 @@ export function Platforms({ view }: { view: YardView }) {
                   aria-label={`${runners.filter((r) => r.activity === "busy").length} of ${runners.length} runners working`}
                 >
                   {runners.map((r) => (
-                    <i
+                    <RowTip
                       key={r.key}
-                      title={`${r.name}: ${r.activity}`}
-                      className={`h-[9px] w-[13px] rounded-[2px] border-[1.5px] ${
-                        r.activity === "busy"
-                          ? "border-tt-loco bg-tt-loco"
-                          : r.activity === "idle"
-                            ? "border-tt-ok"
-                            : "border-tt-off"
-                      }`}
-                    />
+                      content={<TipText what={`${r.name} · ${runnerStatus(r).label}`} />}
+                    >
+                      <i
+                        className={`h-[9px] w-[13px] rounded-[2px] border-[1.5px] ${
+                          r.activity === "busy"
+                            ? "border-tt-loco bg-tt-loco"
+                            : r.activity === "idle"
+                              ? "border-tt-ok"
+                              : "border-tt-off"
+                        }`}
+                      />
+                    </RowTip>
                   ))}
                 </span>
               )}

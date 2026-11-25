@@ -1,9 +1,10 @@
 import { deriveIssues, type YardView } from "@runyard/core";
 import { Link } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type ReactElement, type ReactNode } from "react";
 import { SECTIONS, type SectionKey } from "../lib/nav.ts";
 import { useSidebar } from "../lib/sidebar.ts";
 import { Icon } from "./icons.tsx";
+import { RowTip, TipText } from "./InfoTip.tsx";
 import { Logomark } from "./Logomark.tsx";
 import { ICONS, useWhere } from "./PhoneNav.tsx";
 import { StationClock } from "./StationClock.tsx";
@@ -113,6 +114,16 @@ export function Sidebar({
       : "max-w-[150px] opacity-100 [transition:opacity_200ms_ease-in_140ms,max-width_340ms_cubic-bezier(.6,0,.2,1)]"
   }`;
   const toggleLabel = `${collapsed ? "Expand" : "Collapse"} the sidebar ( [ )`;
+  const badgeTip = `${attention} ${attention === 1 ? "problem" : "problems"} with your machines or Tailscale. They're among the Board's Notices.`;
+  /** Collapsed, a control's label becomes its tooltip. */
+  const tipWhenCollapsed = (label: string, el: ReactElement) =>
+    collapsed ? (
+      <RowTip side="right" content={<TipText what={label} />}>
+        {el}
+      </RowTip>
+    ) : (
+      el
+    );
 
   return (
     <aside
@@ -138,18 +149,19 @@ export function Sidebar({
             <span className="block truncate text-[12px] text-tt-ink-3">{where}</span>
           </span>
         </Link>
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={!collapsed}
-          aria-label={toggleLabel}
-          title={toggleLabel}
-          className="grid size-[30px] shrink-0 place-items-center rounded-lg border border-tt-rule text-tt-ink-2 hover:bg-tt-hover hover:text-tt-ink"
-        >
-          <span className={`flex transition-transform ${EASE} ${collapsed ? "" : "rotate-180"}`}>
-            <Icon name="chevron" size={16} />
-          </span>
-        </button>
+        <RowTip side="right" content={<TipText what={toggleLabel} />}>
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={!collapsed}
+            aria-label={toggleLabel}
+            className="grid size-[30px] shrink-0 place-items-center rounded-lg border border-tt-rule text-tt-ink-2 hover:bg-tt-hover hover:text-tt-ink"
+          >
+            <span className={`flex transition-transform ${EASE} ${collapsed ? "" : "rotate-180"}`}>
+              <Icon name="chevron" size={16} />
+            </span>
+          </button>
+        </RowTip>
       </div>
 
       <div
@@ -163,12 +175,11 @@ export function Sidebar({
       <nav aria-label="Sections" className="flex flex-col gap-0.5">
         {SECTIONS.map((s) => {
           const on = section === s.key;
-          return (
+          const link = (
             <Link
               key={s.key}
               to={s.to}
               aria-current={on ? "page" : undefined}
-              title={collapsed ? s.label : undefined}
               className={`relative flex h-[42px] items-center rounded-[9px] text-[15px] ${
                 collapsed ? "px-[14px]" : "gap-3 px-3"
               } ${on ? "bg-tt-paper font-bold text-tt-ink" : "font-semibold text-tt-ink-2 hover:bg-tt-hover hover:text-tt-ink"}`}
@@ -184,17 +195,42 @@ export function Sidebar({
               </span>
               <span className={fold}>{s.label}</span>
               {s.key === "board" && attention > 0 && (
-                <span
-                  className={`inline-flex items-center justify-center rounded bg-tt-signal font-board leading-none font-bold text-tt-on-signal tabular ${
-                    collapsed
-                      ? "absolute top-1 left-[25px] min-w-4 px-1 py-0.5 text-[10px]"
-                      : "ml-auto min-w-5 px-1.5 py-[3px] text-[12px]"
-                  }`}
+                <RowTip
+                  side="right"
+                  // Collapsed, the Board icon's own tip says this; two tips would open at once.
+                  disabled={collapsed}
+                  content={<TipText what={badgeTip} />}
                 >
-                  {attention}
-                </span>
+                  <span
+                    className={`inline-flex items-center justify-center rounded bg-tt-signal font-board leading-none font-bold text-tt-on-signal tabular ${
+                      collapsed
+                        ? "absolute top-1 left-[25px] min-w-4 px-1 py-0.5 text-[10px]"
+                        : "ml-auto min-w-5 px-1.5 py-[3px] text-[12px]"
+                    }`}
+                  >
+                    <span aria-hidden>{attention}</span>
+                    <span className="sr-only">, {attention} need a look</span>
+                  </span>
+                </RowTip>
               )}
             </Link>
+          );
+          // Collapsed, the icons name themselves on hover.
+          return collapsed ? (
+            <RowTip
+              key={s.key}
+              side="right"
+              content={
+                <TipText
+                  what={s.label}
+                  details={s.key === "board" && attention > 0 ? badgeTip : undefined}
+                />
+              }
+            >
+              {link}
+            </RowTip>
+          ) : (
+            link
           );
         })}
       </nav>
@@ -202,21 +238,27 @@ export function Sidebar({
       <div className="mt-auto flex flex-col items-stretch gap-2.5 border-t border-tt-rule pt-3.5">
         <div className="flex justify-center">
           {collapsed ? (
-            <span
-              className="relative"
-              title={
-                status.tone === "warn"
-                  ? "Something needs attention"
-                  : status.tone === "muted"
-                    ? "No forge connected"
-                    : "Runyard is up to date"
+            <RowTip
+              side="right"
+              content={
+                <TipText
+                  what={
+                    status.tone === "warn"
+                      ? "Something needs attention"
+                      : status.tone === "muted"
+                        ? "No forge connected"
+                        : "Runyard is up to date"
+                  }
+                />
               }
             >
-              <StationClock size={44} digital={false} />
-              <span className="absolute -top-0.5 -right-0.5 grid place-items-center rounded-full bg-tt-card p-[3px]">
-                <StatusDot tone={status.tone} hollow={status.tone === "muted"} size={7} />
+              <span className="relative">
+                <StationClock size={44} digital={false} />
+                <span className="absolute -top-0.5 -right-0.5 grid place-items-center rounded-full bg-tt-card p-[3px]">
+                  <StatusDot tone={status.tone} hollow={status.tone === "muted"} size={7} />
+                </span>
               </span>
-            </span>
+            </RowTip>
           ) : (
             <StationClock
               size={44}
@@ -236,23 +278,25 @@ export function Sidebar({
           {machines} {machines === 1 ? "machine" : "machines"} · {runners}{" "}
           {runners === 1 ? "runner" : "runners"}
         </div>
-        <button
-          type="button"
-          disabled={checking}
-          onClick={onCheck}
-          title={collapsed ? "Check now" : undefined}
-          className={`inline-flex h-9 min-w-0 items-center justify-center rounded-lg border border-tt-rule-2 bg-tt-card text-[13.5px] font-semibold whitespace-nowrap text-tt-ink hover:bg-tt-hover disabled:opacity-50 ${
-            collapsed ? "w-9 self-center overflow-hidden" : "gap-2 px-3"
-          }`}
-        >
-          <Icon name="refresh" size={14} />
-          {/* Sits a touch lower, so the label reads as centered on the icon. The button snaps to its
+        {tipWhenCollapsed(
+          "Check now",
+          <button
+            type="button"
+            disabled={checking}
+            onClick={onCheck}
+            className={`inline-flex h-9 min-w-0 items-center justify-center rounded-lg border border-tt-rule-2 bg-tt-card text-[13.5px] font-semibold whitespace-nowrap text-tt-ink hover:bg-tt-hover disabled:opacity-50 ${
+              collapsed ? "w-9 self-center overflow-hidden" : "gap-2 px-3"
+            }`}
+          >
+            <Icon name="refresh" size={14} />
+            {/* Sits a touch lower, so the label reads as centered on the icon. The button snaps to its
               icon's size when collapsing, so the label goes at once (still read aloud) rather than
               fading inside a button too narrow for it. */}
-          <span className={collapsed ? "sr-only" : `mt-px ${fold}`}>
-            {checking ? "Checking…" : "Check now"}
-          </span>
-        </button>
+            <span className={collapsed ? "sr-only" : `mt-px ${fold}`}>
+              {checking ? "Checking…" : "Check now"}
+            </span>
+          </button>,
+        )}
       </div>
     </aside>
   );

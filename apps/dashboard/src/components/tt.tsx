@@ -1,4 +1,6 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { NARROW, useMediaQuery } from "../lib/media.ts";
+import { phoneBack } from "../lib/nav.ts";
 import type { ComponentProps, ReactNode } from "react";
 
 /*
@@ -17,6 +19,14 @@ export const stickyHead =
   "lg:sticky lg:top-0 lg:z-20 lg:-mt-[var(--page-pt)] lg:bg-tt-paper lg:pt-[var(--page-pt)]";
 
 /** A page's head: an optional back link, the condensed title, a line under it, and its actions. */
+/** A page's back link: on phones, More for what the More tab opens (lib/nav.ts); else its own. */
+export function useBack<T extends { to: string; label: string }>(own: T | undefined) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const from = useRouterState({ select: (s) => s.location.state.from });
+  const narrow = useMediaQuery(NARROW);
+  return narrow ? phoneBack(pathname, from, own) : own;
+}
+
 export function PageHead({
   title,
   lede,
@@ -27,19 +37,24 @@ export function PageHead({
 }: {
   title: ReactNode;
   lede?: ReactNode;
-  /** Where the back link goes, and its label: `{ to: "/machines", label: "Machines" }`. */
-  back?: { to: string; label: string };
+  /**
+   * Where the back link goes, and its label: `{ to: "/machines", label: "Machines" }`, with a
+   * `hash` for a panel on that page. On phones a page the More tab opens leads back to More.
+   */
+  back?: { to: string; hash?: string; label: string };
   /** A platform sign or icon before the title. */
   sign?: ReactNode;
   /** A chip beside the title. */
   status?: ReactNode;
   actions?: ReactNode;
 }) {
+  back = useBack(back);
   return (
     <header className={`mb-[18px] ${stickyHead} lg:mb-0 lg:pb-[18px]`}>
       {back && (
         <Link
           to={back.to}
+          hash={"hash" in back ? back.hash : undefined}
           className="mb-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-tt-ink-2 hover:text-tt-ink"
         >
           <span aria-hidden>‹</span> {back.label}
@@ -93,7 +108,7 @@ export function Panel({
       } ${className}`}
     >
       {(title || meta || action) && (
-        <header className="flex items-baseline justify-between gap-3 px-4 pt-3.5 pb-2.5">
+        <header className="flex items-center justify-between gap-3 px-4 pt-3.5 pb-2.5">
           {title && (
             <h2
               className={`text-[13px] font-extrabold tracking-[.06em] uppercase ${dark ? "text-tt-signal" : ""}`}
@@ -101,7 +116,9 @@ export function Panel({
               {title}
             </h2>
           )}
-          <span className="ml-auto flex items-center gap-3">
+          {/* An action's button is taller than the title line; it overhangs the header's padding
+              instead of pushing the title down, so every panel's title sits at the same height. */}
+          <span className={`ml-auto flex items-center gap-3 ${action ? "-my-2" : ""}`}>
             {meta && (
               <span className={`text-[12.5px] ${dark ? "text-[#8b9099]" : "text-tt-ink-3"}`}>
                 {meta}

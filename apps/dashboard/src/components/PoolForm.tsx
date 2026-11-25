@@ -35,6 +35,7 @@ import { availableScopes, isForgejo, sameScope, type ScopeOption } from "../lib/
 import { osLine } from "../lib/status.ts";
 import { MachineChanges } from "./changes.tsx";
 import { Icon } from "./icons.tsx";
+import { InfoTip, TipText } from "./InfoTip.tsx";
 import { ErrLine, machineChip, NpNote } from "./pool/bits.tsx";
 import { RouteLine } from "./RouteLine.tsx";
 import { Chip, Panel, Sign, TtButton, ttButton } from "./tt.tsx";
@@ -387,7 +388,17 @@ export function PoolForm({
           </div>
         )}
         <div>
-          <H3>{suggestions.length ? "Or choose yourself" : "Which repositories or accounts"}</H3>
+          <H3>
+            <span className="inline-flex items-center gap-1.5">
+              {suggestions.length ? "Or choose yourself" : "Which repositories or accounts"}
+              <InfoTip label="repositories and accounts">
+                <TipText
+                  what="Each personal GitHub repository gets its own runners. An organization, or a Forgejo account, shares its runners across all its repositories."
+                  details="On Forgejo you can also pick single repositories under an account."
+                />
+              </InfoTip>
+            </span>
+          </H3>
           {options.length === 0 ? (
             <p className="text-[13.5px] text-tt-ink-2">
               Connect GitHub or Forgejo first, under{" "}
@@ -413,11 +424,6 @@ export function PoolForm({
               ))}
             </div>
           )}
-          <NpNote>
-            Personal GitHub repositories each get their own runners. An organization or a Forgejo
-            account shares one runner across its repositories, or pick single Forgejo repositories
-            under it.
-          </NpNote>
         </div>
         <Field
           id="np-labels"
@@ -425,7 +431,7 @@ export function PoolForm({
           value={labels}
           onChange={setLabels}
           placeholder="linux-build"
-          hint="What your workflows ask for in runs-on, comma-separated. GitHub adds self-hosted, the OS and architecture itself."
+          hint="What your workflows ask for in runs-on, comma-separated. GitHub adds self-hosted, the system and the architecture itself."
         />
         {foot(
           <TtButton onClick={cancel}>Cancel</TtButton>,
@@ -613,7 +619,19 @@ export function PoolForm({
             ))}
           </Line>
           {!onDemand && (
-            <Line label="After each job">
+            <Line
+              label={
+                <span className="inline-flex items-center gap-1.5">
+                  After each job
+                  <InfoTip label="After each job">
+                    <TipText
+                      what="Persistent runners keep their workspace and Docker data between jobs. That keeps builds warm, but one job can affect the next."
+                      details="Applies to GitHub runners on Linux and macOS."
+                    />
+                  </InfoTip>
+                </span>
+              }
+            >
               <Opts label="After each job">
                 {CLEANUPS.map(([value, title, detail]) => (
                   <Opt
@@ -625,11 +643,7 @@ export function PoolForm({
                   />
                 ))}
               </Opts>
-              <NpNote>
-                Persistent runners keep their workspace and Docker data between jobs, which keeps
-                builds warm but lets one job affect the next. GitHub runners on Linux and macOS;
-                changing it restarts each runner while it's idle.
-              </NpNote>
+              <NpNote>Changing it restarts each runner while it's idle.</NpNote>
             </Line>
           )}
           {servesForgejo && (
@@ -1181,7 +1195,7 @@ function Line({
   what,
   children,
 }: {
-  label: string;
+  label: ReactNode;
   onChange?: () => void;
   /** What Change changes, for screen readers. */
   what?: string;

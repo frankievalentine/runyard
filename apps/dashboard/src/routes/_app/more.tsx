@@ -68,7 +68,7 @@ function More() {
       <PageHead title="More" />
       <InstallPanel />
       <nav aria-label="More" className={menu}>
-        <Link to="/pools" className={row}>
+        <Link to="/pools" state={{ from: "more" }} className={row}>
           <Item
             icon={icon("plan")}
             title="Pools"
@@ -82,7 +82,7 @@ function More() {
           />
         </Link>
         {admin && (
-          <Link to="/machines/add" className={row}>
+          <Link to="/machines/add" state={{ from: "more" }} className={row}>
             <Item
               icon={icon("plus")}
               title="Add a machine"
@@ -90,7 +90,7 @@ function More() {
             />
           </Link>
         )}
-        <Link to="/settings/account" className={row}>
+        <Link to="/settings/account" state={{ from: "more" }} className={row}>
           <Item
             icon={icon("settings")}
             title="Settings"
@@ -115,7 +115,7 @@ function More() {
             }
           />
         </button>
-        <Link to="/boat" className={row}>
+        <Link to="/boat" state={{ from: "more" }} className={row}>
           <Item
             icon={<SIcon name="cloud" />}
             title="boat.dev"
@@ -129,7 +129,7 @@ function More() {
           />
         </Link>
         {unassigned.length > 0 && (
-          <Link to="/machines" className={row}>
+          <Link to="/machines" hash="unassigned" state={{ from: "more" }} className={row}>
             <Item
               icon={icon("runner")}
               title="Runners not in a pool"

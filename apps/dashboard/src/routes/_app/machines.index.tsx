@@ -4,6 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { type CSSProperties, type ReactNode, useMemo, useState } from "react";
 import { SplitFlap } from "../../components/board/SplitFlap.tsx";
 import { Icon } from "../../components/icons.tsx";
+import { InfoTip, RowTip, TipText } from "../../components/InfoTip.tsx";
 import { MachinesCards, MachinesTable } from "../../components/machine/MachinesTable.tsx";
 import { Chip, PageHead, Panel, Row, ttButton, ttRowButton } from "../../components/tt.tsx";
 import { filterYard, unassignedGroups } from "../../lib/nav.ts";
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/_app/machines/")({
 });
 
 const LEDE =
-  "Every platform in the yard. Runyard checks them over SSH every minute and changes nothing without a review.";
+  "Every machine Runyard runs jobs on. It checks each one over SSH every minute, and changes nothing until you review it.";
 
 /** More machines than this, and the page offers a filter. */
 const FILTER_FROM = 6;
@@ -36,8 +37,14 @@ function Machines() {
   return (
     <div>
       <PageHead
-        title="Machines"
-        lede={<span className="max-lg:hidden">{LEDE}</span>}
+        title={
+          <span className="inline-flex items-center gap-2">
+            Machines
+            <InfoTip label="Machines" large>
+              <TipText what={LEDE} />
+            </InfoTip>
+          </span>
+        }
         actions={
           <>
             {view.machines.length > FILTER_FROM && <Filter query={query} setQuery={setQuery} />}
@@ -120,7 +127,12 @@ function Extras({ view, admin }: { view: YardView; admin: boolean }) {
       }`}
     >
       {unassigned.length > 0 && (
-        <Panel title="Runners not in a pool" meta={unassigned.length}>
+        <Panel
+          id="unassigned"
+          title="Runners not in a pool"
+          meta={unassigned.length}
+          className="scroll-mt-24"
+        >
           {unassigned.map((r) => (
             <Row key={r.key}>
               <span className="text-tt-ink-3">
@@ -138,9 +150,28 @@ function Extras({ view, admin }: { view: YardView; admin: boolean }) {
                 {r.status === "online" ? "Online" : "Offline"}
               </Chip>
               {/* The runner's page chooses its machine, then moves it into a pool. */}
-              <Link to="/runners/$key" params={{ key: r.key }} className={ttRowButton.secondary}>
-                {admin ? "Take over" : "Open"}
-              </Link>
+              {admin ? (
+                <RowTip
+                  content={
+                    <TipText
+                      what="Runyard didn't set up this runner. Taking it over moves it into one of your pools, so Runyard manages it from then on."
+                      details="The runner's page walks you through it."
+                    />
+                  }
+                >
+                  <Link
+                    to="/runners/$key"
+                    params={{ key: r.key }}
+                    className={ttRowButton.secondary}
+                  >
+                    Take over
+                  </Link>
+                </RowTip>
+              ) : (
+                <Link to="/runners/$key" params={{ key: r.key }} className={ttRowButton.secondary}>
+                  Open
+                </Link>
+              )}
             </Row>
           ))}
         </Panel>

@@ -6,6 +6,7 @@ import { sshKeyQuery } from "../lib/queries.ts";
 import { useNow } from "../lib/now.ts";
 import { yardQuery } from "../lib/yard.ts";
 import { CopyValue } from "./CopyValue.tsx";
+import { InfoTip, TipText } from "./InfoTip.tsx";
 import { CodeBlock, Dot, Toggle, TtError } from "./machine/parts.tsx";
 import { Panel, TtButton } from "./tt.tsx";
 
@@ -24,16 +25,20 @@ export function AccessPanel({ m, admin }: { m: MachineView; admin: boolean }) {
     <Panel
       id="setup"
       className="scroll-mt-4"
-      title={`Connect Runyard to ${m.name}`}
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          Connect Runyard to {m.name}
+          <InfoTip label="connecting Runyard">
+            <TipText what="Runyard reaches machines over SSH. It only reads until you review a change and run it." />
+          </InfoTip>
+        </span>
+      }
       action={
         <TtButton onClick={() => check.mutate()} disabled={check.isPending}>
           {check.isPending ? "Checking…" : "Check again"}
         </TtButton>
       }
     >
-      <p className="px-4 pb-3.5 text-tt-ink-2">
-        Runyard reaches machines over SSH, read-only until you review a change.
-      </p>
       {admin && <SetupCommand m={m} className="px-4 pb-3.5" />}
       <AccessSteps m={m} admin={admin} />
       <TtError className="px-4 pb-3" error={check.error} />

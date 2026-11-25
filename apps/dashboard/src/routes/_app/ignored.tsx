@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "../../components/form.tsx";
 import { Icon } from "../../components/icons.tsx";
+import { RowTip, TipText } from "../../components/InfoTip.tsx";
 import { usePeerActions } from "../../components/peers.ts";
 import {
   Card,
@@ -29,7 +30,9 @@ function Ignored() {
       <PageHeader
         icon={<Icon name="eye-off" size={18} />}
         title="Ignored machines"
-        subtitle="Hidden from Tailnet devices. Restore one to list it again."
+        subtitle={
+          'Hidden from "On your tailnet, not added" on Machines. Restore one to list it there again.'
+        }
       />
       <Section title="Machines" count={view.ignored.length}>
         <Card className="divide-y divide-line overflow-hidden">
@@ -47,12 +50,18 @@ function IgnoredRow({ peer, admin }: { peer: PeerView; admin: boolean }) {
   const { restore } = usePeerActions(peer.nodeId);
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 py-3">
-      <StatusDot tone={peer.online ? "ok" : "muted"} hollow />
+      <RowTip content={<TipText what={peer.online ? "Online on your tailnet" : "Offline"} />}>
+        <span role="img" aria-label={peer.online ? "Online" : "Offline"}>
+          <StatusDot tone={peer.online ? "ok" : "muted"} />
+        </span>
+      </RowTip>
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium">{peer.name}</div>
-        <div className="truncate font-mono text-[11.5px] text-ink-2">
-          {peer.address} · {osLabel[peer.os]}
-        </div>
+        <RowTip content={<TipText what={`${peer.address} · ${osLabel[peer.os]}`} />}>
+          <div className="truncate font-mono text-[11.5px] text-ink-2">
+            {peer.address} · {osLabel[peer.os]}
+          </div>
+        </RowTip>
       </div>
       {admin && (
         <Button small disabled={restore.isPending} onClick={() => restore.mutate()}>

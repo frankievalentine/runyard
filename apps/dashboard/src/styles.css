@@ -66,6 +66,15 @@
   --tt-ok-ink: light-dark(#12673a, #86e0ad);
   --tt-busy-bg: light-dark(#fde9dc, rgba(240, 138, 60, 0.16));
   --tt-busy-ink: light-dark(#9a4410, #ffb47f);
+  /*
+   * Tooltips: ink on the light theme's cards, and on its dark board panels the board's light ink so
+   * they stand out. The dark theme keeps them dark, a step up from the cards and boards.
+   */
+  --tt-tip: light-dark(#0e1013, #2b2f37);
+  --tt-on-tip: light-dark(#ffffff, #eceef1);
+  --tt-tip-board: light-dark(#f4f3ec, #2b2f37);
+  --tt-on-tip-board: light-dark(#0b0c0e, #eceef1);
+  --tt-tip-shadow: light-dark(transparent, rgba(0, 0, 0, 0.6));
 }
 
 :root[data-theme="light"] {
@@ -120,6 +129,10 @@
   --color-tt-hover: var(--tt-hover);
   --color-tt-inv: var(--tt-inv);
   --color-tt-on-inv: var(--tt-on-inv);
+  --color-tt-tip: var(--tt-tip);
+  --color-tt-on-tip: var(--tt-on-tip);
+  --color-tt-tip-board: var(--tt-tip-board);
+  --color-tt-on-tip-board: var(--tt-on-tip-board);
   --color-tt-on-signal: var(--tt-on-signal);
   --color-tt-board-edge: var(--tt-board-edge);
   --color-tt-warn-bg: var(--tt-warn-bg);

@@ -6,7 +6,6 @@ import { ErrorText } from "../ui.tsx";
 import { Chip, Panel, Row, ttButton } from "../tt.tsx";
 import {
   DialogButtons,
-  Note,
   RowText,
   SIcon,
   TtConfirm,
@@ -15,6 +14,7 @@ import {
   rowButton,
   ttSelect,
 } from "./parts.tsx";
+import { InfoTip, TipText } from "../InfoTip.tsx";
 
 type Role = UserView["role"];
 
@@ -31,7 +31,14 @@ export function UsersPanel() {
   return (
     <Panel
       id="users"
-      title="Users"
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          Users
+          <InfoTip label="users">
+            <TipText what="Viewers can see everything. Admins can also manage machines and users." />
+          </InfoTip>
+        </span>
+      }
       action={
         <button type="button" className={rowButton.secondary} onClick={() => setAdding(true)}>
           <SIcon name="plus" size={15} />
@@ -39,9 +46,6 @@ export function UsersPanel() {
         </button>
       }
     >
-      <Note className="!pb-1.5">
-        Viewers can see everything. Admins can also manage machines and users.
-      </Note>
       {users.error && <ErrorText className="px-4 pb-3" error={users.error} />}
       {users.data?.map((u) => (
         <Row key={u.id}>

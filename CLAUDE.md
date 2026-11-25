@@ -9,7 +9,8 @@ change to them before implementing it.
 - **Releasing:** set the version in `apps/server/package.json` (the one `runyard version` prints;
   keep the other package.json files in step), commit, then push a `v<version>` tag. The release
   workflow builds the binaries and the Docker image and drafts a GitHub Release; publishing it
-  makes it the one the installers download. GitHub Pages serves the installers and redeploys when
+  makes it the one the installers download. GitHub Pages serves the landing page
+  (`site/index.html`, one self-contained file) and the installers, and redeploys when `site/` or
   `install/` changes on main. A manual run of the release workflow is a dry run.
 - **Tests:** `packages/core` and `apps/dashboard` use `vp test` (Vitest, imported from
   `vite-plus/test`). `apps/server` uses `bun test`, because it depends on Bun APIs such as

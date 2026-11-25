@@ -19,12 +19,38 @@ export const PHONE_TABS = [
 
 export type PhoneTabKey = (typeof PHONE_TABS)[number]["key"];
 
-/** Which phone tab a page sits under: Pools, Settings and More itself are under More. */
-export function phoneTabFor(pathname: string): PhoneTabKey {
+/**
+ * Which phone tab a page sits under: Pools, Settings and More itself are under More, and so is
+ * anything opened from More (`from`, its links' history state), such as Add a machine.
+ */
+export function phoneTabFor(pathname: string, from?: "more"): PhoneTabKey {
   const section = sectionFor(pathname);
+  if (from === "more") return "more";
   if (pathname.split("/")[1] === "more" || section === "pools" || section === "settings")
     return "more";
   return section;
+}
+
+/** The pages the More tab opens directly; on phones each leads back to More. */
+const MORE_PAGES = new Set([
+  "/pools",
+  "/boat",
+  "/settings",
+  "/settings/account",
+  "/settings/connections",
+  "/settings/users",
+]);
+
+/**
+ * A page's back link on phones: More, for a page More opened (or one it opens directly, however
+ * you got there), else the page's own. Desktop has no More tab, so it keeps the page's own.
+ */
+export function phoneBack<T extends { to: string; label: string }>(
+  pathname: string,
+  from: "more" | undefined,
+  own: T | undefined,
+): T | { to: "/more"; label: "More" } | undefined {
+  return from === "more" || MORE_PAGES.has(pathname) ? { to: "/more", label: "More" } : own;
 }
 
 /** Which section a page belongs to. Runners, tailnet devices and ignored machines sit under Machines;

@@ -5,6 +5,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { api, call } from "../../api.ts";
 import { Elapsed, QueueList, RunnerLine } from "../../components/runners.tsx";
 import { ErrorText } from "../../components/ui.tsx";
+import { InfoTip, TipText } from "../../components/InfoTip.tsx";
 import { Chip, PageHead, Panel, Row, ttButton } from "../../components/tt.tsx";
 import { Note, RowText, SIcon, TtConfirm, TtField } from "../../components/settings/parts.tsx";
 import { yardQuery, useYard } from "../../lib/yard.ts";
@@ -31,10 +32,19 @@ function BoatPage() {
   return (
     <div>
       <PageHead
-        back={admin ? { to: "/settings/connections", label: "Settings" } : undefined}
+        back={admin ? { to: "/settings/account", hash: "boat", label: "Settings" } : undefined}
         sign={<SIcon name="cloud" size={26} />}
-        title="boat.dev"
-        lede="Jobs with runs-on: boat run on a fresh boat.dev VM each. Runyard shows them from GitHub's data; a read-only key adds each VM's cost, your plan's limits, and VMs left running."
+        title={
+          <span className="inline-flex items-center gap-2">
+            boat.dev
+            <InfoTip label="boat.dev" large>
+              <TipText
+                what="Jobs with runs-on: boat each run on a fresh boat.dev VM."
+                details="Runyard shows them from GitHub. A read-only boat.dev key adds what each VM costs, your plan's limits, and VMs left running."
+              />
+            </InfoTip>
+          </span>
+        }
         actions={admin && boat && <Disconnect />}
       />
       {boat?.error && <ErrorText className="mb-4" error={boat.error} />}
@@ -51,7 +61,14 @@ function BoatPage() {
             }
           />
           <Stat
-            label="Starts this minute"
+            label={
+              <>
+                Starts this minute
+                <InfoTip label="Starts this minute">
+                  <TipText what="How many VMs boat.dev has started this minute, against your plan's limit. Jobs wait once it's reached." />
+                </InfoTip>
+              </>
+            }
             value={
               boat.limits?.startsThisMinute ? `${boat.limits.startsThisMinute.used}` : "Unlimited"
             }
@@ -88,15 +105,35 @@ function BoatPage() {
         </Panel>
         {boat ? (
           <>
-            <Panel title="Left running" meta={boat.leftover.length || undefined}>
-              <Note>
-                VMs billing outside a running CI job: ones you started yourself, and CI VMs whose
-                job GitHub hasn't reported running for 15 minutes. Stop them with{" "}
-                <code>boat stop</code> or in boat.dev's dashboard.
-              </Note>
+            <Panel
+              title={
+                <span className="inline-flex items-center gap-1.5">
+                  Left running
+                  <InfoTip label="Left running">
+                    <TipText what="VMs you're paying for outside a running CI job: ones you started yourself, and CI VMs whose job GitHub hasn't reported running for 15 minutes." />
+                  </InfoTip>
+                </span>
+              }
+              meta={boat.leftover.length || undefined}
+            >
+              {boat.leftover.length > 0 && (
+                <Note>
+                  Stop them with <code>boat stop</code> or in boat.dev's dashboard.
+                </Note>
+              )}
               <VmList vms={boat.leftover} empty="Nothing is running outside CI." warn />
             </Panel>
-            <Panel title="All running VMs" meta={boat.running.length || undefined}>
+            <Panel
+              title={
+                <span className="inline-flex items-center gap-1.5">
+                  All running VMs
+                  <InfoTip label="costs">
+                    <TipText what="Costs are for this UTC month at list price, as boat.dev reports them. They don't include plan discounts or trial credit." />
+                  </InfoTip>
+                </span>
+              }
+              meta={boat.running.length || undefined}
+            >
               <VmList vms={boat.running} empty="No boat.dev VMs are running." />
             </Panel>
           </>
@@ -108,12 +145,6 @@ function BoatPage() {
           </Panel>
         )}
       </div>
-      {boat && (
-        <p className="mt-4 text-[12px] text-tt-ink-3">
-          Costs are this UTC month at list price, as boat.dev reports them, and don't include plan
-          discounts or trial credit.
-        </p>
-      )}
     </div>
   );
 }
@@ -124,14 +155,14 @@ function Stat({
   sub,
   warn,
 }: {
-  label: string;
+  label: ReactNode;
   value: ReactNode;
   sub: ReactNode;
   warn?: boolean;
 }) {
   return (
     <div className="rounded-xl border border-tt-rule bg-tt-card px-4 py-3.5">
-      <div className="text-[10.5px] leading-none font-bold tracking-[.1em] text-tt-ink-3 uppercase">
+      <div className="flex items-center gap-1 text-[10.5px] leading-none font-bold tracking-[.1em] text-tt-ink-3 uppercase">
         {label}
       </div>
       <div

@@ -6,6 +6,7 @@ import { api, call } from "../../api.ts";
 import { yardQuery } from "../../lib/yard.ts";
 import { Chip, TtButton, ttButton } from "../tt.tsx";
 import { ErrorText } from "../ui.tsx";
+import { RowTip, TipText } from "../InfoTip.tsx";
 
 /** Stops one-job runners starting for the pool, or lets them start again. Running ones finish. */
 export function PauseButton({ pool }: { pool: Pool }) {
@@ -17,19 +18,27 @@ export function PauseButton({ pool }: { pool: Pool }) {
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
   });
+  // The error shows under the button: in a hover title it was easy to miss and never shown on
+  // a phone.
   return (
-    <TtButton
-      onClick={() => toggle.mutate()}
-      disabled={toggle.isPending}
-      title={
-        toggle.error?.message ??
-        (pool.paused
-          ? "Start one-job runners again for queued jobs"
-          : "Start no new runners; running jobs finish")
-      }
-    >
-      {pool.paused ? "Resume" : "Pause"}
-    </TtButton>
+    <span className="flex flex-col items-end gap-1">
+      <RowTip
+        content={
+          <TipText
+            what={
+              pool.paused
+                ? "Starts one-job runners for queued jobs again."
+                : "Starts no new one-job runners. Jobs already running finish."
+            }
+          />
+        }
+      >
+        <TtButton onClick={() => toggle.mutate()} disabled={toggle.isPending}>
+          {pool.paused ? "Resume" : "Pause"}
+        </TtButton>
+      </RowTip>
+      {toggle.error && <ErrorText error={toggle.error} />}
+    </span>
   );
 }
 
@@ -174,7 +183,18 @@ export function PublicRepo({ scope }: { scope: Scope }) {
               ) : i.ok === false ? (
                 <Chip tone="error">Not set</Chip>
               ) : (
-                <Chip tone="plain">Can't verify</Chip>
+                <RowTip
+                  content={
+                    <TipText
+                      what="The forge doesn't tell Runyard this setting."
+                      todo="Check it yourself in the repository's settings."
+                    />
+                  }
+                >
+                  <span>
+                    <Chip tone="plain">Can't verify</Chip>
+                  </span>
+                </RowTip>
               )}
             </span>
             <span>{i.text}</span>
@@ -201,7 +221,16 @@ export function PublicAccount({ scope, publicRepos }: { scope: Scope; publicRepo
       {scope.kind !== "repo" && (
         <p className="mt-1.5 font-board text-[12.5px] break-words text-tt-ink-2">
           {publicRepos.slice(0, 8).join(", ")}
-          {publicRepos.length > 8 && ", …"}
+          {publicRepos.length > 8 && (
+            <>
+              {", "}
+              <RowTip content={<TipText what={publicRepos.slice(8).join(", ")} />}>
+                <span tabIndex={0} className="underline decoration-dotted underline-offset-2">
+                  and {publicRepos.length - 8} more
+                </span>
+              </RowTip>
+            </>
+          )}
         </p>
       )}
       <p className="mt-2 text-[12.5px] text-tt-ink-2">

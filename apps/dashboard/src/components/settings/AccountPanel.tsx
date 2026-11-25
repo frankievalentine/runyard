@@ -3,9 +3,10 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { api, call } from "../../api.ts";
 import { addPasskey, passkeysAvailable, suggestedPasskeyName } from "../../lib/passkeys.ts";
-import { healthQuery, passkeysQuery, sessionQuery } from "../../lib/queries.ts";
+import { passkeysQuery, sessionQuery } from "../../lib/queries.ts";
 import { setTheme, useTheme, type Theme } from "../../lib/theme.ts";
 import { Icon } from "../icons.tsx";
+import { RowTip, TipText } from "../InfoTip.tsx";
 import { ErrorText } from "../ui.tsx";
 import { Panel, Row, ttButton } from "../tt.tsx";
 import {
@@ -25,7 +26,6 @@ const day = (at: number) => new Date(at).toLocaleDateString();
 /** Who you are, your passkeys and password, and the theme. Signing out has its own card. */
 export function AccountPanel() {
   const { data: session } = useSuspenseQuery(sessionQuery);
-  const version = useQuery(healthQuery).data?.version;
   const user = session.user;
   if (!user) return null;
   const name = user.username ?? user.tailscaleLogin ?? "Account";
@@ -38,8 +38,10 @@ export function AccountPanel() {
           detail={
             <>
               {user.role === "admin" ? "Admin" : "Viewer"}
-              {user.username && user.tailscaleLogin && ` · Tailscale ${user.tailscaleLogin}`}
-              {version && ` · Runyard ${version}`} at {window.location.host}
+              {user.username &&
+                user.tailscaleLogin &&
+                ` · Tailscale ${user.tailscaleLogin}`} at{" "}
+              {window.location.host}
             </>
           }
         />
@@ -121,7 +123,14 @@ function Passkeys() {
             title={p.name}
             detail={
               <>
-                {p.rpId} · added {day(p.createdAt)}
+                <RowTip
+                  content={
+                    <TipText what="The address this passkey belongs to. It signs you in only there." />
+                  }
+                >
+                  <span tabIndex={0}>{p.rpId}</span>
+                </RowTip>{" "}
+                · added {day(p.createdAt)}
                 {p.lastUsedAt && ` · used ${day(p.lastUsedAt)}`}
               </>
             }

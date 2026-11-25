@@ -19,6 +19,7 @@ import registrationCleanup from "./0017_registration_cleanup.sql" with { type: "
 import jobs from "./0018_jobs.sql" with { type: "text" };
 import registrationHistory from "./0019_registration_history.sql" with { type: "text" };
 import jobHours from "./0020_job_hours.sql" with { type: "text" };
+import hostSettings from "./0021_host_settings.sql" with { type: "text" };
 
 /**
  * Every migration drizzle-kit generated, oldest first. Add new files here;
@@ -46,6 +47,7 @@ export const migrations: readonly Migration[] = [
   { name: "0018_jobs", sql: jobs },
   { name: "0019_registration_history", sql: registrationHistory },
   { name: "0020_job_hours", sql: jobHours },
+  { name: "0021_host_settings", sql: hostSettings },
 ];
 
 export type Migration = { name: string; sql: string };

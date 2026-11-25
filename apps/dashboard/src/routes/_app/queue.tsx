@@ -4,8 +4,14 @@ import { useState } from "react";
 import { Dispatches } from "../../components/Dispatches.tsx";
 import { useJobs } from "../../components/Jobs.tsx";
 import { Icon } from "../../components/icons.tsx";
+import { InfoTip, TipText } from "../../components/InfoTip.tsx";
 import { JobsEmpty, TabsRow, Toggle } from "../../components/jobs/parts.tsx";
-import { HistoryTable, RunningTable, WaitingTable } from "../../components/jobs/tables.tsx";
+import {
+  HistoryTable,
+  RunningTable,
+  WaitingTable,
+  WhyWaitingTip,
+} from "../../components/jobs/tables.tsx";
 import { emptyQueueText, forgesConnected } from "../../components/runners.tsx";
 import { PageHead, Panel, ttButton } from "../../components/tt.tsx";
 import { ErrorText } from "../../components/ui.tsx";
@@ -25,7 +31,8 @@ type Tab = "running" | "waiting" | "history";
 
 /**
  * Jobs, as in the Timetable design: tabs for what's on its way, what's waiting and why, and the
- * last 7 days, each a table (rows on phones). Waiting adds one-job runners just started.
+ * last 7 days, each a table (rows on phones). Waiting adds one-job runners just started. What the
+ * page and its columns mean is in their tooltips.
  */
 function Queue() {
   const view = useYard();
@@ -39,11 +46,15 @@ function Queue() {
   return (
     <div>
       <PageHead
-        title="Jobs"
-        lede={
-          <span className="max-lg:hidden">
-            Everything on the board, plus what finished this week. Select a job to open its runner
-            or see why it waits.
+        title={
+          <span className="inline-flex items-center gap-2">
+            Jobs
+            <InfoTip label="Jobs" large>
+              <TipText
+                what="Everything on the Board, plus the jobs that finished in the last 7 days."
+                todo="Select a job to open its runner, or to see why it's waiting."
+              />
+            </InfoTip>
           </span>
         }
       />
@@ -199,27 +210,40 @@ function WaitingExtras() {
   return (
     <>
       {recent.length > 0 && (
-        <Panel title="Recently started" meta={recent.length} className="mt-[18px]">
-          <p className="px-4 pb-2.5 text-[12.5px] text-tt-ink-2">
-            One-job runners Runyard started for queued jobs in the last half hour; their jobs leave
-            the list above once a runner takes them.
-          </p>
+        <Panel
+          title={
+            <span className="inline-flex items-center gap-1.5">
+              Recently started
+              <InfoTip label="Recently started">
+                <TipText
+                  what="One-job runners Runyard started for queued jobs in the last half hour."
+                  details="A job leaves the Waiting list as soon as one of them takes it."
+                />
+              </InfoTip>
+            </span>
+          }
+          meta={recent.length}
+          className="mt-[18px]"
+        >
           <Dispatches dispatches={recent.slice(0, 10)} jobs={jobs.data?.jobs ?? []} showPool bare />
         </Panel>
       )}
       <div className="mt-4 space-y-1.5 text-[12px] text-tt-ink-2">
-        {q.at && <p>Checked {timeAgo(q.at, now)}.</p>}
+        {q.at && (
+          <p className="flex items-center gap-1.5">
+            Checked {timeAgo(q.at, now)}.
+            {/* The table's headers, where this sits on a desktop, don't show on phones. */}
+            <span className="lg:hidden">
+              <WhyWaitingTip />
+            </span>
+          </p>
+        )}
         {!q.complete && connected && (
           <p className="text-tt-warn-ink">
             This list may be incomplete: job data is missing or stale, or an installation has more
             repositories than Runyard scans (the 30 most recently pushed).
           </p>
         )}
-        <p>
-          "Matching" means the runner has every label the job asks for. Runner-group access rules
-          can still keep a job off a runner; GitHub's API doesn't expose that per job. Forgejo lists
-          only jobs waiting for a runner, not which runner took one.
-        </p>
       </div>
     </>
   );

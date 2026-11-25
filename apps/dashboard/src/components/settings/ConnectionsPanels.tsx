@@ -5,12 +5,22 @@ import { formatDollars, plural } from "../../lib/format.ts";
 import { checksQuery } from "../../lib/queries.ts";
 import { useYard } from "../../lib/yard.ts";
 import { Elapsed } from "../runners.tsx";
+import { InfoTip, RowTip, TipText } from "../InfoTip.tsx";
 import { ErrorText } from "../ui.tsx";
 import { webhookStatusQuery } from "../Webhooks.tsx";
 import { Chip, Panel, Row } from "../tt.tsx";
 import { Note, RowText, SIcon, WithCode, rowButton } from "./parts.tsx";
 
 /** The forges Runyard reads: each GitHub App and Forgejo account, and the way to manage each. */
+/** What each webhook state means for how fast Runyard sees jobs. */
+const HOOK_TIP: Record<string, string> = {
+  polling:
+    "Runyard re-reads GitHub about every 45 seconds. Set up webhooks on its GitHub page to see queued jobs within seconds.",
+  "webhooks set": "Runyard is ready for webhooks, but GitHub hasn't delivered one yet.",
+  "webhooks delivering":
+    "GitHub tells Runyard about jobs as they're queued, so it sees them within seconds.",
+};
+
 export function ConnectionsPanel() {
   const view = useYard();
   const hooks = useQuery(webhookStatusQuery).data;
@@ -57,7 +67,14 @@ export function ConnectionsPanel() {
               detail={
                 <>
                   {app.name} · {plural(installs, "installation")}
-                  {hook && ` · ${hook}`}
+                  {hook && (
+                    <>
+                      {" · "}
+                      <RowTip content={<TipText what={HOOK_TIP[hook]} />}>
+                        <span tabIndex={0}>{hook}</span>
+                      </RowTip>
+                    </>
+                  )}
                 </>
               }
             />
@@ -129,46 +146,66 @@ const DOT = {
 } as const;
 
 /** The control machine's setup checks: ssh, Tailscale, the secret key, disk and the service. */
+/** A check's status words: quiet when fine, in the warning or error color when not. */
+const STATUS_TONE: Record<string, string> = {
+  ok: "text-tt-ink-3",
+  off: "text-tt-ink-3",
+  warn: "font-semibold text-tt-warn-ink",
+  bad: "font-semibold text-tt-bad",
+};
+
+/** A check's dot, read aloud. */
+const STATE_WORDS: Record<string, string> = {
+  ok: "Fine",
+  warn: "Needs a look",
+  bad: "Not working",
+  off: "Off",
+};
+
 export function HostPanel() {
   const checks = useQuery(checksQuery);
   const attention = checks.data?.filter((c) => c.state === "warn" || c.state === "bad").length;
   return (
     <Panel
       id="host"
-      title="This machine"
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          This machine
+          <InfoTip label="this machine">
+            The Runyard host itself: what it needs to reach machines and keep running.
+          </InfoTip>
+        </span>
+      }
       meta={
         attention === undefined ? undefined : attention ? `${attention} need attention` : "Ready"
       }
     >
-      <Note className="!pb-1">
-        The Runyard host itself: what it needs to reach machines and keep running.
-      </Note>
       {checks.isPending && <Note>Checking…</Note>}
       {checks.error && <ErrorText className="px-4 pb-3" error={checks.error} />}
       {checks.data && (
         <ul className="pb-1">
           {checks.data.map((c) => (
-            <li key={c.id} className="text-[13px]">
-              <div className="flex items-start gap-3 px-4 py-2">
-                <span
-                  role="img"
-                  aria-label={c.state}
-                  className={`mt-[5px] size-2 flex-none self-start rounded-full ${DOT[c.state]}`}
-                />
-                <span className="min-w-0 flex-1">
-                  <b className="block font-semibold">{c.title}</b>
-                  <small
-                    className={`block text-[12px] [overflow-wrap:anywhere] ${c.state === "ok" ? "text-tt-ink-3" : "text-tt-ink-2"}`}
-                  >
-                    {c.detail}
-                  </small>
-                </span>
-              </div>
-              {c.fix && (
-                <p className="pr-4 pb-2 pl-9 text-[12px] text-tt-ink-3">
-                  <WithCode text={c.fix} />
-                </p>
-              )}
+            <li key={c.id} className="flex items-center gap-3 px-4 py-2 text-[13px]">
+              <span
+                role="img"
+                aria-label={STATE_WORDS[c.state]}
+                className={`size-2 flex-none rounded-full ${DOT[c.state]}`}
+              />
+              <span className="flex min-w-0 flex-1 items-center gap-1">
+                <b className="font-semibold">{c.title}</b>
+                <InfoTip label={c.title}>
+                  <TipText
+                    what={c.about}
+                    details={c.detail}
+                    todo={c.fix && <WithCode text={c.fix} />}
+                  />
+                </InfoTip>
+              </span>
+              <span
+                className={`text-right text-[12.5px] ${STATUS_TONE[c.state] ?? "text-tt-ink-3"}`}
+              >
+                {c.status}
+              </span>
             </li>
           ))}
         </ul>

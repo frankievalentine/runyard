@@ -148,6 +148,13 @@
       "when": 1794877214180,
       "tag": "0020_job_hours",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1795586669960,
+      "tag": "0021_host_settings",
+      "breakpoints": true
     }
   ]
 }

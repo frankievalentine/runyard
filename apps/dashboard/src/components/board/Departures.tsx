@@ -6,6 +6,7 @@ import { useNow } from "../../lib/now.ts";
 import { DialogButtons, TtDialog } from "../ConfirmDialog.tsx";
 import { Lab } from "../pool/bits.tsx";
 import { forgesConnected } from "../runners.tsx";
+import { InfoTip, RowTip, TipText } from "../InfoTip.tsx";
 import { Facts, ttButton } from "../tt.tsx";
 import { SplitFlap } from "./SplitFlap.tsx";
 
@@ -105,12 +106,24 @@ export function Departures({ view, phone = false }: { view: YardView; phone?: bo
     >
       <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-5 pt-[18px] pb-1.5">
         <div className="min-w-0">
-          <h2
-            id="departures-title"
-            className="text-[30px] leading-none font-extrabold tracking-[.01em] [font-stretch:75%]"
-          >
-            Departures
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2
+              id="departures-title"
+              className="text-[30px] leading-none font-extrabold tracking-[.01em] [font-stretch:75%]"
+            >
+              Departures
+            </h2>
+            <InfoTip label="Departures" dark>
+              <TipText
+                what="Jobs running now, and jobs waiting for a runner. The time is when each one started or was queued."
+                todo={
+                  rowsLayout
+                    ? "Tap a row for its details."
+                    : "Select a row for its runner, or why it's waiting."
+                }
+              />
+            </InfoTip>
+          </div>
           <p className="mt-0.5 text-[12.5px] text-[#8b9099]">
             {rows.length === 0
               ? forgesConnected(view)
@@ -192,7 +205,6 @@ export function Departures({ view, phone = false }: { view: YardView; phone?: bo
               <button
                 type="button"
                 onClick={() => setSheet(d.key)}
-                title={d.status}
                 className="flex w-full flex-col gap-[7px] px-3 py-2.5 text-left hover:bg-tt-board-2"
               >
                 <span className="flex items-center gap-2.5">
@@ -273,44 +285,56 @@ export function Departures({ view, phone = false }: { view: YardView; phone?: bo
               Status
             </span>
             <span
-              className="ml-auto shrink-0 text-right whitespace-nowrap"
+              className="ml-auto flex shrink-0 items-center justify-end gap-1 whitespace-nowrap"
               style={{ width: WAIT_W }}
             >
               Wait · cost
+              <InfoTip label="Wait and cost" dark>
+                <TipText what="Waiting jobs: how long they've waited. Jobs on boat.dev: what the VM has cost so far, at list price." />
+              </InfoTip>
             </span>
           </div>
           {rows.map((d, i) => {
             const tone = FLAP_TONE[d.tone];
             const base = i * 0.08;
             return (
-              <button
+              <RowTip
                 key={d.key}
-                type="button"
-                onClick={() => open(d)}
-                title={d.status}
-                className={`flex h-[calc(var(--flap-h)+10px)] w-full items-center gap-3 px-5 text-left hover:bg-tt-board-2 ${
-                  i > 0 && d.kind === "waiting" && rows[i - 1]!.kind === "running"
-                    ? "border-t border-dashed border-[#343841]"
-                    : "border-t border-[#1a1c20]"
-                }`}
+                dark
+                content={
+                  <TipText
+                    what={d.status}
+                    details={`${d.job} · ${d.repo}${d.platform ? ` · ${d.platform}` : ""}`}
+                  />
+                }
               >
-                <SplitFlap text={hhmm(d.at)} cells={COLS.time} delay={base} />
-                <SplitFlap text={d.job} cells={COLS.job} delay={base + 0.06} />
-                <SplitFlap text={d.repo} cells={COLS.repo} delay={base + 0.12} />
-                <SplitFlap
-                  text={d.platform}
-                  cells={COLS.platform}
-                  tone={tone}
-                  delay={base + 0.18}
-                />
-                <SplitFlap text={sign(d)} cells={COLS.status} tone={tone} delay={base + 0.24} />
-                <span
-                  className="ml-auto shrink-0 text-right font-board text-[12px] font-medium text-[#8b9099] tabular"
-                  style={{ width: WAIT_W }}
+                <button
+                  type="button"
+                  onClick={() => open(d)}
+                  className={`flex h-[calc(var(--flap-h)+10px)] w-full items-center gap-3 px-5 text-left hover:bg-tt-board-2 ${
+                    i > 0 && d.kind === "waiting" && rows[i - 1]!.kind === "running"
+                      ? "border-t border-dashed border-[#343841]"
+                      : "border-t border-[#1a1c20]"
+                  }`}
                 >
-                  {waitOrCost(d)}
-                </span>
-              </button>
+                  <SplitFlap text={hhmm(d.at)} cells={COLS.time} delay={base} />
+                  <SplitFlap text={d.job} cells={COLS.job} delay={base + 0.06} />
+                  <SplitFlap text={d.repo} cells={COLS.repo} delay={base + 0.12} />
+                  <SplitFlap
+                    text={d.platform}
+                    cells={COLS.platform}
+                    tone={tone}
+                    delay={base + 0.18}
+                  />
+                  <SplitFlap text={sign(d)} cells={COLS.status} tone={tone} delay={base + 0.24} />
+                  <span
+                    className="ml-auto shrink-0 text-right font-board text-[12px] font-medium text-[#8b9099] tabular"
+                    style={{ width: WAIT_W }}
+                  >
+                    {waitOrCost(d)}
+                  </span>
+                </button>
+              </RowTip>
             );
           })}
           <BlankRows />
@@ -323,14 +347,6 @@ export function Departures({ view, phone = false }: { view: YardView; phone?: bo
         now={now}
         cost={(d) => waitOrCost(d)}
       />
-      {rows.length > 0 && (
-        <p className="px-5 pt-2.5 pb-2 text-[11.5px] text-[#9aa0a9]">
-          Times are when a job started or was queued.{" "}
-          {rowsLayout
-            ? "Tap a row for details."
-            : "Select a row to see its runner, or why it's waiting."}
-        </p>
-      )}
     </section>
   );
 }
@@ -393,7 +409,10 @@ function DepartureSheet({
                 </div>
               )}
               <p className={`mt-3 rounded-lg px-3.5 py-2.5 text-[13.5px] font-semibold ${notice}`}>
-                {d.status} · waiting {formatElapsed(now - d.at)}
+                {d.status}
+                <span className="block text-[12.5px] font-normal opacity-80">
+                  Waiting for {formatElapsed(now - d.at)}
+                </span>
               </p>
             </>
           )}

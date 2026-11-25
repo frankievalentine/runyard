@@ -4,7 +4,8 @@ import { Link } from "@tanstack/react-router";
 import { api, call } from "../../api.ts";
 import { formatPercent, formatUptime } from "../../lib/format.ts";
 import { memoryUsedFraction, primaryDisk } from "../../lib/health.ts";
-import { osLabel } from "../../lib/status.ts";
+import { osLabel, runnerStatus } from "../../lib/status.ts";
+import { InfoTip, RowTip, TipText } from "../InfoTip.tsx";
 import { Chip, type ChipTone, Panel, Sign, ttTable } from "../tt.tsx";
 
 /*
@@ -58,22 +59,23 @@ function runnersOf(view: YardView): Map<string, RunnerView[]> {
 /** A light per runner: orange working, outlined green idle, gray offline. */
 export function RunnerLights({ runners }: { runners: RunnerView[] }) {
   return (
+    // Above the row's covering link, so each light can name itself on hover.
     <span
-      className="flex flex-wrap gap-[3px]"
+      className="relative z-[1] flex flex-wrap gap-[3px]"
       aria-label={`${runners.filter((r) => r.activity === "busy").length} of ${runners.length} runners working`}
     >
       {runners.map((r) => (
-        <i
-          key={r.key}
-          title={`${r.name}: ${r.activity}`}
-          className={`h-[9px] w-[13px] rounded-[2px] border-[1.5px] ${
-            r.activity === "busy"
-              ? "border-tt-loco bg-tt-loco"
-              : r.activity === "idle"
-                ? "border-tt-ok"
-                : "border-tt-rule-2 bg-tt-rule"
-          }`}
-        />
+        <RowTip key={r.key} content={<TipText what={`${r.name} · ${runnerStatus(r).label}`} />}>
+          <i
+            className={`h-[9px] w-[13px] rounded-[2px] border-[1.5px] ${
+              r.activity === "busy"
+                ? "border-tt-loco bg-tt-loco"
+                : r.activity === "idle"
+                  ? "border-tt-ok"
+                  : "border-tt-rule-2 bg-tt-rule"
+            }`}
+          />
+        </RowTip>
       ))}
     </span>
   );
@@ -125,10 +127,30 @@ export function MachinesTable({ view, machines }: { view: YardView; machines: Ma
             </th>
             <th className={ttTable.th}>Machine</th>
             <th className={ttTable.th}>State</th>
-            <th className={ttTable.th}>Runners</th>
+            <th className={ttTable.th}>
+              <span className="inline-flex items-center gap-1">
+                Runners
+                <InfoTip label="Runners">
+                  <TipText
+                    what="Each box is one runner on the machine."
+                    details="Orange: working. Green outline: idle. Gray: offline. Hover a box for its name."
+                  />
+                </InfoTip>
+              </span>
+            </th>
             <th className={`${ttTable.th} !text-right`}>CPU</th>
-            <th className={`${ttTable.th} !text-right`}>Memory</th>
-            <th className={`${ttTable.th} !text-right`}>Disk free</th>
+            <th className={`${ttTable.th} !text-right`}>Memory used</th>
+            <th className={`${ttTable.th} !text-right`}>
+              <span className="inline-flex items-center gap-1">
+                Disk free
+                <InfoTip label="Disk free">
+                  <TipText
+                    what="Free space on the machine's main disk."
+                    details="The bar turns amber under 10%, when Runyard also raises an alert."
+                  />
+                </InfoTip>
+              </span>
+            </th>
             <th className={`${ttTable.th} !text-right`}>Jobs, 7 days</th>
             <th className={`${ttTable.th} !text-right`}>Uptime</th>
           </tr>
@@ -156,7 +178,19 @@ export function MachinesTable({ view, machines }: { view: YardView; machines: Ma
                   <small className="block text-[12px] text-tt-ink-3">{subline(m)}</small>
                 </td>
                 <td className={ttTable.td}>
-                  <Chip tone={tone}>{label}</Chip>
+                  {m.connection.state === "stale" ? (
+                    <RowTip
+                      content={
+                        <TipText what="Runyard's last check didn't get through, so this row shows the readings from the check before." />
+                      }
+                    >
+                      <span className="relative z-[1]">
+                        <Chip tone={tone}>{label}</Chip>
+                      </span>
+                    </RowTip>
+                  ) : (
+                    <Chip tone={tone}>{label}</Chip>
+                  )}
                 </td>
                 <td className={ttTable.td}>
                   {runners.length ? (

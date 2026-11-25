@@ -8,6 +8,7 @@ import { CopyValue } from "./CopyValue.tsx";
 import { ErrorText } from "./ui.tsx";
 import { Chip, Panel, ttButton } from "./tt.tsx";
 import { Note, TtField } from "./settings/parts.tsx";
+import { InfoTip, TipText } from "./InfoTip.tsx";
 
 export const webhookStatusQuery = {
   queryKey: ["webhook-status"],
@@ -25,7 +26,20 @@ export function Webhooks() {
   const status = useQuery(webhookStatusQuery);
   const s = status.data;
   return (
-    <Panel title="Webhooks" meta="Optional">
+    <Panel
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          Webhooks
+          <InfoTip label="webhooks">
+            <TipText
+              what="Without webhooks Runyard notices queued jobs within about 45 seconds; with them, within seconds."
+              details="A delivery only makes Runyard re-read GitHub sooner. It never acts on what a delivery says."
+            />
+          </InfoTip>
+        </span>
+      }
+      meta="Optional"
+    >
       {status.isPending && <Note>Checking…</Note>}
       {status.error && <ErrorText className="px-4 pb-3" error={status.error} />}
       {s && s.port === null && (
@@ -45,13 +59,12 @@ function Steps({ s, port }: { s: Status; port: number }) {
   const command = `tailscale funnel --bg http://127.0.0.1:${port}`;
   return (
     <>
-      <Note>
-        Without webhooks Runyard notices queued jobs within about 45 seconds; with them, within
-        seconds. A delivery only makes Runyard re-read GitHub sooner; it never acts on what a
-        delivery says.
-      </Note>
       <div className="flex items-start gap-3 border-t border-tt-rule px-4 py-3 text-[12.5px]">
-        <span aria-hidden className={dot(!!s.funnelUrl)} />
+        <span
+          role="img"
+          aria-label={s.funnelUrl ? "Done" : "To do"}
+          className={dot(!!s.funnelUrl)}
+        />
         <div className="min-w-0 flex-1">
           <b className="block text-[13px] font-bold">1. Make the webhook listener public</b>
           {s.funnelUrl ? (
@@ -147,7 +160,7 @@ function AppHook({ app, publicUrl }: { app: Status["apps"][number]; publicUrl: s
       </div>
       {app.error && <ErrorText className="px-4" error={app.error} />}
       <div className="flex items-start gap-3 px-4 py-2">
-        <span aria-hidden className={dot(!!pointed)} />
+        <span role="img" aria-label={pointed ? "Done" : "To do"} className={dot(!!pointed)} />
         <div className="min-w-0 flex-1">
           <b className="block text-[13px] font-bold">2. Point its webhook at Runyard</b>
           <div className="text-tt-ink-2">
@@ -190,7 +203,11 @@ function AppHook({ app, publicUrl }: { app: Status["apps"][number]; publicUrl: s
         </div>
       </div>
       <div className="flex items-start gap-3 px-4 py-2">
-        <span aria-hidden className={dot(app.subscribed === true)} />
+        <span
+          role="img"
+          aria-label={app.subscribed === true ? "Done" : "To do"}
+          className={dot(app.subscribed === true)}
+        />
         <div className="min-w-0 flex-1">
           <b className="block text-[13px] font-bold">3. Switch it on in GitHub</b>
           <div className="text-tt-ink-2">

@@ -67,7 +67,8 @@ export function TabBar({ view, tab }: { view: YardView; tab: PhoneTabKey }) {
           {s.label}
           {s.key === "board" && attention > 0 && (
             <span className="absolute top-0.5 left-[calc(50%+5px)] grid h-[17px] min-w-[17px] place-items-center rounded-full bg-tt-signal px-1 font-ui text-[10.5px] leading-none font-extrabold text-tt-on-signal tabular">
-              {attention}
+              <span aria-hidden>{attention}</span>
+              <span className="sr-only">, {attention} need a look</span>
             </span>
           )}
         </Link>

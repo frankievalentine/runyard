@@ -6,6 +6,7 @@ import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } fro
 import { api, call } from "../../api.ts";
 import { AccessSteps, SetupCommand } from "../../components/AccessPanel.tsx";
 import { Icon } from "../../components/icons.tsx";
+import { RowTip, TipText } from "../../components/InfoTip.tsx";
 import { MachineFields } from "../../components/MachineFields.tsx";
 import { SshKeyCard } from "../../components/SshKey.tsx";
 import {
@@ -17,7 +18,7 @@ import {
   TtError,
   WarnIcon,
 } from "../../components/machine/parts.tsx";
-import { Chip, stickyHead, TtButton, ttButton } from "../../components/tt.tsx";
+import { Chip, stickyHead, TtButton, ttButton, useBack } from "../../components/tt.tsx";
 import { yardQuery, useYard } from "../../lib/yard.ts";
 import { timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
@@ -151,15 +152,17 @@ function Ticket({
       tween.revert();
     };
   }, [step]);
+  // Opened from the phone's More tab, it leads back there.
+  const back = useBack({ to: "/machines", label: "Machines" })!;
   return (
     // Desktop: the back link stays at the top, and the ticket sits in the middle of the window.
     <div className="flex flex-1 flex-col font-ui">
       <div className={`${stickyHead} lg:pb-[18px]`}>
         <Link
-          to="/machines"
+          to={back.to}
           className="mb-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-tt-ink-2 hover:text-tt-ink lg:mb-0"
         >
-          <span aria-hidden>‹</span> Machines
+          <span aria-hidden>‹</span> {back.label}
         </Link>
       </div>
       <div className="mx-auto grid w-full max-w-[980px] lg:my-auto overflow-hidden rounded-[14px] bg-tt-card shadow-[0_1px_0_var(--tt-rule),0_24px_50px_-30px_rgba(0,0,0,.4)] lg:grid-cols-[300px_minmax(0,1fr)] lg:rounded-2xl dark:border dark:border-tt-rule">
@@ -331,7 +334,7 @@ function Choose({
       <span className="text-tt-ink-2">{icon}</span>
       <span className="min-w-0">
         <b className="block font-bold">{title}</b>
-        <small className="block truncate text-[12.5px] text-tt-ink-3">{sub}</small>
+        <small className="block text-[12.5px] text-tt-ink-3">{sub}</small>
       </span>
     </button>
   );
@@ -349,7 +352,7 @@ function Choose({
           yard.discovered.length
             ? `${yard.discovered.length} ${yard.discovered.length === 1 ? "device" : "devices"} not added yet`
             : yard.tailnet.error
-              ? "Tailscale can't be read on this machine"
+              ? "Tailscale can't be read on the Runyard host"
               : "Every device is added or ignored",
         )}
         {option(
@@ -364,7 +367,7 @@ function Choose({
           {yard.discovered.length === 0 ? (
             <p className="text-tt-ink-2">
               {yard.tailnet.error
-                ? "Tailscale can't be read on this machine, so there's nothing to list."
+                ? "Tailscale can't be read on the Runyard host, so there's nothing to list."
                 : "Every desktop and server on the tailnet is already added or ignored."}
             </p>
           ) : (
@@ -484,12 +487,25 @@ function PeerRow({
             <Chip tone={peer.online ? "ok" : "neutral"}>
               {osLabel[peer.os]} · {peer.online ? "online" : "offline"}
             </Chip>
-            {peer.tailscaleSsh && <Chip tone="plain">Tailscale SSH</Chip>}
+            {peer.tailscaleSsh && (
+              <RowTip
+                content={
+                  <TipText what="This device lets you sign in through Tailscale, so Runyard can connect with no SSH keys to set up." />
+                }
+              >
+                <span>
+                  <Chip tone="plain">Tailscale SSH</Chip>
+                </span>
+              </RowTip>
+            )}
           </span>
-          <small className="block truncate text-[12px] text-tt-ink-3">
-            <span className="font-board">{peer.address}</span>
-            {!peer.online && ` · last seen ${timeAgo(peer.lastSeen, now)}`}
-          </small>
+          {/* Cut to one line; the whole address on hover. */}
+          <RowTip content={<TipText what={peer.address} />}>
+            <small className="block truncate text-[12px] text-tt-ink-3">
+              <span className="font-board">{peer.address}</span>
+              {!peer.online && ` · last seen ${timeAgo(peer.lastSeen, now)}`}
+            </small>
+          </RowTip>
         </span>
       </button>
       <IgnoreButton peer={peer} />
@@ -507,21 +523,34 @@ function IgnoreButton({ peer, ignored = false }: { peer: PeerView; ignored?: boo
         : call(api.peers[":nodeId"].ignore.$post({ param: { nodeId: peer.nodeId } })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: yardQuery.queryKey }),
   });
+  const button = (
+    <button
+      type="button"
+      onClick={() => ignore.mutate()}
+      disabled={ignore.isPending}
+      aria-label={`${ignored ? "Show again" : "Ignore"} ${peer.name}`}
+      className={
+        ignored
+          ? "font-semibold text-tt-ink-2 underline hover:text-tt-ink"
+          : "flex-none text-[12.5px] font-semibold text-tt-ink-3 hover:text-tt-ink"
+      }
+    >
+      {ignored ? "Show again" : "Ignore"}
+    </button>
+  );
   return (
     <>
-      <button
-        type="button"
-        onClick={() => ignore.mutate()}
-        disabled={ignore.isPending}
-        aria-label={`${ignored ? "Show again" : "Ignore"} ${peer.name}`}
-        className={
-          ignored
-            ? "font-semibold text-tt-ink-2 underline hover:text-tt-ink"
-            : "flex-none text-[12.5px] font-semibold text-tt-ink-3 hover:text-tt-ink"
-        }
-      >
-        {ignored ? "Show again" : "Ignore"}
-      </button>
+      {ignored ? (
+        button
+      ) : (
+        <RowTip
+          content={
+            <TipText what="Hides this device from the list. You can show it again from Machines, under Ignored." />
+          }
+        >
+          {button}
+        </RowTip>
+      )}
       {ignore.error && <TtError error={ignore.error} />}
     </>
   );
@@ -635,26 +664,42 @@ function Checks({ m, back, next }: { m: MachineView; back: () => void; next: () 
           {checked.map((i) => {
             const ok = i.status === "ok";
             return (
-              <div
+              <RowTip
                 key={i.id}
-                className="flex items-center gap-3 border-b border-tt-rule px-0.5 py-2.5"
+                content={<TipText what={i.detail || i.title} details={i.value || undefined} />}
               >
-                <span
-                  className={`grid size-[22px] flex-none place-items-center rounded-full ${
-                    ok
-                      ? "bg-tt-ok-bg text-tt-ok-ink"
-                      : i.status === "unknown"
-                        ? "bg-tt-paper text-tt-ink-3"
-                        : "bg-tt-warn-bg text-tt-warn-ink"
-                  }`}
+                <div
+                  // Focusable, so the row's tip opens from the keyboard as well as on hover.
+                  tabIndex={0}
+                  className="flex items-center gap-3 border-b border-tt-rule px-0.5 py-2.5 outline-none focus-visible:bg-tt-hover"
                 >
-                  {ok ? <Icon name="check" size={12} /> : <WarnIcon size={12} />}
-                </span>
-                <span className="min-w-0 flex-1 truncate">{i.title}</span>
-                <small className="ml-auto min-w-0 truncate text-right text-[12.5px] text-tt-ink-3">
-                  {i.value}
-                </small>
-              </div>
+                  <span
+                    role="img"
+                    aria-label={
+                      ok
+                        ? "Ready"
+                        : i.status === "unknown"
+                          ? "Not checked"
+                          : i.status === "warn"
+                            ? "Needs a look"
+                            : "Missing"
+                    }
+                    className={`grid size-[22px] flex-none place-items-center rounded-full ${
+                      ok
+                        ? "bg-tt-ok-bg text-tt-ok-ink"
+                        : i.status === "unknown"
+                          ? "bg-tt-paper text-tt-ink-3"
+                          : "bg-tt-warn-bg text-tt-warn-ink"
+                    }`}
+                  >
+                    {ok ? <Icon name="check" size={12} /> : <WarnIcon size={12} />}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{i.title}</span>
+                  <small className="ml-auto min-w-0 truncate text-right text-[12.5px] text-tt-ink-3">
+                    {i.value}
+                  </small>
+                </div>
+              </RowTip>
             );
           })}
         </div>

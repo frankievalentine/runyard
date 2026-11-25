@@ -3,6 +3,7 @@ import { Jobs } from "../../components/Jobs.tsx";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CopyValue } from "../../components/CopyValue.tsx";
 import { Icon } from "../../components/icons.tsx";
+import { InfoTip, RowTip, TipText } from "../../components/InfoTip.tsx";
 import { migrationFor, TakeOver } from "../../components/Migration.tsx";
 import { TestThisRunner } from "../../components/TestJob.tsx";
 import { Elapsed, JobTitle, Label } from "../../components/runners.tsx";
@@ -59,6 +60,7 @@ function Runner() {
     );
   }
   const status = runnerStatus(r);
+  const forgeName = r.forge === "forgejo" ? "Forgejo" : "GitHub";
   const scopeKind =
     r.scope.kind === "org" ? "Organization" : r.scope.kind === "user" ? "Account" : "Repository";
   return (
@@ -94,7 +96,23 @@ function Runner() {
                     >
                       {machine.name}
                     </Link>
-                    {assigned ? " (assigned)" : ""}
+                    {assigned && (
+                      <>
+                        {" "}
+                        <RowTip
+                          content={
+                            <TipText what="An admin chose this runner's machine by hand. Runyard shows it there but doesn't manage it." />
+                          }
+                        >
+                          <span
+                            tabIndex={0}
+                            className="underline decoration-dotted underline-offset-2"
+                          >
+                            (assigned)
+                          </span>
+                        </RowTip>
+                      </>
+                    )}
                   </>
                 ) : (
                   "Unassigned"
@@ -104,9 +122,18 @@ function Runner() {
               <CopyValue key="scope" value={r.scopeLabel} label={scopeKind} showIcon={false} />,
               r.os && <span key="os">{r.os}</span>,
               !r.listed && (
-                <span key="listed">
-                  known from its running job; GitHub's runner list doesn't include it
-                </span>
+                <RowTip
+                  key="listed"
+                  content={
+                    <TipText
+                      what={`Runyard knows this runner from the job it's running; ${forgeName}'s runner list doesn't include it.`}
+                    />
+                  }
+                >
+                  <span tabIndex={0} className="underline decoration-dotted underline-offset-2">
+                    unlisted
+                  </span>
+                </RowTip>
               ),
             ]}
           </Separated>
@@ -125,7 +152,7 @@ function Runner() {
       <div className="mt-8">
         <StatStrip cols={3}>
           <Stat
-            label="Connected to GitHub"
+            label={`Connected to ${forgeName}`}
             value={r.status === "online" ? "Yes" : "No"}
             tone={r.stale ? "muted" : r.status === "online" ? "ok" : "bad"}
             hollow={r.stale}
@@ -148,13 +175,18 @@ function Runner() {
               r.activity === "offline"
                 ? "Runner is offline"
                 : r.activity === "unknown"
-                  ? "No fresh GitHub data"
-                  : "Reported by GitHub"
+                  ? `No fresh ${forgeName} data`
+                  : `Reported by ${forgeName}`
             }
           />
           <Stat
             label={scopeKind}
-            value={r.scopeLabel}
+            value={
+              // Cut to fit; whole on hover or tap.
+              <RowTip content={<TipText what={r.scopeLabel} />}>
+                <span tabIndex={0}>{r.scopeLabel}</span>
+              </RowTip>
+            }
             sub={
               r.scope.kind === "org"
                 ? "serves the organization's repositories"
@@ -184,8 +216,8 @@ function Runner() {
             </Card>
           ) : (
             <Card className="border-busy/25 bg-busy/5 px-4 py-3 text-[13px] text-ink-2">
-              GitHub reports this runner busy. Job details aren't available: the job's repository
-              may be outside the scanned repositories, or the scan hasn't caught up yet.
+              {forgeName} reports this runner busy. Job details aren't available: the job's
+              repository may be outside the scanned repositories, or the scan hasn't caught up yet.
             </Card>
           )}
         </div>
@@ -193,12 +225,20 @@ function Runner() {
       <Section title="State">
         <div className="grid grid-cols-1 gap-3 min-[1000px]:grid-cols-2">
           <KeyValuePanel
-            title="GitHub"
+            title={forgeName}
             rows={[
               ["Status", `${r.status}${r.activity === "busy" ? ", busy" : ""}`],
               ["Runner ID", <span className="font-mono text-[12px]">{r.id}</span>, String(r.id)],
               ["Version", r.version ?? "—"],
-              ["Ephemeral", r.ephemeral ? "Yes" : "No"],
+              [
+                "Ephemeral",
+                <span className="inline-flex items-center gap-1">
+                  {r.ephemeral ? "Yes" : "No"}
+                  <InfoTip label="Ephemeral">
+                    <TipText what="An ephemeral runner takes one job, then is removed." />
+                  </InfoTip>
+                </span>,
+              ],
             ]}
             footer={
               <span className={`flex items-center gap-1.5 ${r.stale ? "text-warn" : ""}`}>

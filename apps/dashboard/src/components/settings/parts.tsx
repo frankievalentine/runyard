@@ -34,6 +34,12 @@ const PATHS = {
   // A unit lower, so it lines up with a bold label's lowercase.
   plus: <path d="M12 6v14M5 13h14" />,
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
+  update: (
+    <>
+      <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
+      <path d="M19.5 4.5v4h-4" />
+    </>
+  ),
 } as const;
 
 /** The design's 18px line icons. */
