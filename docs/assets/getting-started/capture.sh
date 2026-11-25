@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Takes the screenshots in docs/getting-started.md from the demo yard: claiming Runyard, the
-# forge connections, a machine's readiness check, a new pool, its review and the workflow to
-# copy. Starts its own demo (`apps/server/scripts/demo.ts`) with fresh data and drives the
-# dashboard with agent-browser, in the light theme with motion off, at 1.5x for sharp text.
+# Takes the screenshots in docs/getting-started.md the way a new install goes: claiming Runyard,
+# the Getting started route, connecting a forge, a machine's readiness check, the first pool, its
+# review and the workflow to copy. Starts its own demo with `--fresh`
+# (`apps/server/scripts/demo.ts`), so nothing is connected or added beforehand and nothing real is
+# contacted, and drives the dashboard with agent-browser, in the light theme with motion off, at
+# 1.5x for sharp text. The forge is the demo's fake Forgejo: GitHub's App needs github.com.
 # Needs agent-browser and bun. Writes the PNGs next to this script.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -16,7 +18,7 @@ mkdir -p "$data"
 export AGENT_BROWSER_SESSION="runyard-getting-started"
 
 RUNYARD_DATA_DIR="$data/data" RUNYARD_PORT="$port" RUNYARD_WEBHOOK_PORT="$((port + 1))" \
-  bun "$repo/apps/server/scripts/demo.ts" >"$data/demo.log" 2>&1 &
+  bun "$repo/apps/server/scripts/demo.ts" --fresh >"$data/demo.log" 2>&1 &
 demo=$!
 trap 'agent-browser close >/dev/null 2>&1 || true; kill "$demo" 2>/dev/null || true; rm -rf "$data"' EXIT
 code=""
@@ -26,6 +28,14 @@ for _ in $(seq 1 30); do
   sleep 0.5
 done
 [ -n "$code" ] || { echo "The demo didn't start:" >&2; cat "$data/demo.log" >&2; exit 1; }
+# The fake Forgejo's token; the demo prints it once everything is up.
+token=""
+for _ in $(seq 1 30); do
+  token="$(grep -oE 'with the token [^ ]+' "$data/demo.log" | awk '{print $4}' || true)"
+  [ -n "$token" ] && break
+  sleep 0.5
+done
+[ -n "$token" ] || { echo "The demo didn't print the Forgejo token:" >&2; cat "$data/demo.log" >&2; exit 1; }
 
 ab() { agent-browser "$@" >/dev/null; }
 # Waits (up to 10 seconds) until the page shows some text.
@@ -78,10 +88,19 @@ fi
 # The sidebar open, so its section names show.
 ab eval "localStorage.setItem('runyard.sidebar', 'expanded')"
 
-# Step 3: the forge connections.
-ab open "$url/settings/connections"
-until_text "Settings"
-shot connect.png 1.5
+# A new install opens on the Getting started route, at its first stop.
+ab open "$url/start"
+until_text "Stop 1 of 5"
+shot start.png 1.5
+
+# Step 3: connecting a forge, here Forgejo with an access token.
+ab open "$url/settings/forgejo"
+until_text "Forgejo address"
+ab find label "Forgejo address" fill "https://forgejo.demo"
+ab find label "Access token" fill "$token"
+ab find role button click --name "Connect"
+until_text "Runners read just now"
+shot connect.png 1
 
 # Step 4: a device from the tailnet, through to its readiness check.
 ab open "$url/machines/add"
@@ -93,19 +112,18 @@ until_text "Checking lab-pi"
 until_text "Continue"
 shot add-machine.png 2.5
 
-# Step 5: a pool for it: repositories and labels.
+# Step 5: the first pool: a repository and a label.
 click button "Continue"
 until_text "lab-pi is ready"
 click link "Put it in a pool"
 until_text "New pool"
-click checkbox "frankie-demo/site"
-click checkbox "frankie-demo/cli"
+click checkbox "frankie-demo/dotfiles"
 click textbox "Labels"
-ab keyboard type "web-build"
+ab keyboard type "linux-build"
 scroll_to "Or choose yourself"
 shot pool.png 1
 
-# Step 6: where it runs, then the review of each machine's changes.
+# Step 6: where it runs, then the review of the machine's changes.
 click button "Continue"
 sleep 0.8
 click checkbox "lab-pi"

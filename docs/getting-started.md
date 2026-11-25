@@ -40,7 +40,9 @@ Runyard prints a one-time setup code when it first starts: in the terminal, or i
 it runs as a service (see [Logs](operating.md#logs)). Open the dashboard, enter the code and
 create the first admin. **Getting started** on the Board then walks through the rest.
 
-![The Claim your Runyard page: the one-time setup code entered, then a username and password for the first admin](assets/getting-started/claim.png)
+![The Claim your Runyard page on a new install: the one-time setup code entered, then the first admin's username](assets/getting-started/claim.png)
+
+![The Getting started route on a new install, at its first stop: connect GitHub or Forgejo](assets/getting-started/start.png)
 
 ## 3. Connect your forge
 
@@ -53,7 +55,7 @@ Under **Settings ▸ Connections**:
 
 See [Forges](forges.md).
 
-![Settings, with GitHub and Forgejo connections under Connections](assets/getting-started/connect.png)
+![Settings ▸ Forgejo after connecting with an access token: the account's and the organization's runners read](assets/getting-started/connect.png)
 
 ## 4. Add a machine
 
@@ -72,14 +74,14 @@ Click **Put it in a pool** once the machine is ready, or **New pool** on **Pools
 which repositories its runners serve, which labels they carry, and which machines they run on.
 See [Pools](pools.md).
 
-![A new pool: two repositories chosen and the web-build label](assets/getting-started/pool.png)
+![The first pool: one Forgejo repository chosen and the linux-build label](assets/getting-started/pool.png)
 
 ## 6. Review and run
 
 **Create and review** shows exactly what each machine will get: tools, runners, hooks. Click
 **Run** on each. The runners come online within a minute.
 
-![Review and run for the new pool: the tools, runners and job hooks lab-pi will get](assets/getting-started/review.png)
+![Review and run for the first pool: the tools and the runner lab-pi will get](assets/getting-started/review.png)
 
 ## 7. Send it a job
 
@@ -88,4 +90,4 @@ repository. Start with **Starter** to see a job land on your machine, then pick 
 **Generic** for a full CI. Push it, and the job runs on your machine. See
 [Writing workflows](workflows.md#start-from-a-template).
 
-![Use it in a workflow on the pool: the runs-on line and the Starter workflow to copy](assets/getting-started/workflow.png)
+![Use it in a workflow on the new pool: the runs-on line and the Starter workflow to copy](assets/getting-started/workflow.png)

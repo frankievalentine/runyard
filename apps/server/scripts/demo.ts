@@ -3,6 +3,10 @@
  * status` and every SSH session, so nothing real is contacted. For UI work
  * and screenshots: `bun apps/server/scripts/demo.ts`, then open the URL and
  * enter the setup code it prints. Data lives in a fresh temporary directory.
+ *
+ * `--fresh` starts a brand-new install instead, for the Getting started screenshots: the fakes
+ * still answer, but nothing is connected, added or run yet, and the dashboard doesn't say it's
+ * demo data. It prints the fake Forgejo's address and token to connect with.
  */
 import { existsSync } from "node:fs";
 import { chmod, mkdir, mkdtemp } from "node:fs/promises";
@@ -44,7 +48,8 @@ if (!existsSync(identity)) {
     identity,
   ]);
 }
-process.env.RUNYARD_DEMO = "1";
+const fresh = process.argv.includes("--fresh");
+process.env.RUNYARD_DEMO = fresh ? "0" : "1";
 
 const fake = new FakeMachines();
 const node = (id: string, host: string, os: string, online: boolean, extra: object = {}) => ({
@@ -417,40 +422,42 @@ forgejo.repos = [
   { id: 31, full_name: "frankie-demo/dotfiles", private: true, owner: { login: "frankie-demo" } },
   { id: 32, full_name: "yard-club/garden", private: true, owner: { login: "yard-club" } },
 ];
-forgejo.runners.set("user", [
-  {
-    id: 41,
-    uuid: "demo-41",
-    name: "pi-01",
-    status: "idle",
-    labels: ["docker", "arm64"],
-    version: "13.2.0",
-    ephemeral: false,
-  },
-]);
-forgejo.runners.set("org:yard-club", [
-  {
-    id: 42,
-    uuid: "demo-42",
-    name: "rack-01",
-    status: "active",
-    labels: ["docker"],
-    version: "13.2.0",
-    ephemeral: false,
-  },
-  {
-    id: 43,
-    uuid: "demo-43",
-    name: "rack-02",
-    status: "offline",
-    labels: ["docker"],
-    version: "13.2.0",
-    ephemeral: false,
-  },
-]);
-forgejo.jobs.set("org:yard-club", [
-  { id: 51, run_id: 5, repo_id: 32, name: "lint", status: "waiting", runs_on: ["docker"] },
-]);
+if (!fresh) {
+  forgejo.runners.set("user", [
+    {
+      id: 41,
+      uuid: "demo-41",
+      name: "pi-01",
+      status: "idle",
+      labels: ["docker", "arm64"],
+      version: "13.2.0",
+      ephemeral: false,
+    },
+  ]);
+  forgejo.runners.set("org:yard-club", [
+    {
+      id: 42,
+      uuid: "demo-42",
+      name: "rack-01",
+      status: "active",
+      labels: ["docker"],
+      version: "13.2.0",
+      ephemeral: false,
+    },
+    {
+      id: 43,
+      uuid: "demo-43",
+      name: "rack-02",
+      status: "offline",
+      labels: ["docker"],
+      version: "13.2.0",
+      ephemeral: false,
+    },
+  ]);
+  forgejo.jobs.set("org:yard-club", [
+    { id: 51, run_id: 5, repo_id: 32, name: "lint", status: "waiting", runs_on: ["docker"] },
+  ]);
+}
 
 // A fictional boat account: the VM running the lint job, and one left running for hours.
 const boat = new FakeBoat();
@@ -518,7 +525,7 @@ const demoApps = [
   },
 ];
 const stored = listGithubApps(db);
-for (const app of demoApps) {
+for (const app of fresh ? [] : demoApps) {
   const existing = stored.find((a) => a.slug === app.slug);
   if (existing) {
     await secrets.set(`github.${existing.id}.pem`, app.fake.privateKey);
@@ -542,12 +549,12 @@ for (const app of demoApps) {
   );
 }
 await githubMonitor.refreshAll();
-if (listConnections(db).length === 0) {
+if (!fresh && listConnections(db).length === 0) {
   await saveConnection(db, secrets, "https://forgejo.demo", forgejo.login, forgejo.token);
 }
 await forgejoMonitor.refreshAll();
-await boatMonitor.connect(boat.token);
-if (listMachines(db).length === 0) {
+if (!fresh) await boatMonitor.connect(boat.token);
+if (!fresh && listMachines(db).length === 0) {
   createMachine(db, {
     name: "Studio mini",
     sshTarget: "ci@studio-mini.demo.ts.net",
@@ -576,7 +583,7 @@ if (listMachines(db).length === 0) {
     transport: "openssh",
   });
 }
-if (!listMachines(db).some((m) => m.sshTarget === "runyard@spare-lxc.demo.ts.net")) {
+if (!fresh && !listMachines(db).some((m) => m.sshTarget === "runyard@spare-lxc.demo.ts.net")) {
   createMachine(db, {
     name: "Spare LXC",
     sshTarget: "runyard@spare-lxc.demo.ts.net",
@@ -638,8 +645,10 @@ const queueGpuJob = () => {
     },
   ]);
 };
-queueGpuJob();
-setInterval(queueGpuJob, 120_000).unref();
+if (!fresh) {
+  queueGpuJob();
+  setInterval(queueGpuJob, 120_000).unref();
+}
 
 // Run history: a week of finished jobs on the first machines' runners, seeded once.
 if (acme && listJobs(db, { since: 0, limit: 1 }).length === 0) {
@@ -676,3 +685,7 @@ if (acme && listJobs(db, { since: 0, limit: 1 }).length === 0) {
 // Check right away instead of waiting for the next minute-long round.
 await monitor.checkNow();
 console.log("Demo yard: every answer is fake; nothing real is contacted.");
+if (fresh)
+  console.log(
+    `Fresh install. Connect Forgejo at https://forgejo.demo with the token ${forgejo.token}`,
+  );
