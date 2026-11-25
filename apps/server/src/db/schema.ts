@@ -423,3 +423,9 @@ export const jobHours = sqliteTable("job_hours", {
   failed: integer().notNull().default(0),
   cancelled: integer().notNull().default(0),
 });
+
+/** Settings for this Runyard host that admins change in the dashboard, by name. */
+export const hostSettings = sqliteTable("host_settings", {
+  key: text().primaryKey(),
+  value: text().notNull(),
+});

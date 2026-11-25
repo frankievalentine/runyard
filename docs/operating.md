@@ -28,7 +28,12 @@ A fresh install prints its setup code there.
 
 ## Upgrading
 
-Run the installer again, then `runyard service install`, which restarts the service on the new
+**Settings ▸ Version** shows which Runyard runs and, once a day, asks GitHub for the latest
+release. When there's a newer one, it gives admins the command that updates this host the way it
+was installed, to copy and run in a terminal there; Runyard doesn't replace itself. Admins can
+turn the daily check off there, and **Check now** checks whenever they like.
+
+By hand: run the installer again, then `runyard service install`, which restarts the service on the new
 version. The installer takes the latest release; set `RUNYARD_VERSION` to install a particular
 one, such as an earlier version to roll back. Open dashboard tabs say when the server is serving a newer dashboard than they loaded.
 

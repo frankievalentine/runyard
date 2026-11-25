@@ -19,6 +19,7 @@ import { importKey } from "./crypto.ts";
 import { SecretStore } from "./secrets.ts";
 import { WebhookReceiver } from "./webhooks/receiver.ts";
 import { setupChecks, type TailnetState } from "./setup/checks.ts";
+import { UpdateChecker } from "./updates/checker.ts";
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -150,6 +151,20 @@ export async function testApp(
   });
   /** What Tailscale reports Funnel serving; tests set it. */
   const funnel: { url: string | null } = { url: null };
+  /** GitHub's latest Runyard release as the update check sees it; tests set it. Null answers 404. */
+  const release: { latest: { tag_name: string; html_url: string; published_at: string } | null } = {
+    latest: null,
+  };
+  const updates = new UpdateChecker({
+    db,
+    fetch: async () =>
+      release.latest ? Response.json(release.latest) : new Response("Not Found", { status: 404 }),
+    current: "0.3.0",
+    install: "service",
+    platform: "linux",
+    binary: "/home/runner/.local/bin/runyard",
+    now: () => clock.now,
+  });
   const deps: AppDeps = {
     db,
     monitor,
@@ -185,6 +200,7 @@ export async function testApp(
     testJobs: new TestJobs({ github, now: () => clock.now }),
     dispatcher,
     history,
+    updates,
   };
   const app = createApp(deps, options.dashboard);
   return {
@@ -210,6 +226,8 @@ export async function testApp(
     funnel,
     rechecked,
     history,
+    updates,
+    release,
   };
 }
 

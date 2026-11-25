@@ -38,3 +38,10 @@ export const sshKeyQuery = queryOptions({
   queryFn: () => call(api.setup["ssh-key"].$get()),
   staleTime: Infinity,
 });
+
+/** Runyard's version, the latest release and how to update this host. */
+export const updatesQuery = queryOptions({
+  queryKey: ["updates"],
+  queryFn: () => call(api.updates.$get()),
+  refetchInterval: 60 * 60_000,
+});

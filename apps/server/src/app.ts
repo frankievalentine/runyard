@@ -38,6 +38,7 @@ import type { PoolEngine } from "./pools/engine.ts";
 import type { Dispatcher } from "./pools/dispatcher.ts";
 import { machineRoutes } from "./routes/machines.ts";
 import { passkeyRoutes } from "./routes/passkeys.ts";
+import { updateRoutes, type UpdateDeps } from "./routes/updates.ts";
 import { userRoutes } from "./routes/users.ts";
 
 export type AppDeps = {
@@ -59,7 +60,8 @@ export type AppDeps = {
   testJobs: TestJobs;
   dispatcher: Dispatcher;
   history: JobHistory;
-} & Omit<GithubDeps, "db" | "listener"> &
+} & UpdateDeps &
+  Omit<GithubDeps, "db" | "listener"> &
   Omit<SetupDeps, "db">;
 
 /**
@@ -107,6 +109,7 @@ export function createApi(deps: AppDeps, build: string | null = null) {
     .route("/", poolRoutes(deps))
     .route("/forgejo", forgejoRoutes(deps))
     .route("/", setupRoutes(deps))
+    .route("/", updateRoutes(deps))
     .route("/boat", boatRoutes(deps))
     .route("/webhooks", webhookRoutes(deps));
 }
