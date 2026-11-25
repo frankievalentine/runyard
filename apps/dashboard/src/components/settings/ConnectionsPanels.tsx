@@ -5,7 +5,7 @@ import { formatDollars, plural } from "../../lib/format.ts";
 import { checksQuery } from "../../lib/queries.ts";
 import { useYard } from "../../lib/yard.ts";
 import { Elapsed } from "../runners.tsx";
-import { Clipped, InfoTip } from "../InfoTip.tsx";
+import { InfoTip } from "../InfoTip.tsx";
 import { ErrorText } from "../ui.tsx";
 import { webhookStatusQuery } from "../Webhooks.tsx";
 import { Chip, Panel, Row } from "../tt.tsx";
@@ -130,6 +130,14 @@ const DOT = {
 } as const;
 
 /** The control machine's setup checks: ssh, Tailscale, the secret key, disk and the service. */
+/** A check's status words: quiet when fine, in the warning or error color when not. */
+const STATUS_TONE: Record<string, string> = {
+  ok: "text-tt-ink-3",
+  off: "text-tt-ink-3",
+  warn: "font-semibold text-tt-warn-ink",
+  bad: "font-semibold text-tt-bad",
+};
+
 /** A check's dot, read aloud. */
 const STATE_WORDS: Record<string, string> = {
   ok: "Fine",
@@ -161,36 +169,31 @@ export function HostPanel() {
       {checks.data && (
         <ul className="pb-1">
           {checks.data.map((c) => (
-            <li key={c.id} className="text-[13px]">
-              <div className="flex items-start gap-3 px-4 py-2">
-                <span
-                  role="img"
-                  aria-label={STATE_WORDS[c.state]}
-                  className={`mt-[5px] size-2 flex-none self-start rounded-full ${DOT[c.state]}`}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1">
-                    <b className="font-semibold">{c.title}</b>
-                    {c.about && <InfoTip label={c.title}>{c.about}</InfoTip>}
-                  </span>
-                  {/* A check that's fine shows its value on one line, whole on hover or tap; one
-                      that needs attention keeps all of its words in view. */}
-                  <small
-                    className={`block text-[12px] ${c.state === "ok" ? "text-tt-ink-3" : "text-tt-ink-2 [overflow-wrap:anywhere]"}`}
-                  >
-                    {c.state === "ok" && c.detail.length > 44 ? (
-                      <Clipped value={c.detail} label={c.title} />
-                    ) : (
-                      c.detail
+            <li key={c.id} className="flex items-center gap-3 px-4 py-2 text-[13px]">
+              <span
+                role="img"
+                aria-label={STATE_WORDS[c.state]}
+                className={`size-2 flex-none rounded-full ${DOT[c.state]}`}
+              />
+              <span className="flex min-w-0 flex-1 items-center gap-1">
+                <b className="font-semibold">{c.title}</b>
+                <InfoTip label={c.title}>
+                  <span className="flex flex-col gap-1.5">
+                    <span>{c.about}</span>
+                    <span className="[overflow-wrap:anywhere] opacity-75">{c.detail}</span>
+                    {c.fix && (
+                      <span className="font-semibold">
+                        <WithCode text={c.fix} />
+                      </span>
                     )}
-                  </small>
-                </span>
-              </div>
-              {c.fix && (
-                <p className="pr-4 pb-2 pl-9 text-[12px] text-tt-ink-3">
-                  <WithCode text={c.fix} />
-                </p>
-              )}
+                  </span>
+                </InfoTip>
+              </span>
+              <span
+                className={`text-right text-[12.5px] ${STATUS_TONE[c.state] ?? "text-tt-ink-3"}`}
+              >
+                {c.status}
+              </span>
             </li>
           ))}
         </ul>
