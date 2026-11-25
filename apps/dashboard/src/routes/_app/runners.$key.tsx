@@ -3,6 +3,7 @@ import { Jobs } from "../../components/Jobs.tsx";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CopyValue } from "../../components/CopyValue.tsx";
 import { Icon } from "../../components/icons.tsx";
+import { InfoTip, RowTip, TipText } from "../../components/InfoTip.tsx";
 import { migrationFor, TakeOver } from "../../components/Migration.tsx";
 import { TestThisRunner } from "../../components/TestJob.tsx";
 import { Elapsed, JobTitle, Label } from "../../components/runners.tsx";
@@ -94,7 +95,23 @@ function Runner() {
                     >
                       {machine.name}
                     </Link>
-                    {assigned ? " (assigned)" : ""}
+                    {assigned && (
+                      <>
+                        {" "}
+                        <RowTip
+                          content={
+                            <TipText what="An admin chose this runner's machine by hand. Runyard shows it there but doesn't manage it." />
+                          }
+                        >
+                          <span
+                            tabIndex={0}
+                            className="underline decoration-dotted underline-offset-2"
+                          >
+                            (assigned)
+                          </span>
+                        </RowTip>
+                      </>
+                    )}
                   </>
                 ) : (
                   "Unassigned"
@@ -198,7 +215,15 @@ function Runner() {
               ["Status", `${r.status}${r.activity === "busy" ? ", busy" : ""}`],
               ["Runner ID", <span className="font-mono text-[12px]">{r.id}</span>, String(r.id)],
               ["Version", r.version ?? "—"],
-              ["Ephemeral", r.ephemeral ? "Yes" : "No"],
+              [
+                "Ephemeral",
+                <span className="inline-flex items-center gap-1">
+                  {r.ephemeral ? "Yes" : "No"}
+                  <InfoTip label="Ephemeral">
+                    <TipText what="An ephemeral runner takes one job, then is removed." />
+                  </InfoTip>
+                </span>,
+              ],
             ]}
             footer={
               <span className={`flex items-center gap-1.5 ${r.stale ? "text-warn" : ""}`}>

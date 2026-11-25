@@ -6,6 +6,7 @@ import { formatElapsed, timeAgo } from "../lib/format.ts";
 import { useNow } from "../lib/now.ts";
 import { useYard } from "../lib/yard.ts";
 import { CopyValue } from "./CopyValue.tsx";
+import { InfoTip, TipText } from "./InfoTip.tsx";
 import { Button } from "./form.tsx";
 import { Card, ErrorText, Pill, Section } from "./ui.tsx";
 
@@ -83,11 +84,14 @@ export function TestThisRunner({ r }: { r: RunnerView }) {
   return (
     <Section title="Test this runner">
       <Card className="flex flex-col gap-3 px-4 py-3 text-[13px]">
-        <p className="text-[12.5px] text-ink-2">
-          Runs a short check (tools, a compiled program, optionally a container) on exactly this
-          runner, through its label{" "}
-          <span className="font-mono">runyard-runner-{r.name.toLowerCase()}</span>, from a
-          repository it serves.
+        <p className="flex items-center gap-1.5 text-[12.5px] text-ink-2">
+          Runs a short check on exactly this runner.
+          <InfoTip label="Test this runner">
+            <TipText
+              what="It checks the tools, builds a small program and, if you like, starts a container, from a repository this runner serves."
+              details={`It reaches this runner alone through its label runyard-runner-${r.name.toLowerCase()}.`}
+            />
+          </InfoTip>
         </p>
         {repos.length === 0 ? (
           <p className="text-[12.5px] text-ink-2">
