@@ -101,7 +101,9 @@ export function Panel({
               {title}
             </h2>
           )}
-          <span className="ml-auto flex items-center gap-3">
+          {/* An action's button is taller than the title line; it overhangs the header's padding
+              instead of pushing the title down, so every panel's title sits at the same height. */}
+          <span className={`ml-auto flex items-center gap-3 ${action ? "-my-2" : ""}`}>
             {meta && (
               <span className={`text-[12.5px] ${dark ? "text-[#8b9099]" : "text-tt-ink-3"}`}>
                 {meta}
