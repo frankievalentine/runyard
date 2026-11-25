@@ -41,6 +41,11 @@ function Tip({
         closeDelay={60}
         aria-label={label}
         className={triggerClassName}
+        // Inside a <summary> or a clickable row, the click opens the tip, not the details or row.
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
       >
         {trigger}
       </Popover.Trigger>

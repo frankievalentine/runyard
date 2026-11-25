@@ -10,8 +10,9 @@ import {
 } from "@runyard/core";
 import { Link } from "@tanstack/react-router";
 import { useYard } from "../lib/yard.ts";
-import { InlineCode, Kv, Kvh, type DotTone } from "./machine/parts.tsx";
+import { InfoTip, TipText } from "./InfoTip.tsx";
 import { Callout } from "./ui.tsx";
+import { InlineCode, Kv, Kvh, type DotTone } from "./machine/parts.tsx";
 
 const TIERS: [ReadinessTier, string, string][] = [
   ["required", "Required", "Jobs fail without these."],
@@ -57,7 +58,24 @@ export function RunnerReadiness({ m }: { m: MachineView }) {
           <div key={tier}>
             <Kvh>{sub ? `${title}: ${sub.replace(/\.$/, "").toLowerCase()}` : title}</Kvh>
             {items.map((i) => (
-              <Kv key={i.id} dot={tone[i.status]} label={i.title} value={i.value}>
+              <Kv
+                key={i.id}
+                dot={tone[i.status]}
+                label={
+                  // Why it matters is in view when it isn't ok; a tooltip otherwise.
+                  i.status === "ok" && i.detail ? (
+                    <span className="inline-flex items-center gap-1">
+                      {i.title}
+                      <InfoTip label={i.title}>
+                        <TipText what={i.detail} />
+                      </InfoTip>
+                    </span>
+                  ) : (
+                    i.title
+                  )
+                }
+                value={i.value}
+              >
                 {i.status !== "ok" && (i.detail || i.command) ? (
                   <>
                     {i.detail && <span className="max-w-[60ch] leading-relaxed">{i.detail}</span>}
