@@ -30,7 +30,16 @@ import {
   WarnIcon,
   type DotTone,
 } from "../../components/machine/parts.tsx";
-import { Chip, Panel, Row, Sign, TtButton, ttButton, type ChipTone } from "../../components/tt.tsx";
+import {
+  Chip,
+  Panel,
+  Row,
+  Sign,
+  stickyHead,
+  TtButton,
+  ttButton,
+  type ChipTone,
+} from "../../components/tt.tsx";
 import { yardQuery, useYard } from "../../lib/yard.ts";
 import {
   formatBytes,
@@ -228,7 +237,7 @@ function MachineHead({ m, index, actions }: { m: MachineView; index: number; act
             : ["plain", "Checking…"];
   const os = osLine(m);
   return (
-    <header className="mb-3 lg:mb-[18px]">
+    <header className={`mb-3 ${stickyHead} lg:mb-0 lg:pb-[18px]`}>
       <Link
         to="/machines"
         className="mb-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-tt-ink-2 hover:text-tt-ink"
@@ -1231,7 +1240,9 @@ function SshDetail({ detail }: { detail: string }) {
   const [summary, ...raw] = detail.split("\n");
   return (
     <>
-      {summary}
+      {/* Its own block: the copyable ssh line below is inline-flex, so after bare text it would
+          sit on the same line wherever there's room. */}
+      <span className="block">{summary}</span>
       {raw.length > 0 && (
         <CopyValue
           value={raw.join("\n")}

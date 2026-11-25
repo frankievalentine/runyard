@@ -7,6 +7,15 @@ import type { ComponentProps, ReactNode } from "react";
  * these so every page reads as one product.
  */
 
+/**
+ * Desktop: a page's head (title, line under it, back link) stays at the top while the page scrolls
+ * under it. It reaches up over the page's top padding (--page-pt, set by the layout) so its
+ * background covers that band and the title stays level with the sidebar. Phones scroll it away,
+ * since there it would take too much of the screen.
+ */
+export const stickyHead =
+  "lg:sticky lg:top-0 lg:z-20 lg:-mt-[var(--page-pt)] lg:bg-tt-paper lg:pt-[var(--page-pt)]";
+
 /** A page's head: an optional back link, the condensed title, a line under it, and its actions. */
 export function PageHead({
   title,
@@ -27,7 +36,7 @@ export function PageHead({
   actions?: ReactNode;
 }) {
   return (
-    <header className="mb-[18px]">
+    <header className={`mb-[18px] ${stickyHead} lg:mb-0 lg:pb-[18px]`}>
       {back && (
         <Link
           to={back.to}

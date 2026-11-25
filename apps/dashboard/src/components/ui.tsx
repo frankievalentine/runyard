@@ -11,6 +11,7 @@ import { useNow } from "../lib/now.ts";
 import type { Tone } from "../lib/status.ts";
 import { CopyValue } from "./CopyValue.tsx";
 import { Icon } from "./icons.tsx";
+import { stickyHead } from "./tt.tsx";
 
 /** Primitives ported from aarondfrancis/fleet's dashboard (src/components/ui.tsx, Table.tsx, details/shared.tsx). */
 
@@ -118,7 +119,7 @@ export function PageHeader({
   icon?: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-start gap-3">
+    <header className={`flex flex-wrap items-start gap-3 ${stickyHead} lg:pb-4`}>
       {icon && (
         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-line bg-card text-ink-2 shadow-xs">
           {icon}

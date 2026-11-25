@@ -117,7 +117,7 @@ export function Sidebar({
   return (
     <aside
       aria-label="Runyard"
-      className={`my-3 ml-3 flex shrink-0 flex-col overflow-hidden rounded-xl border border-tt-rule bg-tt-card px-2.5 py-3 transition-[width] ${EASE} ${
+      className={`my-[18px] ml-[18px] flex shrink-0 flex-col overflow-hidden rounded-xl border border-tt-rule bg-tt-card px-2.5 py-3 transition-[width] ${EASE} ${
         collapsed ? "w-[68px]" : "w-[212px]"
       }`}
     >

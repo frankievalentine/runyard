@@ -17,7 +17,7 @@ import {
   TtError,
   WarnIcon,
 } from "../../components/machine/parts.tsx";
-import { Chip, TtButton, ttButton } from "../../components/tt.tsx";
+import { Chip, stickyHead, TtButton, ttButton } from "../../components/tt.tsx";
 import { yardQuery, useYard } from "../../lib/yard.ts";
 import { timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
@@ -152,14 +152,17 @@ function Ticket({
     };
   }, [step]);
   return (
-    <div className="font-ui">
-      <Link
-        to="/machines"
-        className="mb-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-tt-ink-2 hover:text-tt-ink"
-      >
-        <span aria-hidden>‹</span> Machines
-      </Link>
-      <div className="mx-auto grid max-w-[980px] overflow-hidden rounded-[14px] bg-tt-card shadow-[0_1px_0_var(--tt-rule),0_24px_50px_-30px_rgba(0,0,0,.4)] lg:grid-cols-[300px_minmax(0,1fr)] lg:rounded-2xl dark:border dark:border-tt-rule">
+    // Desktop: the back link stays at the top, and the ticket sits in the middle of the window.
+    <div className="flex flex-1 flex-col font-ui">
+      <div className={`${stickyHead} lg:pb-[18px]`}>
+        <Link
+          to="/machines"
+          className="mb-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-tt-ink-2 hover:text-tt-ink lg:mb-0"
+        >
+          <span aria-hidden>‹</span> Machines
+        </Link>
+      </div>
+      <div className="mx-auto grid w-full max-w-[980px] lg:my-auto overflow-hidden rounded-[14px] bg-tt-card shadow-[0_1px_0_var(--tt-rule),0_24px_50px_-30px_rgba(0,0,0,.4)] lg:grid-cols-[300px_minmax(0,1fr)] lg:rounded-2xl dark:border dark:border-tt-rule">
         <aside className="relative flex flex-col gap-2.5 bg-tt-board px-[18px] py-4 text-white lg:gap-[18px] lg:px-6 lg:py-[26px]">
           {/* The perforation: down the right edge, or along the bottom on a phone. */}
           <span
@@ -587,6 +590,9 @@ function RunSetup({ m, next }: { m: MachineView; next: () => void }) {
   );
 }
 
+/** More checks than this split into two columns on desktop. */
+const LONG_CHECK = 6;
+
 /** Step three: the readiness checks from its first SSH read, one by one. */
 function Checks({ m, back, next }: { m: MachineView; back: () => void; next: () => void }) {
   const r = m.readiness;
@@ -607,6 +613,7 @@ function Checks({ m, back, next }: { m: MachineView; back: () => void; next: () 
     };
   }, [shown]);
   const missing = notReady(m);
+  const checked = r ? r.items.filter((i) => i.tier !== "label") : [];
   return (
     <>
       <Heading title={`Checking ${m.name}`}>
@@ -618,34 +625,38 @@ function Checks({ m, back, next }: { m: MachineView; back: () => void; next: () 
           <Pulse /> Waiting for the first check…
         </div>
       ) : (
-        <div ref={list} className="mt-3.5 border-t-2 border-tt-ink">
-          {r.items
-            .filter((i) => i.tier !== "label")
-            .map((i) => {
-              const ok = i.status === "ok";
-              return (
-                <div
-                  key={i.id}
-                  className="flex items-center gap-3 border-b border-tt-rule px-0.5 py-2.5"
+        <div
+          ref={list}
+          // A long check reads as two columns on desktop rather than one tall list.
+          className={`mt-3.5 border-t-2 border-tt-ink ${
+            checked.length > LONG_CHECK ? "lg:grid lg:grid-cols-2 lg:gap-x-8" : ""
+          }`}
+        >
+          {checked.map((i) => {
+            const ok = i.status === "ok";
+            return (
+              <div
+                key={i.id}
+                className="flex items-center gap-3 border-b border-tt-rule px-0.5 py-2.5"
+              >
+                <span
+                  className={`grid size-[22px] flex-none place-items-center rounded-full ${
+                    ok
+                      ? "bg-tt-ok-bg text-tt-ok-ink"
+                      : i.status === "unknown"
+                        ? "bg-tt-paper text-tt-ink-3"
+                        : "bg-tt-warn-bg text-tt-warn-ink"
+                  }`}
                 >
-                  <span
-                    className={`grid size-[22px] flex-none place-items-center rounded-full ${
-                      ok
-                        ? "bg-tt-ok-bg text-tt-ok-ink"
-                        : i.status === "unknown"
-                          ? "bg-tt-paper text-tt-ink-3"
-                          : "bg-tt-warn-bg text-tt-warn-ink"
-                    }`}
-                  >
-                    {ok ? <Icon name="check" size={12} /> : <WarnIcon size={12} />}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{i.title}</span>
-                  <small className="ml-auto min-w-0 truncate text-right text-[12.5px] text-tt-ink-3">
-                    {i.value}
-                  </small>
-                </div>
-              );
-            })}
+                  {ok ? <Icon name="check" size={12} /> : <WarnIcon size={12} />}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{i.title}</span>
+                <small className="ml-auto min-w-0 truncate text-right text-[12.5px] text-tt-ink-3">
+                  {i.value}
+                </small>
+              </div>
+            );
+          })}
         </div>
       )}
       {missing.length > 0 && (
