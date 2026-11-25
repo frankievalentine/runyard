@@ -5,13 +5,22 @@ import { formatDollars, plural } from "../../lib/format.ts";
 import { checksQuery } from "../../lib/queries.ts";
 import { useYard } from "../../lib/yard.ts";
 import { Elapsed } from "../runners.tsx";
-import { InfoTip, TipText } from "../InfoTip.tsx";
+import { InfoTip, RowTip, TipText } from "../InfoTip.tsx";
 import { ErrorText } from "../ui.tsx";
 import { webhookStatusQuery } from "../Webhooks.tsx";
 import { Chip, Panel, Row } from "../tt.tsx";
 import { Note, RowText, SIcon, WithCode, rowButton } from "./parts.tsx";
 
 /** The forges Runyard reads: each GitHub App and Forgejo account, and the way to manage each. */
+/** What each webhook state means for how fast Runyard sees jobs. */
+const HOOK_TIP: Record<string, string> = {
+  polling:
+    "Runyard re-reads GitHub about every 45 seconds. Set up webhooks on its GitHub page to see queued jobs within seconds.",
+  "webhooks set": "Runyard is ready for webhooks, but GitHub hasn't delivered one yet.",
+  "webhooks delivering":
+    "GitHub tells Runyard about jobs as they're queued, so it sees them within seconds.",
+};
+
 export function ConnectionsPanel() {
   const view = useYard();
   const hooks = useQuery(webhookStatusQuery).data;
@@ -58,7 +67,14 @@ export function ConnectionsPanel() {
               detail={
                 <>
                   {app.name} · {plural(installs, "installation")}
-                  {hook && ` · ${hook}`}
+                  {hook && (
+                    <>
+                      {" · "}
+                      <RowTip content={<TipText what={HOOK_TIP[hook]} />}>
+                        <span tabIndex={0}>{hook}</span>
+                      </RowTip>
+                    </>
+                  )}
                 </>
               }
             />

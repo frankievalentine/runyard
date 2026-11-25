@@ -130,13 +130,17 @@ export function RowTip({
   children,
   side = "top",
   dark = false,
+  disabled = false,
 }: {
   content: ReactNode;
   children: ReactElement;
   side?: "top" | "bottom" | "left" | "right";
   /** Over the dark board panels. */
   dark?: boolean;
+  /** Renders the child alone, without a tooltip. */
+  disabled?: boolean;
 }) {
+  if (disabled) return children;
   return (
     <Tooltip.Root>
       <Tooltip.Trigger delay={300} closeDelay={0} render={children} />

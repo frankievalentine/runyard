@@ -6,6 +6,7 @@ import { addPasskey, passkeysAvailable, suggestedPasskeyName } from "../../lib/p
 import { healthQuery, passkeysQuery, sessionQuery } from "../../lib/queries.ts";
 import { setTheme, useTheme, type Theme } from "../../lib/theme.ts";
 import { Icon } from "../icons.tsx";
+import { RowTip, TipText } from "../InfoTip.tsx";
 import { ErrorText } from "../ui.tsx";
 import { Panel, Row, ttButton } from "../tt.tsx";
 import {
@@ -121,7 +122,14 @@ function Passkeys() {
             title={p.name}
             detail={
               <>
-                {p.rpId} · added {day(p.createdAt)}
+                <RowTip
+                  content={
+                    <TipText what="The address this passkey belongs to. It signs you in only there." />
+                  }
+                >
+                  <span tabIndex={0}>{p.rpId}</span>
+                </RowTip>{" "}
+                · added {day(p.createdAt)}
                 {p.lastUsedAt && ` · used ${day(p.lastUsedAt)}`}
               </>
             }
