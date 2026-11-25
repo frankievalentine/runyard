@@ -127,7 +127,12 @@ function Extras({ view, admin }: { view: YardView; admin: boolean }) {
       }`}
     >
       {unassigned.length > 0 && (
-        <Panel title="Runners not in a pool" meta={unassigned.length}>
+        <Panel
+          id="unassigned"
+          title="Runners not in a pool"
+          meta={unassigned.length}
+          className="scroll-mt-24"
+        >
           {unassigned.map((r) => (
             <Row key={r.key}>
               <span className="text-tt-ink-3">

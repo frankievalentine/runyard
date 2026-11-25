@@ -42,6 +42,10 @@ declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router;
   }
+  interface HistoryState {
+    /** Set by the More tab's links, so the page they open leads back to More (lib/nav.ts). */
+    from?: "more";
+  }
 }
 
 createRoot(document.getElementById("root")!).render(

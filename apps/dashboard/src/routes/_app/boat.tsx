@@ -32,7 +32,7 @@ function BoatPage() {
   return (
     <div>
       <PageHead
-        back={admin ? { to: "/settings/connections", label: "Settings" } : undefined}
+        back={admin ? { to: "/settings/account", hash: "boat", label: "Settings" } : undefined}
         sign={<SIcon name="cloud" size={26} />}
         title={
           <span className="inline-flex items-center gap-2">

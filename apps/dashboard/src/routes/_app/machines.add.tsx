@@ -18,7 +18,7 @@ import {
   TtError,
   WarnIcon,
 } from "../../components/machine/parts.tsx";
-import { Chip, stickyHead, TtButton, ttButton } from "../../components/tt.tsx";
+import { Chip, stickyHead, TtButton, ttButton, useBack } from "../../components/tt.tsx";
 import { yardQuery, useYard } from "../../lib/yard.ts";
 import { timeAgo } from "../../lib/format.ts";
 import { useNow } from "../../lib/now.ts";
@@ -152,15 +152,17 @@ function Ticket({
       tween.revert();
     };
   }, [step]);
+  // Opened from the phone's More tab, it leads back there.
+  const back = useBack({ to: "/machines", label: "Machines" })!;
   return (
     // Desktop: the back link stays at the top, and the ticket sits in the middle of the window.
     <div className="flex flex-1 flex-col font-ui">
       <div className={`${stickyHead} lg:pb-[18px]`}>
         <Link
-          to="/machines"
+          to={back.to}
           className="mb-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-tt-ink-2 hover:text-tt-ink lg:mb-0"
         >
-          <span aria-hidden>‹</span> Machines
+          <span aria-hidden>‹</span> {back.label}
         </Link>
       </div>
       <div className="mx-auto grid w-full max-w-[980px] lg:my-auto overflow-hidden rounded-[14px] bg-tt-card shadow-[0_1px_0_var(--tt-rule),0_24px_50px_-30px_rgba(0,0,0,.4)] lg:grid-cols-[300px_minmax(0,1fr)] lg:rounded-2xl dark:border dark:border-tt-rule">

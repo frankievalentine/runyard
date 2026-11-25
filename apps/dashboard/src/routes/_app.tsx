@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useMediaQuery } from "../lib/media.ts";
+import { NARROW, useMediaQuery } from "../lib/media.ts";
 import { CopyFeedback } from "../components/CopyValue.tsx";
 import { Button } from "../components/form.tsx";
 import { PhoneHeader, TabBar } from "../components/PhoneNav.tsx";
@@ -32,14 +32,19 @@ function Layout() {
   const view = useYard();
   const demo = useQuery(healthQuery).data?.demo === true;
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const hash = useRouterState({ select: (s) => s.location.hash });
+  const from = useRouterState({ select: (s) => s.location.state.from });
   const section = sectionFor(pathname);
   // Below 1024px: the phone layout, with the sections in a tab bar along the bottom.
-  const narrow = useMediaQuery("(max-width: 1023px)");
+  const narrow = useMediaQuery(NARROW);
   const scrollRef = useRef<HTMLElement>(null);
   const check = useCheckNow();
+  // A new page starts at its top, or at the panel its link names (`#unassigned`).
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = 0;
-  }, [pathname]);
+    const target = hash ? document.getElementById(hash) : null;
+    if (target) target.scrollIntoView({ block: "start" });
+    else if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [pathname, hash]);
 
   return (
     <CopyFeedback>
@@ -87,7 +92,7 @@ function Layout() {
             </div>
           </main>
         </div>
-        {narrow && <TabBar view={view} tab={phoneTabFor(pathname)} />}
+        {narrow && <TabBar view={view} tab={phoneTabFor(pathname, from)} />}
       </div>
     </CopyFeedback>
   );
