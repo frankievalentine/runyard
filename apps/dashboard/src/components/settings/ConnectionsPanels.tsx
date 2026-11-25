@@ -5,7 +5,7 @@ import { formatDollars, plural } from "../../lib/format.ts";
 import { checksQuery } from "../../lib/queries.ts";
 import { useYard } from "../../lib/yard.ts";
 import { Elapsed } from "../runners.tsx";
-import { InfoTip } from "../InfoTip.tsx";
+import { InfoTip, TipText } from "../InfoTip.tsx";
 import { ErrorText } from "../ui.tsx";
 import { webhookStatusQuery } from "../Webhooks.tsx";
 import { Chip, Panel, Row } from "../tt.tsx";
@@ -178,15 +178,11 @@ export function HostPanel() {
               <span className="flex min-w-0 flex-1 items-center gap-1">
                 <b className="font-semibold">{c.title}</b>
                 <InfoTip label={c.title}>
-                  <span className="flex flex-col gap-1.5">
-                    <span>{c.about}</span>
-                    <span className="[overflow-wrap:anywhere] opacity-75">{c.detail}</span>
-                    {c.fix && (
-                      <span className="font-semibold">
-                        <WithCode text={c.fix} />
-                      </span>
-                    )}
-                  </span>
+                  <TipText
+                    what={c.about}
+                    details={c.detail}
+                    todo={c.fix && <WithCode text={c.fix} />}
+                  />
                 </InfoTip>
               </span>
               <span

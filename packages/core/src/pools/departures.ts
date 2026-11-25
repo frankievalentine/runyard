@@ -41,7 +41,7 @@ function running(r: RunnerView): Departure {
     job: r.job?.name ?? "Job details unavailable",
     repo: r.job?.repo ?? r.scopeLabel,
     platform: r.onDemand ?? r.name,
-    status: "On its way",
+    status: `Running on ${r.onDemand ?? r.name}.`,
     sign: "On its way",
     tone: "moving",
     runnerKey: r.key,
@@ -63,28 +63,31 @@ function waiting(job: QueuedJobView, view: YardView): Departure {
   let tone: DepartureTone;
   let platform = "";
   if (limits?.atConcurrencyLimit) {
-    status = `Waiting: boat.dev is at ${limits.maxActiveSandboxes} VMs`;
+    status = `Waiting: boat.dev is already running its limit of ${limits.maxActiveSandboxes} VMs.`;
     sign = "Waiting · boat.dev full";
     tone = "held";
   } else if (limits?.atStartLimit) {
-    status = "Waiting for boat.dev's start limit";
+    status = "Waiting: boat.dev has started as many VMs this minute as it allows.";
     sign = "Waiting · boat.dev limit";
     tone = "held";
   } else if (job.onDemand) {
-    status = `Starts on ${job.onDemand}`;
+    status = `${job.onDemand} will start a VM for it.`;
     sign = `Starts on ${job.onDemand}`;
     tone = "neutral";
     platform = job.onDemand;
   } else if (eligible.length === 0) {
     const state = waitingState(job, view);
+    const wanted = job.labels.filter((l) => l.toLowerCase() !== "self-hosted");
     status =
       state === "runnerStarting"
-        ? "Runner starting"
+        ? "A runner for it is starting."
         : state === "runnerOnline"
-          ? "Runner online"
+          ? "A runner for it just came online and should pick it up."
           : state === "poolPaused"
-            ? "Pool paused"
-            : "No matching runner online";
+            ? "Its pool is paused, so no runner will start for it."
+            : wanted.length
+              ? `No online runner has every label it asks for: ${wanted.join(", ")}.`
+              : "No online runner can take it.";
     sign =
       state === "runnerStarting"
         ? "Runner starting"
@@ -95,12 +98,18 @@ function waiting(job: QueuedJobView, view: YardView): Departure {
             : `No ${headline(job.labels)} runner`;
     tone = state === "noRunner" ? "held" : state === "poolPaused" ? "neutral" : "boarding";
   } else if (idle > 0) {
-    status = idle === 1 ? "1 idle runner matches" : `${idle} idle runners match`;
+    status =
+      idle === 1
+        ? "An idle runner can take it; it should start in a moment."
+        : `${idle} idle runners can take it; it should start in a moment.`;
     sign = `Boarding · ${idle} match`;
     tone = "neutral";
     platform = eligible.find((r) => r.activity === "idle")?.name ?? "";
   } else {
-    status = `${eligible.length} matching, all busy`;
+    status =
+      eligible.length === 1
+        ? "The one runner that can take it is busy."
+        : `All ${eligible.length} runners that can take it are busy.`;
     sign = "Waiting · all busy";
     tone = "held";
   }

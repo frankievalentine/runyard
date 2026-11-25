@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { SECTIONS, type SectionKey } from "../lib/nav.ts";
 import { useSidebar } from "../lib/sidebar.ts";
 import { Icon } from "./icons.tsx";
+import { RowTip, TipText } from "./InfoTip.tsx";
 import { Logomark } from "./Logomark.tsx";
 import { ICONS, useWhere } from "./PhoneNav.tsx";
 import { StationClock } from "./StationClock.tsx";
@@ -184,15 +185,25 @@ export function Sidebar({
               </span>
               <span className={fold}>{s.label}</span>
               {s.key === "board" && attention > 0 && (
-                <span
-                  className={`inline-flex items-center justify-center rounded bg-tt-signal font-board leading-none font-bold text-tt-on-signal tabular ${
-                    collapsed
-                      ? "absolute top-1 left-[25px] min-w-4 px-1 py-0.5 text-[10px]"
-                      : "ml-auto min-w-5 px-1.5 py-[3px] text-[12px]"
-                  }`}
+                <RowTip
+                  side="right"
+                  content={
+                    <TipText
+                      what={`${attention} ${attention === 1 ? "problem" : "problems"} with your machines or Tailscale. They're among the Board's Notices.`}
+                    />
+                  }
                 >
-                  {attention}
-                </span>
+                  <span
+                    className={`inline-flex items-center justify-center rounded bg-tt-signal font-board leading-none font-bold text-tt-on-signal tabular ${
+                      collapsed
+                        ? "absolute top-1 left-[25px] min-w-4 px-1 py-0.5 text-[10px]"
+                        : "ml-auto min-w-5 px-1.5 py-[3px] text-[12px]"
+                    }`}
+                  >
+                    <span aria-hidden>{attention}</span>
+                    <span className="sr-only">, {attention} need a look</span>
+                  </span>
+                </RowTip>
               )}
             </Link>
           );

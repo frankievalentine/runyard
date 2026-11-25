@@ -1,5 +1,6 @@
 import { Popover } from "@base-ui/react/popover";
-import type { ReactNode } from "react";
+import { Tooltip } from "@base-ui/react/tooltip";
+import type { ReactElement, ReactNode } from "react";
 
 /*
  * Explanations that stay out of the way until asked for. A Popover rather than a Tooltip: it
@@ -9,21 +10,28 @@ import type { ReactNode } from "react";
 
 // shadcn/ui's tooltip as the baseline: a solid ink bubble with no shadow, 12px text on 16px lines,
 // a small square arrow, and a quick fade and scale from the side it opens on.
-const popup =
-  "z-50 max-w-xs origin-(--transform-origin) rounded-lg bg-tt-inv px-3 py-1.5 text-[12px] leading-4 font-normal tracking-normal normal-case text-tt-on-inv outline-none transition-[opacity,scale] duration-150 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0";
-const arrow =
-  "size-2.5 rotate-45 rounded-[2px] bg-tt-inv data-[side=bottom]:-top-1 data-[side=top]:-bottom-1";
+const shape =
+  "z-50 max-w-xs origin-(--transform-origin) rounded-lg px-3 py-1.5 text-[12px] leading-4 font-normal tracking-normal normal-case outline-none transition-[opacity,scale] duration-150 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0";
+const arrowShape =
+  "size-2.5 rotate-45 rounded-[2px] data-[side=bottom]:-top-1 data-[side=left]:-right-1 data-[side=right]:-left-1 data-[side=top]:-bottom-1";
+// Ink on the light cards; on the dark board panels the board's own light ink, so the bubble stands
+// out from what it's over either way.
+const popup = (dark: boolean) =>
+  `${shape} ${dark ? "bg-tt-flap text-tt-board" : "bg-tt-inv text-tt-on-inv"}`;
+const arrow = (dark: boolean) => `${arrowShape} ${dark ? "bg-tt-flap" : "bg-tt-inv"}`;
 
 function Tip({
   trigger,
   label,
   children,
   triggerClassName,
+  dark = false,
 }: {
   trigger: ReactNode;
   label: string;
   children: ReactNode;
   triggerClassName: string;
+  dark?: boolean;
 }) {
   return (
     <Popover.Root>
@@ -38,8 +46,8 @@ function Tip({
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner side="top" sideOffset={8} collisionPadding={12} className="z-50">
-          <Popover.Popup className={popup}>
-            <Popover.Arrow className={arrow} />
+          <Popover.Popup className={popup(dark)}>
+            <Popover.Arrow className={arrow(dark)} />
             {children}
           </Popover.Popup>
         </Popover.Positioner>
@@ -49,12 +57,22 @@ function Tip({
 }
 
 /** A small (i) that explains the thing beside it. `label` names it for screen readers. */
-export function InfoTip({ label, children }: { label: string; children: ReactNode }) {
+export function InfoTip({
+  label,
+  children,
+  dark = false,
+}: {
+  label: string;
+  children: ReactNode;
+  /** On the dark board panels (Departures, Traffic). */
+  dark?: boolean;
+}) {
   return (
     <Tip
+      dark={dark}
       label={`About ${label}`}
       // 14px beside 13px text, lifted 1px so it centers on the capitals rather than the line box.
-      triggerClassName="inline-grid size-4 flex-none -translate-y-px cursor-default place-items-center rounded-full text-tt-ink-3 hover:text-tt-ink focus-visible:text-tt-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-tt-ink data-[popup-open]:text-tt-ink"
+      triggerClassName={`inline-grid size-4 flex-none -translate-y-px cursor-default place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-1 ${dark ? "text-[#8b9099] hover:text-tt-flap focus-visible:text-tt-flap focus-visible:outline-tt-flap data-[popup-open]:text-tt-flap" : "text-tt-ink-3 hover:text-tt-ink focus-visible:text-tt-ink focus-visible:outline-tt-ink data-[popup-open]:text-tt-ink"}`}
       trigger={
         <svg
           aria-hidden
@@ -90,5 +108,56 @@ export function Clipped({ value, label }: { value: string; label: string }) {
     >
       <span className="font-mono text-[12px] break-all">{value}</span>
     </Tip>
+  );
+}
+
+/**
+ * A tooltip on a row or control that's already a link or button: Departures rows, runner lights,
+ * the Board badge. It opens on hover and keyboard focus only, as a phone's tap already opens the
+ * row; the child keeps being the element it is. Looks like InfoTip's.
+ */
+export function RowTip({
+  content,
+  children,
+  side = "top",
+  dark = false,
+}: {
+  content: ReactNode;
+  children: ReactElement;
+  side?: "top" | "bottom" | "left" | "right";
+  /** Over the dark board panels. */
+  dark?: boolean;
+}) {
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger delay={300} closeDelay={0} render={children} />
+      <Tooltip.Portal>
+        <Tooltip.Positioner side={side} sideOffset={8} collisionPadding={12} className="z-50">
+          <Tooltip.Popup className={popup(dark)}>
+            <Tooltip.Arrow className={arrow(dark)} />
+            {content}
+          </Tooltip.Popup>
+        </Tooltip.Positioner>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
+}
+
+/** A tip's paragraphs: what it is, then the particulars (dimmed), then what to do (bold). */
+export function TipText({
+  what,
+  details,
+  todo,
+}: {
+  what: ReactNode;
+  details?: ReactNode;
+  todo?: ReactNode;
+}) {
+  return (
+    <span className="flex flex-col gap-1.5">
+      <span>{what}</span>
+      {details && <span className="[overflow-wrap:anywhere] opacity-75">{details}</span>}
+      {todo && <span className="font-semibold">{todo}</span>}
+    </span>
   );
 }
