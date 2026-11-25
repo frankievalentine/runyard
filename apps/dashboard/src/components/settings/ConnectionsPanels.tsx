@@ -5,6 +5,7 @@ import { formatDollars, plural } from "../../lib/format.ts";
 import { checksQuery } from "../../lib/queries.ts";
 import { useYard } from "../../lib/yard.ts";
 import { Elapsed } from "../runners.tsx";
+import { Clipped, InfoTip } from "../InfoTip.tsx";
 import { ErrorText } from "../ui.tsx";
 import { webhookStatusQuery } from "../Webhooks.tsx";
 import { Chip, Panel, Row } from "../tt.tsx";
@@ -129,20 +130,32 @@ const DOT = {
 } as const;
 
 /** The control machine's setup checks: ssh, Tailscale, the secret key, disk and the service. */
+/** A check's dot, read aloud. */
+const STATE_WORDS: Record<string, string> = {
+  ok: "Fine",
+  warn: "Needs a look",
+  bad: "Not working",
+  off: "Off",
+};
+
 export function HostPanel() {
   const checks = useQuery(checksQuery);
   const attention = checks.data?.filter((c) => c.state === "warn" || c.state === "bad").length;
   return (
     <Panel
       id="host"
-      title="This machine"
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          This machine
+          <InfoTip label="this machine">
+            The Runyard host itself: what it needs to reach machines and keep running.
+          </InfoTip>
+        </span>
+      }
       meta={
         attention === undefined ? undefined : attention ? `${attention} need attention` : "Ready"
       }
     >
-      <Note className="!pb-1">
-        The Runyard host itself: what it needs to reach machines and keep running.
-      </Note>
       {checks.isPending && <Note>Checking…</Note>}
       {checks.error && <ErrorText className="px-4 pb-3" error={checks.error} />}
       {checks.data && (
@@ -152,15 +165,24 @@ export function HostPanel() {
               <div className="flex items-start gap-3 px-4 py-2">
                 <span
                   role="img"
-                  aria-label={c.state}
+                  aria-label={STATE_WORDS[c.state]}
                   className={`mt-[5px] size-2 flex-none self-start rounded-full ${DOT[c.state]}`}
                 />
                 <span className="min-w-0 flex-1">
-                  <b className="block font-semibold">{c.title}</b>
+                  <span className="flex items-center gap-1">
+                    <b className="font-semibold">{c.title}</b>
+                    {c.about && <InfoTip label={c.title}>{c.about}</InfoTip>}
+                  </span>
+                  {/* A check that's fine shows its value on one line, whole on hover or tap; one
+                      that needs attention keeps all of its words in view. */}
                   <small
-                    className={`block text-[12px] [overflow-wrap:anywhere] ${c.state === "ok" ? "text-tt-ink-3" : "text-tt-ink-2"}`}
+                    className={`block text-[12px] ${c.state === "ok" ? "text-tt-ink-3" : "text-tt-ink-2 [overflow-wrap:anywhere]"}`}
                   >
-                    {c.detail}
+                    {c.state === "ok" && c.detail.length > 44 ? (
+                      <Clipped value={c.detail} label={c.title} />
+                    ) : (
+                      c.detail
+                    )}
                   </small>
                 </span>
               </div>

@@ -9,6 +9,8 @@ export type CheckState = "ok" | "warn" | "bad" | "off";
 export type SetupCheck = {
   id: string;
   title: string;
+  /** What the check is for, whatever its state: Settings shows it in a tooltip. */
+  about: string;
   state: CheckState;
   detail: string;
   fix: string | null;
@@ -19,6 +21,9 @@ export type TailnetState =
   | { kind: "serving"; url: string }
   | { kind: "problem"; message: string }
   | { kind: "starting" };
+
+/** A check before its `about` is added. */
+type Check = Omit<SetupCheck, "about">;
 
 export type CheckDeps = {
   run: CommandRunner;
@@ -33,9 +38,23 @@ export type CheckDeps = {
 const KEY_FILES = ["id_ed25519", "id_ecdsa", "id_rsa"];
 const LOW_DISK_PERCENT = 10;
 
+/** What each check is for, by id. */
+const ABOUT: Record<string, string> = {
+  ssh: "Runyard reaches every machine over SSH with this program, unless the machine uses Tailscale SSH.",
+  sshKey:
+    "The key Runyard signs in to machines with. Each machine authorizes it when you set it up, so Runyard never needs your own keys.",
+  tailnet:
+    "Serves the dashboard at this machine's tailnet address with a certificate from Tailscale. Passkeys, installing the app and the machine setup command need HTTPS.",
+  secretKey:
+    "Encrypts the GitHub, Forgejo and boat.dev credentials Runyard stores. Without it, they can't be read.",
+  disk: "Where Runyard keeps its database, event journal and SSH key.",
+  service:
+    "Whether Runyard keeps running after you close the terminal, and starts again after a restart.",
+};
+
 /** What the control machine needs for Runyard to work, each with a one-line fix. Read-only. */
 export async function setupChecks(deps: CheckDeps): Promise<SetupCheck[]> {
-  return Promise.all([
+  const checks = await Promise.all([
     ssh(deps),
     sshKey(deps),
     tailnet(deps),
@@ -43,9 +62,10 @@ export async function setupChecks(deps: CheckDeps): Promise<SetupCheck[]> {
     disk(deps),
     service(deps),
   ]);
+  return checks.map((c) => ({ ...c, about: ABOUT[c.id] ?? "" }));
 }
 
-async function ssh({ run, programs, platform = process.platform }: CheckDeps): Promise<SetupCheck> {
+async function ssh({ run, programs, platform = process.platform }: CheckDeps): Promise<Check> {
   const res = await run([programs.ssh, "-V"], { timeoutMs: 5_000 });
   const version = (res.stderr || res.stdout).trim().split(/\r?\n/)[0] ?? "";
   if (res.code === 0)
@@ -64,11 +84,7 @@ async function ssh({ run, programs, platform = process.platform }: CheckDeps): P
   };
 }
 
-async function sshKey({
-  dataDir,
-  env = process.env,
-  home = homedir(),
-}: CheckDeps): Promise<SetupCheck> {
+async function sshKey({ dataDir, env = process.env, home = homedir() }: CheckDeps): Promise<Check> {
   const title = "SSH key";
   const key = await runyardPublicKey(runyardSshPaths(dataDir));
   if (key)
@@ -76,7 +92,7 @@ async function sshKey({
       id: "sshKey",
       title,
       state: "ok",
-      detail: `Runyard's own key, ${key.fingerprint}. Machines authorize it when you set them up.`,
+      detail: key.fingerprint,
       fix: null,
     };
   let own: string | null = null;
@@ -94,7 +110,7 @@ async function sshKey({
   };
 }
 
-async function tailnet(deps: CheckDeps): Promise<SetupCheck> {
+async function tailnet(deps: CheckDeps): Promise<Check> {
   const title = "Tailscale HTTPS";
   const state = deps.tailnet();
   switch (state.kind) {
@@ -125,7 +141,7 @@ async function tailnet(deps: CheckDeps): Promise<SetupCheck> {
   }
 }
 
-async function secretKey({ env = process.env, dataDir }: CheckDeps): Promise<SetupCheck> {
+async function secretKey({ env = process.env, dataDir }: CheckDeps): Promise<Check> {
   const title = "Secret key";
   if (env.RUNYARD_SECRET_KEY) {
     return { id: "secretKey", title, state: "ok", detail: "From RUNYARD_SECRET_KEY.", fix: null };
@@ -148,7 +164,7 @@ async function secretKey({ env = process.env, dataDir }: CheckDeps): Promise<Set
   };
 }
 
-async function service({ env = process.env }: CheckDeps): Promise<SetupCheck> {
+async function service({ env = process.env }: CheckDeps): Promise<Check> {
   const title = "Background service";
   if (env.RUNYARD_SERVICE === "1") {
     return {
@@ -168,7 +184,7 @@ async function service({ env = process.env }: CheckDeps): Promise<SetupCheck> {
   };
 }
 
-async function disk({ dataDir }: CheckDeps): Promise<SetupCheck> {
+async function disk({ dataDir }: CheckDeps): Promise<Check> {
   const title = "Data directory";
   try {
     const s = await statfs(dataDir);
