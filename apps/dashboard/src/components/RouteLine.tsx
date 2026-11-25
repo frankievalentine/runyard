@@ -46,7 +46,8 @@ export function RouteLine({
   const line = dark ? "bg-[#343841]" : "bg-tt-rule-2";
   return (
     <ol
-      className={`relative flex justify-between ${compact ? "pb-5" : "pb-7"} ${phoneLabels ? "" : "max-lg:pb-0"}`}
+      // A size container, so each label can be capped to its share of the line (below).
+      className={`relative flex justify-between [container-type:inline-size] ${compact ? "pb-5" : "pb-7"} ${phoneLabels ? "" : "max-lg:pb-0"}`}
     >
       {/* The line runs between the first and last stop's centers. */}
       <span
@@ -72,7 +73,15 @@ export function RouteLine({
               {s.done && !on && <Icon name="check" size={9} />}
             </span>
             <span
-              className={`absolute top-6 w-max max-w-[11rem] text-[12px] leading-tight font-semibold ${
+              // Capped to the room it has, so a tight line wraps a label rather than running it into
+              // the next. An end label hangs off one side of its stop and a middle one is centered, so
+              // an end label's share plus half a middle one's (0.62 + 0.76 / 2) is exactly one gap.
+              style={{
+                maxWidth: `min(11rem, calc(100cqw / ${Math.max(stops.length - 1, 1)} * ${
+                  i === 0 || i === stops.length - 1 ? 0.62 : 0.76
+                }))`,
+              }}
+              className={`absolute top-6 w-max text-[12px] leading-tight font-semibold ${
                 on ? (dark ? "text-tt-flap" : "text-tt-ink") : muted
               } ${i === 0 ? "left-0 text-left" : i === stops.length - 1 ? "right-0 text-right" : "left-1/2 -translate-x-1/2 text-center"} ${
                 !on ? "max-sm:hidden" : ""

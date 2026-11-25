@@ -20,7 +20,10 @@ export function SetupBanner() {
   return (
     <section
       aria-labelledby="setup-title"
-      className="grid grid-cols-1 items-center gap-x-8 gap-y-4 rounded-xl border border-tt-rule bg-tt-card px-5 py-4 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_auto]"
+      // Three across only on wide screens; until then the route gets its own full-width row under
+      // the title and buttons, so its stop labels have room (beside the sidebar at 1280px it had
+      // about 400px for five).
+      className="grid grid-cols-1 items-center gap-x-8 gap-y-4 rounded-xl border border-tt-rule bg-tt-card px-5 py-4 lg:grid-cols-[minmax(0,1fr)_auto] 2xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_auto]"
     >
       <div className="min-w-0">
         <p className="text-[11px] font-bold tracking-[.1em] text-tt-ink-3 uppercase">
@@ -35,7 +38,7 @@ export function SetupBanner() {
             : "Connect your forge, add a machine and create a pool. Nothing changes on a machine until you review it."}
         </p>
       </div>
-      <div className="min-w-0 px-2">
+      <div className="min-w-0 px-2 lg:col-span-2 lg:row-start-2 lg:pt-1 2xl:col-span-1 2xl:row-start-auto 2xl:pt-0">
         <RouteLine stops={stops} current={current} compact phoneLabels={false} />
         {/* Phones name the stop in a sentence; the line has no room for its labels. */}
         <p className="mt-3 text-[13px] text-tt-ink-2 lg:hidden">
