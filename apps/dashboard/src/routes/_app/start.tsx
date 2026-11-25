@@ -278,7 +278,11 @@ function Running() {
           <p className="font-bold">
             This machine still needs: {problems.map((p) => p.title).join(", ")}
           </p>
-          <Link to="/settings/connections" className="mt-1 inline-block font-semibold underline">
+          <Link
+            to="/settings/account"
+            hash="host"
+            className="mt-1 inline-block font-semibold underline"
+          >
             See the fixes
           </Link>
         </div>
