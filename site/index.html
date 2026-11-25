@@ -1,0 +1,961 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Runyard: CI runners on the machines you already own</title>
+    <meta
+      name="description"
+      content="Runyard is a self-hosted dashboard for your CI runners. It runs on one machine, reaches the rest over SSH and Tailscale, and installs GitHub and Forgejo runners on them."
+    />
+    <meta name="theme-color" content="#0b0c0e" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="canonical" href="https://frankievalentine.github.io/runyard/" />
+    <!-- Link previews. The Pages workflow copies og.png, og.mp4 and favicon.svg in from the dashboard's public folder. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Runyard" />
+    <meta property="og:title" content="Runyard" />
+    <meta
+      property="og:description"
+      content="Runyard is a self-hosted dashboard for your CI runners. It runs on one machine, reaches the rest over SSH and Tailscale, and installs GitHub and Forgejo runners on them."
+    />
+    <meta property="og:url" content="https://frankievalentine.github.io/runyard/" />
+    <meta property="og:image" content="https://frankievalentine.github.io/runyard/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="An orange locomotive pulling its train across an evening rail yard."
+    />
+    <meta property="og:video" content="https://frankievalentine.github.io/runyard/og.mp4" />
+    <meta
+      property="og:video:secure_url"
+      content="https://frankievalentine.github.io/runyard/og.mp4"
+    />
+    <meta property="og:video:type" content="video/mp4" />
+    <meta property="og:video:width" content="1200" />
+    <meta property="og:video:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://frankievalentine.github.io/runyard/og.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@500;700&display=swap"
+    />
+    <style>
+      /* The mark sits in the page's top-left corner. One column, at most 1180px wide: seven large flap cards spelling the name, the departure board beneath them, the install actions under that. */
+      :root {
+        color-scheme: dark;
+        --ground: #0b0c0e;
+        --panel: #111317;
+        --cell: #1d1f24;
+        --cell-lo: #16181c;
+        --seam: #050506;
+        --line: #2a2d33;
+        --edge: #3d4149;
+        --ink: #f4f3ec;
+        --dim: #8b9099;
+        --signal: #ffcd1f;
+        --loco: #e8732a;
+        --clear: #6fe39b;
+        --on-signal: #0e1013;
+        --display: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+        --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font-family: var(--display);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      a {
+        color: var(--ink);
+      }
+      a:hover {
+        color: var(--signal);
+      }
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--signal);
+        outline-offset: 3px;
+      }
+
+      .stage {
+        position: relative;
+        box-sizing: border-box;
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding-block: 84px 28px;
+        padding-left: max(clamp(16px, 2.8vw, 40px), env(safe-area-inset-left, 0px));
+        padding-right: max(clamp(16px, 2.8vw, 40px), env(safe-area-inset-right, 0px));
+        overflow: hidden;
+      }
+      .brand {
+        position: absolute;
+        top: 20px;
+        left: max(clamp(16px, 2.8vw, 40px), env(safe-area-inset-left, 0px));
+        display: block;
+        width: 44px;
+        height: 44px;
+      }
+      .brand svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .frame {
+        container-type: inline-size;
+        width: 100%;
+        max-width: 1180px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: clamp(16px, 2.2vw, 26px);
+        --gap: clamp(6px, 0.8cqw, 10px);
+        --c: calc((100cqw - 6 * var(--gap)) / 7);
+        --f: 34px;
+        --fgap: 3px;
+      }
+
+      /* A flap: one face with a seam across it. When its character changes it tips in from flat, the way the earlier departure-board design's flaps do. */
+      .sf {
+        position: relative;
+        flex: none;
+        display: block;
+        background: linear-gradient(var(--cell) 50%, var(--cell-lo) 50%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        text-align: center;
+        color: var(--ink);
+      }
+      .sf::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(50% - 1px);
+        height: 2px;
+        background: var(--seam);
+      }
+      .sf.t-sig,
+      .sf.t-warn {
+        color: var(--signal);
+      }
+      .sf.t-move {
+        color: var(--loco);
+      }
+      .sf.t-ok {
+        color: var(--clear);
+      }
+      .sf.t-dim {
+        color: var(--dim);
+      }
+      .sf.fa {
+        animation: ry-fa 0.5s cubic-bezier(0.3, 0.7, 0.35, 1) both;
+      }
+      .sf.fb {
+        animation: ry-fb 0.5s cubic-bezier(0.3, 0.7, 0.35, 1) both;
+      }
+      @keyframes ry-fa {
+        0% {
+          transform: perspective(var(--p)) rotateX(90deg);
+          filter: brightness(2);
+        }
+        60% {
+          transform: perspective(var(--p)) rotateX(-12deg);
+        }
+        100% {
+          transform: none;
+          filter: none;
+        }
+      }
+      @keyframes ry-fb {
+        0% {
+          transform: perspective(var(--p)) rotateX(90deg);
+          filter: brightness(2);
+        }
+        60% {
+          transform: perspective(var(--p)) rotateX(-12deg);
+        }
+        100% {
+          transform: none;
+          filter: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sf.fa,
+        .sf.fb {
+          animation: none;
+        }
+      }
+
+      .word {
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        gap: var(--gap);
+      }
+      .bg {
+        --p: 800px;
+        width: var(--c);
+        height: calc(var(--c) * 1.26);
+        border-radius: calc(var(--c) * 0.05);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.05),
+          0 18px 40px -22px rgba(0, 0, 0, 0.9);
+        font: 800 calc(var(--c) * 1.04)/calc(var(--c) * 1.26) var(--display);
+        font-stretch: 78%;
+      }
+      .bg::after {
+        top: calc(50% - 1.5px);
+        height: 3px;
+      }
+
+      .main {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        min-width: 0;
+      }
+      .panel {
+        padding: 22px;
+        background: var(--panel);
+        border: 1px solid #23262c;
+        border-radius: 14px;
+        box-shadow:
+          inset 0 2px 0 rgba(255, 255, 255, 0.03),
+          0 40px 80px -40px rgba(0, 0, 0, 0.9);
+        overflow: hidden;
+      }
+      .panel.tight {
+        padding: 12px;
+      }
+      .grid {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: max-content;
+        margin: 0 auto;
+      }
+      .panel.tight .grid {
+        gap: 6px;
+      }
+      .line {
+        display: flex;
+        gap: var(--fgap);
+      }
+      .bf {
+        --p: 200px;
+        width: var(--f);
+        height: calc(var(--f) * 1.5);
+        border-radius: 3px;
+        font: 700 calc(var(--f) * 0.92)/calc(var(--f) * 1.5) var(--mono);
+      }
+      .panel.tight .bf {
+        border-radius: 2px;
+      }
+      .panel.tight .bf::after {
+        top: calc(50% - 0.5px);
+        height: 1px;
+      }
+
+      /* The install command keeps a line to itself. The three buttons share one look and sit on the next line. */
+      .actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .install {
+        box-sizing: border-box;
+        max-width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 6px 6px 16px;
+        background: #15171b;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+      .install code {
+        flex: 1;
+        min-width: 0;
+        padding-block: 6px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font: 500 13px/1.5 var(--mono);
+        color: var(--ink);
+      }
+      .install .prompt {
+        color: #9aa0a9;
+      }
+      .copy {
+        flex: none;
+        min-height: 44px;
+        padding: 0 16px;
+        border: 0;
+        border-radius: 7px;
+        background: var(--signal);
+        color: var(--on-signal);
+        font: 700 13px/1 var(--display);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .buttons {
+        align-self: stretch;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 12px;
+      }
+      .btn {
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 46px;
+        padding: 0 16px;
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        background: #15171b;
+        color: var(--ink);
+        text-decoration: none;
+        font: 700 14px/1 var(--display);
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .btn:hover {
+        border-color: var(--signal);
+        color: var(--ink);
+      }
+      .btn svg {
+        flex: none;
+      }
+      .btn .line-icon {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .btn .octicon {
+        fill: currentColor;
+      }
+      /* The star button keeps GitHub's own look: its mark and label, with its star icon in an attached segment. */
+      .star {
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: stretch;
+        min-height: 46px;
+        border: 1px solid #3d444d;
+        border-radius: 8px;
+        background: #21262d;
+        color: #f0f6fc;
+        text-decoration: none;
+        font: 700 14px/1 var(--display);
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .star:hover {
+        background: #2a313c;
+        color: #f0f6fc;
+      }
+      .star .seg {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 13px;
+      }
+      .star .seg:first-child {
+        flex: 1;
+      }
+      .star .tail {
+        padding: 0 12px;
+        border-left: 1px solid #3d444d;
+        color: #e3b341;
+      }
+      .star svg {
+        flex: none;
+        fill: currentColor;
+      }
+      /* Phone widths: the command box takes the full width with Copy beside it; the agent button takes a full row and the other two share the next one. */
+      @container (max-width: 560px) {
+        .actions {
+          align-items: stretch;
+          gap: 10px;
+        }
+        .buttons {
+          gap: 10px;
+        }
+        .btn,
+        .star {
+          flex: 1 1 auto;
+        }
+        .btn {
+          padding: 0 10px;
+          font-size: 13.5px;
+        }
+        .btn.wide {
+          flex-basis: 100%;
+        }
+        .star {
+          font-size: 13.5px;
+        }
+        .star .seg {
+          padding: 0 9px;
+          gap: 6px;
+        }
+      }
+      .fallback {
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 9rem;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #15171b;
+        color: var(--ink);
+        font: 500 12px/1.5 var(--mono);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage" id="stage">
+      <div class="brand" id="brand" hidden>
+        <svg viewBox="0 0 64 64" role="img" aria-label="Runyard">
+          <defs>
+            <clipPath id="runyard-mark"><rect width="64" height="64" rx="14"></rect></clipPath>
+          </defs>
+          <g clip-path="url(#runyard-mark)">
+            <rect width="64" height="20" fill="#F7D1A6"></rect>
+            <rect y="20" width="64" height="12" fill="#F3B27A"></rect>
+            <rect y="32" width="64" height="10" fill="#EC9461"></rect>
+            <circle cx="44" cy="31" r="8" fill="#FDE7C2" opacity="0.95"></circle>
+            <g fill="#B46A4F" opacity="0.55">
+              <rect x="2" y="34" width="6" height="8"></rect>
+              <rect x="9" y="31" width="4" height="11"></rect>
+              <rect x="14" y="35" width="5" height="7"></rect>
+              <rect x="50" y="33" width="5" height="9"></rect>
+              <rect x="56" y="36" width="8" height="6"></rect>
+            </g>
+            <path
+              d="M21 42 L24 22 L27 42 M21.9 36 H26.1 M22.7 30 H25.3 M23.4 25 H24.6 M21 42 L26.1 36 M27 42 L21.9 36 M21.9 36 L25.3 30 M26.1 36 L22.7 30"
+              stroke="#8A4D3B"
+              stroke-width="0.7"
+              fill="none"
+            ></path>
+            <path
+              d="M8 43 V31 M5 32 H11 M37 43 V31 M34 32 H40 M58 43 V31 M55 32 H61 M8 33 C 20 35, 25 35, 37 33 M37 33 C 47 35, 50 35, 58 33"
+              stroke="#7A4536"
+              stroke-width="0.6"
+              fill="none"
+            ></path>
+            <rect y="42" width="64" height="22" fill="#6A4136"></rect>
+            <rect y="53" width="64" height="11" fill="#5A362E"></rect>
+            <path
+              d="M0 50 H64 M0 59 H64"
+              stroke="#3F2722"
+              stroke-width="2.6"
+              stroke-dasharray="0.8 1.6"
+            ></path>
+            <path
+              d="M0 49.3 H64 M0 50.7 H64 M0 58.3 H64 M0 59.7 H64"
+              stroke="#C98A63"
+              stroke-width="0.5"
+            ></path>
+            <rect x="4" y="51" width="16" height="7" rx="0.8" fill="#A5482F"></rect>
+            <rect x="23" y="52" width="16" height="6" rx="3" fill="#8E3B26"></rect>
+            <rect x="42" y="51" width="18" height="7" rx="0.8" fill="#4E7A58"></rect>
+            <g id="mark-train">
+              <animateTransform
+                attributeName="transform"
+                type="translate"
+                values="-20 0;106 0"
+                dur="10s"
+                repeatCount="indefinite"
+              ></animateTransform>
+              <rect x="-40" y="42" width="19" height="7" rx="3.5" fill="#A4A7A9"></rect>
+              <rect x="-20" y="41" width="19" height="8" rx="0.8" fill="#3F6B4D"></rect>
+              <path
+                d="M-16 41 V49 M-11 41 V49 M-6 41 V49"
+                stroke="#335A40"
+                stroke-width="0.6"
+              ></path>
+              <rect x="0" y="37" width="7" height="12" rx="0.9" fill="#E8732A"></rect>
+              <rect x="6" y="41" width="12" height="8" rx="0.9" fill="#E8732A"></rect>
+              <rect x="1.5" y="38.5" width="4" height="2.6" rx="0.4" fill="#2B2420"></rect>
+              <rect x="0" y="46" width="18" height="1.2" fill="#F3B27A"></rect>
+              <circle cx="17.2" cy="43.5" r="0.8" fill="#FFF1C4"></circle>
+              <g fill="#2A1A17">
+                <circle cx="3" cy="49.4" r="1.1"></circle>
+                <circle cx="7" cy="49.4" r="1.1"></circle>
+                <circle cx="12" cy="49.4" r="1.1"></circle>
+                <circle cx="16" cy="49.4" r="1.1"></circle>
+                <circle cx="-17" cy="49.4" r="1.1"></circle>
+                <circle cx="-4" cy="49.4" r="1.1"></circle>
+                <circle cx="-37" cy="49.4" r="1.1"></circle>
+                <circle cx="-24" cy="49.4" r="1.1"></circle>
+              </g>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <div class="frame" id="frame">
+        <h1 class="word" id="word" aria-label="Runyard"></h1>
+
+        <main class="main" id="main" hidden>
+          <div class="panel" id="panel" role="region" aria-label="Board">
+            <div class="grid" id="grid"></div>
+          </div>
+
+          <div class="actions">
+            <div class="install">
+              <code id="install-cmd"
+                ><span class="prompt">$ </span
+                ><span id="install-text"
+                  >curl -fsSL https://frankievalentine.github.io/<wbr />runyard/<wbr />install.sh |
+                  sh</span
+                ></code
+              >
+              <button type="button" class="copy" id="copy-install">Copy</button>
+            </div>
+            <div class="buttons">
+              <button type="button" class="btn wide" id="copy-agent">
+                <svg
+                  class="line-icon"
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+                  <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg
+                ><span id="agent-label">Setup with your agent</span>
+              </button>
+              <a
+                class="star"
+                href="https://github.com/frankievalentine/runyard"
+                target="_blank"
+                rel="noopener"
+                aria-label="Star frankievalentine/runyard on GitHub"
+                ><span class="seg"
+                  ><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                    <path
+                      d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"
+                    ></path></svg
+                  >Star on GitHub</span
+                ><span class="seg tail" aria-hidden="true"
+                  ><svg width="16" height="16" viewBox="0 0 16 16">
+                    <path
+                      d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Zm0 2.445L6.615 5.5a.75.75 0 0 1-.564.41l-3.097.45 2.24 2.184a.75.75 0 0 1 .216.664l-.528 3.084 2.769-1.456a.75.75 0 0 1 .698 0l2.77 1.456-.53-3.084a.75.75 0 0 1 .216-.664l2.24-2.183-3.096-.45a.75.75 0 0 1-.564-.41L8 2.694Z"
+                    ></path></svg></span
+              ></a>
+              <a
+                class="btn"
+                href="https://github.com/frankievalentine/runyard#readme"
+                target="_blank"
+                rel="noopener"
+                ><svg width="12" height="13" viewBox="0 0 10 11" aria-hidden="true">
+                  <path d="M1 1l8 4.5L1 10z" fill="currentColor"></path></svg
+                >Watch the demo</a
+              >
+            </div>
+          </div>
+          <textarea
+            class="fallback"
+            id="agent-prompt"
+            aria-label="Agent setup prompt"
+            readonly
+            hidden
+          ></textarea>
+        </main>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var $ = function (id) {
+          return document.getElementById(id);
+        };
+        var frame = $("frame"),
+          brand = $("brand"),
+          word = $("word"),
+          main = $("main"),
+          grid = $("grid"),
+          panel = $("panel");
+        var calm = !!(
+          window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        );
+        var NB = " ";
+
+        // The README's "Set it up with an agent" prompt, word for word. Keep the two in step.
+        var AGENT =
+          "Install Runyard on this machine as its host (the dashboard and control plane), following the\nQuick start in https://github.com/frankievalentine/runyard and docs/getting-started.md.\n\n1. Check this is macOS (Apple silicon), Linux (x64 or arm64, glibc) or Windows x64, and that\n   `ssh` is installed. Stop and tell me if it isn't.\n2. Check whether Tailscale is installed and signed in (`tailscale status`). If it isn't, tell me\n   that Runyard works best with it (an HTTPS dashboard, device discovery and one-line machine\n   setup) and ask whether to go on without it. Don't install or sign in to Tailscale yourself.\n3. Install Runyard with the installer for this system:\n   - macOS or Linux: `curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh`\n   - Windows, in PowerShell: `irm https://frankievalentine.github.io/runyard/install.ps1 | iex`\n4. On Linux with Tailscale, ask me before running `sudo tailscale set --operator=$USER`, which\n   lets Runyard fetch its tailnet HTTPS certificate.\n5. Run `runyard service install` to keep it running. If it asks for my sudo password, let me\n   type it myself. Then check `runyard service status` shows it running.\n6. Tell me the dashboard address and the one-time setup code from Runyard's log: on Linux\n   `journalctl -u runyard`, on macOS and Windows `runyard.log` in its data directory (see\n   docs/reference.md#configuration). Remind me to back up `secret.key` from the data directory\n   somewhere other than this machine: it decrypts the credentials Runyard stores.\n\nDon't change my Tailscale settings beyond step 4, open ports, or connect to any other machine.";
+        var INSTALL = "curl -fsSL https://frankievalentine.github.io/runyard/install.sh | sh";
+
+        // The hero's description, cut to short board lines. Each wraps by word when the board is narrower.
+        var ABOUT = [
+          ["A SELF-HOSTED DASHBOARD", ""],
+          ["FOR YOUR CI RUNNERS", "sig"],
+          ["RUNS ON ONE MACHINE", ""],
+          ["SSH + TAILSCALE TO THE REST", ""],
+          ["GITHUB + FORGEJO RUNNERS", "move"],
+        ];
+        var STOPS = [
+          "CONNECT GITHUB OR FORGEJO",
+          "ADD A MACHINE",
+          "CREATE A POOL",
+          "REVIEW AND RUN",
+          "POINT A WORKFLOW AT IT",
+        ];
+        // Sample jobs: minutes from now, job, the dashboard board's status words, the same status cut for a narrow board, tone.
+        var SCHEDULE = [
+          [-7, "LINT", "ON ITS WAY", "ON ITS WAY", "move"],
+          [-5, "E2E", "ON ITS WAY", "ON ITS WAY", "move"],
+          [-3, "BUILD", "NOW BOARDING", "BOARDING", "ok"],
+          [-2, "SHIP", "NO MACOS RUNNER", "NO RUNNER", "warn"],
+          [-1, "IOS", "WAITING", "WAITING", "warn"],
+          [0, "TEST", "RUNNER STARTING", "STARTING", "ok"],
+          [1, "UNIT", "ON ITS WAY", "ON ITS WAY", "move"],
+          [2, "DOCS", "NOW BOARDING", "BOARDING", "ok"],
+        ];
+        var STAY = [9, 14, 9];
+
+        function pad(n) {
+          return String(n).padStart(2, "0");
+        }
+        function hhmm(t) {
+          var d = new Date(t);
+          return pad(d.getHours()) + ":" + pad(d.getMinutes());
+        }
+
+        // A run of flaps. paint() sets each one's character; a flap whose character changed tips in once,
+        // after its own short delay, so a change sweeps along the row. No flap shows anything but its own character.
+        var parity = 0;
+        function makeRun(el, count, kind) {
+          var cells = [],
+            was = [];
+          for (var i = 0; i < count; i++) {
+            var c = document.createElement("span");
+            c.className = "sf " + kind;
+            c.setAttribute("aria-hidden", "true");
+            c.textContent = NB;
+            el.appendChild(c);
+            cells.push(c);
+            was.push(" ");
+          }
+          return function (chars, tones, start, step) {
+            cells.forEach(function (cell, i) {
+              var to = chars[i] || " ",
+                tone = tones && tones[i] ? " t-" + tones[i] : "";
+              var moved = was[i] !== to;
+              was[i] = to;
+              if (moved) cell.textContent = to === " " ? NB : to;
+              cell.style.animationDelay = moved ? start + i * step + "ms" : "";
+              cell.className = "sf " + kind + tone + (moved ? (parity ? " fa" : " fb") : "");
+            });
+          };
+        }
+
+        // The big cards are one such run, spelling the name.
+        var WORD = "RUNYARD";
+        var spell = makeRun(word, WORD.length, "bg");
+
+        // --- The board. Thirty flaps across when they can be large, twenty-two when the screen is narrower. ---
+        var W = 30,
+          R = 5,
+          lines = [],
+          open = false,
+          page = 0,
+          tick = 0,
+          secs = 0,
+          paused = false;
+        function greedy(words, width) {
+          var out = [],
+            cur = "";
+          words.forEach(function (w) {
+            if (cur && (cur + " " + w).length > width) {
+              out.push(cur);
+              cur = w;
+            } else cur = cur ? cur + " " + w : w;
+          });
+          if (cur) out.push(cur);
+          return out;
+        }
+        // Wrap by word, then even the lines out so no line is left with one short word.
+        function wrap(text, width) {
+          var words = text.split(" "),
+            best = greedy(words, width);
+          for (var w = width - 1; w >= Math.ceil(text.length / best.length); w--) {
+            var tryIt = greedy(words, w);
+            if (
+              tryIt.length !== best.length ||
+              tryIt.some(function (l) {
+                return l.length > w;
+              })
+            )
+              break;
+            best = tryIt;
+          }
+          return best;
+        }
+        function aboutRows() {
+          var out = [];
+          ABOUT.forEach(function (a) {
+            wrap(a[0], W).forEach(function (l) {
+              out.push([[l, a[1], W]]);
+            });
+          });
+          return out;
+        }
+        function stopRows() {
+          var out = [],
+            lead = W >= 30 ? 3 : 2;
+          STOPS.forEach(function (t, i) {
+            wrap(t, W - lead).forEach(function (l, k) {
+              out.push([
+                [k ? "" : String(i + 1), "sig", lead],
+                [l, "", W - lead],
+              ]);
+            });
+          });
+          return out;
+        }
+        // The jobs table: a heading row, then one row a job. Time, job and status keep their columns at every width.
+        function jobRows() {
+          var wide = W >= 30,
+            jobCol = wide ? 9 : 6,
+            statusCol = wide ? 15 : 10,
+            now = Date.now();
+          var out = [
+            [
+              ["TIME", "dim", 6],
+              ["JOB", "dim", jobCol],
+              ["STATUS", "dim", statusCol],
+            ],
+          ];
+          for (var r = 0; r < R - 1; r++) {
+            var s = SCHEDULE[(tick + r) % SCHEDULE.length];
+            out.push([
+              [hhmm(now + s[0] * 60000), "", 6],
+              [s[1], "", jobCol],
+              [wide ? s[2] : s[3], s[4], statusCol],
+            ]);
+          }
+          return out;
+        }
+        function rows(p) {
+          return p === 0 ? aboutRows() : p === 2 ? stopRows() : jobRows();
+        }
+        function build() {
+          R = Math.max(5, aboutRows().length, stopRows().length);
+          grid.textContent = "";
+          lines = [];
+          for (var r = 0; r < R; r++) {
+            var el = document.createElement("div");
+            el.className = "line";
+            grid.appendChild(el);
+            lines.push(makeRun(el, W, "bf"));
+          }
+        }
+        function show(wait) {
+          var data = rows(page);
+          parity = 1 - parity;
+          panel.setAttribute(
+            "aria-label",
+            data
+              .map(function (runs) {
+                return runs
+                  .map(function (r) {
+                    return r[0];
+                  })
+                  .filter(Boolean)
+                  .join(" ");
+              })
+              .join(". "),
+          );
+          lines.forEach(function (paint, r) {
+            var chars = [],
+              tones = [];
+            (data[r] || []).forEach(function (run) {
+              var t = run[0].padEnd(run[2]).slice(0, run[2]);
+              for (var k = 0; k < run[2]; k++) {
+                chars.push(t[k]);
+                tones.push(t[k] === " " ? "" : run[1]);
+              }
+            });
+            paint(chars, tones, (wait || 0) + r * 90, 22);
+          });
+        }
+        // Fit the board to its width. Thirty flaps across only when each can be at least 28px wide;
+        // otherwise twenty-two larger ones, so a tablet reads as easily as a desktop.
+        function fit() {
+          var width = frame.clientWidth;
+          var tight = width < 560;
+          panel.classList.toggle("tight", tight);
+          var avail = width - (tight ? 24 : 44) - 2;
+          var gap = tight ? 1 : 3;
+          var cols = (avail - 29 * 3) / 30 >= 28 ? 30 : 22;
+          var size = Math.min(34, Math.floor(((avail - (cols - 1) * gap) / cols) * 10) / 10);
+          frame.style.setProperty("--f", size + "px");
+          frame.style.setProperty("--fgap", gap + "px");
+          if (cols === W && lines.length) return;
+          W = cols;
+          if (open) {
+            build();
+            show(0);
+          }
+        }
+        function beat() {
+          if (!open || paused) return;
+          secs++;
+          if (secs >= STAY[page]) {
+            page = (page + 1) % STAY.length;
+            secs = 0;
+            show(0);
+            return;
+          }
+          if (page === 1 && secs % 4 === 0) {
+            tick++;
+            show(0);
+          }
+        }
+        // Hold the page while someone is reading it with the pointer over the board.
+        panel.addEventListener("pointerenter", function (e) {
+          if (e.pointerType === "mouse") paused = true;
+        });
+        panel.addEventListener("pointerleave", function () {
+          paused = false;
+        });
+
+        // After the name has landed: the mark appears in the corner, the board rises under the cards,
+        // and the cards slide up from the middle of the screen to make room.
+        function reveal() {
+          var before = word.getBoundingClientRect().top;
+          brand.hidden = false;
+          main.hidden = false;
+          fit();
+          open = true;
+          build();
+          show(350);
+          if (calm || !word.animate) return;
+          var delta = before - word.getBoundingClientRect().top;
+          var ease = "cubic-bezier(.2,.8,.2,1)";
+          if (delta)
+            word.animate([{ transform: "translateY(" + delta + "px)" }, { transform: "none" }], {
+              duration: 950,
+              easing: ease,
+            });
+          main.animate(
+            [
+              { opacity: 0, transform: "translateY(28px)" },
+              { opacity: 1, transform: "none" },
+            ],
+            { duration: 700, delay: 200, easing: ease, fill: "backwards" },
+          );
+          brand.animate([{ opacity: 0 }, { opacity: 1 }], {
+            duration: 700,
+            delay: 200,
+            easing: "ease-out",
+            fill: "backwards",
+          });
+        }
+
+        // Copy buttons. If the clipboard is refused, leave the text selected so it can be copied by hand.
+        function flash(label, text, back) {
+          label.textContent = text;
+          clearTimeout(label._t);
+          label._t = setTimeout(function () {
+            label.textContent = back;
+          }, 1900);
+        }
+        function copy(text, ok, refused) {
+          try {
+            navigator.clipboard.writeText(text).then(ok, refused);
+          } catch (e) {
+            refused();
+          }
+        }
+        $("copy-install").addEventListener("click", function () {
+          var btn = this;
+          copy(
+            INSTALL,
+            function () {
+              flash(btn, "Copied", "Copy");
+            },
+            function () {
+              var range = document.createRange();
+              range.selectNodeContents($("install-text"));
+              var sel = window.getSelection();
+              sel.removeAllRanges();
+              sel.addRange(range);
+              flash(btn, "Selected", "Copy");
+            },
+          );
+        });
+        $("copy-agent").addEventListener("click", function () {
+          var label = $("agent-label");
+          copy(
+            AGENT,
+            function () {
+              flash(label, "Prompt copied", "Setup with your agent");
+            },
+            function () {
+              var box = $("agent-prompt");
+              box.value = AGENT;
+              box.hidden = false;
+              box.focus();
+              box.select();
+              flash(label, "Prompt selected below", "Setup with your agent");
+            },
+          );
+        });
+
+        // With reduced motion the mark is a still frame, the train mid-crossing.
+        if (calm) {
+          var train = $("mark-train"),
+            drive = train.querySelector("animateTransform");
+          if (drive) train.removeChild(drive);
+          train.setAttribute("transform", "translate(30 0)");
+        }
+
+        setInterval(beat, 1000);
+        if (window.ResizeObserver)
+          new ResizeObserver(function () {
+            if (open) fit();
+          }).observe(frame);
+        else
+          window.addEventListener("resize", function () {
+            if (open) fit();
+          });
+        function land() {
+          parity = 1 - parity;
+          spell(WORD.split(""), null, 0, 90);
+        }
+        if (calm) {
+          land();
+          reveal();
+          return;
+        }
+        setTimeout(function () {
+          land();
+          setTimeout(reveal, 6 * 90 + 500 + 550);
+        }, 450);
+      })();
+    </script>
+  </body>
+</html>
