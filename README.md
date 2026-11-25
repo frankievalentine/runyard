@@ -1,8 +1,6 @@
-<p align="center">
-  <img src="docs/assets/runyard-mark.svg" width="96" height="96" alt="Runyard logomark: an orange locomotive pulling its train across an evening rail yard">
-</p>
-<h1 align="center">Runyard</h1>
-<p align="center">CI runners for GitHub and Forgejo, on your machines and boat.dev.</p>
+<img src="docs/assets/runyard-mark.svg" width="96" height="96" alt="Runyard logomark: an orange locomotive pulling its train across an evening rail yard">
+
+# Runyard
 
 Runyard is a self-hosted dashboard and control service for CI runners. It runs on one machine,
 reaches your others over SSH and Tailscale, and installs GitHub and Forgejo runners on them
