@@ -7,8 +7,12 @@ import type { ReactNode } from "react";
  * open. Its text is the explanation itself, never the only place an action or a warning is shown.
  */
 
+// shadcn/ui's tooltip as the baseline: a solid ink bubble with no shadow, 12px text on 16px lines,
+// a small square arrow, and a quick fade and scale from the side it opens on.
 const popup =
-  "z-50 max-w-[min(280px,calc(100vw-32px))] rounded-lg bg-tt-inv px-3 py-2 text-[12.5px] leading-snug font-normal tracking-normal normal-case text-tt-on-inv shadow-[0_12px_30px_-10px_rgba(0,0,0,.45)] outline-none transition-opacity duration-100 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0";
+  "z-50 max-w-xs origin-(--transform-origin) rounded-lg bg-tt-inv px-3 py-1.5 text-[12px] leading-4 font-normal tracking-normal normal-case text-tt-on-inv outline-none transition-[opacity,scale] duration-150 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0";
+const arrow =
+  "size-2.5 rotate-45 rounded-[2px] bg-tt-inv data-[side=bottom]:-top-1 data-[side=top]:-bottom-1";
 
 function Tip({
   trigger,
@@ -25,16 +29,19 @@ function Tip({
     <Popover.Root>
       <Popover.Trigger
         openOnHover
-        delay={150}
-        closeDelay={80}
+        delay={100}
+        closeDelay={60}
         aria-label={label}
         className={triggerClassName}
       >
         {trigger}
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Positioner side="top" sideOffset={6} collisionPadding={12}>
-          <Popover.Popup className={popup}>{children}</Popover.Popup>
+        <Popover.Positioner side="top" sideOffset={8} collisionPadding={12} className="z-50">
+          <Popover.Popup className={popup}>
+            <Popover.Arrow className={arrow} />
+            {children}
+          </Popover.Popup>
         </Popover.Positioner>
       </Popover.Portal>
     </Popover.Root>
@@ -46,12 +53,13 @@ export function InfoTip({ label, children }: { label: string; children: ReactNod
   return (
     <Tip
       label={`About ${label}`}
-      triggerClassName="inline-grid size-[18px] flex-none cursor-help place-items-center rounded-full align-middle text-tt-ink-3 hover:text-tt-ink focus-visible:text-tt-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-tt-ink data-[popup-open]:text-tt-ink"
+      // 14px beside 13px text, lifted 1px so it centers on the capitals rather than the line box.
+      triggerClassName="inline-grid size-4 flex-none -translate-y-px cursor-default place-items-center rounded-full text-tt-ink-3 hover:text-tt-ink focus-visible:text-tt-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-tt-ink data-[popup-open]:text-tt-ink"
       trigger={
         <svg
           aria-hidden
-          width="15"
-          height="15"
+          width="14"
+          height="14"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -77,7 +85,7 @@ export function Clipped({ value, label }: { value: string; label: string }) {
   return (
     <Tip
       label={`${label}: ${value}`}
-      triggerClassName="block max-w-full min-w-0 cursor-help truncate text-left underline decoration-tt-rule-2 decoration-dotted underline-offset-2"
+      triggerClassName="block max-w-full min-w-0 cursor-default truncate text-left underline decoration-tt-rule-2 decoration-dotted underline-offset-2"
       trigger={value}
     >
       <span className="font-mono text-[12px] break-all">{value}</span>
